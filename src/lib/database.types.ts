@@ -417,6 +417,35 @@ export type Database = {
           },
         ];
       };
+      creator_offers: {
+        Row: {
+          created_at: string;
+          creator_id: string;
+          offer: Database["public"]["Enums"]["offer_type"];
+          price: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          creator_id: string;
+          offer: Database["public"]["Enums"]["offer_type"];
+          price?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          creator_id?: string;
+          offer?: Database["public"]["Enums"]["offer_type"];
+          price?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "creator_offers_creator_id_fkey";
+            columns: ["creator_id"];
+            isOneToOne: false;
+            referencedRelation: "creators";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       creator_platforms: {
         Row: {
           creator_id: string;
@@ -462,6 +491,7 @@ export type Database = {
       creators: {
         Row: {
           bio: string | null;
+          custom_niche: string | null;
           created_at: string;
           deals_count: number;
           handle: string | null;
@@ -478,6 +508,7 @@ export type Database = {
         };
         Insert: {
           bio?: string | null;
+          custom_niche?: string | null;
           created_at?: string;
           deals_count?: number;
           handle?: string | null;
@@ -494,6 +525,7 @@ export type Database = {
         };
         Update: {
           bio?: string | null;
+          custom_niche?: string | null;
           created_at?: string;
           deals_count?: number;
           handle?: string | null;
@@ -921,6 +953,7 @@ export type Database = {
       contract_status: "draft" | "pending_signature" | "signed" | "terminated";
       deal_format: "video_post" | "ugc" | "story" | "reel" | "live";
       deal_status: "negotiation" | "active" | "completed" | "cancelled";
+      offer_type: "ugc" | "post" | "perf" | "affil" | "story";
       transaction_status:
         | "pending"
         | "in_escrow"
