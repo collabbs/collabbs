@@ -82,3 +82,35 @@ export async function saveCreatorOnboarding(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+export type BrandOnboardingData = {
+  name: string;
+  sector: string;
+  website: string;
+  logoUrl: string | null;
+};
+
+export async function saveBrandOnboarding(
+  data: BrandOnboardingData,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  // La grille de commission se définit par campagne, pas ici.
+  const { error } = await supabase
+    .from("brands")
+    .update({
+      name: data.name,
+      sector: data.sector || null,
+      website: data.website || null,
+      logo_url: data.logoUrl,
+    })
+    .eq("id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

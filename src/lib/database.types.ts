@@ -241,6 +241,10 @@ export type Database = {
           commission_type: Database["public"]["Enums"]["commission_type"] | null;
           commission_unit: string | null;
           commission_value: number | null;
+          commission_nano: number | null;
+          commission_micro: number | null;
+          commission_mid: number | null;
+          commission_macro: number | null;
           created_at: string;
           description: string | null;
           ends_at: string | null;
@@ -263,6 +267,10 @@ export type Database = {
           commission_type?: Database["public"]["Enums"]["commission_type"] | null;
           commission_unit?: string | null;
           commission_value?: number | null;
+          commission_nano?: number | null;
+          commission_micro?: number | null;
+          commission_mid?: number | null;
+          commission_macro?: number | null;
           created_at?: string;
           description?: string | null;
           ends_at?: string | null;
@@ -285,6 +293,10 @@ export type Database = {
           commission_type?: Database["public"]["Enums"]["commission_type"] | null;
           commission_unit?: string | null;
           commission_value?: number | null;
+          commission_nano?: number | null;
+          commission_micro?: number | null;
+          commission_mid?: number | null;
+          commission_macro?: number | null;
           created_at?: string;
           description?: string | null;
           ends_at?: string | null;
@@ -947,7 +959,7 @@ export type Database = {
       application_initiator: "creator" | "brand";
       application_status: "pending" | "accepted" | "rejected" | "withdrawn";
       campaign_status: "draft" | "active" | "ended";
-      campaign_type: "affiliation" | "video" | "hybrid";
+      campaign_type: "affiliation" | "video" | "hybrid" | "performance";
       commission_type: "percentage" | "fixed_per_action" | "recurring";
       content_tone: "authentic" | "educational" | "testimonial";
       contract_status: "draft" | "pending_signature" | "signed" | "terminated";
