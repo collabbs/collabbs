@@ -1,0 +1,226 @@
+// Source de vérité : tables seedées Supabase (8 réseaux, 12 niches).
+export const ALL_PLATFORMS = [
+  "TikTok",
+  "Instagram",
+  "YouTube",
+  "Facebook",
+  "Snapchat",
+  "LinkedIn",
+  "Twitter / X",
+  "Twitch",
+] as const;
+
+export const ALL_NICHES = [
+  "Finance",
+  "Mode",
+  "Beauté",
+  "Tech",
+  "Business",
+  "Lifestyle",
+  "Sport",
+  "Gaming",
+  "Cuisine",
+  "Voyage",
+  "Santé",
+  "Formation",
+] as const;
+
+// Les 5 façons de collaborer sur Collabbs (source : onboarding créateur de la maquette).
+export const OFFER_TYPES = [
+  { id: "ugc", emoji: "🎬", label: "Contenu UGC", short: "UGC", tag: "Paiement fixe" },
+  { id: "post", emoji: "📱", label: "Vidéo postée", short: "Vidéo", tag: "Paiement fixe" },
+  { id: "perf", emoji: "📊", label: "Paiement à la performance", short: "Performance", tag: "Variable" },
+  { id: "affil", emoji: "🔗", label: "Affiliation 1 clic", short: "Affiliation", tag: "Commission" },
+  { id: "story", emoji: "⚡", label: "Story / Mention", short: "Story", tag: "Paiement fixe" },
+] as const;
+
+export type OfferId = (typeof OFFER_TYPES)[number]["id"];
+
+export const OFFER_BY_ID: Record<OfferId, (typeof OFFER_TYPES)[number]> =
+  Object.fromEntries(OFFER_TYPES.map((o) => [o.id, o])) as Record<
+    OfferId,
+    (typeof OFFER_TYPES)[number]
+  >;
+
+export type Creator = {
+  name: string;
+  handle: string;
+  niche: string;
+  platform: string;
+  followers: string;
+  engagement: string;
+  /** Prix de départ d'un format payé au fixe, ou null si le créateur ne fait que perf/affiliation. */
+  priceFrom: number | null;
+  offers: OfferId[];
+  rating: number;
+  photo: string;
+  /** Dégradé affiché en secours si la photo ne charge pas. */
+  tint: string;
+};
+
+const U = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?w=600&h=700&fit=crop&crop=faces&q=80`;
+
+// Données fictives le temps d'avoir de vrais inscrits — remplacées par Supabase ensuite.
+// Couvre les 8 réseaux et les 12 niches.
+export const FEATURED_CREATORS: Creator[] = [
+  {
+    name: "Léa Martin",
+    handle: "leamartin",
+    niche: "Beauté",
+    platform: "Instagram",
+    followers: "94k",
+    engagement: "3.9%",
+    priceFrom: 350,
+    offers: ["ugc", "post", "affil", "story"],
+    rating: 4.9,
+    photo: U("1494790108377-be9c29b29330"),
+    tint: "linear-gradient(135deg,#f9a8d4,#c084fc)",
+  },
+  {
+    name: "Tom Riveira",
+    handle: "tomriveira",
+    niche: "Tech",
+    platform: "YouTube",
+    followers: "210k",
+    engagement: "5.2%",
+    priceFrom: 800,
+    offers: ["post", "perf", "affil"],
+    rating: 4.8,
+    photo: U("1507003211169-0a1dd7228f2d"),
+    tint: "linear-gradient(135deg,#67e8f9,#3b82f6)",
+  },
+  {
+    name: "Inès Bouaziz",
+    handle: "ines.fit",
+    niche: "Sport",
+    platform: "TikTok",
+    followers: "56k",
+    engagement: "6.1%",
+    priceFrom: 220,
+    offers: ["post", "ugc", "affil", "story"],
+    rating: 5.0,
+    photo: U("1438761681033-6461ffad8d80"),
+    tint: "linear-gradient(135deg,#fdba74,#ec4899)",
+  },
+  {
+    name: "Hugo Lefèvre",
+    handle: "hugocooks",
+    niche: "Cuisine",
+    platform: "Facebook",
+    followers: "38k",
+    engagement: "4.4%",
+    priceFrom: 180,
+    offers: ["ugc", "post"],
+    rating: 4.7,
+    photo: U("1500648767791-00dcc994a43e"),
+    tint: "linear-gradient(135deg,#fcd34d,#ef4444)",
+  },
+  {
+    name: "Maya Chen",
+    handle: "maya.style",
+    niche: "Mode",
+    platform: "Instagram",
+    followers: "120k",
+    engagement: "3.5%",
+    priceFrom: 450,
+    offers: ["post", "ugc", "affil", "story"],
+    rating: 4.9,
+    photo: U("1534528741775-53994a69daeb"),
+    tint: "linear-gradient(135deg,#c4b5fd,#e879f9)",
+  },
+  {
+    name: "Karim Slimani",
+    handle: "karimplays",
+    niche: "Gaming",
+    platform: "Twitch",
+    followers: "75k",
+    engagement: "7.0%",
+    priceFrom: 300,
+    offers: ["post", "perf", "affil"],
+    rating: 4.8,
+    photo: U("1506794778202-cad84cf45f1d"),
+    tint: "linear-gradient(135deg,#6ee7b7,#14b8a6)",
+  },
+  {
+    name: "Sarah Lopez",
+    handle: "sarahtravels",
+    niche: "Voyage",
+    platform: "Snapchat",
+    followers: "143k",
+    engagement: "4.1%",
+    priceFrom: 520,
+    offers: ["post", "ugc", "story", "affil"],
+    rating: 4.9,
+    photo: U("1517841905240-472988babdf9"),
+    tint: "linear-gradient(135deg,#7dd3fc,#818cf8)",
+  },
+  {
+    name: "Yanis Berthet",
+    handle: "yanis.life",
+    niche: "Lifestyle",
+    platform: "TikTok",
+    followers: "88k",
+    engagement: "5.5%",
+    priceFrom: 280,
+    offers: ["post", "story", "ugc"],
+    rating: 4.7,
+    photo: U("1539571696357-5a69c17a67c6"),
+    tint: "linear-gradient(135deg,#a5b4fc,#f472b6)",
+  },
+  {
+    name: "Chloé Dubois",
+    handle: "chloe.sante",
+    niche: "Santé",
+    platform: "Twitter / X",
+    followers: "61k",
+    engagement: "4.7%",
+    priceFrom: 240,
+    offers: ["ugc", "post", "affil"],
+    rating: 4.8,
+    photo: U("1488426862026-3ee34a7d66df"),
+    tint: "linear-gradient(135deg,#fda4af,#fb923c)",
+  },
+  {
+    name: "Maxime Roy",
+    handle: "maxime.finance",
+    niche: "Finance",
+    platform: "LinkedIn",
+    followers: "175k",
+    engagement: "2.9%",
+    priceFrom: null,
+    offers: ["affil", "perf"],
+    rating: 4.9,
+    photo: U("1531123897727-8f129e1688ce"),
+    tint: "linear-gradient(135deg,#86efac,#22d3ee)",
+  },
+  {
+    name: "Nadia Khelif",
+    handle: "nadia.biz",
+    niche: "Business",
+    platform: "LinkedIn",
+    followers: "132k",
+    engagement: "3.2%",
+    priceFrom: 600,
+    offers: ["post", "ugc", "affil"],
+    rating: 4.8,
+    photo: U("1573496359142-b8d87734a5a2"),
+    tint: "linear-gradient(135deg,#93c5fd,#a78bfa)",
+  },
+  {
+    name: "Paul Mercier",
+    handle: "paul.learn",
+    niche: "Formation",
+    platform: "YouTube",
+    followers: "98k",
+    engagement: "5.8%",
+    priceFrom: 400,
+    offers: ["post", "perf", "affil"],
+    rating: 4.9,
+    photo: U("1463453091185-61582044d556"),
+    tint: "linear-gradient(135deg,#fca5a5,#f59e0b)",
+  },
+];
+
+export const NICHES = ALL_NICHES;
+export const PLATFORMS = ALL_PLATFORMS;

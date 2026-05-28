@@ -1,0 +1,183 @@
+import Link from "next/link";
+import Nav from "@/components/landing/Nav";
+import Footer from "@/components/landing/Footer";
+import CreatorCard from "@/components/landing/CreatorCard";
+import {
+  FEATURED_CREATORS,
+  NICHES,
+  PLATFORMS,
+  OFFER_TYPES,
+  type OfferId,
+} from "@/components/landing/creators";
+
+export const metadata = {
+  title: "Parcourir les créateurs — Collabbs",
+};
+
+type Params = {
+  q?: string;
+  niche?: string;
+  platform?: string;
+  offre?: string;
+};
+
+function buildHref(params: Params): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) sp.set(key, value);
+  }
+  const s = sp.toString();
+  return s ? `/creators?${s}` : "/creators";
+}
+
+function Chip({
+  label,
+  href,
+  active,
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+        active
+          ? "bg-ink text-white"
+          : "bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+export default async function CreatorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Params>;
+}) {
+  const { q, niche, platform, offre } = await searchParams;
+
+  const query = (q ?? "").trim().toLowerCase();
+  const results = FEATURED_CREATORS.filter((c) => {
+    if (query) {
+      const haystack = `${c.name} ${c.handle} ${c.niche}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    if (niche && c.niche !== niche) return false;
+    if (platform && c.platform !== platform) return false;
+    if (offre && !c.offers.includes(offre as OfferId)) return false;
+    return true;
+  });
+
+  return (
+    <>
+      <Nav />
+      <main className="mx-auto max-w-[1600px] px-6 py-10 sm:px-8 lg:px-12">
+        <h1 className="font-display text-4xl font-black tracking-tight text-ink sm:text-5xl">
+          Trouvez le créateur idéal
+        </h1>
+        <p className="mt-3 max-w-2xl text-zinc-600">
+          Parcourez librement les profils. Payez à la vidéo ou lancez une
+          affiliation en 1 clic — créez un compte pour collaborer.
+        </p>
+
+        {/* Recherche */}
+        <form action="/creators" className="mt-6 flex max-w-xl items-center gap-2">
+          <input
+            type="text"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Rechercher une niche, un créateur…"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Rechercher
+          </button>
+        </form>
+
+        {/* Filtres */}
+        <div className="mt-6 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Offre
+            </span>
+            {OFFER_TYPES.map((o) => (
+              <Chip
+                key={o.id}
+                label={`${o.emoji} ${o.short}`}
+                active={offre === o.id}
+                href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Plateforme
+            </span>
+            {PLATFORMS.map((p) => (
+              <Chip
+                key={p}
+                label={p}
+                active={platform === p}
+                href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Niche
+            </span>
+            {NICHES.map((n) => (
+              <Chip
+                key={n}
+                label={n}
+                active={niche === n}
+                href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Résultats */}
+        <div className="mt-8 flex items-center justify-between">
+          <p className="text-sm text-zinc-500">
+            {results.length} créateur{results.length > 1 ? "s" : ""}
+          </p>
+          {(q || niche || platform || offre) && (
+            <Link href="/creators" className="text-sm font-medium text-brand hover:underline">
+              Réinitialiser les filtres
+            </Link>
+          )}
+        </div>
+
+        {results.length > 0 ? (
+          <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {results.map((c) => (
+              <CreatorCard key={c.handle} creator={c} href="/signup" />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-12 text-center">
+            <p className="font-semibold text-ink">Aucun créateur ne correspond</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Essayez d&apos;élargir vos filtres, ou{" "}
+              <Link href="/creators" className="font-medium text-brand hover:underline">
+                réinitialisez la recherche
+              </Link>
+              .
+            </p>
+          </div>
+        )}
+      </main>
+      <Footer />
+    </>
+  );
+}
