@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Logo from "@/components/landing/Logo";
 import OpportunityCard, { type Opportunity } from "./OpportunityCard";
 
 export const metadata = { title: "Opportunités — Collabbs" };
@@ -61,7 +60,7 @@ export default async function OpportunitiesPage({
         .order("created_at", { ascending: false }),
       supabase.from("niches").select("id, label").order("label"),
       supabase.from("platforms").select("id, label, slug").order("id"),
-      supabase.from("affiliate_links").select("campaign_id, code").eq("creator_id", user.id),
+      supabase.from("affiliate_links").select("id, campaign_id, code").eq("creator_id", user.id),
       supabase.from("applications").select("campaign_id").eq("creator_id", user.id),
     ]);
 
@@ -71,8 +70,29 @@ export default async function OpportunitiesPage({
   const platforms = platformsRes.data ?? [];
   const nicheMap = new Map(niches.map((n) => [n.id, n.label]));
   const platMap = new Map(platforms.map((p) => [p.id, { label: p.label, slug: p.slug }]));
-  const linkMap = new Map((linksRes.data ?? []).map((l) => [l.campaign_id, l.code]));
+  const linkRows = linksRes.data ?? [];
+  const linkMap = new Map(linkRows.map((l) => [l.campaign_id, l.code]));
   const appliedSet = new Set((appsRes.data ?? []).map((a) => a.campaign_id));
+
+  // Clics par campagne (le créateur peut lire les events de ses propres liens)
+  const myEventsRes = await supabase
+    .from("affiliate_events")
+    .select("link_id, type, commission_amount")
+    .in(
+      "link_id",
+      linkRows.map((l) => l.id),
+    );
+  const linkToCampaign = new Map(linkRows.map((l) => [l.id, l.campaign_id]));
+  const clicksByCampaign = new Map<string, number>();
+  const gainsByCampaign = new Map<string, number>();
+  for (const e of myEventsRes.data ?? []) {
+    const cid = linkToCampaign.get(e.link_id);
+    if (!cid) continue;
+    if (e.type === "click")
+      clicksByCampaign.set(cid, (clicksByCampaign.get(cid) ?? 0) + 1);
+    else if (e.type === "sale")
+      gainsByCampaign.set(cid, (gainsByCampaign.get(cid) ?? 0) + (e.commission_amount ?? 0));
+  }
 
   const query = (q ?? "").trim().toLowerCase();
   const results = (campaignsRes.data ?? []).filter((c) => {
@@ -90,23 +110,8 @@ export default async function OpportunitiesPage({
   const anyFilter = Boolean(q || type || niche || platform);
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-100 bg-white">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/dashboard">
-            <Logo />
-          </Link>
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-zinc-500 transition hover:text-ink"
-          >
-            Tableau de bord
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl">
+    <>
+      <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl">
           Opportunités
         </h1>
         <p className="mt-2 text-zinc-600">
@@ -236,12 +241,13 @@ export default async function OpportunitiesPage({
                   opportunity={opportunity}
                   initialStatus={status}
                   initialCode={code}
+                  clicks={clicksByCampaign.get(c.id) ?? 0}
+                  gains={gainsByCampaign.get(c.id) ?? 0}
                 />
               );
             })}
           </div>
         )}
-      </main>
-    </div>
+    </>
   );
 }

@@ -1,0 +1,221 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
+
+// Source de vérité = Supabase. Les démos seedées (is_demo) et les vrais
+// inscrits qui ont complété leur profil apparaissent ici, sans distinction.
+
+const OFFER_ORDER = OFFER_TYPES.map((o) => o.id) as OfferId[];
+
+const TINTS = [
+  "linear-gradient(135deg,#f9a8d4,#c084fc)",
+  "linear-gradient(135deg,#67e8f9,#3b82f6)",
+  "linear-gradient(135deg,#fdba74,#ec4899)",
+  "linear-gradient(135deg,#fcd34d,#ef4444)",
+  "linear-gradient(135deg,#c4b5fd,#e879f9)",
+  "linear-gradient(135deg,#6ee7b7,#14b8a6)",
+  "linear-gradient(135deg,#7dd3fc,#818cf8)",
+  "linear-gradient(135deg,#86efac,#22d3ee)",
+];
+function tintFor(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return TINTS[h % TINTS.length];
+}
+function fmtFollowers(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${Math.round(n / 1000)}k`;
+  return String(n);
+}
+function priceFromRates(
+  rateVideo: number | null,
+  rateMention: number | null,
+  ratePack: number | null,
+): number | null {
+  const rates = [rateVideo, rateMention, ratePack].filter(
+    (v): v is number => v != null && v > 0,
+  );
+  return rates.length ? Math.min(...rates) : null;
+}
+function orderOffers(offers: string[]): OfferId[] {
+  const set = new Set(offers);
+  return OFFER_ORDER.filter((o) => set.has(o));
+}
+
+export type MarketplaceCreator = {
+  name: string;
+  handle: string;
+  niche: string;
+  platform: string;
+  platformSlug: string;
+  followers: string;
+  engagement: string;
+  priceFrom: number | null;
+  offers: OfferId[];
+  rating: number;
+  photo: string;
+  tint: string;
+  niches: string[];
+  platformLabels: string[];
+};
+
+type CreatorRow = {
+  id: string;
+  handle: string | null;
+  rating: number | null;
+  engagement: number | null;
+  rate_video: number | null;
+  rate_mention: number | null;
+  rate_pack: number | null;
+};
+
+async function loadRelations(ids: string[]) {
+  const supabase = await createClient();
+  const [profsRes, cpsRes, cnsRes, cosRes, platRes, nicheRes] = await Promise.all([
+    supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
+    supabase
+      .from("creator_platforms")
+      .select("creator_id, platform_id, subscribers")
+      .in("creator_id", ids),
+    supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
+    supabase.from("creator_offers").select("creator_id, offer").in("creator_id", ids),
+    supabase.from("platforms").select("id, label, slug"),
+    supabase.from("niches").select("id, label"),
+  ]);
+
+  const platMap = new Map(
+    (platRes.data ?? []).map((p) => [p.id, { label: p.label, slug: p.slug }]),
+  );
+  const nicheMap = new Map((nicheRes.data ?? []).map((n) => [n.id, n.label]));
+  const profMap = new Map((profsRes.data ?? []).map((p) => [p.id, p]));
+
+  const platsBy = new Map<string, { label: string; slug: string; subs: number }[]>();
+  for (const cp of cpsRes.data ?? []) {
+    const p = platMap.get(cp.platform_id);
+    if (!p) continue;
+    const arr = platsBy.get(cp.creator_id) ?? [];
+    arr.push({ label: p.label, slug: p.slug, subs: cp.subscribers ?? 0 });
+    platsBy.set(cp.creator_id, arr);
+  }
+  const nichesBy = new Map<string, string[]>();
+  for (const cn of cnsRes.data ?? []) {
+    const label = nicheMap.get(cn.niche_id);
+    if (!label) continue;
+    const arr = nichesBy.get(cn.creator_id) ?? [];
+    arr.push(label);
+    nichesBy.set(cn.creator_id, arr);
+  }
+  const offersBy = new Map<string, string[]>();
+  for (const co of cosRes.data ?? []) {
+    const arr = offersBy.get(co.creator_id) ?? [];
+    arr.push(co.offer);
+    offersBy.set(co.creator_id, arr);
+  }
+
+  return { profMap, platsBy, nichesBy, offersBy };
+}
+
+/** Carte marketplace : créateurs « complets » (photo, réseau, niche, offre). */
+export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
+  const supabase = await createClient();
+  const { data: creators } = await supabase
+    .from("creators")
+    .select("id, handle, rating, engagement, rate_video, rate_mention, rate_pack")
+    .order("rating", { ascending: false });
+  const rows = (creators ?? []) as CreatorRow[];
+  const ids = rows.map((r) => r.id);
+  if (ids.length === 0) return [];
+
+  const { profMap, platsBy, nichesBy, offersBy } = await loadRelations(ids);
+
+  const result: MarketplaceCreator[] = [];
+  for (const c of rows) {
+    const prof = profMap.get(c.id);
+    const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
+    const niches = nichesBy.get(c.id) ?? [];
+    const offers = orderOffers(offersBy.get(c.id) ?? []);
+
+    // Gating : un profil n'apparaît que s'il est complet.
+    if (!c.handle || !prof?.avatar_url || plats.length === 0 || niches.length === 0 || offers.length === 0)
+      continue;
+
+    const main = plats[0];
+    result.push({
+      name: prof.display_name ?? "Créateur",
+      handle: c.handle,
+      niche: niches[0],
+      platform: main.label,
+      platformSlug: main.slug,
+      followers: fmtFollowers(main.subs),
+      engagement: c.engagement != null ? `${c.engagement}%` : "—",
+      priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
+      offers,
+      rating: c.rating ?? 5,
+      photo: prof.avatar_url,
+      tint: tintFor(c.handle),
+      niches,
+      platformLabels: plats.map((p) => p.label),
+    });
+  }
+  return result;
+}
+
+export type CreatorProfileData = {
+  id: string;
+  name: string;
+  handle: string;
+  bio: string | null;
+  rating: number;
+  reviewsCount: number;
+  dealsCount: number;
+  engagement: string;
+  priceFrom: number | null;
+  offers: OfferId[];
+  photo: string | null;
+  tint: string;
+  niches: string[];
+  platforms: { label: string; slug: string; followers: string }[];
+  mainPlatform: { label: string; slug: string } | null;
+  totalFollowers: string;
+};
+
+/** Profil public d'un créateur par son handle. */
+export async function getCreatorByHandle(handle: string): Promise<CreatorProfileData | null> {
+  const supabase = await createClient();
+  const { data: c } = await supabase
+    .from("creators")
+    .select(
+      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack",
+    )
+    .eq("handle", handle)
+    .maybeSingle();
+  if (!c) return null;
+
+  const { profMap, platsBy, nichesBy, offersBy } = await loadRelations([c.id]);
+  const prof = profMap.get(c.id);
+  const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
+  const totalSubs = plats.reduce((sum, p) => sum + p.subs, 0);
+
+  return {
+    id: c.id,
+    name: prof?.display_name ?? "Créateur",
+    handle: c.handle ?? handle,
+    bio: c.bio,
+    rating: c.rating ?? 5,
+    reviewsCount: c.reviews_count ?? 0,
+    dealsCount: c.deals_count ?? 0,
+    engagement: c.engagement != null ? `${c.engagement}%` : "—",
+    priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
+    offers: orderOffers(offersBy.get(c.id) ?? []),
+    photo: prof?.avatar_url ?? null,
+    tint: tintFor(c.handle ?? handle),
+    niches: nichesBy.get(c.id) ?? [],
+    platforms: plats.map((p) => ({
+      label: p.label,
+      slug: p.slug,
+      followers: fmtFollowers(p.subs),
+    })),
+    mainPlatform: plats[0] ? { label: plats[0].label, slug: plats[0].slug } : null,
+    totalFollowers: fmtFollowers(totalSubs),
+  };
+}

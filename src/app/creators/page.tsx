@@ -2,13 +2,8 @@ import Link from "next/link";
 import Nav from "@/components/landing/Nav";
 import Footer from "@/components/landing/Footer";
 import CreatorCard from "@/components/landing/CreatorCard";
-import {
-  FEATURED_CREATORS,
-  NICHES,
-  PLATFORMS,
-  OFFER_TYPES,
-  type OfferId,
-} from "@/components/landing/creators";
+import { NICHES, PLATFORMS, OFFER_TYPES, type OfferId } from "@/components/landing/creators";
+import { getMarketplaceCreators } from "@/lib/creators-data";
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -61,13 +56,14 @@ export default async function CreatorsPage({
   const { q, niche, platform, offre } = await searchParams;
 
   const query = (q ?? "").trim().toLowerCase();
-  const results = FEATURED_CREATORS.filter((c) => {
+  const all = await getMarketplaceCreators();
+  const results = all.filter((c) => {
     if (query) {
-      const haystack = `${c.name} ${c.handle} ${c.niche}`.toLowerCase();
+      const haystack = `${c.name} ${c.handle} ${c.niches.join(" ")}`.toLowerCase();
       if (!haystack.includes(query)) return false;
     }
-    if (niche && c.niche !== niche) return false;
-    if (platform && c.platform !== platform) return false;
+    if (niche && !c.niches.includes(niche)) return false;
+    if (platform && !c.platformLabels.includes(platform)) return false;
     if (offre && !c.offers.includes(offre as OfferId)) return false;
     return true;
   });
@@ -161,7 +157,7 @@ export default async function CreatorsPage({
         {results.length > 0 ? (
           <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {results.map((c) => (
-              <CreatorCard key={c.handle} creator={c} href="/signup" />
+              <CreatorCard key={c.handle} creator={c} href={`/creators/${c.handle}`} />
             ))}
           </div>
         ) : (

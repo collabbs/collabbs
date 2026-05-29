@@ -245,6 +245,7 @@ export type Database = {
           commission_micro: number | null;
           commission_mid: number | null;
           commission_macro: number | null;
+          target_url: string | null;
           created_at: string;
           description: string | null;
           ends_at: string | null;
@@ -271,6 +272,7 @@ export type Database = {
           commission_micro?: number | null;
           commission_mid?: number | null;
           commission_macro?: number | null;
+          target_url?: string | null;
           created_at?: string;
           description?: string | null;
           ends_at?: string | null;
@@ -297,6 +299,7 @@ export type Database = {
           commission_micro?: number | null;
           commission_mid?: number | null;
           commission_macro?: number | null;
+          target_url?: string | null;
           created_at?: string;
           description?: string | null;
           ends_at?: string | null;
@@ -506,8 +509,10 @@ export type Database = {
           custom_niche: string | null;
           created_at: string;
           deals_count: number;
+          engagement: number | null;
           handle: string | null;
           id: string;
+          is_demo: boolean;
           rate_mention: number | null;
           rate_pack: number | null;
           rate_video: number | null;
@@ -523,8 +528,10 @@ export type Database = {
           custom_niche?: string | null;
           created_at?: string;
           deals_count?: number;
+          engagement?: number | null;
           handle?: string | null;
           id: string;
+          is_demo?: boolean;
           rate_mention?: number | null;
           rate_pack?: number | null;
           rate_video?: number | null;
@@ -540,8 +547,10 @@ export type Database = {
           custom_niche?: string | null;
           created_at?: string;
           deals_count?: number;
+          engagement?: number | null;
           handle?: string | null;
           id?: string;
+          is_demo?: boolean;
           rate_mention?: number | null;
           rate_pack?: number | null;
           rate_video?: number | null;

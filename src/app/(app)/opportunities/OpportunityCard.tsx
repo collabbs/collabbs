@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import PlatformIcon from "@/components/PlatformIcon";
 import { activateAffiliateLink, applyToCampaign } from "./actions";
 
@@ -46,10 +47,14 @@ export default function OpportunityCard({
   opportunity,
   initialStatus,
   initialCode,
+  clicks = 0,
+  gains = 0,
 }: {
   opportunity: Opportunity;
   initialStatus: "none" | "linked" | "applied";
   initialCode?: string;
+  clicks?: number;
+  gains?: number;
 }) {
   const o = opportunity;
   const isAffiliation = o.type === "affiliation" || o.type === "hybrid";
@@ -80,7 +85,7 @@ export default function OpportunityCard({
   return (
     <div className="flex h-full flex-col rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        <Link href={`/opportunities/${o.id}`} className="group flex items-center gap-2.5">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-xs font-bold text-zinc-500 ring-1 ring-zinc-100">
             {o.brandLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -95,9 +100,11 @@ export default function OpportunityCard({
           </span>
           <div>
             <p className="text-xs font-medium text-zinc-400">{o.brandName}</p>
-            <h3 className="font-semibold text-ink">{o.name}</h3>
+            <h3 className="font-semibold text-ink transition group-hover:text-brand">
+              {o.name}
+            </h3>
           </div>
-        </div>
+        </Link>
         <span className="shrink-0 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-brand-deep">
           {TYPE_LABEL[o.type]}
         </span>
@@ -143,8 +150,16 @@ export default function OpportunityCard({
             <p className="text-xs font-semibold text-emerald-700">
               ✓ Lien d&apos;affiliation activé
             </p>
-            <p className="mt-1 break-all font-mono text-xs text-zinc-600">
+            <a
+              href={`/r/${code}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 block break-all font-mono text-xs text-brand hover:underline"
+            >
               collabbs.com/r/{code}
+            </a>
+            <p className="mt-1.5 text-xs font-medium text-emerald-700">
+              {clicks} clic{clicks > 1 ? "s" : ""} · {gains}€ gagnés
             </p>
           </div>
         ) : status === "applied" ? (

@@ -1,0 +1,246 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
+
+function StatCards({
+  stats,
+}: {
+  stats: { label: string; value: string }[];
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
+        >
+          <p className="font-display text-2xl font-black text-ink">{s.value}</p>
+          <p className="text-xs text-zinc-500">{s.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NavCard({
+  href,
+  title,
+  desc,
+  primary,
+}: {
+  href: string;
+  title: string;
+  desc: string;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`block rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${
+        primary
+          ? "border-transparent bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-200"
+          : "border-zinc-100 bg-white shadow-sm"
+      }`}
+    >
+      <p className={`font-semibold ${primary ? "text-white" : "text-ink"}`}>{title}</p>
+      <p className={`mt-1 text-sm ${primary ? "text-white/80" : "text-zinc-500"}`}>
+        {desc}
+      </p>
+    </Link>
+  );
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const profileRes = await supabase
+    .from("profiles")
+    .select("display_name, role, avatar_url")
+    .eq("id", user.id)
+    .single();
+  const profile = profileRes.data;
+  const isCreator = profile?.role === "creator";
+
+  // ---------- Données CRÉATEUR ----------
+  let creatorView: {
+    completion: number;
+    listable: boolean;
+    stats: { label: string; value: string }[];
+  } | null = null;
+
+  if (isCreator) {
+    const [creatorRes, nicheC, offerC, platC, linksRes] = await Promise.all([
+      supabase.from("creators").select("handle").eq("id", user.id).maybeSingle(),
+      supabase.from("creator_niches").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
+      supabase.from("creator_offers").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
+      supabase.from("creator_platforms").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
+      supabase.from("affiliate_links").select("id").eq("creator_id", user.id),
+    ]);
+    const linkIds = (linksRes.data ?? []).map((l) => l.id);
+    const eventsRes = await supabase
+      .from("affiliate_events")
+      .select("type, commission_amount")
+      .in("link_id", linkIds);
+    const ev = eventsRes.data ?? [];
+    const clicks = ev.filter((e) => e.type === "click").length;
+    const gains = ev
+      .filter((e) => e.type === "sale")
+      .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
+
+    const completion =
+      (profile?.avatar_url ? 25 : 0) +
+      (creatorRes.data?.handle ? 15 : 0) +
+      ((nicheC.count ?? 0) > 0 ? 20 : 0) +
+      ((platC.count ?? 0) > 0 ? 20 : 0) +
+      ((offerC.count ?? 0) > 0 ? 20 : 0);
+    const listable =
+      Boolean(profile?.avatar_url) && (nicheC.count ?? 0) > 0 && (offerC.count ?? 0) > 0;
+
+    creatorView = {
+      completion,
+      listable,
+      stats: [
+        { label: "Gains", value: eur(gains) },
+        { label: "Clics", value: String(clicks) },
+        { label: "Liens actifs", value: String(linkIds.length) },
+        { label: "Profil", value: `${completion}%` },
+      ],
+    };
+  }
+
+  // ---------- Données MARQUE ----------
+  let brandView: {
+    ready: boolean;
+    stats: { label: string; value: string }[];
+  } | null = null;
+
+  if (!isCreator) {
+    const [brandRes, campaignsRes] = await Promise.all([
+      supabase.from("brands").select("name, logo_url").eq("id", user.id).maybeSingle(),
+      supabase.from("campaigns").select("id, status").eq("brand_id", user.id),
+    ]);
+    const campaigns = campaignsRes.data ?? [];
+    const campaignIds = campaigns.map((c) => c.id);
+    const linksRes = await supabase
+      .from("affiliate_links")
+      .select("id")
+      .in("campaign_id", campaignIds);
+    const linkIds = (linksRes.data ?? []).map((l) => l.id);
+    const eventsRes = await supabase
+      .from("affiliate_events")
+      .select("type, sale_amount, commission_amount")
+      .in("link_id", linkIds);
+    const ev = eventsRes.data ?? [];
+    const clicks = ev.filter((e) => e.type === "click").length;
+    const ca = ev.filter((e) => e.type === "sale").reduce((s, e) => s + (e.sale_amount ?? 0), 0);
+    const commissions = ev
+      .filter((e) => e.type === "sale")
+      .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
+
+    brandView = {
+      ready: Boolean(brandRes.data?.name) && Boolean(brandRes.data?.logo_url),
+      stats: [
+        { label: "CA généré", value: eur(ca) },
+        { label: "Commissions", value: eur(commissions) },
+        { label: "Clics", value: String(clicks) },
+        { label: "Campagnes actives", value: String(campaigns.filter((c) => c.status === "active").length) },
+      ],
+    };
+  }
+
+  return (
+    <>
+      <span className="inline-block rounded-full bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700">
+          {isCreator ? "Créateur 🎨" : "Marque 🏢"}
+        </span>
+        <h1 className="mt-4 font-display text-3xl font-black tracking-tight text-ink">
+          Bienvenue{profile?.display_name ? `, ${profile.display_name}` : ""} 👋
+        </h1>
+
+        {/* Vue d'ensemble */}
+        <div className="mt-8">
+          <StatCards stats={(isCreator ? creatorView : brandView)?.stats ?? []} />
+        </div>
+
+        {/* Nudge profil si incomplet */}
+        {isCreator && creatorView && !creatorView.listable && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              Ton profil est à {creatorView.completion}% — complète-le pour être visible
+              par les marques.
+            </p>
+            <Link
+              href="/onboarding/creator"
+              className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+            >
+              Compléter
+            </Link>
+          </div>
+        )}
+        {!isCreator && brandView && !brandView.ready && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              Complète ton profil marque (logo, secteur) pour inspirer confiance.
+            </p>
+            <Link
+              href="/onboarding/brand"
+              className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+            >
+              Compléter
+            </Link>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          Raccourcis
+        </h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {isCreator ? (
+            <>
+              <NavCard
+                href="/opportunities"
+                title="Opportunités"
+                desc="Trouve des campagnes et active tes liens."
+                primary
+              />
+              <NavCard
+                href="/onboarding/creator"
+                title="Mon profil"
+                desc="Photo, niches, réseaux, offres."
+              />
+            </>
+          ) : (
+            <>
+              <NavCard
+                href="/campaigns/new"
+                title="Créer une campagne"
+                desc="Affiliation, vidéo, performance…"
+                primary
+              />
+              <NavCard
+                href="/campaigns"
+                title="Mes campagnes"
+                desc="Suivi des clics, ventes et commissions."
+              />
+              <NavCard
+                href="/creators"
+                title="Trouver des créateurs"
+                desc="Parcourir la marketplace."
+              />
+            </>
+          )}
+        </div>
+
+        <p className="mt-10 text-sm text-zinc-400">
+          Bientôt : deals, messagerie et paiements.
+        </p>
+    </>
+  );
+}

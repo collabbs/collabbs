@@ -12,6 +12,7 @@ export type CampaignData = {
   requirements: string;
   fixedAmount: number | null;
   perfRate: number | null;
+  targetUrl: string;
   minSubscribers: number | null;
   spots: number | null;
   commission: { nano: number; micro: number; mid: number; macro: number };
@@ -41,6 +42,7 @@ export async function createCampaign(
       requirements: data.requirements || null,
       type: data.type,
       status: "active",
+      target_url: data.targetUrl || null,
       min_subscribers: data.minSubscribers,
       spots: data.spots,
       commission_type: withAffiliation
@@ -75,4 +77,58 @@ export async function createCampaign(
 
   revalidatePath("/dashboard");
   return { ok: true, id: inserted.id };
+}
+
+/** La marque accepte ou refuse une candidature reçue sur l'une de ses campagnes. */
+export async function decideApplication(
+  applicationId: string,
+  decision: "accepted" | "rejected",
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  // On vérifie que la candidature porte bien sur une campagne de cette marque.
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, campaign_id, campaigns(brand_id)")
+    .eq("id", applicationId)
+    .single();
+  if (!app) return { ok: false, error: "Candidature introuvable." };
+  if (app.campaigns?.brand_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+
+  const { error } = await supabase
+    .from("applications")
+    .update({ status: decision })
+    .eq("id", applicationId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/campaigns/${app.campaign_id}`);
+  return { ok: true };
+}
+
+/** La marque met sa campagne en pause (ended) ou la réactive. */
+export async function setCampaignStatus(
+  campaignId: string,
+  status: "active" | "ended",
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { error } = await supabase
+    .from("campaigns")
+    .update({ status })
+    .eq("id", campaignId)
+    .eq("brand_id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/campaigns/${campaignId}`);
+  revalidatePath("/campaigns");
+  return { ok: true };
 }

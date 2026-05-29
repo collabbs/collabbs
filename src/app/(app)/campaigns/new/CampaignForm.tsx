@@ -41,6 +41,7 @@ export default function CampaignForm({
   const [requirements, setRequirements] = useState("");
   const [fixedAmount, setFixedAmount] = useState("");
   const [perfRate, setPerfRate] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
   const [nicheIds, setNicheIds] = useState<number[]>([]);
   const [platformIds, setPlatformIds] = useState<number[]>([]);
   const [minSubs, setMinSubs] = useState("");
@@ -75,6 +76,7 @@ export default function CampaignForm({
       requirements: requirements.trim(),
       fixedAmount: fixedAmount ? Number(fixedAmount) : null,
       perfRate: perfRate ? Number(perfRate) : null,
+      targetUrl: targetUrl.trim(),
       minSubscribers: minSubs ? Number(minSubs) : null,
       spots: spots ? Number(spots) : null,
       commission: {
@@ -300,7 +302,20 @@ export default function CampaignForm({
       {/* Commission (affiliation / hybride) */}
       {withAffiliation && (
         <div className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+          <label className="block text-sm font-medium text-ink">
+            Lien de destination
+          </label>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            Où le lien d&apos;affiliation du créateur enverra le trafic (ta page produit).
+          </p>
+          <input
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            inputMode="url"
+            placeholder="https://ta-marque.com/produit"
+            className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          />
+          <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
             Commission d&apos;affiliation
           </h2>
           <p className="mt-1 text-sm text-zinc-500">

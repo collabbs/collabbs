@@ -27,11 +27,13 @@ export async function activateAffiliateLink(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${campaignId}`);
   return { ok: true, code };
 }
 
 export async function applyToCampaign(
   campaignId: string,
+  message?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient();
   const {
@@ -52,9 +54,11 @@ export async function applyToCampaign(
     creator_id: user.id,
     initiated_by: "creator",
     status: "pending",
+    message: message?.trim() || null,
   });
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${campaignId}`);
   return { ok: true };
 }
