@@ -12,6 +12,7 @@ const CREATOR_NAV: NavItem[] = [
   { href: "/opportunities", label: "Opportunités", icon: "🎯" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
+  { href: "/payouts", label: "Paiements", icon: "💶" },
   { href: "/onboarding/creator", label: "Mon profil", icon: "👤" },
 ];
 

@@ -5,6 +5,9 @@ import Footer from "@/components/landing/Footer";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import { getCreatorByHandle, getCreatorReviews } from "@/lib/creators-data";
+import { createClient } from "@/lib/supabase/server";
+import { createDirectDeal } from "@/app/(app)/deals/actions";
+import { openConversation } from "@/app/(app)/messages/actions";
 
 export async function generateMetadata({
   params,
@@ -27,6 +30,21 @@ export default async function CreatorProfilePage({
 
   const reviews = await getCreatorReviews(c.id);
   const first = c.name.split(" ")[0];
+
+  // Viewer : une marque connectée peut booker / contacter directement.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let isBrandViewer = false;
+  if (user && user.id !== c.id) {
+    const { data: vp } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    isBrandViewer = vp?.role === "brand";
+  }
   const niche = c.niches[0] ?? "lifestyle";
   const bio =
     c.bio ??
@@ -77,12 +95,33 @@ export default async function CreatorProfilePage({
                   )}
                 </div>
 
-                <Link
-                  href="/signup"
-                  className="mt-5 block rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Collaborer avec {first}
-                </Link>
+                {isBrandViewer ? (
+                  <div className="mt-5 space-y-2">
+                    <form action={createDirectDeal.bind(null, c.id)}>
+                      <button
+                        type="submit"
+                        className="block w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90"
+                      >
+                        Proposer une collaboration
+                      </button>
+                    </form>
+                    <form action={openConversation.bind(null, c.id)}>
+                      <button
+                        type="submit"
+                        className="block w-full rounded-full px-5 py-2.5 text-center text-sm font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
+                      >
+                        💬 Contacter {first}
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <Link
+                    href="/signup"
+                    className="mt-5 block rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Collaborer avec {first}
+                  </Link>
+                )}
 
                 <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-zinc-100 pt-4 text-center">
                   <div>

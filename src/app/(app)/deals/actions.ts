@@ -2,9 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { stripe, stripeConfigured } from "@/lib/stripe";
 
 type Result = { ok: boolean; error?: string };
+
+/** Référence de contrat lisible, style CLB-XXXXXX. */
+function contractRef(): string {
+  return "CLB-" + crypto.randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
+}
 
 /**
  * La marque crée un deal à partir d'une candidature acceptée.
@@ -63,6 +71,69 @@ export async function createDealFromApplication(applicationId: string) {
     { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
   ]);
 
+  // Contrat (brouillon) — figé et signé à l'acceptation du créateur.
+  await supabase
+    .from("contracts")
+    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+
+  redirect(`/deals/${deal.id}`);
+}
+
+/**
+ * Booking direct : une marque propose une collaboration à un créateur depuis son
+ * profil (sans passer par une campagne). Crée un deal en "negotiation".
+ */
+export async function createDirectDeal(creatorId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  if (creatorId === user.id) redirect("/creators");
+
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (me?.role !== "brand") redirect("/creators");
+
+  // Évite les doublons : deal direct (sans campagne) déjà ouvert avec ce créateur.
+  const { data: open } = await supabase
+    .from("deals")
+    .select("id")
+    .eq("brand_id", user.id)
+    .eq("creator_id", creatorId)
+    .is("campaign_id", null)
+    .in("status", ["negotiation", "active"])
+    .limit(1);
+  if (open && open.length > 0) redirect(`/deals/${open[0].id}`);
+
+  const { data: deal, error } = await supabase
+    .from("deals")
+    .insert({
+      brand_id: user.id,
+      creator_id: creatorId,
+      campaign_id: null,
+      title: "Collaboration",
+      amount: 0,
+      format: "video_post",
+      quantity: 1,
+      status: "negotiation",
+    })
+    .select("id")
+    .single();
+  if (error || !deal) redirect("/creators");
+
+  await supabase.from("deliverables").insert([
+    { deal_id: deal.id, label: "Contenu livré", position: 1 },
+    { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
+  ]);
+
+  await supabase
+    .from("contracts")
+    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+
   redirect(`/deals/${deal.id}`);
 }
 
@@ -111,7 +182,9 @@ export async function acceptDeal(dealId: string): Promise<Result> {
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("creator_id, status")
+    .select(
+      "creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes",
+    )
     .eq("id", dealId)
     .single();
   if (!deal || deal.creator_id !== user.id) return { ok: false, error: "Action non autorisée." };
@@ -123,6 +196,27 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     .update({ status: "active" })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  // Le contrat est figé (snapshot des termes) et signé par les 2 parties :
+  // la marque a proposé ces termes, le créateur les accepte tels quels.
+  const now = new Date().toISOString();
+  await supabase
+    .from("contracts")
+    .update({
+      status: "signed",
+      brand_signed_at: now,
+      creator_signed_at: now,
+      terms_snapshot: {
+        title: deal.title,
+        amount: deal.amount,
+        format: deal.format,
+        platform_id: deal.platform_id,
+        quantity: deal.quantity,
+        deadline: deal.deadline,
+        brand_notes: deal.brand_notes,
+      },
+    })
+    .eq("deal_id", dealId);
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
@@ -152,6 +246,11 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .update({ status: "cancelled" })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  await supabase
+    .from("contracts")
+    .update({ status: "terminated", terminated_at: new Date().toISOString() })
+    .eq("deal_id", dealId);
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
@@ -225,7 +324,7 @@ export async function completeDeal(dealId: string): Promise<Result> {
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, status")
+    .select("brand_id, creator_id, status")
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
@@ -245,9 +344,261 @@ export async function completeDeal(dealId: string): Promise<Result> {
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
+  // Tente le versement au créateur (non bloquant : si son compte n'est pas prêt,
+  // les fonds restent en séquestre et il pourra déclencher le versement ensuite).
+  await attemptDealPayout(dealId);
+
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
   return { ok: true };
+}
+
+/**
+ * Verse au créateur sa part (net) du séquestre vers son compte connecté.
+ * Utilise `source_transaction` (le paiement de la marque) pour autoriser le
+ * transfert même si le solde disponible n'est pas encore consolidé.
+ * Renvoie le détail pour pouvoir afficher l'erreur réelle au besoin.
+ */
+async function attemptDealPayout(
+  dealId: string,
+): Promise<{ released: boolean; error?: string }> {
+  if (!stripeConfigured) return { released: false, error: "Stripe non configuré." };
+  const admin = createAdminClient();
+
+  const { data: deal } = await admin
+    .from("deals")
+    .select("creator_id, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.status !== "completed")
+    return { released: false, error: "Le deal n'est pas terminé." };
+
+  const { data: tx } = await admin
+    .from("transactions")
+    .select("id, net_amount, status, reference")
+    .eq("deal_id", dealId)
+    .eq("type", "deal_payment")
+    .maybeSingle();
+  if (!tx) return { released: false, error: "Aucun paiement en séquestre." };
+  if (tx.status === "released" || tx.status === "paid") return { released: true };
+  if (tx.status !== "in_escrow")
+    return { released: false, error: "Ce paiement ne peut pas être versé." };
+
+  const { data: cr } = await admin
+    .from("creators")
+    .select("stripe_account_id")
+    .eq("id", deal.creator_id)
+    .single();
+  if (!cr?.stripe_account_id)
+    return { released: false, error: "Le créateur n'a pas encore connecté son compte." };
+
+  try {
+    const account = await stripe.accounts.retrieve(cr.stripe_account_id);
+    if (account.capabilities?.transfers !== "active")
+      return { released: false, error: "Le compte du créateur n'est pas encore prêt à recevoir." };
+
+    let sourceCharge: string | undefined;
+    if (tx.reference) {
+      const pi = await stripe.paymentIntents.retrieve(tx.reference);
+      sourceCharge =
+        typeof pi.latest_charge === "string"
+          ? pi.latest_charge
+          : (pi.latest_charge?.id ?? undefined);
+    }
+
+    await stripe.transfers.create({
+      amount: Math.round(Number(tx.net_amount) * 100),
+      currency: "eur",
+      destination: cr.stripe_account_id,
+      ...(sourceCharge ? { source_transaction: sourceCharge } : {}),
+      metadata: { deal_id: dealId },
+    });
+    await admin
+      .from("transactions")
+      .update({ status: "released", escrow_released_at: new Date().toISOString() })
+      .eq("id", tx.id);
+    return { released: true };
+  } catch (e) {
+    return { released: false, error: e instanceof Error ? e.message : "Échec du versement." };
+  }
+}
+
+/** Déclenche/réessaie le versement de la part créateur (créateur ou marque). */
+export async function releaseDealPayout(dealId: string): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id")
+    .eq("id", dealId)
+    .single();
+  if (!deal || (deal.brand_id !== user.id && deal.creator_id !== user.id))
+    return { ok: false, error: "Action non autorisée." };
+
+  const res = await attemptDealPayout(dealId);
+  if (!res.released) return { ok: false, error: res.error ?? "Versement impossible pour le moment." };
+
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath("/payouts");
+  return { ok: true };
+}
+
+/** Le créateur relie/complète son compte Stripe pour recevoir ses paiements. */
+export async function startCreatorPayoutOnboarding() {
+  if (!stripeConfigured) redirect("/payouts?error=stripe");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (me?.role !== "creator") redirect("/dashboard");
+
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("stripe_account_id")
+    .eq("id", user.id)
+    .single();
+
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const origin = `${proto}://${host}`;
+
+  let linkUrl: string | null = null;
+  let failed = false;
+  try {
+    let accountId = creator?.stripe_account_id ?? null;
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: user.email ?? undefined,
+        metadata: { creator_id: user.id },
+        capabilities: { transfers: { requested: true } },
+      });
+      accountId = account.id;
+      await supabase.from("creators").update({ stripe_account_id: accountId }).eq("id", user.id);
+    }
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${origin}/payouts?refresh=1`,
+      return_url: `${origin}/payouts?done=1`,
+      type: "account_onboarding",
+    });
+    linkUrl = link.url;
+  } catch {
+    failed = true;
+  }
+  if (failed) redirect("/payouts?error=connect");
+  if (linkUrl) redirect(linkUrl);
+  redirect("/payouts");
+}
+
+/** La marque rembourse un paiement encore en séquestre (avant versement). */
+export async function refundDeal(dealId: string): Promise<Result> {
+  if (!stripeConfigured) return { ok: false, error: "Stripe non configuré." };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
+
+  const admin = createAdminClient();
+  const { data: tx } = await admin
+    .from("transactions")
+    .select("id, status, reference")
+    .eq("deal_id", dealId)
+    .eq("type", "deal_payment")
+    .maybeSingle();
+  if (!tx) return { ok: false, error: "Aucun paiement à rembourser." };
+  if (tx.status !== "in_escrow")
+    return { ok: false, error: "Ce paiement ne peut plus être remboursé." };
+  if (!tx.reference) return { ok: false, error: "Référence de paiement introuvable." };
+
+  try {
+    await stripe.refunds.create({ payment_intent: tx.reference });
+  } catch {
+    return { ok: false, error: "Le remboursement Stripe a échoué." };
+  }
+  await admin.from("transactions").update({ status: "refunded" }).eq("id", tx.id);
+
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath("/deals");
+  return { ok: true };
+}
+
+/**
+ * La marque règle le deal : crée une session Stripe Checkout (mode test).
+ * Les fonds vont sur la balance plateforme = séquestre, jusqu'au versement
+ * au créateur à la clôture (versement via Connect — étape suivante).
+ */
+export async function createDealCheckout(dealId: string) {
+  if (!stripeConfigured) redirect(`/deals/${dealId}?stripe=missing`);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id, title, amount, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.brand_id !== user.id) redirect("/deals");
+  if (deal.status !== "active" || !deal.amount || deal.amount <= 0)
+    redirect(`/deals/${dealId}`);
+
+  // Déjà payé ?
+  const { data: tx } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("deal_id", dealId)
+    .eq("type", "deal_payment")
+    .maybeSingle();
+  if (tx) redirect(`/deals/${dealId}`);
+
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const origin = `${proto}://${host}`;
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "eur",
+          product_data: { name: deal.title ?? "Collaboration Collabbs" },
+          unit_amount: deal.amount * 100,
+        },
+      },
+    ],
+    metadata: { deal_id: dealId, brand_id: deal.brand_id, creator_id: deal.creator_id },
+    payment_intent_data: { metadata: { deal_id: dealId } },
+    success_url: `${origin}/api/stripe/return?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/deals/${dealId}?canceled=1`,
+  });
+
+  if (session.url) redirect(session.url);
+  redirect(`/deals/${dealId}`);
 }
 
 /** La marque laisse un avis sur un deal terminé (1 avis par deal). */

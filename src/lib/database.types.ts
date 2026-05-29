@@ -519,6 +519,7 @@ export type Database = {
           rating: number | null;
           reliability_score: number | null;
           reviews_count: number;
+          stripe_account_id: string | null;
           total_earnings: number;
           updated_at: string;
           verified: boolean;
@@ -538,6 +539,7 @@ export type Database = {
           rating?: number | null;
           reliability_score?: number | null;
           reviews_count?: number;
+          stripe_account_id?: string | null;
           total_earnings?: number;
           updated_at?: string;
           verified?: boolean;
@@ -557,6 +559,7 @@ export type Database = {
           rating?: number | null;
           reliability_score?: number | null;
           reviews_count?: number;
+          stripe_account_id?: string | null;
           total_earnings?: number;
           updated_at?: string;
           verified?: boolean;

@@ -10,8 +10,11 @@ import {
   type DealStatus,
 } from "@/lib/deal";
 import { openConversation } from "../../messages/actions";
+import { createDealCheckout } from "../actions";
 import DealControls from "./DealControls";
 import ReviewBox from "./ReviewBox";
+import RefundButton from "./RefundButton";
+import ReceiveButton from "./ReceiveButton";
 
 export async function generateMetadata({
   params,
@@ -49,7 +52,7 @@ export default async function DealDetailPage({
   const role: "brand" | "creator" = deal.brand_id === user.id ? "brand" : "creator";
   const otherId = role === "brand" ? deal.creator_id : deal.brand_id;
 
-  const [otherRes, delsRes, platRes, reviewRes] = await Promise.all([
+  const [otherRes, delsRes, platRes, reviewRes, contractRes, txRes] = await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
@@ -60,16 +63,39 @@ export default async function DealDetailPage({
       ? supabase.from("platforms").select("label").eq("id", deal.platform_id).single()
       : Promise.resolve({ data: null }),
     supabase.from("reviews").select("rating, comment").eq("deal_id", id).maybeSingle(),
+    supabase
+      .from("contracts")
+      .select("reference, status, brand_signed_at, creator_signed_at, terminated_at")
+      .eq("deal_id", id)
+      .maybeSingle(),
+    supabase
+      .from("transactions")
+      .select("status, gross_amount, net_amount, platform_fee")
+      .eq("deal_id", id)
+      .eq("type", "deal_payment")
+      .maybeSingle(),
   ]);
   const other = otherRes.data;
   const deliverables = delsRes.data ?? [];
   const existingReview = reviewRes.data ?? null;
+  const contract = contractRes.data ?? null;
+  const payment = txRes.data ?? null;
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
   const b = dealBreakdown(deal.amount);
 
   const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—";
+  const fmtDateTime = (d: string | null) =>
+    d
+      ? new Date(d).toLocaleString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
 
   return (
     <>
@@ -138,6 +164,60 @@ export default async function DealDetailPage({
             )}
           </div>
 
+          {/* Contrat */}
+          {contract && (
+            <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-lg font-black text-ink">
+                  Contrat{" "}
+                  <span className="font-mono text-sm font-medium text-zinc-400">
+                    {contract.reference}
+                  </span>
+                </h2>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    contract.status === "signed"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : contract.status === "terminated"
+                        ? "bg-zinc-100 text-zinc-500"
+                        : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {contract.status === "signed"
+                    ? "Signé"
+                    : contract.status === "terminated"
+                      ? "Résilié"
+                      : "En attente de signature"}
+                </span>
+              </div>
+
+              {contract.status === "signed" ? (
+                <div className="mt-3 space-y-1.5 text-sm text-zinc-600">
+                  <p className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    Marque — signé le {fmtDateTime(contract.brand_signed_at)}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    Créateur — signé le {fmtDateTime(contract.creator_signed_at)}
+                  </p>
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Les termes ci-dessus ont été figés au moment de la signature et engagent les deux parties.
+                  </p>
+                </div>
+              ) : contract.status === "terminated" ? (
+                <p className="mt-2 text-sm text-zinc-500">
+                  Contrat résilié le {fmtDateTime(contract.terminated_at)}.
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-500">
+                  Le contrat sera <strong className="text-ink">figé et signé automatiquement</strong> dès
+                  que le créateur accepte les termes proposés.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Contrôles (client) : livrables + actions */}
           <DealControls
             dealId={deal.id}
@@ -183,11 +263,50 @@ export default async function DealDetailPage({
               </div>
             </dl>
 
-            <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
-              {status === "completed"
-                ? "✅ Collaboration terminée. Le versement sécurisé arrive avec l'intégration des paiements (Stripe)."
-                : "🔒 Le paiement sera mis sous séquestre à l'acceptation et versé à la clôture (Stripe — bientôt)."}
-            </div>
+            {payment && (payment.status === "released" || payment.status === "paid") ? (
+              <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
+                ✅ Versé au créateur — <strong>{eur(payment.net_amount)}</strong>.
+              </div>
+            ) : payment && payment.status === "refunded" ? (
+              <div className="mt-4 rounded-xl bg-zinc-100 p-3 text-xs text-zinc-500">
+                ↩️ Paiement remboursé à la marque.
+              </div>
+            ) : payment && payment.status === "in_escrow" ? (
+              <div className="mt-4 space-y-2">
+                <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
+                  🔒 Réglé — <strong>{eur(payment.gross_amount)}</strong> en séquestre.
+                  {status === "completed"
+                    ? role === "creator"
+                      ? " Connecte ton compte pour recevoir ta part."
+                      : " Versement au créateur en attente (il doit connecter son compte)."
+                    : " Les fonds seront versés au créateur à la clôture."}
+                </div>
+                {status === "completed" && role === "creator" && (
+                  <ReceiveButton dealId={deal.id} amountLabel={eur(payment.net_amount)} />
+                )}
+                {role === "brand" && <RefundButton dealId={deal.id} />}
+              </div>
+            ) : role === "brand" && status === "active" && deal.amount > 0 ? (
+              <form action={createDealCheckout.bind(null, deal.id)} className="mt-4">
+                <button
+                  type="submit"
+                  className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Régler {eur(deal.amount)} (séquestre)
+                </button>
+                <p className="mt-1.5 text-center text-[11px] text-zinc-400">
+                  Paiement sécurisé Stripe · test (carte 4242 4242 4242 4242)
+                </p>
+              </form>
+            ) : (
+              <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
+                {status === "negotiation"
+                  ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
+                  : status === "active"
+                    ? "🔒 En attente du règlement de la marque (mise en séquestre)."
+                    : "Aucun paiement enregistré pour ce deal."}
+              </div>
+            )}
 
             <form action={openConversation.bind(null, otherId)} className="mt-4">
               <button
