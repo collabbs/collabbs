@@ -11,6 +11,7 @@ import {
 } from "@/lib/campaign";
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
+import { createDealFromApplication } from "../../deals/actions";
 
 export async function generateMetadata({
   params,
@@ -54,7 +55,7 @@ export default async function CampaignManagePage({
   const type = c.type as CampaignType;
   const isAffiliation = type === "affiliation" || type === "hybrid";
 
-  const [nichesRes, platformsRes, appsRes, linksRes] = await Promise.all([
+  const [nichesRes, platformsRes, appsRes, linksRes, dealsRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
     supabase.from("platforms").select("id, label, slug"),
     supabase
@@ -66,7 +67,9 @@ export default async function CampaignManagePage({
       .from("affiliate_links")
       .select("id, creator_id, code, created_at")
       .eq("campaign_id", id),
+    supabase.from("deals").select("id, creator_id").eq("campaign_id", id),
   ]);
+  const dealByCreator = new Map((dealsRes.data ?? []).map((d) => [d.creator_id, d.id]));
 
   const nicheMap = new Map((nichesRes.data ?? []).map((n) => [n.id, n.label]));
   const platMap = new Map(
@@ -333,6 +336,24 @@ export default async function CampaignManagePage({
                           💬 Contacter
                         </button>
                       </form>
+                      {a.status === "accepted" &&
+                        (dealByCreator.has(a.creator_id) ? (
+                          <Link
+                            href={`/deals/${dealByCreator.get(a.creator_id)}`}
+                            className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                          >
+                            🤝 Voir le deal
+                          </Link>
+                        ) : (
+                          <form action={createDealFromApplication.bind(null, a.id)}>
+                            <button
+                              type="submit"
+                              className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                            >
+                              🤝 Créer le deal
+                            </button>
+                          </form>
+                        ))}
                       <ApplicationDecision applicationId={a.id} initialStatus={a.status} />
                     </div>
                   </div>

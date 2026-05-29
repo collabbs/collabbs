@@ -4,12 +4,7 @@ import Nav from "@/components/landing/Nav";
 import Footer from "@/components/landing/Footer";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
-import { getCreatorByHandle } from "@/lib/creators-data";
-
-const SAMPLE_REVIEWS = [
-  { brand: "Sephora", rating: 5, text: "Contenu livré dans les temps, très pro. On retravaillera avec plaisir." },
-  { brand: "Lululemon", rating: 5, text: "Super engagement sur la vidéo, exactement le ton qu'on cherchait." },
-];
+import { getCreatorByHandle, getCreatorReviews } from "@/lib/creators-data";
 
 export async function generateMetadata({
   params,
@@ -30,6 +25,7 @@ export default async function CreatorProfilePage({
   const c = await getCreatorByHandle(handle);
   if (!c) notFound();
 
+  const reviews = await getCreatorReviews(c.id);
   const first = c.name.split(" ")[0];
   const niche = c.niches[0] ?? "lifestyle";
   const bio =
@@ -165,21 +161,40 @@ export default async function CreatorProfilePage({
             </section>
 
             <section className="mt-8">
-              <h2 className="font-display text-xl font-black text-ink">Avis des marques</h2>
-              <div className="mt-4 space-y-3">
-                {SAMPLE_REVIEWS.map((r) => (
-                  <div
-                    key={r.brand}
-                    className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-ink">{r.brand}</p>
-                      <span className="text-amber-400">{"★".repeat(r.rating)}</span>
+              <h2 className="font-display text-xl font-black text-ink">
+                Avis des marques{" "}
+                {reviews.length > 0 && (
+                  <span className="text-zinc-400">({reviews.length})</span>
+                )}
+              </h2>
+              {reviews.length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center">
+                  <p className="text-sm font-medium text-ink">Pas encore d&apos;avis</p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Les avis des marques apparaîtront ici après une première collaboration.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {reviews.map((r, i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-ink">{r.brandName}</p>
+                        <span className="text-amber-400">
+                          {"★".repeat(r.rating)}
+                          <span className="text-zinc-200">{"★".repeat(5 - r.rating)}</span>
+                        </span>
+                      </div>
+                      {r.comment && (
+                        <p className="mt-1 text-sm text-zinc-600">« {r.comment} »</p>
+                      )}
                     </div>
-                    <p className="mt-1 text-sm text-zinc-600">« {r.text} »</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         </div>

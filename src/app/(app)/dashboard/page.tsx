@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { dealBreakdown } from "@/lib/deal";
 
 const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
@@ -75,12 +76,13 @@ export default async function DashboardPage() {
   } | null = null;
 
   if (isCreator) {
-    const [creatorRes, nicheC, offerC, platC, linksRes] = await Promise.all([
-      supabase.from("creators").select("handle").eq("id", user.id).maybeSingle(),
+    const [creatorRes, nicheC, offerC, platC, linksRes, dealsRes] = await Promise.all([
+      supabase.from("creators").select("handle, rating, reviews_count").eq("id", user.id).maybeSingle(),
       supabase.from("creator_niches").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
       supabase.from("creator_offers").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
       supabase.from("creator_platforms").select("*", { count: "exact", head: true }).eq("creator_id", user.id),
       supabase.from("affiliate_links").select("id").eq("creator_id", user.id),
+      supabase.from("deals").select("status, amount").eq("creator_id", user.id),
     ]);
     const linkIds = (linksRes.data ?? []).map((l) => l.id);
     const eventsRes = await supabase
@@ -92,6 +94,14 @@ export default async function DashboardPage() {
     const gains = ev
       .filter((e) => e.type === "sale")
       .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
+
+    const deals = dealsRes.data ?? [];
+    const activeDeals = deals.filter((d) => d.status === "active").length;
+    const dealNet = deals
+      .filter((d) => d.status === "completed")
+      .reduce((s, d) => s + dealBreakdown(d.amount).net, 0);
+    const rating = creatorRes.data?.rating ?? null;
+    const reviewsCount = creatorRes.data?.reviews_count ?? 0;
 
     const completion =
       (profile?.avatar_url ? 25 : 0) +
@@ -106,9 +116,11 @@ export default async function DashboardPage() {
       completion,
       listable,
       stats: [
-        { label: "Gains", value: eur(gains) },
+        { label: "Revenus", value: eur(gains + dealNet) },
+        { label: "Deals actifs", value: String(activeDeals) },
+        { label: "Gains affiliation", value: eur(gains) },
         { label: "Clics", value: String(clicks) },
-        { label: "Liens actifs", value: String(linkIds.length) },
+        { label: "Note", value: rating ? `★ ${rating} (${reviewsCount})` : "—" },
         { label: "Profil", value: `${completion}%` },
       ],
     };
@@ -121,9 +133,10 @@ export default async function DashboardPage() {
   } | null = null;
 
   if (!isCreator) {
-    const [brandRes, campaignsRes] = await Promise.all([
+    const [brandRes, campaignsRes, dealsRes] = await Promise.all([
       supabase.from("brands").select("name, logo_url").eq("id", user.id).maybeSingle(),
       supabase.from("campaigns").select("id, status").eq("brand_id", user.id),
+      supabase.from("deals").select("status, amount").eq("brand_id", user.id),
     ]);
     const campaigns = campaignsRes.data ?? [];
     const campaignIds = campaigns.map((c) => c.id);
@@ -143,6 +156,12 @@ export default async function DashboardPage() {
       .filter((e) => e.type === "sale")
       .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
 
+    const deals = dealsRes.data ?? [];
+    const activeDeals = deals.filter((d) => d.status === "active").length;
+    const invested = deals
+      .filter((d) => d.status === "completed")
+      .reduce((s, d) => s + d.amount, 0);
+
     brandView = {
       ready: Boolean(brandRes.data?.name) && Boolean(brandRes.data?.logo_url),
       stats: [
@@ -150,6 +169,8 @@ export default async function DashboardPage() {
         { label: "Commissions", value: eur(commissions) },
         { label: "Clics", value: String(clicks) },
         { label: "Campagnes actives", value: String(campaigns.filter((c) => c.status === "active").length) },
+        { label: "Deals actifs", value: String(activeDeals) },
+        { label: "Investi (deals)", value: eur(invested) },
       ],
     };
   }
@@ -211,6 +232,16 @@ export default async function DashboardPage() {
                 primary
               />
               <NavCard
+                href="/deals"
+                title="Collaborations"
+                desc="Tes deals : livrables, clôture, paiements."
+              />
+              <NavCard
+                href="/messages"
+                title="Messages"
+                desc="Échange avec les marques."
+              />
+              <NavCard
                 href="/onboarding/creator"
                 title="Mon profil"
                 desc="Photo, niches, réseaux, offres."
@@ -230,16 +261,26 @@ export default async function DashboardPage() {
                 desc="Suivi des clics, ventes et commissions."
               />
               <NavCard
+                href="/deals"
+                title="Collaborations"
+                desc="Deals en cours, livrables et avis."
+              />
+              <NavCard
                 href="/creators"
                 title="Trouver des créateurs"
                 desc="Parcourir la marketplace."
+              />
+              <NavCard
+                href="/messages"
+                title="Messages"
+                desc="Échange avec les créateurs."
               />
             </>
           )}
         </div>
 
         <p className="mt-10 text-sm text-zinc-400">
-          Bientôt : deals, messagerie et paiements.
+          Bientôt : paiements sécurisés (Stripe).
         </p>
     </>
   );

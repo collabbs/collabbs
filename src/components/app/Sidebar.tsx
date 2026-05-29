@@ -10,6 +10,7 @@ type NavItem = { href: string; label: string; icon: string };
 const CREATOR_NAV: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: "🏠" },
   { href: "/opportunities", label: "Opportunités", icon: "🎯" },
+  { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/onboarding/creator", label: "Mon profil", icon: "👤" },
 ];
@@ -19,6 +20,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/campaigns", label: "Mes campagnes", icon: "📊" },
   { href: "/campaigns/new", label: "Créer une campagne", icon: "➕" },
   { href: "/creators", label: "Trouver des créateurs", icon: "🔍" },
+  { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/onboarding/brand", label: "Mon profil", icon: "🏢" },
 ];
@@ -27,10 +29,12 @@ export default function Sidebar({
   role,
   name,
   avatarUrl,
+  badges = {},
 }: {
   role: "creator" | "brand";
   name: string;
   avatarUrl: string | null;
+  badges?: Record<string, number>;
 }) {
   const pathname = usePathname();
   const items = role === "creator" ? CREATOR_NAV : BRAND_NAV;
@@ -43,6 +47,7 @@ export default function Sidebar({
     <>
       {items.map((it) => {
         const active = isActive(it.href);
+        const badge = badges[it.href] ?? 0;
         return (
           <Link
             key={it.href}
@@ -55,6 +60,15 @@ export default function Sidebar({
           >
             <span className="text-base">{it.icon}</span>
             <span className="whitespace-nowrap">{it.label}</span>
+            {badge > 0 && (
+              <span
+                className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+                  active ? "bg-white/25 text-white" : "bg-brand text-white"
+                }`}
+              >
+                {badge > 9 ? "9+" : badge}
+              </span>
+            )}
           </Link>
         );
       })}

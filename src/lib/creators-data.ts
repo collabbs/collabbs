@@ -219,3 +219,36 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     totalFollowers: fmtFollowers(totalSubs),
   };
 }
+
+export type CreatorReview = {
+  brandName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+};
+
+/** Avis publics reçus par un créateur (avec le nom de la marque). */
+export async function getCreatorReviews(creatorId: string): Promise<CreatorReview[]> {
+  const supabase = await createClient();
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("brand_id, rating, comment, created_at")
+    .eq("creator_id", creatorId)
+    .order("created_at", { ascending: false });
+  const rows = reviews ?? [];
+  if (rows.length === 0) return [];
+
+  const brandIds = [...new Set(rows.map((r) => r.brand_id))];
+  const { data: brands } = await supabase
+    .from("brands")
+    .select("id, name")
+    .in("id", brandIds);
+  const nameMap = new Map((brands ?? []).map((b) => [b.id, b.name]));
+
+  return rows.map((r) => ({
+    brandName: nameMap.get(r.brand_id) ?? "Marque",
+    rating: r.rating,
+    comment: r.comment,
+    createdAt: r.created_at,
+  }));
+}
