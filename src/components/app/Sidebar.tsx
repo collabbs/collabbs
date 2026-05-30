@@ -23,6 +23,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/creators", label: "Trouver des créateurs", icon: "🔍" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
+  { href: "/tracking", label: "Tracking", icon: "🔗" },
   { href: "/onboarding/brand", label: "Mon profil", icon: "🏢" },
 ];
 
@@ -31,11 +32,14 @@ export default function Sidebar({
   name,
   avatarUrl,
   badges = {},
+  attention = [],
 }: {
   role: "creator" | "brand";
   name: string;
   avatarUrl: string | null;
   badges?: Record<string, number>;
+  /** Hrefs avec un point ambré « à attention » (ex. tracking pas vérifié). */
+  attention?: string[];
 }) {
   const pathname = usePathname();
   const items = role === "creator" ? CREATOR_NAV : BRAND_NAV;
@@ -49,6 +53,7 @@ export default function Sidebar({
       {items.map((it) => {
         const active = isActive(it.href);
         const badge = badges[it.href] ?? 0;
+        const needsAttention = attention.includes(it.href);
         return (
           <Link
             key={it.href}
@@ -61,6 +66,14 @@ export default function Sidebar({
           >
             <span className="text-base">{it.icon}</span>
             <span className="whitespace-nowrap">{it.label}</span>
+            {needsAttention && badge === 0 && (
+              <span
+                aria-label="À configurer"
+                className={`ml-auto h-2 w-2 rounded-full ${
+                  active ? "bg-amber-200" : "bg-amber-500"
+                }`}
+              />
+            )}
             {badge > 0 && (
               <span
                 className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${

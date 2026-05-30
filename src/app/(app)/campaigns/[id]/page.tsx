@@ -13,7 +13,7 @@ import {
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
-import PostbackPanel from "./PostbackPanel";
+import TrackingStatusCard from "./TrackingStatusCard";
 
 export async function generateMetadata({
   params,
@@ -70,7 +70,11 @@ export default async function CampaignManagePage({
       .select("id, creator_id, code, created_at")
       .eq("campaign_id", id),
     supabase.from("deals").select("id, creator_id").eq("campaign_id", id),
-    supabase.from("brands").select("postback_secret, website").eq("id", user.id).single(),
+    supabase
+      .from("brands")
+      .select("postback_secret, website, tracking_verified_at")
+      .eq("id", user.id)
+      .single(),
   ]);
 
   // Origine pour construire l'URL d'endpoint montrée à la marque.
@@ -379,12 +383,10 @@ export default async function CampaignManagePage({
       )}
 
       {/* Tracking des ventes (campagnes affiliation / hybride) */}
-      {isAffiliation && brandRes.data?.postback_secret && (
-        <PostbackPanel
-          origin={origin}
-          brandId={user.id}
-          secret={brandRes.data.postback_secret}
-          website={brandRes.data.website ?? null}
+      {isAffiliation && brandRes.data && (
+        <TrackingStatusCard
+          verified={Boolean(brandRes.data.tracking_verified_at)}
+          hasWebsite={Boolean(brandRes.data.website)}
         />
       )}
 

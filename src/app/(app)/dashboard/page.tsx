@@ -130,12 +130,17 @@ export default async function DashboardPage() {
   let brandView: {
     ready: boolean;
     stats: { label: string; value: string }[];
+    trackingNeeded?: boolean;
   } | null = null;
 
   if (!isCreator) {
     const [brandRes, campaignsRes, dealsRes] = await Promise.all([
-      supabase.from("brands").select("name, logo_url").eq("id", user.id).maybeSingle(),
-      supabase.from("campaigns").select("id, status").eq("brand_id", user.id),
+      supabase
+        .from("brands")
+        .select("name, logo_url, tracking_verified_at")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase.from("campaigns").select("id, status, type").eq("brand_id", user.id),
       supabase.from("deals").select("status, amount").eq("brand_id", user.id),
     ]);
     const campaigns = campaignsRes.data ?? [];
@@ -162,8 +167,14 @@ export default async function DashboardPage() {
       .filter((d) => d.status === "completed")
       .reduce((s, d) => s + d.amount, 0);
 
+    const hasAffiliation = campaigns.some(
+      (c) => c.type === "affiliation" || c.type === "hybrid",
+    );
+    const trackingNeeded = hasAffiliation && !brandRes.data?.tracking_verified_at;
+
     brandView = {
       ready: Boolean(brandRes.data?.name) && Boolean(brandRes.data?.logo_url),
+      trackingNeeded,
       stats: [
         { label: "CA généré", value: eur(ca) },
         { label: "Commissions", value: eur(commissions) },
@@ -214,6 +225,21 @@ export default async function DashboardPage() {
               className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
             >
               Compléter
+            </Link>
+          </div>
+        )}
+
+        {!isCreator && brandView?.trackingNeeded && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              🟡 Tu as une campagne d&apos;affiliation active mais le tracking n&apos;est pas
+              encore branché sur ton site — les ventes ne remonteront pas.
+            </p>
+            <Link
+              href="/tracking"
+              className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+            >
+              Configurer
             </Link>
           </div>
         )}

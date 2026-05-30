@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 // Vérifie qu'une marque connectée a bien installé le drop-in tracker sur son site.
 // On fetch sa homepage côté serveur (pas de CORS) et on cherche notre script.
@@ -59,8 +61,21 @@ export async function GET() {
     "i",
   ).test(html);
 
-  if (hasScript && hasBrand)
+  if (hasScript && hasBrand) {
+    // Persiste la vérif réussie sur la marque (lecture cheap par /tracking et dashboard).
+    try {
+      const admin = createAdminClient();
+      await admin
+        .from("brands")
+        .update({ tracking_verified_at: new Date().toISOString() })
+        .eq("id", brand.id);
+      revalidatePath("/tracking");
+      revalidatePath("/dashboard");
+    } catch {
+      // l'utilisateur a quand même son résultat affiché — on ne bloque pas dessus
+    }
     return NextResponse.json({ ok: true, installed: true, url });
+  }
   if (hasScript && !hasBrand)
     return NextResponse.json({
       ok: true,

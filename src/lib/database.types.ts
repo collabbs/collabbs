@@ -156,6 +156,7 @@ export type Database = {
           name: string;
           postback_secret: string;
           sector: string | null;
+          tracking_verified_at: string | null;
           updated_at: string;
           website: string | null;
         };
@@ -170,6 +171,7 @@ export type Database = {
           name: string;
           postback_secret?: string;
           sector?: string | null;
+          tracking_verified_at?: string | null;
           updated_at?: string;
           website?: string | null;
         };
@@ -184,6 +186,7 @@ export type Database = {
           name?: string;
           postback_secret?: string;
           sector?: string | null;
+          tracking_verified_at?: string | null;
           updated_at?: string;
           website?: string | null;
         };

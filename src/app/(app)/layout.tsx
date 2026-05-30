@@ -36,10 +36,11 @@ export default async function AppLayout({
     if (count) badges["/messages"] = count;
   }
 
+  const attention: string[] = [];
   if (role === "brand") {
     const { data: camps } = await supabase
       .from("campaigns")
-      .select("id")
+      .select("id, type")
       .eq("brand_id", user.id);
     const campIds = (camps ?? []).map((c) => c.id);
     if (campIds.length) {
@@ -50,6 +51,20 @@ export default async function AppLayout({
         .eq("status", "pending");
       if (count) badges["/campaigns"] = count;
     }
+
+    // Tracking : pastille « à configurer » si une campagne affiliation existe
+    // et que la marque n'a pas encore validé son installation.
+    const hasAffiliation = (camps ?? []).some(
+      (c) => c.type === "affiliation" || c.type === "hybrid",
+    );
+    if (hasAffiliation) {
+      const { data: brandRow } = await supabase
+        .from("brands")
+        .select("tracking_verified_at")
+        .eq("id", user.id)
+        .single();
+      if (!brandRow?.tracking_verified_at) attention.push("/tracking");
+    }
   }
 
   return (
@@ -59,6 +74,7 @@ export default async function AppLayout({
         name={profile?.display_name ?? "Mon compte"}
         avatarUrl={profile?.avatar_url ?? null}
         badges={badges}
+        attention={attention}
       />
       <div className="lg:pl-60">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
