@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
+import { notify } from "@/lib/notifications";
 
 type Result = { ok: boolean; error?: string };
 
@@ -76,6 +77,14 @@ export async function createDealFromApplication(applicationId: string) {
     .from("contracts")
     .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
 
+  await notify({
+    userId: app.creator_id,
+    type: "deal_proposed",
+    title: `Nouveau deal proposé — "${app.campaigns?.name ?? "campagne"}"`,
+    body: "La marque vient de te proposer une collaboration. Ouvre la page pour voir les termes et l'accepter.",
+    link: `/deals/${deal.id}`,
+  });
+
   redirect(`/deals/${deal.id}`);
 }
 
@@ -134,6 +143,14 @@ export async function createDirectDeal(creatorId: string) {
     .from("contracts")
     .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
 
+  await notify({
+    userId: creatorId,
+    type: "deal_proposed",
+    title: "Nouveau deal proposé",
+    body: "Une marque vient de te proposer une collaboration directe. Ouvre la page pour voir les termes.",
+    link: `/deals/${deal.id}`,
+  });
+
   redirect(`/deals/${deal.id}`);
 }
 
@@ -183,7 +200,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes",
+      "brand_id, creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes",
     )
     .eq("id", dealId)
     .single();
@@ -196,6 +213,14 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     .update({ status: "active" })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.brand_id,
+    type: "deal_accepted",
+    title: `Le créateur a accepté ton deal "${deal.title ?? "collaboration"}"`,
+    body: "Tu peux maintenant régler le séquestre. Le créateur va livrer le contenu et tu valideras avant clôture.",
+    link: `/deals/${dealId}`,
+  });
 
   // Le contrat est figé (snapshot des termes) et signé par les 2 parties :
   // la marque a proposé ces termes, le créateur les accepte tels quels.
@@ -478,7 +503,17 @@ export async function completeDeal(dealId: string): Promise<Result> {
 
   // Tente le versement au créateur (non bloquant : si son compte n'est pas prêt,
   // les fonds restent en séquestre et il pourra déclencher le versement ensuite).
-  await attemptDealPayout(dealId);
+  const payoutRes = await attemptDealPayout(dealId);
+
+  await notify({
+    userId: deal.creator_id,
+    type: "deal_completed",
+    title: "Collaboration terminée 🎉",
+    body: payoutRes.released
+      ? "La marque a clôturé le deal et ton paiement vient d'être versé sur ton compte."
+      : "La marque a clôturé le deal. Pour recevoir ta part, connecte ton compte de paiement.",
+    link: payoutRes.released ? `/deals/${dealId}` : "/payouts",
+  });
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
@@ -772,6 +807,14 @@ export async function leaveReview(
     comment: comment.trim() || null,
   });
   if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.creator_id,
+    type: "review_received",
+    title: `Tu as reçu un avis ${"⭐".repeat(r)}`,
+    body: comment.trim() ? `"${comment.trim().slice(0, 200)}"` : "La marque vient de noter votre collaboration.",
+    link: `/deals/${dealId}`,
+  });
 
   revalidatePath(`/deals/${dealId}`);
   return { ok: true };

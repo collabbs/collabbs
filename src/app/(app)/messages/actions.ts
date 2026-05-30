@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/notifications";
 
 /**
  * Trouve (ou crée) la conversation entre l'utilisateur courant et `otherUserId`,
@@ -72,6 +73,31 @@ export async function sendMessage(
     .from("conversations")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversationId);
+
+  // Notifie le destinataire (avec throttling 15 min pour ne pas spammer
+  // sur une vraie conversation).
+  const { data: conv } = await supabase
+    .from("conversations")
+    .select("brand_id, creator_id")
+    .eq("id", conversationId)
+    .single();
+  if (conv) {
+    const recipientId = conv.brand_id === user.id ? conv.creator_id : conv.brand_id;
+    const { data: senderProfile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single();
+    const senderName = senderProfile?.display_name ?? "Quelqu'un";
+    await notify({
+      userId: recipientId,
+      type: "message",
+      title: `Nouveau message de ${senderName}`,
+      body: trimmed.length > 200 ? trimmed.slice(0, 200) + "…" : trimmed,
+      link: `/messages/${conversationId}`,
+      throttleMinutes: 15,
+    });
+  }
 
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath("/messages");

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { notify } from "@/lib/notifications";
 
 export type CampaignType = "affiliation" | "video" | "hybrid" | "performance";
 
@@ -93,7 +94,7 @@ export async function decideApplication(
   // On vérifie que la candidature porte bien sur une campagne de cette marque.
   const { data: app } = await supabase
     .from("applications")
-    .select("id, campaign_id, campaigns(brand_id)")
+    .select("id, campaign_id, creator_id, campaigns(brand_id, name)")
     .eq("id", applicationId)
     .single();
   if (!app) return { ok: false, error: "Candidature introuvable." };
@@ -105,6 +106,26 @@ export async function decideApplication(
     .update({ status: decision })
     .eq("id", applicationId);
   if (error) return { ok: false, error: error.message };
+
+  // Notif au créateur
+  const campaignName = app.campaigns?.name ?? "ta campagne";
+  if (decision === "accepted") {
+    await notify({
+      userId: app.creator_id,
+      type: "application_accepted",
+      title: `Ta candidature à "${campaignName}" a été acceptée 🎉`,
+      body: "La marque te propose de collaborer. Ouvre la collaboration pour voir les prochaines étapes.",
+      link: "/opportunities",
+    });
+  } else {
+    await notify({
+      userId: app.creator_id,
+      type: "application_rejected",
+      title: `Candidature non retenue pour "${campaignName}"`,
+      body: "Ne le prends pas mal — d'autres campagnes t'attendent. Continue à explorer les opportunités.",
+      link: "/opportunities",
+    });
+  }
 
   revalidatePath(`/campaigns/${app.campaign_id}`);
   return { ok: true };
