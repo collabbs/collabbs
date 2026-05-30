@@ -30,7 +30,7 @@ export type Deliverable = {
 
 const ACCEPTED =
   "video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/gif,application/pdf,application/zip";
-const MAX_BYTES = 100 * 1024 * 1024; // 100 Mo / fichier
+const MAX_BYTES = 500 * 1024 * 1024; // 500 Mo / fichier
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -83,7 +83,9 @@ export default function DeliverableRow({
     // Validations rapides côté client (Storage rejette quand même si abusif).
     for (const f of files) {
       if (f.size > MAX_BYTES) {
-        setUploadError(`${f.name} dépasse 100 Mo.`);
+        setUploadError(
+          `${f.name} fait ${(f.size / (1024 * 1024)).toFixed(0)} Mo (max 500 Mo). Compresse-la dans un éditeur ou exporte en 720p / bitrate plus bas.`,
+        );
         return;
       }
     }
@@ -229,7 +231,7 @@ export default function DeliverableRow({
           {/* Upload fichier */}
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              Joindre un fichier (vidéo MP4, image, PDF, ZIP — 100 Mo max)
+              Joindre un fichier (vidéo MP4, image, PDF, ZIP — 500 Mo max)
             </label>
             <input
               ref={fileInputRef}

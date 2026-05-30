@@ -4,9 +4,11 @@ import { signup } from "@/app/auth/actions";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; role?: string; next?: string }>;
 }) {
   const params = await searchParams;
+  const lockedRole = params.role === "creator" || params.role === "brand" ? params.role : null;
+  const nextPath = params.next ?? "";
 
   // Écran "vérifie tes emails" après inscription réussie
   if (params.success) {
@@ -47,37 +49,49 @@ export default async function SignupPage({
         )}
 
         <form action={signup} className="mt-6 space-y-5">
-          {/* Choix du rôle */}
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium text-zinc-700">
-              Je suis…
-            </legend>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="creator"
-                  defaultChecked
-                  className="peer sr-only"
-                />
-                <div className="rounded-xl border border-zinc-200 p-4 text-center text-sm font-medium transition peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700">
-                  🎨 Créateur
-                </div>
-              </label>
-              <label className="cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="brand"
-                  className="peer sr-only"
-                />
-                <div className="rounded-xl border border-zinc-200 p-4 text-center text-sm font-medium transition peer-checked:border-pink-500 peer-checked:bg-pink-50 peer-checked:text-pink-700">
-                  🏢 Marque
-                </div>
-              </label>
-            </div>
-          </fieldset>
+          {/* Champ caché pour revenir où l'utilisateur a démarré (ex. /c/[id]) */}
+          {nextPath && <input type="hidden" name="next" value={nextPath} />}
+
+          {/* Choix du rôle (verrouillé si imposé via ?role=) */}
+          {lockedRole ? (
+            <>
+              <input type="hidden" name="role" value={lockedRole} />
+              <div className="rounded-xl border border-purple-300 bg-purple-50 p-3 text-center text-sm font-medium text-purple-700">
+                {lockedRole === "creator" ? "🎨 Inscription en tant que créateur" : "🏢 Inscription en tant que marque"}
+              </div>
+            </>
+          ) : (
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium text-zinc-700">
+                Je suis…
+              </legend>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="creator"
+                    defaultChecked
+                    className="peer sr-only"
+                  />
+                  <div className="rounded-xl border border-zinc-200 p-4 text-center text-sm font-medium transition peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700">
+                    🎨 Créateur
+                  </div>
+                </label>
+                <label className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="brand"
+                    className="peer sr-only"
+                  />
+                  <div className="rounded-xl border border-zinc-200 p-4 text-center text-sm font-medium transition peer-checked:border-pink-500 peer-checked:bg-pink-50 peer-checked:text-pink-700">
+                    🏢 Marque
+                  </div>
+                </label>
+              </div>
+            </fieldset>
+          )}
 
           <div>
             <label htmlFor="display_name" className="mb-1 block text-sm font-medium text-zinc-700">

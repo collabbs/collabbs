@@ -28,15 +28,22 @@ export async function signup(formData: FormData) {
   const displayName = String(formData.get("display_name") ?? "");
   const roleRaw = String(formData.get("role") ?? "");
   const role = roleRaw === "brand" ? "brand" : "creator";
+  const next = String(formData.get("next") ?? "").trim();
 
   const origin = (await headers()).get("origin") ?? "";
+
+  // Si l'utilisateur vient d'une page d'amorçage (ex. /c/[id]), on lui fait
+  // refaire ce chemin après confirmation email.
+  const callbackUrl = next
+    ? `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+    : `${origin}/auth/callback`;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: callbackUrl,
       data: { role, display_name: displayName },
     },
   });

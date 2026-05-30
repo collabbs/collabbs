@@ -14,6 +14,7 @@ import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
 import TrackingStatusCard from "./TrackingStatusCard";
+import ShareCampaignCard from "./ShareCampaignCard";
 
 export async function generateMetadata({
   params,
@@ -389,6 +390,8 @@ export default async function CampaignManagePage({
           hasWebsite={Boolean(brandRes.data.website)}
         />
       )}
+
+      {isAffiliation && <ShareCampaignCard publicUrl={`${origin}/c/${c.id}`} />}
 
       {/* Affiliés (campagnes affiliation / hybride) */}
       {isAffiliation && (
