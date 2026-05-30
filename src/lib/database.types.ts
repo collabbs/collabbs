@@ -680,6 +680,9 @@ export type Database = {
           position: number;
           revision_message: string | null;
           revision_requested: boolean;
+          submission_notes: string | null;
+          submission_url: string | null;
+          submitted_at: string | null;
           updated_at: string;
         };
         Insert: {
@@ -692,6 +695,9 @@ export type Database = {
           position?: number;
           revision_message?: string | null;
           revision_requested?: boolean;
+          submission_notes?: string | null;
+          submission_url?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -704,6 +710,9 @@ export type Database = {
           position?: number;
           revision_message?: string | null;
           revision_requested?: boolean;
+          submission_notes?: string | null;
+          submission_url?: string | null;
+          submitted_at?: string | null;
           updated_at?: string;
         };
         Relationships: [

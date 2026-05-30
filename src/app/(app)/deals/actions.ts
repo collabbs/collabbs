@@ -257,6 +257,57 @@ export async function cancelDeal(dealId: string): Promise<Result> {
   return { ok: true };
 }
 
+/**
+ * Le créateur dépose le lien de sa publication (post / dossier UGC / etc.) et
+ * marque automatiquement le livrable comme livré. Modifiable tant que la marque
+ * n'a pas validé.
+ */
+export async function setDeliverableSubmission(
+  deliverableId: string,
+  url: string,
+  notes: string,
+): Promise<Result> {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return { ok: false, error: "Lien requis." };
+  try {
+    const u = new URL(trimmedUrl);
+    if (u.protocol !== "http:" && u.protocol !== "https:")
+      return { ok: false, error: "Le lien doit commencer par http(s)." };
+  } catch {
+    return { ok: false, error: "Lien invalide." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: d } = await supabase
+    .from("deliverables")
+    .select("deal_id, approved, deals(creator_id, status)")
+    .eq("id", deliverableId)
+    .single();
+  if (!d || d.deals?.creator_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+  if (d.deals?.status !== "active") return { ok: false, error: "Le deal n'est pas en cours." };
+  if (d.approved) return { ok: false, error: "Déjà validé par la marque." };
+
+  const { error } = await supabase
+    .from("deliverables")
+    .update({
+      submission_url: trimmedUrl,
+      submission_notes: notes.trim() || null,
+      submitted_at: new Date().toISOString(),
+      done: true,
+    })
+    .eq("id", deliverableId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/deals/${d.deal_id}`);
+  return { ok: true };
+}
+
 /** Le créateur marque un livrable comme fait / pas fait. */
 export async function setDeliverableDone(
   deliverableId: string,

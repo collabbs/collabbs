@@ -7,7 +7,7 @@ import {
   cancelDeal,
   completeDeal,
   setDeliverableApproved,
-  setDeliverableDone,
+  setDeliverableSubmission,
   updateDealTerms,
 } from "../actions";
 
@@ -17,6 +17,8 @@ type Deliverable = {
   done: boolean;
   approved: boolean;
   position: number;
+  submissionUrl: string | null;
+  submissionNotes: string | null;
 };
 
 type Props = {
@@ -55,63 +57,16 @@ export default function DealControls({ dealId, role, status, deliverables, terms
       {(status === "active" || status === "completed") && deliverables.length > 0 && (
         <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
           <h2 className="font-display text-lg font-black text-ink">Livrables</h2>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-2.5">
             {deliverables.map((d) => (
-              <li
+              <DeliverableRow
                 key={d.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-100 p-3"
-              >
-                <span className="text-sm font-medium text-ink">{d.label}</span>
-                <div className="flex items-center gap-2">
-                  {/* Côté créateur : "fait" */}
-                  {role === "creator" && status === "active" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => run(() => setDeliverableDone(d.id, !d.done))}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-50 ${
-                        d.done
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-zinc-500 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50"
-                      }`}
-                    >
-                      {d.done ? "✓ Livré" : "Marquer livré"}
-                    </button>
-                  ) : (
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        d.done ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-400"
-                      }`}
-                    >
-                      {d.done ? "Livré" : "À livrer"}
-                    </span>
-                  )}
-                  {/* Côté marque : "validé" */}
-                  {role === "brand" && status === "active" ? (
-                    <button
-                      type="button"
-                      disabled={busy || !d.done}
-                      title={!d.done ? "En attente de livraison" : undefined}
-                      onClick={() => run(() => setDeliverableApproved(d.id, !d.approved))}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-40 ${
-                        d.approved
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90"
-                      }`}
-                    >
-                      {d.approved ? "✓ Validé" : "Valider"}
-                    </button>
-                  ) : (
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        d.approved ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-400"
-                      }`}
-                    >
-                      {d.approved ? "Validé" : "Non validé"}
-                    </span>
-                  )}
-                </div>
-              </li>
+                d={d}
+                role={role}
+                status={status}
+                busy={busy}
+                onAction={run}
+              />
             ))}
           </ul>
         </div>
@@ -264,5 +219,151 @@ export default function DealControls({ dealId, role, status, deliverables, terms
 
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
+  );
+}
+
+function DeliverableRow({
+  d,
+  role,
+  status,
+  busy,
+  onAction,
+}: {
+  d: Deliverable;
+  role: "brand" | "creator";
+  status: "negotiation" | "active" | "completed" | "cancelled";
+  busy: boolean;
+  onAction: (fn: () => Promise<{ ok: boolean; error?: string }>) => Promise<void>;
+}) {
+  const submitted = Boolean(d.submissionUrl);
+  const isCreatorActive = role === "creator" && status === "active";
+  const canEdit = isCreatorActive && !d.approved;
+  const [editing, setEditing] = useState(!submitted);
+  const [url, setUrl] = useState(d.submissionUrl ?? "");
+  const [notes, setNotes] = useState(d.submissionNotes ?? "");
+
+  async function submit() {
+    await onAction(async () => {
+      const res = await setDeliverableSubmission(d.id, url, notes);
+      if (res.ok) setEditing(false);
+      return res;
+    });
+  }
+
+  return (
+    <li className="rounded-xl border border-zinc-100 p-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-ink">{d.label}</span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+              d.done ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-400"
+            }`}
+          >
+            {d.done ? "Livré" : "À livrer"}
+          </span>
+          {role === "brand" && status === "active" && d.done && !d.approved ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAction(() => setDeliverableApproved(d.id, true))}
+              className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              Valider
+            </button>
+          ) : (
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                d.approved ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-400"
+              }`}
+            >
+              {d.approved ? "Validé" : "Non validé"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Contenu déposé : lien cliquable + notes */}
+      {submitted && !editing && (
+        <div className="mt-2.5 space-y-1.5">
+          <a
+            href={d.submissionUrl ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+          >
+            🔗 Voir le contenu livré ↗
+          </a>
+          {d.submissionNotes && (
+            <p className="text-xs text-zinc-500">« {d.submissionNotes} »</p>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-[11px] font-medium text-zinc-400 hover:text-ink hover:underline"
+            >
+              Modifier
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Formulaire de dépôt (créateur, deal en cours, livrable non validé) */}
+      {canEdit && editing && (
+        <div className="mt-3 space-y-2 rounded-lg bg-zinc-50 p-3">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Lien de ta publication / contenu
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.tiktok.com/@toi/video/..."
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+          <label className="mt-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Note pour la marque (optionnel)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Caption, contexte, points d'attention…"
+            className="w-full resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={busy || !url.trim()}
+              className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              {submitted ? "Enregistrer" : "Déposer & marquer livré"}
+            </button>
+            {submitted && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setUrl(d.submissionUrl ?? "");
+                  setNotes(d.submissionNotes ?? "");
+                }}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-50"
+              >
+                Annuler
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Brand viewing pending: discreet hint */}
+      {role === "brand" && status === "active" && !submitted && (
+        <p className="mt-2 text-xs text-zinc-400">
+          En attente du dépôt du contenu par le créateur.
+        </p>
+      )}
+    </li>
   );
 }

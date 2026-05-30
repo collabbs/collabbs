@@ -56,7 +56,7 @@ export default async function DealDetailPage({
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
-      .select("id, label, done, approved, position")
+      .select("id, label, done, approved, position, submission_url, submission_notes")
       .eq("deal_id", id)
       .order("position"),
     deal.platform_id
@@ -223,7 +223,15 @@ export default async function DealDetailPage({
             dealId={deal.id}
             role={role}
             status={status}
-            deliverables={deliverables}
+            deliverables={deliverables.map((dv) => ({
+              id: dv.id,
+              label: dv.label,
+              done: dv.done,
+              approved: dv.approved,
+              position: dv.position,
+              submissionUrl: dv.submission_url,
+              submissionNotes: dv.submission_notes,
+            }))}
             terms={{
               amount: deal.amount,
               quantity: deal.quantity,
