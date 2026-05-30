@@ -55,3 +55,43 @@ export async function logout() {
   revalidatePath("/", "layout");
   redirect("/login");
 }
+
+/**
+ * Demande un email de réinitialisation de mot de passe.
+ * Pour ne PAS révéler si un email existe, on redirige toujours vers la même page de succès,
+ * succès ou pas.
+ */
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) redirect("/reset?error=Email%20requis");
+
+  const origin = (await headers()).get("origin") ?? "";
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
+  });
+  redirect("/reset?sent=1");
+}
+
+/** Met à jour le mot de passe de l'utilisateur connecté (post recovery link). */
+export async function updatePassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (password.length < 8)
+    redirect("/auth/update-password?error=" + encodeURIComponent("Mot de passe trop court (8 caractères min.)."));
+  if (password !== confirm)
+    redirect("/auth/update-password?error=" + encodeURIComponent("Les mots de passe ne correspondent pas."));
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?error=" + encodeURIComponent("Lien expiré, redemande un email."));
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) redirect("/auth/update-password?error=" + encodeURIComponent(error.message));
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard?reset=1");
+}
