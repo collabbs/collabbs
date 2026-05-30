@@ -683,6 +683,7 @@ export type Database = {
           position: number;
           revision_message: string | null;
           revision_requested: boolean;
+          submission_files: Json;
           submission_notes: string | null;
           submission_url: string | null;
           submitted_at: string | null;
@@ -698,6 +699,7 @@ export type Database = {
           position?: number;
           revision_message?: string | null;
           revision_requested?: boolean;
+          submission_files?: Json;
           submission_notes?: string | null;
           submission_url?: string | null;
           submitted_at?: string | null;
@@ -713,6 +715,7 @@ export type Database = {
           position?: number;
           revision_message?: string | null;
           revision_requested?: boolean;
+          submission_files?: Json;
           submission_notes?: string | null;
           submission_url?: string | null;
           submitted_at?: string | null;

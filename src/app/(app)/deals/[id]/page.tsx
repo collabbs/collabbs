@@ -56,7 +56,9 @@ export default async function DealDetailPage({
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
-      .select("id, label, done, approved, position, submission_url, submission_notes")
+      .select(
+        "id, label, done, approved, position, submission_url, submission_notes, submission_files",
+      )
       .eq("deal_id", id)
       .order("position"),
     deal.platform_id
@@ -223,15 +225,36 @@ export default async function DealDetailPage({
             dealId={deal.id}
             role={role}
             status={status}
-            deliverables={deliverables.map((dv) => ({
-              id: dv.id,
-              label: dv.label,
-              done: dv.done,
-              approved: dv.approved,
-              position: dv.position,
-              submissionUrl: dv.submission_url,
-              submissionNotes: dv.submission_notes,
-            }))}
+            deliverables={await Promise.all(
+              deliverables.map(async (dv) => {
+                const rawFiles = Array.isArray(dv.submission_files)
+                  ? (dv.submission_files as Array<{
+                      path: string;
+                      name: string;
+                      size: number;
+                      mime: string;
+                    }>)
+                  : [];
+                const signed = await Promise.all(
+                  rawFiles.map(async (f) => {
+                    const { data } = await supabase.storage
+                      .from("deliverables")
+                      .createSignedUrl(f.path, 3600);
+                    return { ...f, signedUrl: data?.signedUrl ?? null };
+                  }),
+                );
+                return {
+                  id: dv.id,
+                  label: dv.label,
+                  done: dv.done,
+                  approved: dv.approved,
+                  position: dv.position,
+                  submissionUrl: dv.submission_url,
+                  submissionNotes: dv.submission_notes,
+                  submissionFiles: signed,
+                };
+              }),
+            )}
             terms={{
               amount: deal.amount,
               quantity: deal.quantity,

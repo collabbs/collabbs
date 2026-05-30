@@ -308,6 +308,87 @@ export async function setDeliverableSubmission(
   return { ok: true };
 }
 
+type SubmissionFile = { path: string; name: string; size: number; mime: string };
+
+/**
+ * Enregistre la métadonnée des fichiers uploadés sur un livrable. L'upload
+ * vers Storage est fait côté client (RLS y enforce qui peut écrire) ; ici on
+ * ne fait que stocker la liste de fichiers et passer le livrable en "livré".
+ */
+export async function recordDeliverableFiles(
+  deliverableId: string,
+  newFiles: SubmissionFile[],
+): Promise<Result> {
+  if (!newFiles?.length) return { ok: false, error: "Aucun fichier." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: d } = await supabase
+    .from("deliverables")
+    .select("deal_id, approved, submission_files, deals(creator_id, status)")
+    .eq("id", deliverableId)
+    .single();
+  if (!d || d.deals?.creator_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+  if (d.deals?.status !== "active") return { ok: false, error: "Le deal n'est pas en cours." };
+  if (d.approved) return { ok: false, error: "Déjà validé par la marque." };
+
+  const existing = Array.isArray(d.submission_files) ? (d.submission_files as SubmissionFile[]) : [];
+  const merged = [...existing, ...newFiles];
+
+  const { error } = await supabase
+    .from("deliverables")
+    .update({
+      submission_files: merged,
+      submitted_at: new Date().toISOString(),
+      done: true,
+    })
+    .eq("id", deliverableId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/deals/${d.deal_id}`);
+  return { ok: true };
+}
+
+/** Retire un fichier d'un livrable (Storage + métadonnée). Créateur, non validé. */
+export async function removeDeliverableFile(
+  deliverableId: string,
+  path: string,
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: d } = await supabase
+    .from("deliverables")
+    .select("deal_id, approved, submission_files, deals(creator_id)")
+    .eq("id", deliverableId)
+    .single();
+  if (!d || d.deals?.creator_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+  if (d.approved) return { ok: false, error: "Déjà validé — fichier non modifiable." };
+
+  await supabase.storage.from("deliverables").remove([path]);
+
+  const existing = Array.isArray(d.submission_files) ? (d.submission_files as SubmissionFile[]) : [];
+  const filtered = existing.filter((f) => f.path !== path);
+
+  const { error } = await supabase
+    .from("deliverables")
+    .update({ submission_files: filtered })
+    .eq("id", deliverableId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/deals/${d.deal_id}`);
+  return { ok: true };
+}
+
 /** Le créateur marque un livrable comme fait / pas fait. */
 export async function setDeliverableDone(
   deliverableId: string,
