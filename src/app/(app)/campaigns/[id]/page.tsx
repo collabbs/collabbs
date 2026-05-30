@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import PlatformIcon from "@/components/PlatformIcon";
 import {
@@ -12,6 +13,7 @@ import {
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
+import PostbackPanel from "./PostbackPanel";
 
 export async function generateMetadata({
   params,
@@ -55,7 +57,7 @@ export default async function CampaignManagePage({
   const type = c.type as CampaignType;
   const isAffiliation = type === "affiliation" || type === "hybrid";
 
-  const [nichesRes, platformsRes, appsRes, linksRes, dealsRes] = await Promise.all([
+  const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
     supabase.from("platforms").select("id, label, slug"),
     supabase
@@ -68,7 +70,14 @@ export default async function CampaignManagePage({
       .select("id, creator_id, code, created_at")
       .eq("campaign_id", id),
     supabase.from("deals").select("id, creator_id").eq("campaign_id", id),
+    supabase.from("brands").select("postback_secret").eq("id", user.id).single(),
   ]);
+
+  // Origine pour construire l'URL d'endpoint montrée à la marque.
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const origin = `${proto}://${host}`;
   const dealByCreator = new Map((dealsRes.data ?? []).map((d) => [d.creator_id, d.id]));
 
   const nicheMap = new Map((nichesRes.data ?? []).map((n) => [n.id, n.label]));
@@ -367,6 +376,11 @@ export default async function CampaignManagePage({
             </div>
           )}
         </section>
+      )}
+
+      {/* Tracking des ventes (campagnes affiliation / hybride) */}
+      {isAffiliation && brandRes.data?.postback_secret && (
+        <PostbackPanel origin={origin} secret={brandRes.data.postback_secret} />
       )}
 
       {/* Affiliés (campagnes affiliation / hybride) */}

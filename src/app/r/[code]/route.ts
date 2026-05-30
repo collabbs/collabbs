@@ -26,7 +26,18 @@ export async function GET(
 
   const raw =
     link.campaigns?.target_url || link.campaigns?.brands?.website || `${origin}/`;
-  const dest = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 
-  return NextResponse.redirect(dest, 302);
+  // Ajoute ?ref=<code> à l'URL de destination : la boutique de la marque pourra
+  // lire ce paramètre, le stocker dans son propre cookie 1st-party (30 jours),
+  // puis nous le renvoyer dans le postback de vente.
+  let dest: URL;
+  try {
+    dest = new URL(normalized);
+    dest.searchParams.set("ref", code);
+  } catch {
+    return NextResponse.redirect(`${origin}/`, 302);
+  }
+
+  return NextResponse.redirect(dest.toString(), 302);
 }

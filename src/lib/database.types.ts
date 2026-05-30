@@ -20,6 +20,7 @@ export type Database = {
         Row: {
           commission_amount: number | null;
           created_at: string;
+          external_ref: string | null;
           id: string;
           link_id: string;
           occurred_at: string;
@@ -29,6 +30,7 @@ export type Database = {
         Insert: {
           commission_amount?: number | null;
           created_at?: string;
+          external_ref?: string | null;
           id?: string;
           link_id: string;
           occurred_at?: string;
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           commission_amount?: number | null;
           created_at?: string;
+          external_ref?: string | null;
           id?: string;
           link_id?: string;
           occurred_at?: string;
@@ -151,6 +154,7 @@ export type Database = {
           id: string;
           logo_url: string | null;
           name: string;
+          postback_secret: string;
           sector: string | null;
           updated_at: string;
           website: string | null;
@@ -164,6 +168,7 @@ export type Database = {
           id: string;
           logo_url?: string | null;
           name: string;
+          postback_secret?: string;
           sector?: string | null;
           updated_at?: string;
           website?: string | null;
@@ -177,6 +182,7 @@ export type Database = {
           id?: string;
           logo_url?: string | null;
           name?: string;
+          postback_secret?: string;
           sector?: string | null;
           updated_at?: string;
           website?: string | null;
