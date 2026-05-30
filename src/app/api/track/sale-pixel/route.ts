@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOnce } from "@/lib/notifications";
 
 // Pixel "client-side" pour le drop-in script (track.js).
 // Sécurité : on n'a pas de secret côté navigateur, donc on vérifie que le
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
   }
   const commission = Math.round((amount * rate) / 100);
 
-  await admin.from("affiliate_events").insert({
+  const insertRes = await admin.from("affiliate_events").insert({
     link_id: link.id,
     type: "sale",
     sale_amount: amount,
@@ -99,6 +100,16 @@ export async function GET(request: Request) {
   });
   // En cas de doublon (même order_id), l'index unique renvoie une erreur
   // qu'on ignore — c'est exactement ce qu'on veut (succès idempotent).
+
+  if (!insertRes.error) {
+    notifyOnce({
+      userId: link.creator_id,
+      type: "first_affiliate_sale",
+      title: "🎉 Ta première vente affiliée !",
+      body: `Une vente de ${amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} vient d'être attribuée à ton lien. Commission : ${commission.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}. Bienvenue dans le revenu passif.`,
+      link: "/opportunities",
+    }).catch(() => {});
+  }
 
   return pixelResponse();
 }

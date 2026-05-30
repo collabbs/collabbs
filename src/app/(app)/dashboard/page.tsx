@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dealBreakdown } from "@/lib/deal";
+import { notifyOnce } from "@/lib/notifications";
 
 const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
@@ -67,6 +68,19 @@ export default async function DashboardPage() {
     .single();
   const profile = profileRes.data;
   const isCreator = profile?.role === "creator";
+
+  // Email de bienvenue à la première visite du dashboard.
+  await notifyOnce({
+    userId: user.id,
+    type: "welcome",
+    title: isCreator
+      ? `Bienvenue sur Collabbs${profile?.display_name ? `, ${profile.display_name}` : ""} 👋`
+      : `Bienvenue sur Collabbs${profile?.display_name ? `, ${profile.display_name}` : ""} 👋`,
+    body: isCreator
+      ? "Pour démarrer en 3 minutes : complète ton profil (photo, niches, réseaux), puis explore les opportunités d'affiliation. Tes premiers euros ne sont qu'à quelques clics."
+      : "Pour démarrer en 3 minutes : complète ta marque (logo, secteur, site), puis lance ta première campagne. Tu pourras la partager avec des créateurs en 1 clic.",
+    link: isCreator ? "/onboarding/creator" : "/onboarding/brand",
+  });
 
   // ---------- Données CRÉATEUR ----------
   let creatorView: {

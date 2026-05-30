@@ -277,6 +277,19 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .update({ status: "terminated", terminated_at: new Date().toISOString() })
     .eq("deal_id", dealId);
 
+  // Notifie l'autre partie de l'annulation.
+  const recipientId = deal.brand_id === user.id ? deal.creator_id : deal.brand_id;
+  await notify({
+    userId: recipientId,
+    type: "deal_cancelled",
+    title: "Collaboration annulée",
+    body:
+      deal.brand_id === user.id
+        ? "La marque a annulé le deal. Les fonds éventuellement en séquestre seront remboursés."
+        : "Le créateur a annulé le deal.",
+    link: `/deals/${dealId}`,
+  });
+
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
   return { ok: true };
@@ -329,6 +342,24 @@ export async function setDeliverableSubmission(
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
 
+  // Notifie la marque (avec throttle pour ne pas spammer si le créateur édite
+  // plusieurs fois le même livrable en peu de temps).
+  const { data: dealForNotif } = await supabase
+    .from("deals")
+    .select("brand_id, title")
+    .eq("id", d.deal_id)
+    .single();
+  if (dealForNotif?.brand_id) {
+    await notify({
+      userId: dealForNotif.brand_id,
+      type: "deliverable_submitted",
+      title: `Contenu déposé sur "${dealForNotif.title ?? "ta collaboration"}"`,
+      body: "Le créateur vient de te déposer un livrable. Va le voir et valide ou demande une révision.",
+      link: `/deals/${d.deal_id}`,
+      throttleMinutes: 10,
+    });
+  }
+
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
 }
@@ -374,6 +405,22 @@ export async function recordDeliverableFiles(
     })
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
+
+  const { data: dealForNotif } = await supabase
+    .from("deals")
+    .select("brand_id, title")
+    .eq("id", d.deal_id)
+    .single();
+  if (dealForNotif?.brand_id) {
+    await notify({
+      userId: dealForNotif.brand_id,
+      type: "deliverable_submitted",
+      title: `Contenu déposé sur "${dealForNotif.title ?? "ta collaboration"}"`,
+      body: `Le créateur a uploadé ${newFiles.length} fichier${newFiles.length > 1 ? "s" : ""}. Ouvre la page pour le visionner.`,
+      link: `/deals/${d.deal_id}`,
+      throttleMinutes: 10,
+    });
+  }
 
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
@@ -466,6 +513,25 @@ export async function setDeliverableApproved(
     .update({ approved })
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
+
+  // Notifie le créateur que la marque a validé (uniquement à la validation, pas au retrait).
+  if (approved) {
+    const { data: dealForNotif } = await supabase
+      .from("deals")
+      .select("creator_id, title")
+      .eq("id", d.deal_id)
+      .single();
+    if (dealForNotif?.creator_id) {
+      await notify({
+        userId: dealForNotif.creator_id,
+        type: "deliverable_approved",
+        title: `Livrable validé sur "${dealForNotif.title ?? "ta collaboration"}" ✅`,
+        body: "La marque a validé ton contenu. Plus qu'à attendre qu'elle clôture le deal pour recevoir ta part.",
+        link: `/deals/${d.deal_id}`,
+        throttleMinutes: 10,
+      });
+    }
+  }
 
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
@@ -584,6 +650,16 @@ async function attemptDealPayout(
       .from("transactions")
       .update({ status: "released", escrow_released_at: new Date().toISOString() })
       .eq("id", tx.id);
+
+    // Notif "tu as reçu X€" au créateur.
+    await notify({
+      userId: deal.creator_id,
+      type: "payment_received_creator",
+      title: `Tu viens de recevoir ${Number(tx.net_amount).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} 💸`,
+      body: "Le versement a été transféré sur ton compte Stripe connecté. Selon ton calendrier de payout, il atterrira sur ton compte bancaire dans les prochains jours.",
+      link: "/payouts",
+    });
+
     return { released: true };
   } catch (e) {
     return { released: false, error: e instanceof Error ? e.message : "Échec du versement." };
@@ -703,6 +779,22 @@ export async function refundDeal(dealId: string): Promise<Result> {
     return { ok: false, error: "Le remboursement Stripe a échoué." };
   }
   await admin.from("transactions").update({ status: "refunded" }).eq("id", tx.id);
+
+  // Notifie le créateur que le paiement a été remboursé (donc pas de versement).
+  const { data: dealForNotif } = await supabase
+    .from("deals")
+    .select("creator_id, title")
+    .eq("id", dealId)
+    .single();
+  if (dealForNotif?.creator_id) {
+    await notify({
+      userId: dealForNotif.creator_id,
+      type: "deal_refunded",
+      title: `Paiement remboursé sur "${dealForNotif.title ?? "le deal"}"`,
+      body: "La marque a annulé son paiement avant clôture — le versement vers ton compte n'aura donc pas lieu pour ce deal.",
+      link: `/deals/${dealId}`,
+    });
+  }
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");

@@ -1,7 +1,8 @@
 import "server-only";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { dealBreakdown } from "@/lib/deal";
+import { dealBreakdown, eur } from "@/lib/deal";
+import { notify } from "@/lib/notifications";
 
 // Client Stripe côté serveur uniquement (compte Collabbs, mode test pour l'instant).
 // La clé secrète ne doit JAMAIS être exposée au navigateur.
@@ -52,6 +53,16 @@ export async function ensureCheckoutSessionRecorded(
     reference:
       typeof session.payment_intent === "string" ? session.payment_intent : null,
   });
+
+  // Reçu de paiement pour la marque.
+  await notify({
+    userId: deal.brand_id,
+    type: "payment_received_brand",
+    title: `Paiement de ${eur(b.gross)} bien reçu`,
+    body: `Les fonds sont mis en séquestre. Ils seront versés au créateur quand tu auras validé sa livraison et clôturé le deal.`,
+    link: `/deals/${dealId}`,
+  });
+
   return { ok: true, dealId };
 }
 

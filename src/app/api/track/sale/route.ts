@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOnce } from "@/lib/notifications";
 
 // Postback de VENTE attribuée à un lien d'affiliation.
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization: Bearer <secret>`,
@@ -101,6 +102,15 @@ async function handle(p: Payload) {
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
+
+  // Notification 1ʳᵉ fois : première vente affiliée de toute la vie du créateur.
+  notifyOnce({
+    userId: link.creator_id,
+    type: "first_affiliate_sale",
+    title: "🎉 Ta première vente affiliée !",
+    body: `Une vente de ${amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} vient d'être attribuée à ton lien. Commission : ${commission.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}. Bienvenue dans le revenu passif.`,
+    link: "/opportunities",
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true, sale_amount: amount, rate, commission });
 }

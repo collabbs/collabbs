@@ -80,6 +80,33 @@ export async function notify(args: {
   }
 }
 
+/**
+ * Variante "une seule fois dans la vie" : ne notifie que si AUCUNE notification
+ * du même type n'existe déjà pour ce user. Pratique pour les events « 1ʳᵉ fois ».
+ */
+export async function notifyOnce(args: {
+  userId: string;
+  type: string;
+  title: string;
+  body?: string;
+  link?: string;
+}): Promise<boolean> {
+  const admin = createAdminClient();
+  try {
+    const { data: existing } = await admin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", args.userId)
+      .eq("type", args.type)
+      .limit(1);
+    if (existing && existing.length > 0) return false;
+  } catch {
+    return false;
+  }
+  await notify(args);
+  return true;
+}
+
 // ===== Template HTML transactionnel ===== //
 
 function escapeHtml(s: string): string {
