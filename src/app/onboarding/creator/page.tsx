@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import Wizard from "./Wizard";
 
 export const metadata = {
@@ -32,17 +33,19 @@ export default async function CreatorOnboardingPage() {
   if (profileRes.data?.role !== "creator") redirect("/dashboard");
 
   return (
-    <Wizard
-      userId={user.id}
-      displayName={profileRes.data?.display_name ?? "Créateur"}
-      niches={nichesRes.data ?? []}
-      platforms={platformsRes.data ?? []}
-      initial={{
-        handle: creatorRes.data?.handle ?? "",
-        bio: creatorRes.data?.bio ?? "",
-        avatarUrl: profileRes.data?.avatar_url ?? null,
-        customNiche: creatorRes.data?.custom_niche ?? "",
-      }}
-    />
+    <AppOrLandingShell>
+      <Wizard
+        userId={user.id}
+        displayName={profileRes.data?.display_name ?? "Créateur"}
+        niches={nichesRes.data ?? []}
+        platforms={platformsRes.data ?? []}
+        initial={{
+          handle: creatorRes.data?.handle ?? "",
+          bio: creatorRes.data?.bio ?? "",
+          avatarUrl: profileRes.data?.avatar_url ?? null,
+          customNiche: creatorRes.data?.custom_niche ?? "",
+        }}
+      />
+    </AppOrLandingShell>
   );
 }

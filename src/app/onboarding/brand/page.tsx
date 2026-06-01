@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import BrandWizard from "./BrandWizard";
 
 export const metadata = {
@@ -26,14 +27,16 @@ export default async function BrandOnboardingPage() {
 
   const b = brandRes.data;
   return (
-    <BrandWizard
-      userId={user.id}
-      initial={{
-        name: b?.name ?? profileRes.data?.display_name ?? "",
-        sector: b?.sector ?? "",
-        website: b?.website ?? "",
-        logoUrl: b?.logo_url ?? null,
-      }}
-    />
+    <AppOrLandingShell>
+      <BrandWizard
+        userId={user.id}
+        initial={{
+          name: b?.name ?? profileRes.data?.display_name ?? "",
+          sector: b?.sector ?? "",
+          website: b?.website ?? "",
+          logoUrl: b?.logo_url ?? null,
+        }}
+      />
+    </AppOrLandingShell>
   );
 }

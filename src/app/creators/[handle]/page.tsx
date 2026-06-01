@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Nav from "@/components/landing/Nav";
-import Footer from "@/components/landing/Footer";
+import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import { getCreatorByHandle, getCreatorReviews } from "@/lib/creators-data";
@@ -51,10 +50,8 @@ export default async function CreatorProfilePage({
     `${first} crée du contenu ${niche.toLowerCase()} authentique et partage ses coups de cœur avec une communauté de ${c.totalFollowers} abonnés très engagée (${c.engagement} d'engagement moyen). Ouvert·e aux collaborations qui font sens avec sa ligne éditoriale.`;
 
   return (
-    <>
-      <Nav />
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <Link
+    <AppOrLandingShell contentClassName="mx-auto max-w-5xl px-6 py-10">
+      <Link
           href="/creators"
           className="text-sm font-medium text-zinc-500 transition hover:text-ink"
         >
@@ -237,8 +234,6 @@ export default async function CreatorProfilePage({
             </section>
           </div>
         </div>
-      </main>
-      <Footer />
-    </>
+    </AppOrLandingShell>
   );
 }

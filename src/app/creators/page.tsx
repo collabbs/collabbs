@@ -1,6 +1,5 @@
 import Link from "next/link";
-import Nav from "@/components/landing/Nav";
-import Footer from "@/components/landing/Footer";
+import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import CreatorCard from "@/components/landing/CreatorCard";
 import { NICHES, PLATFORMS, OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import { getMarketplaceCreators } from "@/lib/creators-data";
@@ -95,10 +94,8 @@ export default async function CreatorsPage({
   });
 
   return (
-    <>
-      <Nav />
-      <main className="mx-auto max-w-[1600px] px-6 py-10 sm:px-8 lg:px-12">
-        <h1 className="font-display text-4xl font-black tracking-tight text-ink sm:text-5xl">
+    <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-6 py-10 sm:px-8 lg:px-12">
+      <h1 className="font-display text-4xl font-black tracking-tight text-ink sm:text-5xl">
           Trouvez le créateur idéal
         </h1>
         <p className="mt-3 max-w-2xl text-zinc-600">
@@ -207,8 +204,6 @@ export default async function CreatorsPage({
             </p>
           </div>
         )}
-      </main>
-      <Footer />
-    </>
+    </AppOrLandingShell>
   );
 }
