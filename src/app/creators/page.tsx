@@ -5,6 +5,7 @@ import { NICHES, PLATFORMS, OFFER_TYPES, type OfferId } from "@/components/landi
 import { getMarketplaceCreators } from "@/lib/creators-data";
 import { createClient } from "@/lib/supabase/server";
 import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
+import FiltersDrawer from "@/components/landing/FiltersDrawer";
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -93,9 +94,73 @@ export default async function CreatorsPage({
     return true;
   });
 
+  const activeCount =
+    (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0);
+
+  const filterGroups = (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Offre
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {OFFER_TYPES.map((o) => (
+            <Chip
+              key={o.id}
+              label={`${o.emoji} ${o.short}`}
+              active={offre === o.id}
+              href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Plateforme
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {PLATFORMS.map((p) => (
+            <Chip
+              key={p}
+              label={p}
+              active={platform === p}
+              href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Niche
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {NICHES.map((n) => (
+            <Chip
+              key={n}
+              label={n}
+              active={niche === n}
+              href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
+            />
+          ))}
+        </div>
+      </div>
+
+      {activeCount > 0 && (
+        <Link
+          href="/creators"
+          className="inline-block text-sm font-medium text-brand hover:underline"
+        >
+          Réinitialiser les filtres
+        </Link>
+      )}
+    </div>
+  );
+
   return (
-    <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-6 py-10 sm:px-8 lg:px-12">
-      <h1 className="font-display text-4xl font-black tracking-tight text-ink sm:text-5xl">
+    <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
+      <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
           Trouvez le créateur idéal
         </h1>
         <p className="mt-3 max-w-2xl text-zinc-600">
@@ -114,71 +179,27 @@ export default async function CreatorsPage({
           />
           <button
             type="submit"
-            className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 sm:px-5"
           >
-            Rechercher
+            <span className="hidden sm:inline">Rechercher</span>
+            <span className="sm:hidden">🔍</span>
           </button>
         </form>
 
-        {/* Filtres */}
-        <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Offre
-            </span>
-            {OFFER_TYPES.map((o) => (
-              <Chip
-                key={o.id}
-                label={`${o.emoji} ${o.short}`}
-                active={offre === o.id}
-                href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
-              />
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Plateforme
-            </span>
-            {PLATFORMS.map((p) => (
-              <Chip
-                key={p}
-                label={p}
-                active={platform === p}
-                href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
-              />
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Niche
-            </span>
-            {NICHES.map((n) => (
-              <Chip
-                key={n}
-                label={n}
-                active={niche === n}
-                href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
-              />
-            ))}
-          </div>
+        {/* Filtres : drawer sur mobile, inline sur desktop */}
+        <div className="mt-4">
+          <FiltersDrawer activeCount={activeCount}>{filterGroups}</FiltersDrawer>
         </div>
 
         {/* Résultats */}
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-zinc-500">
             {results.length} créateur{results.length > 1 ? "s" : ""}
           </p>
-          {(q || niche || platform || offre) && (
-            <Link href="/creators" className="text-sm font-medium text-brand hover:underline">
-              Réinitialiser les filtres
-            </Link>
-          )}
         </div>
 
         {results.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {results.map((c) => (
               <CreatorCard
                 key={c.handle}
