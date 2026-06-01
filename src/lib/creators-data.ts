@@ -43,6 +43,7 @@ function orderOffers(offers: string[]): OfferId[] {
 }
 
 export type MarketplaceCreator = {
+  id: string;
   name: string;
   handle: string;
   niche: string;
@@ -141,6 +142,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
 
     const main = plats[0];
     result.push({
+      id: c.id,
       name: prof.display_name ?? "Créateur",
       handle: c.handle,
       niche: niches[0],

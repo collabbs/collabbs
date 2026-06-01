@@ -4,6 +4,8 @@ import Footer from "@/components/landing/Footer";
 import CreatorCard from "@/components/landing/CreatorCard";
 import { NICHES, PLATFORMS, OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import { getMarketplaceCreators } from "@/lib/creators-data";
+import { createClient } from "@/lib/supabase/server";
+import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -57,6 +59,30 @@ export default async function CreatorsPage({
 
   const query = (q ?? "").trim().toLowerCase();
   const all = await getMarketplaceCreators();
+
+  // Si le visiteur est une marque connectée, on récupère ses créateurs sauvés
+  // pour afficher le cœur rempli sur les cartes correspondantes.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let isBrandViewer = false;
+  const savedIds = new Set<string>();
+  if (user) {
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (viewer?.role === "brand") {
+      isBrandViewer = true;
+      const { data: saves } = await supabase
+        .from("brand_creator_saves")
+        .select("creator_id")
+        .eq("brand_id", user.id);
+      for (const s of saves ?? []) savedIds.add(s.creator_id);
+    }
+  }
   const results = all.filter((c) => {
     if (query) {
       const haystack = `${c.name} ${c.handle} ${c.niches.join(" ")}`.toLowerCase();
@@ -157,7 +183,16 @@ export default async function CreatorsPage({
         {results.length > 0 ? (
           <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {results.map((c) => (
-              <CreatorCard key={c.handle} creator={c} href={`/creators/${c.handle}`} />
+              <CreatorCard
+                key={c.handle}
+                creator={c}
+                href={`/creators/${c.handle}`}
+                overlay={
+                  isBrandViewer ? (
+                    <SaveCreatorButton creatorId={c.id} initialSaved={savedIds.has(c.id)} />
+                  ) : null
+                }
+              />
             ))}
           </div>
         ) : (

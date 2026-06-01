@@ -4,10 +4,13 @@ import { type Creator, OFFER_BY_ID } from "./creators";
 export default function CreatorCard({
   creator,
   href,
+  overlay,
 }: {
   creator: Creator;
   /** Si fourni, toute la carte devient cliquable (ex. vers /signup pour collaborer). */
   href?: string;
+  /** Bouton/élément optionnel placé en absolu (ex. cœur shortlist). */
+  overlay?: React.ReactNode;
 }) {
   const card = (
     <div className="group h-full overflow-hidden rounded-2xl border border-zinc-100 bg-white p-2.5 shadow-sm transition duration-300 hover:shadow-xl">
@@ -16,7 +19,8 @@ export default function CreatorCard({
           className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
           style={{ backgroundImage: `url("${creator.photo}"), ${creator.tint}` }}
         />
-        <span className="absolute left-2 top-2 z-10 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 shadow-sm">
+        {overlay}
+        <span className="absolute left-2 top-12 z-10 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 shadow-sm">
           {creator.platform}
         </span>
         <span className="absolute right-2 top-2 z-10 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">

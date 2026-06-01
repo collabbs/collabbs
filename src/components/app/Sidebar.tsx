@@ -22,6 +22,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/campaigns", label: "Mes campagnes", icon: "📊" },
   { href: "/campaigns/new", label: "Créer une campagne", icon: "➕" },
   { href: "/creators", label: "Trouver des créateurs", icon: "🔍" },
+  { href: "/shortlist", label: "Ma shortlist", icon: "⭐" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/tracking", label: "Tracking", icon: "🔗" },

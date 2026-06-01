@@ -200,6 +200,42 @@ export type Database = {
           },
         ];
       };
+      brand_creator_saves: {
+        Row: {
+          brand_id: string;
+          creator_id: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          brand_id: string;
+          creator_id: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          brand_id?: string;
+          creator_id?: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "brand_creator_saves_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "brand_creator_saves_creator_id_fkey";
+            columns: ["creator_id"];
+            isOneToOne: false;
+            referencedRelation: "creators";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       campaign_niches: {
         Row: { campaign_id: string; niche_id: number };
         Insert: { campaign_id: string; niche_id: number };
