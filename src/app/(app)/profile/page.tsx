@@ -65,13 +65,10 @@ export default async function ProfilePage() {
         supabase.from("creator_offers").select("offer, price").eq("creator_id", user.id),
       ]);
 
-    // Si l'utilisateur n'a même pas commencé l'onboarding → on l'envoie sur le
-    // wizard de création initiale (expérience guidée première fois).
-    const hasStarted =
-      Boolean(creatorRes.data?.handle) ||
-      (cNichesRes.data ?? []).length > 0 ||
-      (cOffersRes.data ?? []).length > 0;
-    if (!hasStarted) redirect("/onboarding/creator");
+    // Note : on NE redirige PAS vers le wizard, même si tout est vide.
+    // /profile doit toujours afficher les 5 sections complètes. L'utilisateur
+    // remplit dans l'ordre qu'il veut. Le wizard /onboarding/* reste accessible
+    // pour ceux qui veulent l'expérience guidée première fois.
 
     return (
       <CreatorProfileForm
@@ -121,8 +118,8 @@ export default async function ProfilePage() {
       ]);
 
     const brand = brandRes.data;
-    const hasStarted = Boolean(brand?.name) && Boolean(brand?.logo_url);
-    if (!hasStarted) redirect("/onboarding/brand");
+    // Pas de redirect : /profile montre toujours toutes les sections.
+    // Le wizard /onboarding/brand reste accessible pour la première fois.
 
     return (
       <BrandProfileForm
