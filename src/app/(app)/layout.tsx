@@ -36,6 +36,13 @@ export default async function AppLayout({
     if (count) badges["/messages"] = count;
   }
 
+  // Notifications non lues (RLS limite déjà aux miennes).
+  const { count: unreadNotifs } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .is("read_at", null);
+  if (unreadNotifs) badges["/notifications"] = unreadNotifs;
+
   const attention: string[] = [];
   if (role === "brand") {
     const { data: camps } = await supabase
