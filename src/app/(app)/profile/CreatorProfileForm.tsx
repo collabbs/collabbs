@@ -21,6 +21,7 @@ export default function CreatorProfileForm({
   niches,
   platforms,
   publicHandle,
+  legalSection,
   initial,
 }: {
   userId: string;
@@ -28,6 +29,7 @@ export default function CreatorProfileForm({
   niches: Niche[];
   platforms: Platform[];
   publicHandle: string | null;
+  legalSection?: React.ReactNode;
   initial: {
     handle: string;
     bio: string;
@@ -486,6 +488,9 @@ export default function CreatorProfileForm({
           })}
         </div>
       </section>
+
+      {/* ============ Section 5 — Infos légales (contrats) ============ */}
+      {legalSection}
 
       {error && (
         <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>

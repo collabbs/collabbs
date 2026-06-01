@@ -1,4 +1,4 @@
-// Types générés depuis le schéma Supabase (23 tables).
+// Types générés depuis le schéma Supabase (24 tables).
 // Régénérer après chaque migration via le MCP Supabase (generate_typescript_types)
 // ou : npx supabase gen types typescript --project-id muuyrrvetwegkrmpkkad
 
@@ -859,6 +859,62 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_info: {
+        Row: {
+          address: string | null
+          city: string | null
+          contact_email: string | null
+          country: string | null
+          created_at: string
+          legal_name: string | null
+          rep_name: string | null
+          siret: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+          vat: string | null
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          contact_email?: string | null
+          country?: string | null
+          created_at?: string
+          legal_name?: string | null
+          rep_name?: string | null
+          siret?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+          vat?: string | null
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          contact_email?: string | null
+          country?: string | null
+          created_at?: string
+          legal_name?: string | null
+          rep_name?: string | null
+          siret?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+          vat?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_info_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

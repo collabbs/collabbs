@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CreatorProfileForm from "./CreatorProfileForm";
 import BrandProfileForm from "./BrandProfileForm";
+import LegalInfoSection from "./LegalInfoSection";
+import type { LegalInfoData } from "./legal-utils";
 
 export const metadata = {
   title: "Mon profil — Collabbs",
@@ -21,6 +23,28 @@ export default async function ProfilePage() {
     .single();
 
   if (!profile) redirect("/dashboard");
+
+  // Infos légales (commun aux 2 rôles, on les charge ici pour réutiliser)
+  const { data: legal } = await supabase
+    .from("legal_info")
+    .select(
+      "status, legal_name, rep_name, address, city, zip, country, siret, vat, contact_email",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const legalInitial: LegalInfoData = {
+    status: legal?.status ?? "",
+    legalName: legal?.legal_name ?? "",
+    repName: legal?.rep_name ?? "",
+    address: legal?.address ?? "",
+    city: legal?.city ?? "",
+    zip: legal?.zip ?? "",
+    country: legal?.country ?? "France",
+    siret: legal?.siret ?? "",
+    vat: legal?.vat ?? "",
+    contactEmail: legal?.contact_email ?? "",
+  };
 
   // ============ Branche CRÉATEUR ============
   if (profile.role === "creator") {
@@ -56,6 +80,7 @@ export default async function ProfilePage() {
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         publicHandle={creatorRes.data?.handle ?? null}
+        legalSection={<LegalInfoSection initial={legalInitial} role="creator" />}
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",
@@ -104,6 +129,7 @@ export default async function ProfilePage() {
         userId={user.id}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
+        legalSection={<LegalInfoSection initial={legalInitial} role="brand" />}
         initial={{
           name: brand?.name ?? profile.display_name ?? "",
           sector: brand?.sector ?? "",

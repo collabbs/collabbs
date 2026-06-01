@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dealBreakdown } from "@/lib/deal";
 import { notifyOnce } from "@/lib/notifications";
+import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
 
 const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
@@ -68,6 +69,14 @@ export default async function DashboardPage() {
     .single();
   const profile = profileRes.data;
   const isCreator = profile?.role === "creator";
+
+  // Infos légales (transversales — pour les contrats).
+  const { data: legal } = await supabase
+    .from("legal_info")
+    .select("status, legal_name, address, city, zip")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const legalReady = isLegalInfoComplete(legal);
 
   // Email de bienvenue à la première visite du dashboard.
   await notifyOnce({
@@ -243,6 +252,21 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {!legalReady && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              📝 Ajoute tes infos légales (1 seule fois) → tous tes
+              contrats futurs seront pré-remplis automatiquement.
+            </p>
+            <Link
+              href="/profile#infos-legales"
+              className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+            >
+              Compléter
+            </Link>
+          </div>
+        )}
+
         {!isCreator && brandView?.trackingNeeded && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-medium text-amber-800">
@@ -282,7 +306,7 @@ export default async function DashboardPage() {
                 desc="Échange avec les marques."
               />
               <NavCard
-                href="/onboarding/creator"
+                href="/profile"
                 title="Mon profil"
                 desc="Photo, niches, réseaux, offres."
               />

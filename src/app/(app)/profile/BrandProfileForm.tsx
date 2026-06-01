@@ -12,11 +12,13 @@ export default function BrandProfileForm({
   userId,
   niches,
   platforms,
+  legalSection,
   initial,
 }: {
   userId: string;
   niches: Niche[];
   platforms: Platform[];
+  legalSection?: React.ReactNode;
   initial: {
     name: string;
     sector: string;
@@ -332,6 +334,9 @@ export default function BrandProfileForm({
           })}
         </div>
       </section>
+
+      {/* ============ Section 5 — Infos légales (contrats) ============ */}
+      {legalSection}
 
       {error && (
         <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
