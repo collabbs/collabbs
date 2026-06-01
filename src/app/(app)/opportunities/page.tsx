@@ -5,6 +5,7 @@ import OpportunityCard, { type Opportunity } from "./OpportunityCard";
 import FilterChip from "@/components/FilterChip";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterPopover from "@/components/FilterPopover";
+import PlatformIcon from "@/components/PlatformIcon";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -25,7 +26,7 @@ function buildHref(params: Params): string {
 }
 
 // Chip = FilterChip (optimistic feedback).
-function Chip(props: { label: string; href: string; active: boolean }) {
+function Chip(props: { label: React.ReactNode; href: string; active: boolean }) {
   return <FilterChip {...props} />;
 }
 
@@ -122,7 +123,12 @@ export default async function OpportunitiesPage({
       {platforms.map((p) => (
         <Chip
           key={p.id}
-          label={p.label}
+          label={
+            <span className="inline-flex items-center gap-1.5">
+              <PlatformIcon slug={p.slug} className="h-3.5 w-3.5 shrink-0" />
+              <span>{p.label}</span>
+            </span>
+          }
           active={platform === String(p.id)}
           href={buildHref({
             q,

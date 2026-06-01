@@ -24,7 +24,8 @@ export default function FilterChip({
   href,
   active,
 }: {
-  label: string;
+  /** Texte brut OU node JSX (ex: icône + label). */
+  label: React.ReactNode;
   href: string;
   active: boolean;
 }) {

@@ -85,7 +85,13 @@ export default function FilterPopover({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-80 max-w-[90vw] rounded-2xl border border-zinc-100 bg-white p-4 shadow-xl">
+        <div
+          // Largeur explicite via style inline pour ne PAS dépendre du JIT
+          // Tailwind sur cette classe rarement utilisée — garantit 320 px
+          // quel que soit le contexte flex parent.
+          style={{ width: 320, maxWidth: "min(90vw, 360px)" }}
+          className="absolute left-0 top-full z-30 mt-2 rounded-2xl border border-zinc-100 bg-white p-4 shadow-xl"
+        >
           {children}
         </div>
       )}

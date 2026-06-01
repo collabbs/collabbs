@@ -8,6 +8,14 @@ import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterChip from "@/components/FilterChip";
 import FilterPopover from "@/components/FilterPopover";
+import PlatformIcon from "@/components/PlatformIcon";
+
+/** Mappe un nom d'affichage de plateforme vers le slug attendu par PlatformIcon. */
+function platformSlug(label: string): string {
+  const l = label.toLowerCase();
+  if (l === "x") return "twitter";
+  return l;
+}
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -31,7 +39,7 @@ function buildHref(params: Params): string {
 
 // Chip = FilterChip (client component avec feedback optimiste).
 // Petit wrapper pour conserver les props existantes.
-function Chip(props: { label: string; href: string; active: boolean }) {
+function Chip(props: { label: React.ReactNode; href: string; active: boolean }) {
   return <FilterChip {...props} />;
 }
 
@@ -100,7 +108,12 @@ export default async function CreatorsPage({
       {PLATFORMS.map((p) => (
         <Chip
           key={p}
-          label={p}
+          label={
+            <span className="inline-flex items-center gap-1.5">
+              <PlatformIcon slug={platformSlug(p)} className="h-3.5 w-3.5 shrink-0" />
+              <span>{p}</span>
+            </span>
+          }
           active={platform === p}
           href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
         />
