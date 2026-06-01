@@ -8,9 +8,11 @@ import { saveBrandOnboarding } from "../actions";
 
 export default function BrandWizard({
   userId,
+  mode = "create",
   initial,
 }: {
   userId: string;
+  mode?: "create" | "edit";
   initial: {
     name: string;
     sector: string;
@@ -26,7 +28,9 @@ export default function BrandWizard({
   const [logoPreview, setLogoPreview] = useState<string | null>(initial.logoUrl);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const isEdit = mode === "edit";
 
   function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -71,8 +75,17 @@ export default function BrandWizard({
         logoUrl,
       });
 
-      if (res.ok) setDone(true);
-      else setError(res.error ?? "Une erreur est survenue.");
+      if (res.ok) {
+        if (isEdit) {
+          setSavedAt(Date.now());
+          setLogoFile(null);
+          if (logoUrl) setLogoPreview(logoUrl);
+        } else {
+          setDone(true);
+        }
+      } else {
+        setError(res.error ?? "Une erreur est survenue.");
+      }
     } finally {
       setSaving(false);
     }
@@ -112,7 +125,8 @@ export default function BrandWizard({
     );
   }
 
-  if (done) {
+  // Écran "Bienvenue" uniquement à la création initiale.
+  if (done && !isEdit) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-3xl text-white shadow-lg shadow-purple-200">
@@ -155,9 +169,29 @@ export default function BrandWizard({
             href="/dashboard"
             className="text-sm font-medium text-zinc-400 transition hover:text-ink"
           >
-            Plus tard →
+            {isEdit ? "← Retour au tableau de bord" : "Plus tard →"}
           </Link>
         </div>
+
+        {/* Bandeau mode édition + toast de confirmation */}
+        {isEdit && (
+          <div className="mt-6 rounded-xl border border-purple-100 bg-purple-50/50 p-4">
+            <p className="text-sm font-semibold text-ink">Mon profil marque</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Modifie ce que tu veux ci-dessous, puis clique{" "}
+              <strong>Enregistrer</strong>.
+            </p>
+          </div>
+        )}
+        {savedAt && (
+          <div
+            key={savedAt}
+            className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-700"
+          >
+            <span>✓</span>
+            <span className="font-medium">Modifications enregistrées.</span>
+          </div>
+        )}
 
         <div className="mt-8">
           <div className="flex items-center justify-between text-xs font-medium">
@@ -251,7 +285,11 @@ export default function BrandWizard({
             disabled={name.trim().length === 0 || saving}
             className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? "Enregistrement…" : "Terminer"}
+            {saving
+              ? "Enregistrement…"
+              : isEdit
+                ? "Enregistrer mes changements"
+                : "Terminer"}
           </button>
         </div>
       </div>

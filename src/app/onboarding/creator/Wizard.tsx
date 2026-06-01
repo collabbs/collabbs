@@ -24,17 +24,22 @@ export default function Wizard({
   displayName,
   niches,
   platforms,
+  mode = "create",
   initial,
 }: {
   userId: string;
   displayName: string;
   niches: Niche[];
   platforms: Platform[];
+  mode?: "create" | "edit";
   initial: {
     handle: string;
     bio: string;
     avatarUrl: string | null;
     customNiche: string;
+    nicheIds?: number[];
+    platforms?: { platformId: number; handle: string; subs: string; url: string }[];
+    offers?: { offer: string; price: string }[];
   };
 }) {
   const [step, setStep] = useState(0);
@@ -42,16 +47,30 @@ export default function Wizard({
   const [bio, setBio] = useState(initial.bio);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initial.avatarUrl);
-  const [nicheIds, setNicheIds] = useState<number[]>([]);
+  const [nicheIds, setNicheIds] = useState<number[]>(initial.nicheIds ?? []);
   const [customNiche, setCustomNiche] = useState(initial.customNiche);
   const [otherOpen, setOtherOpen] = useState(Boolean(initial.customNiche));
   const [platformSel, setPlatformSel] = useState<
     Record<number, { handle: string; subs: string; url: string }>
-  >({});
-  const [offerSel, setOfferSel] = useState<Record<string, { price: string }>>({});
+  >(() => {
+    const out: Record<number, { handle: string; subs: string; url: string }> = {};
+    for (const p of initial.platforms ?? []) {
+      out[p.platformId] = { handle: p.handle, subs: p.subs, url: p.url };
+    }
+    return out;
+  });
+  const [offerSel, setOfferSel] = useState<Record<string, { price: string }>>(() => {
+    const out: Record<string, { price: string }> = {};
+    for (const o of initial.offers ?? []) {
+      out[o.offer] = { price: o.price };
+    }
+    return out;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const isEdit = mode === "edit";
 
   const nicheLabel = (id: number) => niches.find((n) => n.id === id)?.label ?? "";
 
@@ -154,8 +173,22 @@ export default function Wizard({
         })),
       });
 
-      if (res.ok) setStep(4);
-      else setError(res.error ?? "Une erreur est survenue.");
+      if (res.ok) {
+        if (isEdit) {
+          // En édition : on reste sur la page avec un toast de confirmation,
+          // pas d'écran "🎉 Bienvenue" qui n'aurait aucun sens pour un retour.
+          setSavedAt(Date.now());
+          setPhotoFile(null);
+          // L'avatar éventuellement uploadé a déjà été persisté ; on enlève le
+          // marqueur "fichier à uploader" pour ne pas le ré-envoyer au prochain
+          // clic sur "Enregistrer".
+          if (avatarUrl) setPhotoPreview(avatarUrl);
+        } else {
+          setStep(4);
+        }
+      } else {
+        setError(res.error ?? "Une erreur est survenue.");
+      }
     } finally {
       setSaving(false);
     }
@@ -216,7 +249,8 @@ export default function Wizard({
     );
   }
 
-  if (step === 4) {
+  // Écran "Bienvenue" uniquement à la création initiale.
+  if (step === 4 && !isEdit) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-3xl text-white shadow-lg shadow-purple-200">
@@ -261,9 +295,29 @@ export default function Wizard({
             href="/dashboard"
             className="text-sm font-medium text-zinc-400 transition hover:text-ink"
           >
-            Plus tard →
+            {isEdit ? "← Retour au tableau de bord" : "Plus tard →"}
           </Link>
         </div>
+
+        {/* Bandeau mode édition + toast de confirmation */}
+        {isEdit && (
+          <div className="mt-6 rounded-xl border border-purple-100 bg-purple-50/50 p-4">
+            <p className="text-sm font-semibold text-ink">Mon profil créateur</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Navigue dans les étapes pour modifier ce que tu veux. Clique{" "}
+              <strong>Enregistrer</strong> à tout moment pour sauvegarder.
+            </p>
+          </div>
+        )}
+        {savedAt && (
+          <div
+            key={savedAt}
+            className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-700"
+          >
+            <span>✓</span>
+            <span className="font-medium">Modifications enregistrées.</span>
+          </div>
+        )}
 
         {/* Jauge de complétion */}
         <div className="mt-8">
@@ -612,14 +666,26 @@ export default function Wizard({
           )}
 
           {step < STEPS.length - 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canNext}
-              className="rounded-full bg-ink px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
-            >
-              Continuer
-            </button>
+            <div className="flex items-center gap-2">
+              {isEdit && (
+                <button
+                  type="button"
+                  onClick={finish}
+                  disabled={saving}
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50 disabled:opacity-50"
+                >
+                  {saving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canNext}
+                className="rounded-full bg-ink px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+              >
+                Continuer
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -627,7 +693,11 @@ export default function Wizard({
               disabled={!canNext || saving}
               className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             >
-              {saving ? "Enregistrement…" : "Terminer mon profil"}
+              {saving
+                ? "Enregistrement…"
+                : isEdit
+                  ? "Enregistrer mes changements"
+                  : "Terminer mon profil"}
             </button>
           )}
         </div>

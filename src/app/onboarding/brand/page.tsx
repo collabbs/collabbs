@@ -26,10 +26,14 @@ export default async function BrandOnboardingPage() {
   if (profileRes.data?.role !== "brand") redirect("/dashboard");
 
   const b = brandRes.data;
+  // Bascule édition dès qu'on détecte du contenu déjà saisi (nom + logo).
+  const hasContent = Boolean(b?.name) && Boolean(b?.logo_url);
+  const mode: "create" | "edit" = hasContent ? "edit" : "create";
   return (
     <AppOrLandingShell>
       <BrandWizard
         userId={user.id}
+        mode={mode}
         initial={{
           name: b?.name ?? profileRes.data?.display_name ?? "",
           sector: b?.sector ?? "",
