@@ -6,7 +6,33 @@ import { notify } from "@/lib/notifications";
 
 // Client Stripe côté serveur uniquement (compte Collabbs, mode test pour l'instant).
 // La clé secrète ne doit JAMAIS être exposée au navigateur.
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
+//
+// Init paresseux : on n'instancie le SDK qu'au premier appel runtime, sinon
+// `next build` collecte les pages côté Vercel SANS la variable d'env et
+// le constructeur Stripe crashe ("Neither apiKey nor config.authenticator
+// provided"). Avec ce Proxy, le build passe même si la clé est absente —
+// l'erreur ne remonte qu'au moment où une route veut vraiment appeler Stripe.
+let _stripeInstance: Stripe | null = null;
+function getStripeInstance(): Stripe {
+  if (_stripeInstance) return _stripeInstance;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error(
+      "STRIPE_SECRET_KEY n'est pas configuré. Pose la variable d'env sur Vercel " +
+        "(Project → Settings → Environment Variables) puis redéploie.",
+    );
+  }
+  _stripeInstance = new Stripe(key);
+  return _stripeInstance;
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    const instance = getStripeInstance();
+    const value = (instance as unknown as Record<PropertyKey, unknown>)[prop];
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
 
 export const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
 

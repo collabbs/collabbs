@@ -10,22 +10,33 @@
 import "server-only";
 import { Resend } from "resend";
 
-const apiKey = process.env.RESEND_API_KEY;
-const from = process.env.RESEND_FROM;
-
-if (!apiKey) {
-  throw new Error(
-    "Missing RESEND_API_KEY env var. Set it in .env.local for dev and in Vercel for prod.",
-  );
+// Init paresseux : on évite de throw au chargement du module, sinon `next build`
+// sur Vercel échoue à la phase "Collecting page data" si la clé n'est pas
+// posée. On throw au premier appel runtime, où l'erreur sera bien plus parlante.
+let _resendInstance: Resend | null = null;
+function getResendInstance(): Resend {
+  if (_resendInstance) return _resendInstance;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing RESEND_API_KEY env var. Set it in .env.local for dev and in Vercel for prod.",
+    );
+  }
+  _resendInstance = new Resend(apiKey);
+  return _resendInstance;
 }
 
-if (!from) {
-  throw new Error(
-    'Missing RESEND_FROM env var. Format: "Collabbs <hello@send.collabbs.com>" — display name + verified email address.',
-  );
-}
+export const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    const instance = getResendInstance();
+    const value = (instance as unknown as Record<PropertyKey, unknown>)[prop];
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
 
-export const resend = new Resend(apiKey);
-
-/** Sender address used by default for all outgoing emails. */
-export const RESEND_FROM = from;
+/**
+ * Sender address used by default for all outgoing emails.
+ * Si l'env est absente, on renvoie une chaîne vide — Resend remontera son
+ * propre message d'erreur au moment du `resend.emails.send()`.
+ */
+export const RESEND_FROM = process.env.RESEND_FROM ?? "";
