@@ -79,23 +79,43 @@ export default async function ProfilePage() {
 
   // ============ Branche MARQUE ============
   if (profile.role === "brand") {
-    const { data: brand } = await supabase
-      .from("brands")
-      .select("name, sector, website, logo_url")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [brandRes, nichesRes, platformsRes, bNichesRes, bPlatformsRes] =
+      await Promise.all([
+        supabase
+          .from("brands")
+          .select("name, sector, website, logo_url, description")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.from("niches").select("id, label").order("label"),
+        supabase.from("platforms").select("id, label, slug").order("id"),
+        supabase.from("brand_niches").select("niche_id").eq("brand_id", user.id),
+        supabase
+          .from("brand_platforms")
+          .select("platform_id, handle, url")
+          .eq("brand_id", user.id),
+      ]);
 
+    const brand = brandRes.data;
     const hasStarted = Boolean(brand?.name) && Boolean(brand?.logo_url);
     if (!hasStarted) redirect("/onboarding/brand");
 
     return (
       <BrandProfileForm
         userId={user.id}
+        niches={nichesRes.data ?? []}
+        platforms={platformsRes.data ?? []}
         initial={{
           name: brand?.name ?? profile.display_name ?? "",
           sector: brand?.sector ?? "",
           website: brand?.website ?? "",
           logoUrl: brand?.logo_url ?? null,
+          description: brand?.description ?? "",
+          nicheIds: (bNichesRes.data ?? []).map((r) => r.niche_id),
+          platforms: (bPlatformsRes.data ?? []).map((r) => ({
+            platformId: r.platform_id,
+            handle: r.handle ?? "",
+            url: r.url ?? "",
+          })),
         }}
       />
     );

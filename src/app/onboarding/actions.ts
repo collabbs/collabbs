@@ -88,6 +88,13 @@ export type BrandOnboardingData = {
   sector: string;
   website: string;
   logoUrl: string | null;
+  description?: string;
+  niches?: number[];
+  platforms?: {
+    platformId: number;
+    handle: string;
+    url: string;
+  }[];
 };
 
 export async function saveBrandOnboarding(
@@ -107,9 +114,35 @@ export async function saveBrandOnboarding(
       sector: data.sector || null,
       website: data.website || null,
       logo_url: data.logoUrl,
+      description: data.description?.trim() || null,
     })
     .eq("id", user.id);
   if (error) return { ok: false, error: error.message };
+
+  // Niches ciblées (remplacement complet, mêmes sémantiques que créateur)
+  if (data.niches) {
+    await supabase.from("brand_niches").delete().eq("brand_id", user.id);
+    if (data.niches.length > 0) {
+      await supabase
+        .from("brand_niches")
+        .insert(data.niches.map((niche_id) => ({ brand_id: user.id, niche_id })));
+    }
+  }
+
+  // Réseaux propres de la marque (remplacement complet)
+  if (data.platforms) {
+    await supabase.from("brand_platforms").delete().eq("brand_id", user.id);
+    if (data.platforms.length > 0) {
+      await supabase.from("brand_platforms").insert(
+        data.platforms.map((p) => ({
+          brand_id: user.id,
+          platform_id: p.platformId,
+          handle: p.handle || null,
+          url: p.url || null,
+        })),
+      );
+    }
+  }
 
   revalidatePath("/dashboard");
   return { ok: true };
