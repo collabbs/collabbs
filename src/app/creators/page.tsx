@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterChip from "@/components/FilterChip";
+import FilterPopover from "@/components/FilterPopover";
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -81,54 +82,69 @@ export default async function CreatorsPage({
   const activeCount =
     (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0);
 
+  // Chips par groupe (réutilisées dans le drawer mobile ET les popovers desktop).
+  const offerChips = (
+    <div className="flex flex-wrap gap-2">
+      {OFFER_TYPES.map((o) => (
+        <Chip
+          key={o.id}
+          label={`${o.emoji} ${o.short}`}
+          active={offre === o.id}
+          href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
+        />
+      ))}
+    </div>
+  );
+  const platformChips = (
+    <div className="flex flex-wrap gap-2">
+      {PLATFORMS.map((p) => (
+        <Chip
+          key={p}
+          label={p}
+          active={platform === p}
+          href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
+        />
+      ))}
+    </div>
+  );
+  const nicheChips = (
+    <div className="flex flex-wrap gap-2">
+      {NICHES.map((n) => (
+        <Chip
+          key={n}
+          label={n}
+          active={niche === n}
+          href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
+        />
+      ))}
+    </div>
+  );
+
+  const activeOfferLabel =
+    offre ? OFFER_TYPES.find((o) => o.id === offre)?.short ?? null : null;
+
+  // Drawer mobile : version verticale empilée des 3 groupes.
   const filterGroups = (
     <div className="space-y-5">
       <div>
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Offre
         </p>
-        <div className="flex flex-wrap gap-2">
-          {OFFER_TYPES.map((o) => (
-            <Chip
-              key={o.id}
-              label={`${o.emoji} ${o.short}`}
-              active={offre === o.id}
-              href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
-            />
-          ))}
-        </div>
+        {offerChips}
       </div>
 
       <div className="border-t border-zinc-100 pt-5">
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Plateforme
         </p>
-        <div className="flex flex-wrap gap-2">
-          {PLATFORMS.map((p) => (
-            <Chip
-              key={p}
-              label={p}
-              active={platform === p}
-              href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
-            />
-          ))}
-        </div>
+        {platformChips}
       </div>
 
       <div className="border-t border-zinc-100 pt-5">
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Niche
         </p>
-        <div className="flex flex-wrap gap-2">
-          {NICHES.map((n) => (
-            <Chip
-              key={n}
-              label={n}
-              active={niche === n}
-              href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
-            />
-          ))}
-        </div>
+        {nicheChips}
       </div>
 
       {activeCount > 0 && (
@@ -142,14 +158,6 @@ export default async function CreatorsPage({
           </Link>
         </div>
       )}
-    </div>
-  );
-
-  // Sur PC on englobe les groupes dans une carte blanche pour bien les
-  // distinguer du fond zinc-50 et du reste du contenu.
-  const desktopFilterCard = (
-    <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-      {filterGroups}
     </div>
   );
 
@@ -181,14 +189,29 @@ export default async function CreatorsPage({
           </button>
         </form>
 
-        {/* Filtres : drawer sur mobile, carte blanche organisée sur desktop */}
+        {/* Filtres : drawer sur mobile, barre de popovers compacts sur desktop */}
         <div className="mt-4">
-          <FiltersDrawer activeCount={activeCount}>
-            {/* contenu de la sheet mobile = mêmes groupes, sans wrapper carte */}
-            {filterGroups}
-          </FiltersDrawer>
-          {/* Carte filtres desktop (cachée sur mobile, le drawer gère le mobile) */}
-          <div className="mt-4 hidden lg:block">{desktopFilterCard}</div>
+          <FiltersDrawer activeCount={activeCount}>{filterGroups}</FiltersDrawer>
+          <div className="hidden flex-wrap items-center gap-2 lg:flex">
+            <FilterPopover label="Offre" activeLabel={activeOfferLabel}>
+              {offerChips}
+            </FilterPopover>
+            <FilterPopover label="Plateforme" activeLabel={platform ?? null}>
+              {platformChips}
+            </FilterPopover>
+            <FilterPopover label="Niche" activeLabel={niche ?? null}>
+              {nicheChips}
+            </FilterPopover>
+            {activeCount > 0 && (
+              <Link
+                href="/creators"
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-ink"
+              >
+                <span>↻</span>
+                <span>Réinitialiser</span>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Résultats */}

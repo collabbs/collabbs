@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import OpportunityCard, { type Opportunity } from "./OpportunityCard";
 import FilterChip from "@/components/FilterChip";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
+import FilterPopover from "@/components/FilterPopover";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -103,64 +104,85 @@ export default async function OpportunitiesPage({
     (type ? 1 : 0) + (niche ? 1 : 0) + (platform ? 1 : 0);
   const anyFilter = Boolean(q) || activeFilterCount > 0;
 
+  // Chips réutilisées dans drawer mobile ET popovers desktop.
+  const typeChips = (
+    <div className="flex flex-wrap gap-2">
+      {TYPE_FILTERS.map((t) => (
+        <Chip
+          key={t.id}
+          label={t.label}
+          active={type === t.id}
+          href={buildHref({ q, niche, platform, type: type === t.id ? undefined : t.id })}
+        />
+      ))}
+    </div>
+  );
+  const platformChips = (
+    <div className="flex flex-wrap gap-2">
+      {platforms.map((p) => (
+        <Chip
+          key={p.id}
+          label={p.label}
+          active={platform === String(p.id)}
+          href={buildHref({
+            q,
+            type,
+            niche,
+            platform: platform === String(p.id) ? undefined : String(p.id),
+          })}
+        />
+      ))}
+    </div>
+  );
+  const nicheChips = (
+    <div className="flex flex-wrap gap-2">
+      {niches.map((n) => (
+        <Chip
+          key={n.id}
+          label={n.label}
+          active={niche === String(n.id)}
+          href={buildHref({
+            q,
+            type,
+            platform,
+            niche: niche === String(n.id) ? undefined : String(n.id),
+          })}
+        />
+      ))}
+    </div>
+  );
+
+  const activeTypeLabel =
+    type ? TYPE_FILTERS.find((t) => t.id === type)?.label ?? null : null;
+  const activePlatformLabel = platform
+    ? platforms.find((p) => String(p.id) === platform)?.label ?? null
+    : null;
+  const activeNicheLabel = niche
+    ? niches.find((n) => String(n.id) === niche)?.label ?? null
+    : null;
+
+  // Drawer mobile : 3 groupes empilés.
   const filterGroups = (
     <div className="space-y-5">
       <div>
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Type
         </p>
-        <div className="flex flex-wrap gap-2">
-          {TYPE_FILTERS.map((t) => (
-            <Chip
-              key={t.id}
-              label={t.label}
-              active={type === t.id}
-              href={buildHref({ q, niche, platform, type: type === t.id ? undefined : t.id })}
-            />
-          ))}
-        </div>
+        {typeChips}
       </div>
 
       <div className="border-t border-zinc-100 pt-5">
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Réseau
         </p>
-        <div className="flex flex-wrap gap-2">
-          {platforms.map((p) => (
-            <Chip
-              key={p.id}
-              label={p.label}
-              active={platform === String(p.id)}
-              href={buildHref({
-                q,
-                type,
-                niche,
-                platform: platform === String(p.id) ? undefined : String(p.id),
-              })}
-            />
-          ))}
-        </div>
+        {platformChips}
       </div>
 
       <div className="border-t border-zinc-100 pt-5">
         <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Niche
         </p>
-        <div className="flex flex-wrap gap-2">
-          {niches.map((n) => (
-            <Chip
-              key={n.id}
-              label={n.label}
-              active={niche === String(n.id)}
-              href={buildHref({
-                q,
-                type,
-                platform,
-                niche: niche === String(n.id) ? undefined : String(n.id),
-              })}
-            />
-          ))}
-        </div>
+        {nicheChips}
       </div>
 
       {activeFilterCount > 0 && (
@@ -205,13 +227,28 @@ export default async function OpportunitiesPage({
           </button>
         </form>
 
-        {/* Filtres : drawer sur mobile, carte blanche organisée sur desktop */}
+        {/* Filtres : drawer sur mobile, barre de popovers compacts sur desktop */}
         <div className="mt-4">
           <FiltersDrawer activeCount={activeFilterCount}>{filterGroups}</FiltersDrawer>
-          <div className="mt-4 hidden lg:block">
-            <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-              {filterGroups}
-            </div>
+          <div className="hidden flex-wrap items-center gap-2 lg:flex">
+            <FilterPopover label="Type" activeLabel={activeTypeLabel}>
+              {typeChips}
+            </FilterPopover>
+            <FilterPopover label="Réseau" activeLabel={activePlatformLabel}>
+              {platformChips}
+            </FilterPopover>
+            <FilterPopover label="Niche" activeLabel={activeNicheLabel}>
+              {nicheChips}
+            </FilterPopover>
+            {activeFilterCount > 0 && (
+              <Link
+                href="/opportunities"
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-ink"
+              >
+                <span>↻</span>
+                <span>Réinitialiser</span>
+              </Link>
+            )}
           </div>
         </div>
 
