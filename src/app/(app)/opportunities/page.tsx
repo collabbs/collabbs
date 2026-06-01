@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OpportunityCard, { type Opportunity } from "./OpportunityCard";
+import FilterChip from "@/components/FilterChip";
+import FiltersDrawer from "@/components/landing/FiltersDrawer";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -21,19 +23,9 @@ function buildHref(params: Params): string {
   return s ? `/opportunities?${s}` : "/opportunities";
 }
 
-function Chip({ label, href, active }: { label: string; href: string; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "bg-ink text-white"
-          : "bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50"
-      }`}
-    >
-      {label}
-    </Link>
-  );
+// Chip = FilterChip (optimistic feedback).
+function Chip(props: { label: string; href: string; active: boolean }) {
+  return <FilterChip {...props} />;
 }
 
 export default async function OpportunitiesPage({
@@ -107,7 +99,83 @@ export default async function OpportunitiesPage({
     return true;
   });
 
-  const anyFilter = Boolean(q || type || niche || platform);
+  const activeFilterCount =
+    (type ? 1 : 0) + (niche ? 1 : 0) + (platform ? 1 : 0);
+  const anyFilter = Boolean(q) || activeFilterCount > 0;
+
+  const filterGroups = (
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          Type
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {TYPE_FILTERS.map((t) => (
+            <Chip
+              key={t.id}
+              label={t.label}
+              active={type === t.id}
+              href={buildHref({ q, niche, platform, type: type === t.id ? undefined : t.id })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-zinc-100 pt-5">
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          Réseau
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {platforms.map((p) => (
+            <Chip
+              key={p.id}
+              label={p.label}
+              active={platform === String(p.id)}
+              href={buildHref({
+                q,
+                type,
+                niche,
+                platform: platform === String(p.id) ? undefined : String(p.id),
+              })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-zinc-100 pt-5">
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          Niche
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {niches.map((n) => (
+            <Chip
+              key={n.id}
+              label={n.label}
+              active={niche === String(n.id)}
+              href={buildHref({
+                q,
+                type,
+                platform,
+                niche: niche === String(n.id) ? undefined : String(n.id),
+              })}
+            />
+          ))}
+        </div>
+      </div>
+
+      {activeFilterCount > 0 && (
+        <div className="border-t border-zinc-100 pt-4">
+          <Link
+            href="/opportunities"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+          >
+            <span>↻</span>
+            <span>Réinitialiser les filtres</span>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -130,72 +198,30 @@ export default async function OpportunitiesPage({
           />
           <button
             type="submit"
-            className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 sm:px-5"
           >
-            Rechercher
+            <span className="hidden sm:inline">Rechercher</span>
+            <span className="sm:hidden">🔍</span>
           </button>
         </form>
 
-        {/* Filtres */}
-        <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Type
-            </span>
-            {TYPE_FILTERS.map((t) => (
-              <Chip
-                key={t.id}
-                label={t.label}
-                active={type === t.id}
-                href={buildHref({ q, niche, platform, type: type === t.id ? undefined : t.id })}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Réseau
-            </span>
-            {platforms.map((p) => (
-              <Chip
-                key={p.id}
-                label={p.label}
-                active={platform === String(p.id)}
-                href={buildHref({
-                  q,
-                  type,
-                  niche,
-                  platform: platform === String(p.id) ? undefined : String(p.id),
-                })}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              Niche
-            </span>
-            {niches.map((n) => (
-              <Chip
-                key={n.id}
-                label={n.label}
-                active={niche === String(n.id)}
-                href={buildHref({
-                  q,
-                  type,
-                  platform,
-                  niche: niche === String(n.id) ? undefined : String(n.id),
-                })}
-              />
-            ))}
+        {/* Filtres : drawer sur mobile, carte blanche organisée sur desktop */}
+        <div className="mt-4">
+          <FiltersDrawer activeCount={activeFilterCount}>{filterGroups}</FiltersDrawer>
+          <div className="mt-4 hidden lg:block">
+            <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+              {filterGroups}
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-zinc-500">
             {results.length} campagne{results.length > 1 ? "s" : ""}
           </p>
-          {anyFilter && (
+          {anyFilter && !activeFilterCount && (
             <Link href="/opportunities" className="text-sm font-medium text-brand hover:underline">
-              Réinitialiser
+              Effacer la recherche
             </Link>
           )}
         </div>

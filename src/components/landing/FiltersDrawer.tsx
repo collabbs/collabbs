@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * Wrapper de filtres marketplace :
- * - Desktop (lg+) : rendu inline (children visibles dans le flux).
- * - Mobile : un bouton « Filtres (N) » qui ouvre une bottom-sheet contenant
- *   les mêmes children. Plus jamais de paquet de chips qui déborde.
+ * Bouton "Filtres (N)" + bottom-sheet — MOBILE UNIQUEMENT.
+ * Sur desktop (lg+) le composant ne rend rien : la page se charge de
+ * présenter ses filtres comme elle veut (carte, sidebar, etc.).
  *
- * Les chips à l'intérieur sont des <Link> qui naviguent vers /creators?...
- * → on ferme automatiquement la sheet à chaque changement de pathname.
+ * Les chips à l'intérieur sont des <FilterChip> qui naviguent vers
+ * /creators?... → on ferme automatiquement la sheet à chaque
+ * changement de pathname.
  */
 export default function FiltersDrawer({
   activeCount,
@@ -80,9 +80,6 @@ export default function FiltersDrawer({
           <span className="text-zinc-400">›</span>
         </button>
       </div>
-
-      {/* Desktop : rendu inline */}
-      <div className="hidden lg:block">{children}</div>
 
       {/* Bottom-sheet mobile */}
       {open && (

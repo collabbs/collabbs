@@ -6,6 +6,7 @@ import { getMarketplaceCreators } from "@/lib/creators-data";
 import { createClient } from "@/lib/supabase/server";
 import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
+import FilterChip from "@/components/FilterChip";
 
 export const metadata = {
   title: "Parcourir les créateurs — Collabbs",
@@ -27,27 +28,10 @@ function buildHref(params: Params): string {
   return s ? `/creators?${s}` : "/creators";
 }
 
-function Chip({
-  label,
-  href,
-  active,
-}: {
-  label: string;
-  href: string;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "bg-ink text-white"
-          : "bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50"
-      }`}
-    >
-      {label}
-    </Link>
-  );
+// Chip = FilterChip (client component avec feedback optimiste).
+// Petit wrapper pour conserver les props existantes.
+function Chip(props: { label: string; href: string; active: boolean }) {
+  return <FilterChip {...props} />;
 }
 
 export default async function CreatorsPage({
@@ -100,7 +84,7 @@ export default async function CreatorsPage({
   const filterGroups = (
     <div className="space-y-5">
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Offre
         </p>
         <div className="flex flex-wrap gap-2">
@@ -115,8 +99,8 @@ export default async function CreatorsPage({
         </div>
       </div>
 
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <div className="border-t border-zinc-100 pt-5">
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Plateforme
         </p>
         <div className="flex flex-wrap gap-2">
@@ -131,8 +115,8 @@ export default async function CreatorsPage({
         </div>
       </div>
 
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <div className="border-t border-zinc-100 pt-5">
+        <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
           Niche
         </p>
         <div className="flex flex-wrap gap-2">
@@ -148,13 +132,24 @@ export default async function CreatorsPage({
       </div>
 
       {activeCount > 0 && (
-        <Link
-          href="/creators"
-          className="inline-block text-sm font-medium text-brand hover:underline"
-        >
-          Réinitialiser les filtres
-        </Link>
+        <div className="border-t border-zinc-100 pt-4">
+          <Link
+            href="/creators"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+          >
+            <span>↻</span>
+            <span>Réinitialiser les filtres</span>
+          </Link>
+        </div>
       )}
+    </div>
+  );
+
+  // Sur PC on englobe les groupes dans une carte blanche pour bien les
+  // distinguer du fond zinc-50 et du reste du contenu.
+  const desktopFilterCard = (
+    <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+      {filterGroups}
     </div>
   );
 
@@ -186,9 +181,14 @@ export default async function CreatorsPage({
           </button>
         </form>
 
-        {/* Filtres : drawer sur mobile, inline sur desktop */}
+        {/* Filtres : drawer sur mobile, carte blanche organisée sur desktop */}
         <div className="mt-4">
-          <FiltersDrawer activeCount={activeCount}>{filterGroups}</FiltersDrawer>
+          <FiltersDrawer activeCount={activeCount}>
+            {/* contenu de la sheet mobile = mêmes groupes, sans wrapper carte */}
+            {filterGroups}
+          </FiltersDrawer>
+          {/* Carte filtres desktop (cachée sur mobile, le drawer gère le mobile) */}
+          <div className="mt-4 hidden lg:block">{desktopFilterCard}</div>
         </div>
 
         {/* Résultats */}

@@ -17,6 +17,44 @@ body {
   font-family: var(--font-sans);
 }
 
+/* ====================================================================
+   UX globale : curseur main sur tout ce qui est cliquable + feedback tactile
+   ==================================================================== */
+
+/* Curseur "main" sur tous les éléments interactifs. Tailwind v4 reset
+   les met en `default`, on les rétablit ici. */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+a[href],
+summary,
+label[for],
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="file"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Mobile : retire le highlight gris/transparent au tap (Android/iOS).
+   Et désactive le délai de 300 ms sur double-tap. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Feedback tactile global : tout bouton/lien rétrécit imperceptiblement
+   à l'appui → l'utilisateur sait que son clic/tap a été pris en compte
+   même avant la fin de la navigation/de l'action. */
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active,
+a[href]:active,
+input[type="submit"]:not(:disabled):active,
+input[type="button"]:not(:disabled):active {
+  transform: scale(0.97);
+  transition: transform 80ms ease-out;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
