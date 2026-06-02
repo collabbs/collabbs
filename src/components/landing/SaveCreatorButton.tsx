@@ -36,7 +36,7 @@ export default function SaveCreatorButton({
       disabled={busy}
       aria-label={saved ? "Retirer de ma shortlist" : "Sauver dans ma shortlist"}
       title={saved ? "Retirer de ma shortlist" : "Sauver dans ma shortlist"}
-      className={`absolute left-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full shadow-sm transition disabled:opacity-50 ${
+      className={`absolute right-2 top-2 z-30 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition disabled:opacity-50 ${
         saved
           ? "bg-pink-500 text-white hover:bg-pink-600"
           : "bg-white/95 text-zinc-500 hover:bg-white hover:text-pink-500"

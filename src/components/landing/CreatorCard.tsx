@@ -65,17 +65,15 @@ export default function CreatorCard({
           </div>
         )}
 
-        {/* Note en haut à droite */}
-        <span className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-          <span className="text-amber-300">★</span>
-          {creator.rating.toFixed(1)}
-        </span>
-
-        {/* Plateforme + abonnés en bas */}
+        {/* Plateforme + abonnés en bas gauche, note en bas droite */}
         <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-between">
           <span className="flex items-center gap-1.5 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 shadow-sm">
             <PlatformIcon slug={slug} className="h-3 w-3" />
             {creator.followers}
+          </span>
+          <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+            <span className="text-amber-300">★</span>
+            {creator.rating.toFixed(1)}
           </span>
         </div>
 
