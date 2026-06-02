@@ -9,6 +9,8 @@ import {
   type DealFormat,
   type DealStatus,
 } from "@/lib/deal";
+import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
+import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 import { openConversation } from "../../messages/actions";
 import { createDealCheckout } from "../actions";
 import DealControls from "./DealControls";
@@ -25,6 +27,63 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { data } = await supabase.from("deals").select("title").eq("id", id).single();
   return { title: data?.title ? `${data.title} — Collabbs` : "Collaboration — Collabbs" };
+}
+
+/**
+ * Bloc "Parties au contrat" — rend les coordonnées légales des 2 parties
+ * gelées dans le snapshot. Côte à côte sur desktop, empilées sur mobile.
+ */
+function PartyBlock({ label, p }: { label: string; p: PartySnapshot }) {
+  const addressLines = [
+    p.address,
+    [p.zip, p.city].filter(Boolean).join(" "),
+    p.country,
+  ].filter(Boolean);
+  return (
+    <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-2 font-semibold text-ink">{p.legal_name ?? p.display_name}</p>
+      {p.legal_status_label && (
+        <p className="text-xs text-zinc-500">{p.legal_status_label}</p>
+      )}
+      {p.rep_name && (
+        <p className="mt-1 text-xs text-zinc-500">
+          Représenté·e par {p.rep_name}
+        </p>
+      )}
+      {addressLines.length > 0 && (
+        <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-zinc-600">
+          {addressLines.join("\n")}
+        </p>
+      )}
+      {p.siret && (
+        <p className="mt-2 text-xs text-zinc-500">
+          <span className="font-medium">SIRET</span> {p.siret}
+        </p>
+      )}
+      {p.vat && (
+        <p className="text-xs text-zinc-500">
+          <span className="font-medium">TVA</span> {p.vat}
+        </p>
+      )}
+      {p.contact_email && (
+        <p className="mt-2 text-xs text-zinc-500">
+          <span className="font-medium">Contact</span> {p.contact_email}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ContractParties({ snap }: { snap: ContractSnapshot }) {
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <PartyBlock label="Marque" p={snap.brand} />
+      <PartyBlock label="Créateur" p={snap.creator} />
+    </div>
+  );
 }
 
 export default async function DealDetailPage({
@@ -52,7 +111,7 @@ export default async function DealDetailPage({
   const role: "brand" | "creator" = deal.brand_id === user.id ? "brand" : "creator";
   const otherId = role === "brand" ? deal.creator_id : deal.brand_id;
 
-  const [otherRes, delsRes, platRes, reviewRes, contractRes, txRes] = await Promise.all([
+  const [otherRes, delsRes, platRes, reviewRes, contractRes, txRes, myLegalRes] = await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
@@ -67,7 +126,9 @@ export default async function DealDetailPage({
     supabase.from("reviews").select("rating, comment").eq("deal_id", id).maybeSingle(),
     supabase
       .from("contracts")
-      .select("reference, status, brand_signed_at, creator_signed_at, terminated_at")
+      .select(
+        "reference, status, brand_signed_at, creator_signed_at, terminated_at, terms_snapshot",
+      )
       .eq("deal_id", id)
       .maybeSingle(),
     supabase
@@ -76,11 +137,17 @@ export default async function DealDetailPage({
       .eq("deal_id", id)
       .eq("type", "deal_payment")
       .maybeSingle(),
+    supabase
+      .from("legal_info")
+      .select("status, legal_name, address, city, zip")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
   const other = otherRes.data;
   const deliverables = delsRes.data ?? [];
   const existingReview = reviewRes.data ?? null;
   const contract = contractRes.data ?? null;
+  const myLegalReady = isLegalInfoComplete(myLegalRes.data);
   const payment = txRes.data ?? null;
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
@@ -194,28 +261,60 @@ export default async function DealDetailPage({
               </div>
 
               {contract.status === "signed" ? (
-                <div className="mt-3 space-y-1.5 text-sm text-zinc-600">
-                  <p className="flex items-center gap-2">
-                    <span className="text-emerald-600">✓</span>
-                    Marque — signé le {fmtDateTime(contract.brand_signed_at)}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="text-emerald-600">✓</span>
-                    Créateur — signé le {fmtDateTime(contract.creator_signed_at)}
-                  </p>
-                  <p className="mt-2 text-xs text-zinc-400">
-                    Les termes ci-dessus ont été figés au moment de la signature et engagent les deux parties.
-                  </p>
-                </div>
+                <>
+                  {/* Coordonnées des 2 parties (depuis le snapshot gelé) */}
+                  {contract.terms_snapshot &&
+                    typeof contract.terms_snapshot === "object" &&
+                    "brand" in contract.terms_snapshot &&
+                    "creator" in contract.terms_snapshot && (
+                      <ContractParties
+                        snap={contract.terms_snapshot as unknown as ContractSnapshot}
+                      />
+                    )}
+
+                  <div className="mt-4 space-y-1.5 border-t border-zinc-100 pt-4 text-sm text-zinc-600">
+                    <p className="flex items-center gap-2">
+                      <span className="text-emerald-600">✓</span>
+                      Marque — signé le {fmtDateTime(contract.brand_signed_at)}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="text-emerald-600">✓</span>
+                      Créateur — signé le {fmtDateTime(contract.creator_signed_at)}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-400">
+                      Les coordonnées et termes ci-dessus ont été figés au
+                      moment de la signature et engagent les deux parties.
+                    </p>
+                  </div>
+                </>
               ) : contract.status === "terminated" ? (
                 <p className="mt-2 text-sm text-zinc-500">
                   Contrat résilié le {fmtDateTime(contract.terminated_at)}.
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-zinc-500">
-                  Le contrat sera <strong className="text-ink">figé et signé automatiquement</strong> dès
-                  que le créateur accepte les termes proposés.
-                </p>
+                <>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Le contrat sera <strong className="text-ink">figé et signé automatiquement</strong>{" "}
+                    dès que le créateur accepte les termes proposés.
+                  </p>
+
+                  {/* Nudge légal : si l'utilisateur connecté n'a pas ses infos
+                      complètes, on lui dit avant qu'il bloque sur l'acceptation. */}
+                  {!myLegalReady && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-800">
+                        ⚠️ Tes infos légales sont incomplètes — la signature sera bloquée
+                        tant qu&apos;elles ne sont pas à jour.
+                      </p>
+                      <Link
+                        href="/profile"
+                        className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white"
+                      >
+                        Compléter
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
+import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
 
 type Result = { ok: boolean; error?: string };
 
@@ -208,6 +209,24 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   if (deal.status !== "negotiation")
     return { ok: false, error: "Ce deal n'est plus en négociation." };
 
+  // Avant d'accepter, on essaie de construire le snapshot du contrat. Si une
+  // partie n'a pas ses infos légales minimales, on bloque ici avec un
+  // message explicite — sinon on signerait un contrat à trous.
+  const build = await buildContractSnapshot(dealId);
+  if (!build.ok) {
+    if (build.reason === "incomplete_legal_info" && build.missing) {
+      const fields = build.missing.fields
+        .map((f) => LEGAL_FIELD_LABELS[f] ?? f)
+        .join(", ");
+      const who =
+        build.missing.who === "creator"
+          ? "Tu dois compléter tes infos légales avant de pouvoir accepter"
+          : "La marque doit d'abord compléter ses infos légales pour pouvoir signer";
+      return { ok: false, error: `${who} : ${fields}.` };
+    }
+    return { ok: false, error: "Impossible de générer le contrat." };
+  }
+
   const { error } = await supabase
     .from("deals")
     .update({ status: "active" })
@@ -222,8 +241,8 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     link: `/deals/${dealId}`,
   });
 
-  // Le contrat est figé (snapshot des termes) et signé par les 2 parties :
-  // la marque a proposé ces termes, le créateur les accepte tels quels.
+  // Le contrat est figé (snapshot complet des termes ET des coordonnées
+  // légales des 2 parties) et signé par les 2 parties simultanément.
   const now = new Date().toISOString();
   await supabase
     .from("contracts")
@@ -231,15 +250,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
       status: "signed",
       brand_signed_at: now,
       creator_signed_at: now,
-      terms_snapshot: {
-        title: deal.title,
-        amount: deal.amount,
-        format: deal.format,
-        platform_id: deal.platform_id,
-        quantity: deal.quantity,
-        deadline: deal.deadline,
-        brand_notes: deal.brand_notes,
-      },
+      terms_snapshot: build.snapshot,
     })
     .eq("deal_id", dealId);
 
