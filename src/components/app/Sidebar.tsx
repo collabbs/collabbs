@@ -139,7 +139,7 @@ export default function Sidebar({
     <>
       {/* ============ Sidebar desktop (lg+) ============ */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-zinc-100 bg-white px-4 py-5 lg:flex">
-        <Link href="/dashboard" className="px-2">
+        <Link href="/start" className="px-2">
           <Logo />
         </Link>
         <nav className="mt-8 flex flex-1 flex-col gap-1">{items.map(renderNavLink)}</nav>
@@ -158,7 +158,7 @@ export default function Sidebar({
 
       {/* ============ Top bar mobile (< lg) ============ */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-        <Link href="/dashboard" aria-label="Accueil Collabbs">
+        <Link href="/start" aria-label="Accueil Collabbs">
           <Logo />
         </Link>
         <div className="flex items-center gap-1">

@@ -58,6 +58,11 @@ export type MarketplaceCreator = {
   tint: string;
   niches: string[];
   platformLabels: string[];
+  /** Signaux de qualité dérivés des données pour les badges sur la card. */
+  isTop: boolean;
+  isVerified: boolean;
+  isNew: boolean;
+  reviewsCount: number;
 };
 
 type CreatorRow = {
@@ -68,6 +73,10 @@ type CreatorRow = {
   rate_video: number | null;
   rate_mention: number | null;
   rate_pack: number | null;
+  verified: boolean | null;
+  deals_count: number | null;
+  reviews_count: number | null;
+  created_at: string | null;
 };
 
 async function loadRelations(ids: string[]) {
@@ -121,13 +130,18 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   const supabase = await createClient();
   const { data: creators } = await supabase
     .from("creators")
-    .select("id, handle, rating, engagement, rate_video, rate_mention, rate_pack")
+    .select(
+      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at",
+    )
     .order("rating", { ascending: false });
   const rows = (creators ?? []) as CreatorRow[];
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
 
   const { profMap, platsBy, nichesBy, offersBy } = await loadRelations(ids);
+
+  const NOW = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
   const result: MarketplaceCreator[] = [];
   for (const c of rows) {
@@ -141,6 +155,15 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       continue;
 
     const main = plats[0];
+    const rating = c.rating ?? 5;
+    const dealsCount = c.deals_count ?? 0;
+    const reviewsCount = c.reviews_count ?? 0;
+    const verified = Boolean(c.verified);
+    const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
+    const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
+    // "Top" = vétéran avec excellente note. Au moins 5 deals OU 5 reviews + note ≥ 4.8.
+    const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+
     result.push({
       id: c.id,
       name: prof.display_name ?? "Créateur",
@@ -152,11 +175,15 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       engagement: c.engagement != null ? `${c.engagement}%` : "—",
       priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
       offers,
-      rating: c.rating ?? 5,
+      rating,
       photo: prof.avatar_url,
       tint: tintFor(c.handle),
       niches,
       platformLabels: plats.map((p) => p.label),
+      isTop,
+      isVerified: verified,
+      isNew,
+      reviewsCount,
     });
   }
   return result;

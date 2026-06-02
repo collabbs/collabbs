@@ -56,6 +56,10 @@ export type Creator = {
   photo: string;
   /** Dégradé affiché en secours si la photo ne charge pas. */
   tint: string;
+  /** Signaux de qualité affichés en badges sur la card. */
+  isTop?: boolean;
+  isVerified?: boolean;
+  isNew?: boolean;
 };
 
 const U = (id: string) =>

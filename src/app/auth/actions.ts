@@ -18,7 +18,8 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  // /start dispatch vers /creators (marque) ou /opportunities (créateur).
+  redirect("/start");
 }
 
 /** Inscription : crée le compte avec rôle + nom (lus par le trigger handle_new_user). */

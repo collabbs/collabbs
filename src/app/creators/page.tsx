@@ -9,6 +9,7 @@ import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterChip from "@/components/FilterChip";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
+import EmptyState from "@/components/EmptyState";
 
 /** Mappe un nom d'affichage de plateforme vers le slug attendu par PlatformIcon. */
 function platformSlug(label: string): string {
@@ -176,13 +177,43 @@ export default async function CreatorsPage({
 
   return (
     <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
-      <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
-          Trouvez le créateur idéal
-        </h1>
-        <p className="mt-3 max-w-2xl text-zinc-600">
-          Parcourez librement les profils. Payez à la vidéo ou lancez une
-          affiliation en 1 clic — créez un compte pour collaborer.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
+            Trouve <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">le créateur</span> qui fera décoller ta marque
+          </h1>
+          <p className="mt-3 max-w-2xl text-zinc-600">
+            {results.length > 0 ? (
+              <>
+                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span> vérifiés, prêts à collaborer. Filtre par niche, plateforme ou
+                offre — réserve en 1 clic.
+              </>
+            ) : (
+              <>Parcours librement les profils. Paie à la vidéo ou lance une affiliation en 1 clic.</>
+            )}
+          </p>
+        </div>
+        <div className="hidden items-center gap-2 lg:flex">
+          <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
+            <p className="font-display text-xl font-black text-ink">10%</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              Commission seulement
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
+            <p className="font-display text-xl font-black text-ink">24h</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              Réponse moyenne
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
+            <p className="font-display text-xl font-black text-ink">🔒</p>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              Paiement séquestré
+            </p>
+          </div>
+        </div>
+      </div>
 
         {/* Recherche */}
         <form action="/creators" className="mt-6 flex max-w-xl items-center gap-2">
@@ -235,7 +266,7 @@ export default async function CreatorsPage({
         </div>
 
         {results.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="cards-stagger mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {results.map((c) => (
               <CreatorCard
                 key={c.handle}
@@ -250,15 +281,13 @@ export default async function CreatorsPage({
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-12 text-center">
-            <p className="font-semibold text-ink">Aucun créateur ne correspond</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Essayez d&apos;élargir vos filtres, ou{" "}
-              <Link href="/creators" className="font-medium text-brand hover:underline">
-                réinitialisez la recherche
-              </Link>
-              .
-            </p>
+          <div className="mt-6">
+            <EmptyState
+              icon="🔍"
+              title="Aucun créateur ne correspond"
+              description="Essaie d'élargir tes filtres ou réinitialise la recherche pour explorer tous les profils."
+              cta={{ label: "Réinitialiser la recherche", href: "/creators" }}
+            />
           </div>
         )}
     </AppOrLandingShell>
