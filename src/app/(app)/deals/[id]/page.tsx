@@ -188,7 +188,16 @@ export default async function DealDetailPage({
             </h1>
             <p className="text-sm text-zinc-500">
               {role === "brand" ? "avec " : "pour "}
-              <span className="font-medium text-ink">{other?.display_name ?? "—"}</span>
+              {role === "creator" ? (
+                <Link
+                  href={`/brands/${otherId}`}
+                  className="font-medium text-ink transition hover:text-brand hover:underline"
+                >
+                  {other?.display_name ?? "—"}
+                </Link>
+              ) : (
+                <span className="font-medium text-ink">{other?.display_name ?? "—"}</span>
+              )}
             </p>
           </div>
         </div>

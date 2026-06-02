@@ -52,7 +52,7 @@ export default async function PublicCampaignPage({
   const { data: c } = await admin
     .from("campaigns")
     .select(
-      "id, name, description, requirements, type, status, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, tone, brands(name, logo_url, sector, website), campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, name, description, requirements, type, status, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, tone, brand_id, brands(name, logo_url, sector, website), campaign_niches(niche_id), campaign_platforms(platform_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -112,7 +112,12 @@ export default async function PublicCampaignPage({
             )}
           </span>
           <div>
-            <p className="text-sm font-medium text-zinc-500">{c.brands?.name}</p>
+            <Link
+              href={`/brands/${c.brand_id}`}
+              className="text-sm font-medium text-zinc-500 transition hover:text-ink hover:underline"
+            >
+              {c.brands?.name}
+            </Link>
             <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl">
               {c.name}
             </h1>
