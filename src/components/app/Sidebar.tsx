@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/landing/Logo";
+import GlobalSearch from "@/components/app/GlobalSearch";
 import { logout } from "@/app/auth/actions";
 
 type NavItem = { href: string; label: string; icon: string };
@@ -144,7 +145,10 @@ export default function Sidebar({
         <Link href="/start" className="px-2">
           <Logo />
         </Link>
-        <nav className="mt-8 flex flex-1 flex-col gap-1">{items.map(renderNavLink)}</nav>
+        <div className="mt-6">
+          <GlobalSearch />
+        </div>
+        <nav className="mt-4 flex flex-1 flex-col gap-1">{items.map(renderNavLink)}</nav>
         <div className="border-t border-zinc-100 pt-4">
           {userBlock}
           <form action={logout} className="mt-3">
