@@ -6,6 +6,7 @@ import FilterChip from "@/components/FilterChip";
 import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
+import EmptyState from "@/components/EmptyState";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -205,15 +206,68 @@ export default async function OpportunitiesPage({
     </div>
   );
 
+  // Stats du créateur connecté : nb d'opportunités, gains affil cumulés.
+  const allEvents = myEventsRes.data ?? [];
+  const totalClicks = allEvents.filter((e) => e.type === "click").length;
+  const totalGains = allEvents
+    .filter((e) => e.type === "sale")
+    .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
+  const activeLinks = linkRows.length;
+
   return (
     <>
-      <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl">
-          Opportunités
-        </h1>
-        <p className="mt-2 text-zinc-600">
-          Trouve les campagnes faites pour toi. Active ton lien d&apos;affiliation en
-          1 clic ou candidate.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">
+            <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Opportunités
+            </span>{" "}
+            qui t&apos;attendent
+          </h1>
+          <p className="mt-3 max-w-2xl text-zinc-600">
+            {results.length > 0 ? (
+              <>
+                <span className="font-semibold text-ink">{results.length} campagne{results.length > 1 ? "s" : ""}</span>{" "}
+                ouvertes en ce moment. Active ton lien en 1 clic ou candidate sur les
+                deals fixes.
+              </>
+            ) : (
+              <>
+                Trouve les campagnes faites pour toi. Active ton lien d&apos;affiliation
+                en 1 clic ou candidate.
+              </>
+            )}
+          </p>
+        </div>
+        {(activeLinks > 0 || totalClicks > 0 || totalGains > 0) && (
+          <div className="hidden items-center gap-2 lg:flex">
+            <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
+              <p className="font-display text-xl font-black text-ink">
+                {activeLinks}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                Liens actifs
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
+              <p className="font-display text-xl font-black text-ink">
+                {totalClicks}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                Clics générés
+              </p>
+            </div>
+            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 px-4 py-2.5 text-center shadow-sm">
+              <p className="font-display text-xl font-black text-emerald-700">
+                {totalGains.toLocaleString("fr-FR")}€
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">
+                Gagnés
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
         {/* Recherche */}
         <form action="/opportunities" className="mt-6 flex max-w-xl items-center gap-2">
@@ -270,14 +324,20 @@ export default async function OpportunitiesPage({
         </div>
 
         {results.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center">
-            <p className="font-semibold text-ink">Aucune campagne ne correspond</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Essaie d&apos;élargir tes filtres.
-            </p>
+          <div className="mt-6">
+            <EmptyState
+              icon="🎯"
+              title={anyFilter ? "Aucune campagne ne correspond" : "Aucune campagne active"}
+              description={
+                anyFilter
+                  ? "Essaie d'élargir tes filtres ou réinitialise la recherche pour voir toutes les opportunités."
+                  : "Pas d'opportunités ouvertes pour le moment. Reviens vite — des marques publient régulièrement."
+              }
+              cta={anyFilter ? { label: "Réinitialiser la recherche", href: "/opportunities" } : undefined}
+            />
           </div>
         ) : (
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="cards-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((c) => {
               const opportunity: Opportunity = {
                 id: c.id,
