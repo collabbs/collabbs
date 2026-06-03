@@ -38,23 +38,35 @@ function prettyHost(url: string | null): string | null {
 
 const CAMPAIGN_TYPE_META: Record<
   string,
-  { label: string; emoji: string; band: string }
+  { label: string; emoji: string; band: string; bg: string; pill: string }
 > = {
   affiliation: {
     label: "Affiliation",
     emoji: "🔗",
     band: "from-emerald-400 to-teal-500",
+    bg: "from-emerald-50 to-teal-50",
+    pill: "bg-emerald-100 text-emerald-800",
   },
-  video: { label: "Paiement fixe", emoji: "🎬", band: "from-purple-500 to-pink-500" },
+  video: {
+    label: "Paiement fixe",
+    emoji: "🎬",
+    band: "from-purple-500 to-pink-500",
+    bg: "from-purple-50 to-pink-50",
+    pill: "bg-purple-100 text-purple-800",
+  },
   performance: {
     label: "Performance",
     emoji: "📊",
     band: "from-amber-400 to-orange-500",
+    bg: "from-amber-50 to-orange-50",
+    pill: "bg-amber-100 text-amber-800",
   },
   hybrid: {
     label: "Hybride",
     emoji: "💎",
     band: "from-cyan-400 via-purple-500 to-pink-500",
+    bg: "from-cyan-50 to-purple-50",
+    pill: "bg-gradient-to-r from-cyan-100 to-purple-100 text-cyan-800",
   },
 };
 
@@ -414,42 +426,62 @@ export default async function BrandPublicPage({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {campaigns.map((c) => {
                   const meta = CAMPAIGN_TYPE_META[c.type] ?? CAMPAIGN_TYPE_META.affiliation;
+                  const urgent = c.spots !== null && c.spots > 0 && c.spots <= 3;
+                  const rewardMain = c.fixed_amount
+                    ? `${c.fixed_amount}€`
+                    : c.commission_value
+                      ? `${c.commission_value}%`
+                      : null;
+                  const rewardSub = c.fixed_amount
+                    ? "par contenu"
+                    : c.commission_value
+                      ? "de commission"
+                      : null;
                   return (
                     <Link
                       key={c.id}
                       href={`/c/${c.id}`}
-                      className="group overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group relative overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl"
                     >
-                      <div className={`h-1 bg-gradient-to-r ${meta.band}`} />
-                      <div className="p-4">
-                        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                      {/* Header dans un gradient teinté */}
+                      <div className={`relative bg-gradient-to-br ${meta.bg} p-4 transition group-hover:from-white`}>
+                        {urgent && (
+                          <span className="absolute right-3 top-3 rounded-full bg-red-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                            🔥 {c.spots} place{c.spots && c.spots > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.pill}`}
+                        >
                           <span>{meta.emoji}</span>
                           {meta.label}
-                        </p>
-                        <p className="mt-1 font-display text-base font-black text-ink transition group-hover:text-brand">
+                        </span>
+                        <p className="mt-2 font-display text-base font-black leading-tight text-ink transition group-hover:text-brand">
                           {c.name}
                         </p>
+                      </div>
+
+                      {/* Reward XL */}
+                      {rewardMain && (
+                        <div className="border-t border-zinc-100 px-4 pt-3">
+                          <p className="font-display text-2xl font-black tracking-tight text-ink">
+                            {rewardMain}
+                          </p>
+                          {rewardSub && (
+                            <p className="text-[11px] text-zinc-500">{rewardSub}</p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="px-4 pb-4 pt-3">
                         {c.description && (
-                          <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+                          <p className="line-clamp-2 text-xs text-zinc-500">
                             {c.description}
                           </p>
                         )}
-                        <div className="mt-3 flex items-center gap-2 border-t border-zinc-100 pt-3 text-xs">
-                          {c.fixed_amount ? (
-                            <span className="font-bold text-ink">
-                              {c.fixed_amount}€ fixe
-                            </span>
-                          ) : c.commission_value ? (
-                            <span className="font-bold text-ink">
-                              {c.commission_value}% commission
-                            </span>
-                          ) : null}
-                          {c.spots && (
-                            <span className="text-zinc-500">
-                              · {c.spots} place{c.spots > 1 ? "s" : ""}
-                            </span>
-                          )}
-                        </div>
+                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand transition group-hover:gap-2">
+                          Voir l&apos;opportunité <span>→</span>
+                        </p>
                       </div>
                     </Link>
                   );
