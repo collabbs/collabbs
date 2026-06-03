@@ -16,6 +16,7 @@ const CREATOR_NAV: NavItem[] = [
   { href: "/payouts", label: "Paiements", icon: "💶" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
   { href: "/profile", label: "Mon profil", icon: "👤" },
+  { href: "/settings", label: "Réglages", icon: "⚙️" },
 ];
 
 const BRAND_NAV: NavItem[] = [
@@ -29,6 +30,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/tracking", label: "Tracking", icon: "🔗" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
   { href: "/profile", label: "Mon profil", icon: "🏢" },
+  { href: "/settings", label: "Réglages", icon: "⚙️" },
 ];
 
 export default function Sidebar({
