@@ -17,6 +17,7 @@ import DealControls from "./DealControls";
 import ReviewBox from "./ReviewBox";
 import RefundButton from "./RefundButton";
 import ReceiveButton from "./ReceiveButton";
+import DealTimeline from "./DealTimeline";
 
 export async function generateMetadata({
   params,
@@ -101,7 +102,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used",
     )
     .eq("id", id)
     .single();
@@ -116,7 +117,7 @@ export default async function DealDetailPage({
     supabase
       .from("deliverables")
       .select(
-        "id, label, done, approved, position, submission_url, submission_notes, submission_files",
+        "id, label, done, approved, position, submission_url, submission_notes, submission_files, submitted_at, revision_requested, revision_message",
       )
       .eq("deal_id", id)
       .order("position"),
@@ -133,7 +134,9 @@ export default async function DealDetailPage({
       .maybeSingle(),
     supabase
       .from("transactions")
-      .select("status, gross_amount, net_amount, platform_fee")
+      .select(
+        "status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
+      )
       .eq("deal_id", id)
       .eq("type", "deal_payment")
       .maybeSingle(),
@@ -152,6 +155,28 @@ export default async function DealDetailPage({
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
   const b = dealBreakdown(deal.amount);
+
+  // Calculs timeline
+  const paymentPaid =
+    payment !== null &&
+    (payment.status === "in_escrow" ||
+      payment.status === "released" ||
+      payment.status === "paid");
+  const paymentPaidAt = paymentPaid ? payment?.created_at ?? null : null;
+  const paymentReleased =
+    payment !== null &&
+    (payment.status === "released" || payment.status === "paid");
+  const paymentReleasedAt = paymentReleased
+    ? payment?.escrow_released_at ?? payment?.paid_at ?? null
+    : null;
+  const submittedDates = deliverables
+    .map((dv) => (dv.submitted_at ? new Date(dv.submitted_at).getTime() : 0))
+    .filter((n) => n > 0)
+    .sort((a, b) => a - b);
+  const firstDeliveredAt =
+    submittedDates.length > 0 ? new Date(submittedDates[0]).toISOString() : null;
+  const allDelivered =
+    deliverables.length > 0 && deliverables.every((dv) => dv.done);
 
   const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—";
@@ -204,6 +229,30 @@ export default async function DealDetailPage({
         <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${meta.className}`}>
           {meta.label}
         </span>
+      </div>
+
+      {/* Timeline du parcours — visible en haut, sur toute la largeur */}
+      <div className="mt-6">
+        <DealTimeline
+          deal={{
+            created_at: deal.created_at,
+            status: deal.status,
+            accepted_at: deal.accepted_at,
+            escrow_due_at: deal.escrow_due_at,
+            brand_validated_at: deal.brand_validated_at,
+            brand_validation_deadline_days: deal.brand_validation_deadline_days,
+            deadline: deal.deadline,
+            revision_rounds_max: deal.revision_rounds_max,
+            revision_rounds_used: deal.revision_rounds_used,
+          }}
+          paid={paymentPaid}
+          paidAt={paymentPaidAt}
+          released={paymentReleased}
+          releasedAt={paymentReleasedAt}
+          allDelivered={allDelivered}
+          firstDeliveredAt={firstDeliveredAt}
+          viewerRole={role}
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">

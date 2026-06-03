@@ -227,9 +227,18 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     return { ok: false, error: "Impossible de générer le contrat." };
   }
 
+  // À l'acceptation : on enregistre accepted_at + on calcule escrow_due_at
+  // (SLA marque pour régler) à +7 jours. Si dépassé, un cron pourra annuler.
+  const acceptedAtIso = new Date().toISOString();
+  const escrowDueIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
   const { error } = await supabase
     .from("deals")
-    .update({ status: "active" })
+    .update({
+      status: "active",
+      accepted_at: acceptedAtIso,
+      escrow_due_at: escrowDueIso,
+    })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
@@ -237,7 +246,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     userId: deal.brand_id,
     type: "deal_accepted",
     title: `Le créateur a accepté ton deal "${deal.title ?? "collaboration"}"`,
-    body: "Tu peux maintenant régler le séquestre. Le créateur va livrer le contenu et tu valideras avant clôture.",
+    body: "Tu peux maintenant régler le séquestre. Tu as 7 jours pour effectuer le paiement, sinon le deal sera annulé automatiquement.",
     link: `/deals/${dealId}`,
   });
 
@@ -574,7 +583,7 @@ export async function completeDeal(dealId: string): Promise<Result> {
 
   const { error } = await supabase
     .from("deals")
-    .update({ status: "completed" })
+    .update({ status: "completed", brand_validated_at: new Date().toISOString() })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 

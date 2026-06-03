@@ -717,57 +717,75 @@ export type Database = {
       }
       deals: {
         Row: {
+          accepted_at: string | null
           amount: number
           brand_id: string
           brand_notes: string | null
+          brand_validated_at: string | null
+          brand_validation_deadline_days: number
           campaign_id: string | null
           created_at: string
           creator_id: string
           deadline: string | null
+          escrow_due_at: string | null
           exclusivity: boolean
           exclusivity_days: number | null
           format: Database["public"]["Enums"]["deal_format"]
           id: string
           platform_id: number | null
           quantity: number
+          revision_rounds_max: number
+          revision_rounds_used: number
           status: Database["public"]["Enums"]["deal_status"]
           title: string | null
           updated_at: string
           usage_rights_months: number | null
         }
         Insert: {
+          accepted_at?: string | null
           amount: number
           brand_id: string
           brand_notes?: string | null
+          brand_validated_at?: string | null
+          brand_validation_deadline_days?: number
           campaign_id?: string | null
           created_at?: string
           creator_id: string
           deadline?: string | null
+          escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
           format: Database["public"]["Enums"]["deal_format"]
           id?: string
           platform_id?: number | null
           quantity?: number
+          revision_rounds_max?: number
+          revision_rounds_used?: number
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
           updated_at?: string
           usage_rights_months?: number | null
         }
         Update: {
+          accepted_at?: string | null
           amount?: number
           brand_id?: string
           brand_notes?: string | null
+          brand_validated_at?: string | null
+          brand_validation_deadline_days?: number
           campaign_id?: string | null
           created_at?: string
           creator_id?: string
           deadline?: string | null
+          escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
           format?: Database["public"]["Enums"]["deal_format"]
           id?: string
           platform_id?: number | null
           quantity?: number
+          revision_rounds_max?: number
+          revision_rounds_used?: number
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
           updated_at?: string
