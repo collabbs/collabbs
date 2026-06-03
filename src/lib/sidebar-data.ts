@@ -25,13 +25,14 @@ export const fetchSidebarData = cache(
     const supabase = await createClient();
 
     // Phase 1 : tout ce qu'on peut faire en parallèle, sans dépendances.
-    // - profil (rôle, nom, avatar)
-    // - conversations de l'user (pour les messages non lus en phase 2)
-    // - notifications non lues (count direct)
-    // - campagnes de la marque (cascade vers applications en phase 2)
-    //   → on laisse partir même si l'user est créateur, c'est un count
-    //     trivial qui renverra 0 ; évite un round-trip pour check le rôle.
-    const [profileRes, convsRes, unreadNotifsRes, campsRes] = await Promise.all([
+    const [
+      profileRes,
+      convsRes,
+      unreadNotifsRes,
+      campsRes,
+      activeLinksRes,
+      creatorPendingAppsRes,
+    ] = await Promise.all([
       supabase
         .from("profiles")
         .select("role, display_name, avatar_url")
@@ -43,6 +44,17 @@ export const fetchSidebarData = cache(
         .select("*", { count: "exact", head: true })
         .is("read_at", null),
       supabase.from("campaigns").select("id, type").eq("brand_id", userId),
+      // Liens d'affiliation du créateur (pour le badge "Mon activité")
+      supabase
+        .from("affiliate_links")
+        .select("*", { count: "exact", head: true })
+        .eq("creator_id", userId),
+      // Candidatures en attente DU CRÉATEUR (pour le badge "Mon activité")
+      supabase
+        .from("applications")
+        .select("*", { count: "exact", head: true })
+        .eq("creator_id", userId)
+        .eq("status", "pending"),
     ]);
 
     const profile = profileRes.data;
@@ -86,6 +98,13 @@ export const fetchSidebarData = cache(
     if (unreadMsgsRes.count) badges["/messages"] = unreadMsgsRes.count;
     if (unreadNotifsRes.count) badges["/notifications"] = unreadNotifsRes.count;
     if (pendingAppsRes.count) badges["/campaigns"] = pendingAppsRes.count;
+
+    // Badge "Mon activité" côté créateur : nb liens actifs + candidatures pending
+    if (role === "creator") {
+      const activityCount =
+        (activeLinksRes.count ?? 0) + (creatorPendingAppsRes.count ?? 0);
+      if (activityCount > 0) badges["/activity"] = activityCount;
+    }
 
     const attention: string[] = [];
     if (role === "brand" && hasAffiliation) {
