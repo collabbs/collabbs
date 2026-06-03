@@ -305,6 +305,41 @@ export type Database = {
           },
         ]
       }
+      campaign_examples: {
+        Row: {
+          id: string
+          campaign_id: string
+          url: string | null
+          caption: string | null
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          url?: string | null
+          caption?: string | null
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          url?: string | null
+          caption?: string | null
+          position?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_examples_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_niches: {
         Row: {
           campaign_id: string

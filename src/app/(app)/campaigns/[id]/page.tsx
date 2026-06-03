@@ -13,6 +13,7 @@ import {
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
+import ExamplesManager from "./ExamplesManager";
 import TrackingStatusCard from "./TrackingStatusCard";
 import ShareCampaignCard from "./ShareCampaignCard";
 
@@ -58,7 +59,7 @@ export default async function CampaignManagePage({
   const type = c.type as CampaignType;
   const isAffiliation = type === "affiliation" || type === "hybrid";
 
-  const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes] = await Promise.all([
+  const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes, examplesRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
     supabase.from("platforms").select("id, label, slug"),
     supabase
@@ -76,7 +77,13 @@ export default async function CampaignManagePage({
       .select("postback_secret, website, tracking_verified_at")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("campaign_examples")
+      .select("id, url, caption, position")
+      .eq("campaign_id", id)
+      .order("position"),
   ]);
+  const examples = examplesRes.data ?? [];
 
   // Origine pour construire l'URL d'endpoint montrée à la marque.
   const h = await headers();
@@ -318,6 +325,11 @@ export default async function CampaignManagePage({
           )}
         </dl>
       </section>
+
+      {/* Exemples de contenu — la marque les renseigne pour guider les créateurs */}
+      <div className="mt-8">
+        <ExamplesManager campaignId={c.id} examples={examples} />
+      </div>
 
       {/* Candidatures (campagnes non-affiliation) */}
       {!isAffiliation && (

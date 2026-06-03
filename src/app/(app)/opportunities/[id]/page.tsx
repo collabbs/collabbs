@@ -78,7 +78,7 @@ export default async function OpportunityDetailPage({
   const isAffiliation = type === "affiliation" || type === "hybrid";
 
   // Statut du créateur sur cette campagne.
-  const [linkRes, appRes] = await Promise.all([
+  const [linkRes, appRes, examplesRes, brandStatsRes] = await Promise.all([
     supabase
       .from("affiliate_links")
       .select("id, code")
@@ -91,7 +91,20 @@ export default async function OpportunityDetailPage({
       .eq("creator_id", user.id)
       .eq("campaign_id", id)
       .maybeSingle(),
+    supabase
+      .from("campaign_examples")
+      .select("id, url, caption, position")
+      .eq("campaign_id", id)
+      .order("position"),
+    // Stats de la marque pour rassurer le créateur (combien de campagnes,
+    // combien de deals signés, tracking actif).
+    supabase
+      .from("campaigns")
+      .select("*", { count: "exact", head: true })
+      .eq("brand_id", c.brand_id),
   ]);
+  const examples = examplesRes.data ?? [];
+  const brandTotalCampaigns = brandStatsRes.count ?? 0;
 
   let clicks = 0;
   let gains = 0;
@@ -195,6 +208,44 @@ export default async function OpportunityDetailPage({
               <p className="mt-2 whitespace-pre-line leading-relaxed text-zinc-600">
                 {c.description}
               </p>
+            </section>
+          )}
+
+          {/* Exemples de contenu — la marque a uploadé des refs */}
+          {examples.length > 0 && (
+            <section className="mt-8">
+              <h2 className="font-display text-lg font-black text-ink">
+                Exemples de ce qu&apos;ils attendent{" "}
+                <span className="text-zinc-400">({examples.length})</span>
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Inspire-toi de ces références pour augmenter tes chances.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {examples.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    {ex.url && (
+                      <a
+                        href={ex.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 truncate text-xs font-mono text-brand hover:underline"
+                      >
+                        🔗 {ex.url.replace(/^https?:\/\//, "")}
+                        <span className="text-zinc-400">↗</span>
+                      </a>
+                    )}
+                    {ex.caption && (
+                      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-zinc-700">
+                        {ex.caption}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
@@ -321,6 +372,49 @@ export default async function OpportunityDetailPage({
               </a>
             )}
           </div>
+
+          {/* À propos de la marque — réassurance */}
+          <Link
+            href={`/brands/${c.brand_id}`}
+            className="mt-4 block rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm transition hover:border-purple-200 hover:shadow-md"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              À propos de la marque
+            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-50 ring-1 ring-zinc-100">
+                {c.brands?.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.brands.logo_url}
+                    alt={c.brands.name ?? ""}
+                    className="h-full w-full object-contain p-1.5"
+                  />
+                ) : (
+                  <span className="text-xs font-bold text-zinc-500">
+                    {(c.brands?.name ?? "?").slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-display text-base font-black text-ink">
+                  {c.brands?.name ?? "Marque"}
+                </p>
+                {c.brands?.sector && (
+                  <p className="truncate text-xs text-zinc-500">{c.brands.sector}</p>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-600">
+              <span>
+                <strong className="text-ink">{brandTotalCampaigns}</strong>{" "}
+                campagne{brandTotalCampaigns > 1 ? "s" : ""}
+              </span>
+            </div>
+            <p className="mt-3 text-xs font-semibold text-brand">
+              Voir le profil complet →
+            </p>
+          </Link>
         </aside>
       </div>
     </>
