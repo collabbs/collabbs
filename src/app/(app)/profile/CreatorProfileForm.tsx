@@ -22,6 +22,7 @@ export default function CreatorProfileForm({
   platforms,
   publicHandle,
   legalSection,
+  portfolioSection,
   initial,
 }: {
   userId: string;
@@ -30,6 +31,7 @@ export default function CreatorProfileForm({
   platforms: Platform[];
   publicHandle: string | null;
   legalSection?: React.ReactNode;
+  portfolioSection?: React.ReactNode;
   initial: {
     handle: string;
     bio: string;
@@ -488,6 +490,9 @@ export default function CreatorProfileForm({
           })}
         </div>
       </section>
+
+      {/* ============ Section Portfolio (entre Réseaux et Offres) ============ */}
+      {portfolioSection}
 
       {/* ============ Section 5 — Infos légales (contrats) ============ */}
       {legalSection}

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import CreatorProfileForm from "./CreatorProfileForm";
 import BrandProfileForm from "./BrandProfileForm";
 import LegalInfoSection from "./LegalInfoSection";
+import PortfolioManager from "./PortfolioManager";
 import type { LegalInfoData } from "./legal-utils";
 
 export const metadata = {
@@ -65,6 +66,13 @@ export default async function ProfilePage() {
         supabase.from("creator_offers").select("offer, price").eq("creator_id", user.id),
       ]);
 
+    const { data: portfolioData } = await supabase
+      .from("creator_portfolio_items")
+      .select("id, url, title, thumbnail_url, platform_slug")
+      .eq("creator_id", user.id)
+      .order("position");
+    const portfolio = portfolioData ?? [];
+
     // Note : on NE redirige PAS vers le wizard, même si tout est vide.
     // /profile doit toujours afficher les 5 sections complètes. L'utilisateur
     // remplit dans l'ordre qu'il veut. Le wizard /onboarding/* reste accessible
@@ -78,6 +86,7 @@ export default async function ProfilePage() {
         platforms={platformsRes.data ?? []}
         publicHandle={creatorRes.data?.handle ?? null}
         legalSection={<LegalInfoSection initial={legalInitial} role="creator" />}
+        portfolioSection={<PortfolioManager initial={portfolio} />}
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",

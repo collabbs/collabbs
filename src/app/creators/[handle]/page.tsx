@@ -215,6 +215,64 @@ export default async function CreatorProfilePage({
             <p className="mt-3 whitespace-pre-line leading-relaxed text-zinc-600">{bio}</p>
           </section>
 
+          {/* Portfolio — vidéos / contenus phares du créateur */}
+          {c.portfolio.length > 0 && (
+            <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                Portfolio{" "}
+                <span className="text-zinc-400">({c.portfolio.length})</span>
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Quelques exemples de ce que {first} sait faire.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {c.portfolio.map((it) => (
+                  <a
+                    key={it.id}
+                    href={it.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group overflow-hidden rounded-xl border border-zinc-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-lg"
+                  >
+                    <div className="relative aspect-video bg-gradient-to-br from-zinc-100 to-zinc-200">
+                      {it.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={it.thumbnailUrl}
+                          alt={it.title ?? ""}
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          {it.platformSlug ? (
+                            <PlatformIcon
+                              slug={it.platformSlug}
+                              className="h-12 w-12 opacity-60"
+                            />
+                          ) : (
+                            <span className="text-4xl opacity-60">🎬</span>
+                          )}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/30">
+                        <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-ink opacity-0 shadow-md transition group-hover:opacity-100">
+                          ▶ Voir
+                        </span>
+                      </div>
+                    </div>
+                    {it.title && (
+                      <div className="p-3">
+                        <p className="line-clamp-2 text-sm font-bold text-ink">
+                          {it.title}
+                        </p>
+                      </div>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Réseaux — chaque card est cliquable vers le compte externe si URL fournie */}
           {c.platforms.length > 0 && (
             <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">

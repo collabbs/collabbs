@@ -679,6 +679,47 @@ export type Database = {
           },
         ]
       }
+      creator_portfolio_items: {
+        Row: {
+          id: string
+          creator_id: string
+          url: string
+          title: string | null
+          thumbnail_url: string | null
+          platform_slug: string | null
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          url: string
+          title?: string | null
+          thumbnail_url?: string | null
+          platform_slug?: string | null
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          url?: string
+          title?: string | null
+          thumbnail_url?: string | null
+          platform_slug?: string | null
+          position?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_portfolio_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creators: {
         Row: {
           bio: string | null

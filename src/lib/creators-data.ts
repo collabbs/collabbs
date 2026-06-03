@@ -218,6 +218,13 @@ export type CreatorProfileData = {
   isTop: boolean;
   isVerified: boolean;
   isNew: boolean;
+  portfolio: {
+    id: string;
+    url: string;
+    title: string | null;
+    thumbnailUrl: string | null;
+    platformSlug: string | null;
+  }[];
 };
 
 /** Profil public d'un créateur par son handle. */
@@ -236,6 +243,13 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const prof = profMap.get(c.id);
   const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
   const totalSubs = plats.reduce((sum, p) => sum + p.subs, 0);
+
+  // Portfolio (public via RLS)
+  const { data: portfolioData } = await supabase
+    .from("creator_portfolio_items")
+    .select("id, url, title, thumbnail_url, platform_slug")
+    .eq("creator_id", c.id)
+    .order("position");
 
   const rating = c.rating ?? 5;
   const dealsCount = c.deals_count ?? 0;
@@ -273,6 +287,13 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     isTop,
     isVerified: verified,
     isNew,
+    portfolio: (portfolioData ?? []).map((p) => ({
+      id: p.id,
+      url: p.url,
+      title: p.title,
+      thumbnailUrl: p.thumbnail_url,
+      platformSlug: p.platform_slug,
+    })),
   };
 }
 
