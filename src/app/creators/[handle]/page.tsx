@@ -215,27 +215,60 @@ export default async function CreatorProfilePage({
             <p className="mt-3 whitespace-pre-line leading-relaxed text-zinc-600">{bio}</p>
           </section>
 
-          {/* Réseaux */}
+          {/* Réseaux — chaque card est cliquable vers le compte externe si URL fournie */}
           {c.platforms.length > 0 && (
             <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
               <h2 className="font-display text-lg font-black text-ink">
-                Réseaux <span className="text-zinc-400">({c.platforms.length})</span>
+                Voir ses contenus{" "}
+                <span className="text-zinc-400">({c.platforms.length})</span>
               </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Clique sur un réseau pour voir ses publications.
+              </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {c.platforms.map((p) => (
-                  <div
-                    key={p.slug}
-                    className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-gradient-to-br from-white to-zinc-50 p-3 transition hover:border-zinc-200 hover:shadow-sm"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-zinc-100">
-                      <PlatformIcon slug={p.slug} className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-ink">{p.label}</p>
-                      <p className="text-xs text-zinc-500">{p.followers} abonnés</p>
+                {c.platforms.map((p) => {
+                  const inner = (
+                    <div
+                      className={`flex items-center gap-3 rounded-xl border border-zinc-100 p-3 transition ${
+                        p.url
+                          ? "bg-gradient-to-br from-white to-zinc-50 hover:-translate-y-0.5 hover:border-purple-200 hover:shadow-md"
+                          : "bg-white"
+                      }`}
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-zinc-100">
+                        <PlatformIcon slug={p.slug} className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-ink">{p.label}</p>
+                        <p className="truncate text-xs text-zinc-500">
+                          {p.handle ? `@${p.handle.replace(/^@/, "")} · ` : ""}
+                          {p.followers} abonnés
+                        </p>
+                      </div>
+                      {p.url && (
+                        <span
+                          aria-hidden="true"
+                          className="text-zinc-300 transition group-hover:text-brand"
+                        >
+                          ↗
+                        </span>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                  return p.url ? (
+                    <a
+                      key={p.slug}
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block"
+                    >
+                      {inner}
+                    </a>
+                  ) : (
+                    <div key={p.slug}>{inner}</div>
+                  );
+                })}
               </div>
             </section>
           )}

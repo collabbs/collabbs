@@ -213,6 +213,13 @@ export default async function OpportunitiesPage({
     .filter((e) => e.type === "sale")
     .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
   const activeLinks = linkRows.length;
+  const pendingApps = (appsRes.data ?? []).length;
+
+  // "Mon activité" : on liste les campagnes auxquelles j'ai déjà participé.
+  // On rebuild les rows enrichies pour les afficher rapidement.
+  const myActiveCampaigns = (campaignsRes.data ?? []).filter((c) =>
+    linkMap.has(c.id) || appliedSet.has(c.id),
+  );
 
   return (
     <>
@@ -268,6 +275,67 @@ export default async function OpportunitiesPage({
           </div>
         )}
       </div>
+
+        {/* Mon activité : récap des opportunités déjà engagées */}
+        {myActiveCampaigns.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/60 to-pink-50/30 p-4 sm:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-base font-black text-ink">
+                Mon activité
+              </h2>
+              <div className="flex gap-3 text-xs">
+                {activeLinks > 0 && (
+                  <span className="font-semibold text-emerald-700">
+                    🔗 {activeLinks} lien{activeLinks > 1 ? "s" : ""} actif
+                    {activeLinks > 1 ? "s" : ""}
+                  </span>
+                )}
+                {pendingApps > 0 && (
+                  <span className="font-semibold text-purple-700">
+                    ⏳ {pendingApps} candidature
+                    {pendingApps > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {myActiveCampaigns.map((c) => {
+                const linked = linkMap.has(c.id);
+                const initials = (c.brands?.name ?? "?").slice(0, 2).toUpperCase();
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/opportunities/${c.id}`}
+                    className="flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-sm ring-1 ring-zinc-100 transition hover:shadow-md"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-500">
+                      {c.brands?.logo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.brands.logo_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initials
+                      )}
+                    </span>
+                    <span className="max-w-[160px] truncate">{c.name}</span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                        linked
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}
+                    >
+                      {linked ? "🔗 Actif" : "⏳ Candidaté"}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Recherche */}
         <form action="/opportunities" className="mt-6 flex max-w-xl items-center gap-2">

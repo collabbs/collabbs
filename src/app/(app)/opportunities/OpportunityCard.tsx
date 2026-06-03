@@ -23,38 +23,42 @@ export type Opportunity = {
 
 const TYPE_META: Record<
   Opportunity["type"],
-  { label: string; emoji: string; tone: string; band: string }
+  { label: string; short: string; emoji: string; ring: string; bg: string; pill: string }
 > = {
   affiliation: {
     label: "Affiliation",
+    short: "Affil",
     emoji: "🔗",
-    tone: "bg-emerald-50 text-emerald-700",
-    band: "from-emerald-400 to-teal-500",
+    ring: "ring-emerald-200",
+    bg: "from-emerald-50 to-teal-50",
+    pill: "bg-emerald-100 text-emerald-800",
   },
   video: {
     label: "Paiement fixe",
+    short: "Fixe",
     emoji: "🎬",
-    tone: "bg-purple-50 text-purple-700",
-    band: "from-purple-500 to-pink-500",
+    ring: "ring-purple-200",
+    bg: "from-purple-50 to-pink-50",
+    pill: "bg-purple-100 text-purple-800",
   },
   performance: {
     label: "Performance",
+    short: "Perf",
     emoji: "📊",
-    tone: "bg-amber-50 text-amber-700",
-    band: "from-amber-400 to-orange-500",
+    ring: "ring-amber-200",
+    bg: "from-amber-50 to-orange-50",
+    pill: "bg-amber-100 text-amber-800",
   },
   hybrid: {
     label: "Hybride",
+    short: "Hybr",
     emoji: "💎",
-    tone: "bg-cyan-50 text-cyan-700",
-    band: "from-cyan-400 via-purple-500 to-pink-500",
+    ring: "ring-cyan-200",
+    bg: "from-cyan-50 to-purple-50",
+    pill: "bg-gradient-to-r from-cyan-100 to-purple-100 text-cyan-800",
   },
 };
 
-/**
- * Décompose la rémunération en "valeur principale" + "qualifieur".
- * Permet d'afficher le chiffre vraiment grand et la suite plus discrète.
- */
 function rewardParts(o: Opportunity): { main: string; sub: string } {
   switch (o.type) {
     case "affiliation":
@@ -73,12 +77,11 @@ function rewardParts(o: Opportunity): { main: string; sub: string } {
     case "hybrid":
       return {
         main: `${o.fixedAmount ?? 0}€`,
-        sub: `+ ${o.tiers.nano ?? "?"}–${o.tiers.macro ?? "?"}% commission`,
+        sub: `+ ${o.tiers.nano ?? "?"}–${o.tiers.macro ?? "?"}% comm.`,
       };
   }
 }
 
-/** Vérifie si l'opportunité mérite un badge "premium" (rémunération forte). */
 function isPremium(o: Opportunity): boolean {
   if (o.type === "video" || o.type === "hybrid") {
     return (o.fixedAmount ?? 0) >= 500;
@@ -113,6 +116,12 @@ export default function OpportunityCard({
   const reward = rewardParts(o);
   const premium = isPremium(o);
   const urgent = o.spots !== null && o.spots <= 3 && o.spots > 0;
+  const brandInitials = o.brandName
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   async function onActivate() {
     setBusy(true);
@@ -135,49 +144,67 @@ export default function OpportunityCard({
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-200 hover:shadow-xl">
-      {/* Bande de couleur par type */}
-      <div className={`h-1 bg-gradient-to-r ${meta.band}`} />
+      {/* Bandeau marque XL — la vraie star de la card */}
+      <Link
+        href={`/opportunities/${o.id}`}
+        className={`relative block bg-gradient-to-br ${meta.bg} p-5 transition group-hover:from-white`}
+      >
+        {/* Badges en haut : Premium uniquement (on simplifie) */}
+        {premium && (
+          <span className="absolute right-3 top-3 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            ★ Premium
+          </span>
+        )}
+        {urgent && !premium && (
+          <span className="absolute right-3 top-3 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            🔥 Urgent
+          </span>
+        )}
 
-      <div className="flex flex-1 flex-col p-5">
-        {/* Header : brand + badges contextuels */}
-        <div className="flex items-start justify-between gap-3">
-          <Link href={`/opportunities/${o.id}`} className="flex items-center gap-2.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100 text-xs font-bold text-zinc-500 ring-1 ring-white">
-              {o.brandLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={o.brandLogo}
-                  alt={o.brandName}
-                  className="h-full w-full object-contain p-1.5"
-                />
-              ) : (
-                o.brandName.slice(0, 2).toUpperCase()
-              )}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
-                {o.brandName}
-              </p>
-              <h3 className="truncate font-display text-base font-black text-ink transition group-hover:text-brand">
-                {o.name}
-              </h3>
-            </div>
-          </Link>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${meta.tone}`}>
-              <span>{meta.emoji}</span>
-              {meta.label}
-            </span>
-            {premium && (
-              <span className="rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                ★ Premium
+        <div className="flex items-center gap-3">
+          <span
+            className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-2 ${meta.ring}`}
+          >
+            {o.brandLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={o.brandLogo}
+                alt={o.brandName}
+                className="h-full w-full object-contain p-1.5"
+              />
+            ) : (
+              <span className="text-xs font-bold text-zinc-500">
+                {brandInitials}
               </span>
             )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+              {o.brandName}
+            </p>
+            <h3 className="truncate font-display text-base font-black leading-tight text-ink transition group-hover:text-brand">
+              {o.name}
+            </h3>
           </div>
         </div>
 
+        {/* Type badge sous le bandeau */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.pill}`}>
+            <span>{meta.emoji}</span>
+            <span>{meta.label}</span>
+          </span>
+          {urgent && premium && (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+              🔥 {o.spots} place{o.spots && o.spots > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-5 pt-4">
         {/* Reward XL */}
-        <div className="mt-4 rounded-xl border border-zinc-100 bg-gradient-to-br from-zinc-50 to-zinc-100/40 p-3">
+        <div className="rounded-xl border border-zinc-100 bg-gradient-to-br from-zinc-50 to-white p-3">
           <p className="font-display text-2xl font-black tracking-tight text-ink">
             {reward.main}
           </p>
@@ -189,9 +216,9 @@ export default function OpportunityCard({
           <p className="mt-3 line-clamp-2 text-sm text-zinc-600">{o.description}</p>
         )}
 
-        {/* Plateformes + niches */}
+        {/* Plateformes + niches — limités pour ne pas déborder */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {o.platforms.slice(0, 4).map((p) => (
+          {o.platforms.slice(0, 3).map((p) => (
             <span
               key={p.slug}
               className="flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200"
@@ -200,10 +227,10 @@ export default function OpportunityCard({
               {p.label}
             </span>
           ))}
-          {o.niches.slice(0, 3).map((n) => (
+          {o.niches.slice(0, 2).map((n) => (
             <span
               key={n}
-              className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-brand-deep"
+              className="truncate rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-brand-deep"
             >
               {n}
             </span>
@@ -211,7 +238,7 @@ export default function OpportunityCard({
         </div>
 
         {/* Méta : abonnés min + places */}
-        {(o.minSubscribers || o.spots) && (
+        {(o.minSubscribers || (o.spots !== null && o.spots > 0)) && (
           <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
             {o.minSubscribers !== null && (
               <span className="flex items-center gap-1">
@@ -225,7 +252,6 @@ export default function OpportunityCard({
               >
                 <span>{urgent ? "🔥" : "🎯"}</span>
                 {o.spots} place{o.spots > 1 ? "s" : ""}
-                {urgent ? " restantes !" : ""}
               </span>
             )}
           </div>
@@ -251,6 +277,12 @@ export default function OpportunityCard({
                 <strong>{clicks}</strong> clic{clicks > 1 ? "s" : ""} ·{" "}
                 <strong>{gains}€</strong> gagnés
               </p>
+              <Link
+                href={`/opportunities/${o.id}`}
+                className="mt-2 inline-block text-[11px] font-semibold text-emerald-700 hover:underline"
+              >
+                Voir les détails →
+              </Link>
             </div>
           ) : status === "applied" ? (
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
@@ -261,25 +293,41 @@ export default function OpportunityCard({
               <p className="mt-1 text-[11px] text-emerald-700">
                 Tu seras notifié·e quand la marque répond.
               </p>
+              <Link
+                href={`/opportunities/${o.id}`}
+                className="mt-2 inline-block text-[11px] font-semibold text-emerald-700 hover:underline"
+              >
+                Voir les détails →
+              </Link>
             </div>
-          ) : isAffiliation ? (
-            <button
-              type="button"
-              onClick={onActivate}
-              disabled={busy}
-              className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "Activation…" : "🔗 Activer mon lien en 1 clic"}
-            </button>
           ) : (
-            <button
-              type="button"
-              onClick={onApply}
-              disabled={busy}
-              className="w-full rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "Envoi…" : "Candidater"}
-            </button>
+            <div className="space-y-2">
+              {isAffiliation ? (
+                <button
+                  type="button"
+                  onClick={onActivate}
+                  disabled={busy}
+                  className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {busy ? "Activation…" : "🔗 Activer en 1 clic"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onApply}
+                  disabled={busy}
+                  className="w-full rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {busy ? "Envoi…" : "Candidater"}
+                </button>
+              )}
+              <Link
+                href={`/opportunities/${o.id}`}
+                className="block text-center text-[11px] font-semibold text-zinc-500 transition hover:text-ink"
+              >
+                Voir tous les détails →
+              </Link>
+            </div>
           )}
           {error && (
             <p className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-700">{error}</p>

@@ -85,7 +85,7 @@ async function loadRelations(ids: string[]) {
     supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
     supabase
       .from("creator_platforms")
-      .select("creator_id, platform_id, subscribers")
+      .select("creator_id, platform_id, subscribers, handle, url")
       .in("creator_id", ids),
     supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
     supabase.from("creator_offers").select("creator_id, offer").in("creator_id", ids),
@@ -99,12 +99,21 @@ async function loadRelations(ids: string[]) {
   const nicheMap = new Map((nicheRes.data ?? []).map((n) => [n.id, n.label]));
   const profMap = new Map((profsRes.data ?? []).map((p) => [p.id, p]));
 
-  const platsBy = new Map<string, { label: string; slug: string; subs: number }[]>();
+  const platsBy = new Map<
+    string,
+    { label: string; slug: string; subs: number; handle: string | null; url: string | null }[]
+  >();
   for (const cp of cpsRes.data ?? []) {
     const p = platMap.get(cp.platform_id);
     if (!p) continue;
     const arr = platsBy.get(cp.creator_id) ?? [];
-    arr.push({ label: p.label, slug: p.slug, subs: cp.subscribers ?? 0 });
+    arr.push({
+      label: p.label,
+      slug: p.slug,
+      subs: cp.subscribers ?? 0,
+      handle: cp.handle ?? null,
+      url: cp.url ?? null,
+    });
     platsBy.set(cp.creator_id, arr);
   }
   const nichesBy = new Map<string, string[]>();
@@ -203,7 +212,7 @@ export type CreatorProfileData = {
   photo: string | null;
   tint: string;
   niches: string[];
-  platforms: { label: string; slug: string; followers: string }[];
+  platforms: { label: string; slug: string; followers: string; handle: string | null; url: string | null }[];
   mainPlatform: { label: string; slug: string } | null;
   totalFollowers: string;
   isTop: boolean;
@@ -256,6 +265,8 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
       label: p.label,
       slug: p.slug,
       followers: fmtFollowers(p.subs),
+      handle: p.handle,
+      url: p.url,
     })),
     mainPlatform: plats[0] ? { label: plats[0].label, slug: plats[0].slug } : null,
     totalFollowers: fmtFollowers(totalSubs),
