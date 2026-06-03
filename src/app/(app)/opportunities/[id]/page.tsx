@@ -288,19 +288,20 @@ export default async function OpportunityDetailPage({
             </section>
           )}
 
-          {/* Calculatrice de gains — uniquement pour les campagnes d'affiliation */}
-          {isAffiliation && (
-            <div className="mt-8">
-              <EarningsCalculator
-                tierPcts={{
-                  nano: c.commission_nano,
-                  micro: c.commission_micro,
-                  mid: c.commission_mid,
-                  macro: c.commission_macro,
-                }}
-              />
-            </div>
-          )}
+          {/* Simulateur de gains — affichage adapté selon le type */}
+          <div className="mt-8">
+            <EarningsCalculator
+              type={type}
+              fixedAmount={c.fixed_amount}
+              commissionValue={c.commission_value}
+              tierPcts={{
+                nano: c.commission_nano,
+                micro: c.commission_micro,
+                mid: c.commission_mid,
+                macro: c.commission_macro,
+              }}
+            />
+          </div>
 
           {/* Exemples de contenu — la marque a uploadé des refs */}
           {examples.length > 0 && (

@@ -82,6 +82,40 @@ function rewardParts(o: Opportunity): { main: string; sub: string } {
   }
 }
 
+/**
+ * Projection rapide "jusqu'à X€/mois" pour donner envie sur la card.
+ * Heuristiques :
+ * - affiliation/hybrid : 10 ventes/mois × 50€ panier × commission max
+ * - video : amount fixe × 4 contenus/mois
+ * - performance : 100k vues × valeur/1000
+ */
+function monthlyProjection(o: Opportunity): string | null {
+  switch (o.type) {
+    case "affiliation": {
+      const pct = o.tiers.macro;
+      if (!pct) return null;
+      const monthly = Math.round((10 * 50 * pct) / 100);
+      return monthly > 0 ? `jusqu'à ~${monthly}€/mois` : null;
+    }
+    case "hybrid": {
+      const fix = o.fixedAmount ?? 0;
+      const pct = o.tiers.macro ?? 0;
+      const monthly = Math.round(fix * 2 + (10 * 50 * pct) / 100);
+      return monthly > 0 ? `jusqu'à ~${monthly}€/mois` : null;
+    }
+    case "video": {
+      const amt = o.fixedAmount;
+      if (!amt) return null;
+      return `≈ ${amt * 4}€ pour 4 contenus`;
+    }
+    case "performance": {
+      const v = o.commissionValue;
+      if (!v) return null;
+      return `≈ ${v * 100}€ pour 100k vues`;
+    }
+  }
+}
+
 function isPremium(o: Opportunity): boolean {
   if (o.type === "video" || o.type === "hybrid") {
     return (o.fixedAmount ?? 0) >= 500;
@@ -114,6 +148,7 @@ export default function OpportunityCard({
 
   const meta = TYPE_META[o.type];
   const reward = rewardParts(o);
+  const projection = monthlyProjection(o);
   const premium = isPremium(o);
   const urgent = o.spots !== null && o.spots <= 3 && o.spots > 0;
   const brandInitials = o.brandName
@@ -203,12 +238,20 @@ export default function OpportunityCard({
       </Link>
 
       <div className="flex flex-1 flex-col p-5 pt-4">
-        {/* Reward XL */}
-        <div className="rounded-xl border border-zinc-100 bg-gradient-to-br from-zinc-50 to-white p-3">
-          <p className="font-display text-2xl font-black tracking-tight text-ink">
-            {reward.main}
-          </p>
-          <p className="text-xs text-zinc-500">{reward.sub}</p>
+        {/* Reward XL — gradient money/emerald qui crie "tu gagnes" */}
+        <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-emerald-100/40 to-teal-50 p-4 shadow-sm">
+          <div className="flex items-baseline gap-2">
+            <p className="font-display text-3xl font-black leading-none tracking-tight text-emerald-700">
+              {reward.main}
+            </p>
+            <p className="text-xs font-medium text-emerald-700/80">{reward.sub}</p>
+          </div>
+          {projection && (
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-800">
+              <span>💸</span>
+              {projection}
+            </p>
+          )}
         </div>
 
         {/* Description */}
