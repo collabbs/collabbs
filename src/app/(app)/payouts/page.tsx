@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { startCreatorPayoutOnboarding } from "../deals/actions";
 import { eur } from "@/lib/deal";
+import EmptyState from "@/components/EmptyState";
 
 export const metadata = { title: "Paiements — Collabbs" };
 
@@ -45,18 +47,44 @@ export default async function PayoutsPage({
     }
   }
 
-  // Récap des gains issus des deals.
+  // Récap des gains issus des deals + liste détaillée pour les factures.
   const { data: txs } = await supabase
     .from("transactions")
-    .select("net_amount, status")
+    .select("id, deal_id, gross_amount, net_amount, platform_fee, status, created_at, paid_at")
     .eq("creator_id", user.id)
-    .eq("type", "deal_payment");
-  const received = (txs ?? [])
+    .eq("type", "deal_payment")
+    .order("created_at", { ascending: false });
+  const txList = txs ?? [];
+  const received = txList
     .filter((t) => t.status === "released" || t.status === "paid")
     .reduce((s, t) => s + Number(t.net_amount), 0);
-  const pending = (txs ?? [])
+  const pending = txList
     .filter((t) => t.status === "in_escrow")
     .reduce((s, t) => s + Number(t.net_amount), 0);
+
+  // Titres des deals correspondants pour humaniser la liste
+  const dealIds = txList.map((t) => t.deal_id).filter((id): id is string => Boolean(id));
+  const { data: dealsData } = dealIds.length
+    ? await supabase.from("deals").select("id, title, brand_id").in("id", dealIds)
+    : { data: [] };
+  const dealMap = new Map((dealsData ?? []).map((d) => [d.id, d]));
+  const brandIds = (dealsData ?? []).map((d) => d.brand_id);
+  const { data: brandsData } = brandIds.length
+    ? await supabase.from("brands").select("id, name").in("id", brandIds)
+    : { data: [] };
+  const brandMap = new Map((brandsData ?? []).map((b) => [b.id, b.name]));
+
+  const TX_STATUS_META: Record<
+    string,
+    { label: string; tone: string }
+  > = {
+    in_escrow: { label: "En séquestre", tone: "bg-amber-50 text-amber-700" },
+    released: { label: "Libérée", tone: "bg-emerald-50 text-emerald-700" },
+    paid: { label: "Versée", tone: "bg-emerald-50 text-emerald-700" },
+    refunded: { label: "Remboursée", tone: "bg-zinc-100 text-zinc-600" },
+    cancelled: { label: "Annulée", tone: "bg-zinc-100 text-zinc-500" },
+    pending: { label: "En attente", tone: "bg-zinc-50 text-zinc-500" },
+  };
 
   const hasAccount = Boolean(creator?.stripe_account_id);
   const ready = hasAccount && canReceive;
@@ -131,6 +159,71 @@ export default async function PayoutsPage({
           </>
         )}
       </div>
+
+      {/* Liste des transactions */}
+      <section className="mt-8">
+        <h2 className="font-display text-xl font-black text-ink">
+          Historique <span className="text-zinc-400">({txList.length})</span>
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Télécharge la facture pour chaque transaction (justificatif comptable).
+        </p>
+
+        {txList.length === 0 ? (
+          <div className="mt-4">
+            <EmptyState
+              variant="card"
+              icon="💸"
+              title="Aucune transaction"
+              description="Tes gains apparaîtront ici dès qu'une marque réglera un deal."
+            />
+          </div>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {txList.map((t) => {
+              const deal = t.deal_id ? dealMap.get(t.deal_id) : null;
+              const brandName = deal ? brandMap.get(deal.brand_id) : null;
+              const meta = TX_STATUS_META[t.status] ?? TX_STATUS_META.pending;
+              return (
+                <div
+                  key={t.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-100 bg-white p-4 shadow-sm transition hover:shadow-md"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-ink">
+                      {deal?.title ?? "Collaboration"}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {brandName ?? "Marque"} ·{" "}
+                      {new Date(t.created_at).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-display text-base font-black text-ink">
+                        {eur(Number(t.net_amount))}
+                      </p>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.tone}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/invoices/${t.id}`}
+                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
+                    >
+                      📄 Facture
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </>
   );
 }
