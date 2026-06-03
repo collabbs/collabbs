@@ -26,6 +26,8 @@ export type Deliverable = {
   submissionUrl: string | null;
   submissionNotes: string | null;
   submissionFiles: DealFile[];
+  revisionRequested?: boolean;
+  revisionMessage?: string | null;
 };
 
 const ACCEPTED =
@@ -50,6 +52,7 @@ export default function DeliverableRow({
   status,
   busy,
   onAction,
+  revisionPanel,
 }: {
   d: Deliverable;
   dealId: string;
@@ -57,6 +60,8 @@ export default function DeliverableRow({
   status: "negotiation" | "active" | "completed" | "cancelled";
   busy: boolean;
   onAction: (fn: () => Promise<{ ok: boolean; error?: string }>) => Promise<void>;
+  /** Panneau cliquable côté marque pour demander une retouche (rendu par DealControls). */
+  revisionPanel?: React.ReactNode;
 }) {
   const submitted = Boolean(d.submissionUrl) || d.submissionFiles.length > 0;
   const isCreatorActive = role === "creator" && status === "active";
@@ -128,6 +133,18 @@ export default function DeliverableRow({
 
   return (
     <li className="rounded-xl border border-zinc-100 p-3.5">
+      {/* Bandeau retouche demandée — visible des 2 côtés, prioritaire */}
+      {d.revisionRequested && !d.approved && d.revisionMessage && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-bold text-amber-800">
+            {role === "creator" ? "↺ Retouche demandée par la marque" : "↺ Retouche demandée"}
+          </p>
+          <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-amber-700">
+            « {d.revisionMessage} »
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-ink">{d.label}</span>
         <div className="flex items-center gap-2">
@@ -139,14 +156,16 @@ export default function DeliverableRow({
             {d.done ? "Livré" : "À livrer"}
           </span>
           {role === "brand" && status === "active" && d.done && !d.approved ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onAction(() => setDeliverableApproved(d.id, true))}
-              className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-            >
-              Valider
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onAction(() => setDeliverableApproved(d.id, true))}
+                className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                ✓ Valider
+              </button>
+            </div>
           ) : (
             <span
               className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
@@ -195,6 +214,11 @@ export default function DeliverableRow({
         >
           Modifier / ajouter
         </button>
+      )}
+
+      {/* Panneau retouches côté marque (rendu par DealControls quand applicable) */}
+      {revisionPanel && (
+        <div className="mt-3 border-t border-zinc-100 pt-3">{revisionPanel}</div>
       )}
 
       {/* Éditeur : lien + notes + fichier */}

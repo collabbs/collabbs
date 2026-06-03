@@ -409,6 +409,8 @@ export default async function DealDetailPage({
                   submissionUrl: dv.submission_url,
                   submissionNotes: dv.submission_notes,
                   submissionFiles: signed,
+                  revisionRequested: dv.revision_requested,
+                  revisionMessage: dv.revision_message,
                 };
               }),
             )}
@@ -417,6 +419,10 @@ export default async function DealDetailPage({
               quantity: deal.quantity,
               deadline: deal.deadline,
               brandNotes: deal.brand_notes,
+            }}
+            revisions={{
+              used: deal.revision_rounds_used,
+              max: deal.revision_rounds_max,
             }}
           />
 

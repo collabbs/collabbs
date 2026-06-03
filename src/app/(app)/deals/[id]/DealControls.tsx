@@ -9,6 +9,7 @@ import {
   updateDealTerms,
 } from "../actions";
 import DeliverableRow, { type Deliverable } from "./DeliverableRow";
+import RevisionPanel from "./RevisionPanel";
 
 type Props = {
   dealId: string;
@@ -16,9 +17,13 @@ type Props = {
   status: "negotiation" | "active" | "completed" | "cancelled";
   deliverables: Deliverable[];
   terms: { amount: number; quantity: number; deadline: string | null; brandNotes: string | null };
+  /** Compteur retouches du deal (passé par la page parent). */
+  revisions?: { used: number; max: number };
 };
 
-export default function DealControls({ dealId, role, status, deliverables, terms }: Props) {
+export default function DealControls({ dealId, role, status, deliverables, terms, revisions }: Props) {
+  const revRemaining = revisions ? Math.max(0, revisions.max - revisions.used) : 0;
+  const revMax = revisions?.max ?? 0;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,19 +50,46 @@ export default function DealControls({ dealId, role, status, deliverables, terms
       {/* Livrables */}
       {(status === "active" || status === "completed") && deliverables.length > 0 && (
         <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
-          <h2 className="font-display text-lg font-black text-ink">Livrables</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-black text-ink">Livrables</h2>
+            {revisions && (
+              <p className="text-xs text-zinc-500">
+                <strong className="text-ink">{revisions.used}/{revisions.max}</strong>{" "}
+                round{revisions.max > 1 ? "s" : ""} de retouches utilisé
+                {revisions.used > 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
           <ul className="mt-3 space-y-2.5">
-            {deliverables.map((d) => (
-              <DeliverableRow
-                key={d.id}
-                d={d}
-                dealId={dealId}
-                role={role}
-                status={status}
-                busy={busy}
-                onAction={run}
-              />
-            ))}
+            {deliverables.map((d) => {
+              // Côté marque : panneau retouches uniquement si livré + non validé + statut actif
+              const showRevisionPanel =
+                role === "brand" &&
+                status === "active" &&
+                d.done &&
+                !d.approved;
+              return (
+                <DeliverableRow
+                  key={d.id}
+                  d={d}
+                  dealId={dealId}
+                  role={role}
+                  status={status}
+                  busy={busy}
+                  onAction={run}
+                  revisionPanel={
+                    showRevisionPanel && revisions ? (
+                      <RevisionPanel
+                        deliverableId={d.id}
+                        deliverableLabel={d.label}
+                        remaining={revRemaining}
+                        max={revMax}
+                      />
+                    ) : null
+                  }
+                />
+              );
+            })}
           </ul>
         </div>
       )}

@@ -557,6 +557,85 @@ export async function setDeliverableApproved(
   return { ok: true };
 }
 
+/**
+ * La marque demande une retouche sur un livrable.
+ * - Respecte le quota `revision_rounds_max` du deal.
+ * - Remet le livrable en "à livrer" (done=false, approved=false, submission
+ *   vidée) et stocke le message + revision_requested=true.
+ * - Incrément `revision_rounds_used` côté deal.
+ * - Notifie le créateur avec le message + le nombre de retouches restantes.
+ */
+export async function requestRevision(
+  deliverableId: string,
+  message: string,
+): Promise<Result> {
+  const trimmed = message.trim();
+  if (trimmed.length < 5) {
+    return { ok: false, error: "Donne un message de retouche clair (5 caractères min)." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: dv } = await supabase
+    .from("deliverables")
+    .select("deal_id, label, deals(brand_id, creator_id, title, status, revision_rounds_max, revision_rounds_used)")
+    .eq("id", deliverableId)
+    .single();
+  if (!dv || dv.deals?.brand_id !== user.id) {
+    return { ok: false, error: "Action non autorisée." };
+  }
+  if (dv.deals?.status !== "active") {
+    return { ok: false, error: "Le deal n'est pas en cours." };
+  }
+
+  const used = dv.deals.revision_rounds_used ?? 0;
+  const max = dv.deals.revision_rounds_max ?? 2;
+  if (used >= max) {
+    return {
+      ok: false,
+      error: `Tu as atteint la limite de ${max} rounds de retouches inclus dans ce forfait. Valide la version actuelle ou demande au créateur d'ajuster sur une future collaboration.`,
+    };
+  }
+
+  // 1. Marque le livrable comme "à refaire"
+  const { error: dvErr } = await supabase
+    .from("deliverables")
+    .update({
+      done: false,
+      approved: false,
+      revision_requested: true,
+      revision_message: trimmed,
+    })
+    .eq("id", deliverableId);
+  if (dvErr) return { ok: false, error: dvErr.message };
+
+  // 2. Incrément compteur côté deal
+  const { error: dealErr } = await supabase
+    .from("deals")
+    .update({ revision_rounds_used: used + 1 })
+    .eq("id", dv.deal_id);
+  if (dealErr) return { ok: false, error: dealErr.message };
+
+  const remaining = max - (used + 1);
+  // 3. Notif créateur
+  if (dv.deals.creator_id) {
+    await notify({
+      userId: dv.deals.creator_id,
+      type: "deliverable_revision_requested",
+      title: `Retouche demandée sur "${dv.label}"`,
+      body: `${trimmed}\n\n${remaining === 0 ? "C'était le dernier round de retouches inclus." : `${remaining} round${remaining > 1 ? "s" : ""} de retouches restant${remaining > 1 ? "s" : ""}.`}`,
+      link: `/deals/${dv.deal_id}`,
+    });
+  }
+
+  revalidatePath(`/deals/${dv.deal_id}`);
+  return { ok: true };
+}
+
 /** La marque clôture le deal → "completed" (tous les livrables validés requis). */
 export async function completeDeal(dealId: string): Promise<Result> {
   const supabase = await createClient();
