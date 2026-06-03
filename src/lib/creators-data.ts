@@ -206,6 +206,9 @@ export type CreatorProfileData = {
   platforms: { label: string; slug: string; followers: string }[];
   mainPlatform: { label: string; slug: string } | null;
   totalFollowers: string;
+  isTop: boolean;
+  isVerified: boolean;
+  isNew: boolean;
 };
 
 /** Profil public d'un créateur par son handle. */
@@ -214,7 +217,7 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const { data: c } = await supabase
     .from("creators")
     .select(
-      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack",
+      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack, verified, created_at",
     )
     .eq("handle", handle)
     .maybeSingle();
@@ -225,14 +228,24 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
   const totalSubs = plats.reduce((sum, p) => sum + p.subs, 0);
 
+  const rating = c.rating ?? 5;
+  const dealsCount = c.deals_count ?? 0;
+  const reviewsCount = c.reviews_count ?? 0;
+  const verified = Boolean(c.verified);
+  const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
+  const NOW = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
+  const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+
   return {
     id: c.id,
     name: prof?.display_name ?? "Créateur",
     handle: c.handle ?? handle,
     bio: c.bio,
-    rating: c.rating ?? 5,
-    reviewsCount: c.reviews_count ?? 0,
-    dealsCount: c.deals_count ?? 0,
+    rating,
+    reviewsCount,
+    dealsCount,
     engagement: c.engagement != null ? `${c.engagement}%` : "—",
     priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
     offers: orderOffers(offersBy.get(c.id) ?? []),
@@ -246,6 +259,9 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     })),
     mainPlatform: plats[0] ? { label: plats[0].label, slug: plats[0].slug } : null,
     totalFollowers: fmtFollowers(totalSubs),
+    isTop,
+    isVerified: verified,
+    isNew,
   };
 }
 
