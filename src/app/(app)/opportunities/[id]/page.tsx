@@ -12,6 +12,8 @@ import {
 } from "@/lib/campaign";
 import ActionPanel from "./ActionPanel";
 import { openConversation } from "../../messages/actions";
+import EarningsCalculator from "./EarningsCalculator";
+import FaqAccordion from "./FaqAccordion";
 
 export async function generateMetadata({
   params,
@@ -105,6 +107,35 @@ export default async function OpportunityDetailPage({
   ]);
   const examples = examplesRes.data ?? [];
   const brandTotalCampaigns = brandStatsRes.count ?? 0;
+
+  // Stats temps réel de la campagne (anonymes, pour réassurer le créateur)
+  const [campaignLinksRes, campaignDealsRes] = await Promise.all([
+    supabase
+      .from("affiliate_links")
+      .select("id")
+      .eq("campaign_id", id),
+    supabase
+      .from("deals")
+      .select("id, status")
+      .eq("campaign_id", id),
+  ]);
+  const campaignLinkIds = (campaignLinksRes.data ?? []).map((l) => l.id);
+  const { data: campaignEvents } = campaignLinkIds.length
+    ? await supabase
+        .from("affiliate_events")
+        .select("type, sale_amount, commission_amount")
+        .in("link_id", campaignLinkIds)
+    : { data: [] };
+  const campaignEv = campaignEvents ?? [];
+  const totalClicks = campaignEv.filter((e) => e.type === "click").length;
+  const totalSales = campaignEv.filter((e) => e.type === "sale").length;
+  const totalCommissionsPaid = campaignEv
+    .filter((e) => e.type === "sale")
+    .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
+  const activeCreators = campaignLinkIds.length;
+  const completedDeals = (campaignDealsRes.data ?? []).filter(
+    (d) => d.status === "completed" || d.status === "active",
+  ).length;
 
   let clicks = 0;
   let gains = 0;
@@ -209,6 +240,66 @@ export default async function OpportunityDetailPage({
                 {c.description}
               </p>
             </section>
+          )}
+
+          {/* Stats temps réel de la campagne — réassurance "ça marche déjà" */}
+          {(activeCreators > 0 || totalClicks > 0 || completedDeals > 0) && (
+            <section className="mt-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                Cette campagne en chiffres
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Mis à jour en temps réel.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                    Créateurs engagés
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black text-ink">
+                    {activeCreators}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                    Clics générés
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black text-ink">
+                    {totalClicks.toLocaleString("fr-FR")}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                    Ventes confirmées
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black text-ink">
+                    {totalSales}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    Versé aux créateurs
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black text-emerald-700">
+                    {Math.round(totalCommissionsPaid).toLocaleString("fr-FR")}€
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Calculatrice de gains — uniquement pour les campagnes d'affiliation */}
+          {isAffiliation && (
+            <div className="mt-8">
+              <EarningsCalculator
+                tierPcts={{
+                  nano: c.commission_nano,
+                  micro: c.commission_micro,
+                  mid: c.commission_mid,
+                  macro: c.commission_macro,
+                }}
+              />
+            </div>
           )}
 
           {/* Exemples de contenu — la marque a uploadé des refs */}
@@ -321,6 +412,134 @@ export default async function OpportunityDetailPage({
                 </div>
               )}
             </dl>
+          </section>
+
+          {/* Comment ça marche */}
+          <section className="mt-8 rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/40 to-pink-50/30 p-5 sm:p-6">
+            <h2 className="font-display text-lg font-black text-ink">
+              Comment ça marche pour toi
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              {isAffiliation
+                ? "De l'activation au paiement, tu gardes le contrôle."
+                : "De la candidature au paiement, on s'occupe du reste."}
+            </p>
+            <ol className="mt-4 space-y-3">
+              {(isAffiliation
+                ? [
+                    {
+                      n: 1,
+                      t: "Active ton lien en 1 clic",
+                      d: "Tu reçois ton lien collabbs.com/r/{code} unique en quelques secondes.",
+                    },
+                    {
+                      n: 2,
+                      t: "Publie où tu veux",
+                      d: "Insta, TikTok, YouTube, ta bio, ta story… aucune contrainte de plateforme.",
+                    },
+                    {
+                      n: 3,
+                      t: "On track les ventes pour toi",
+                      d: "Notre script suit chaque clic et chaque vente automatiquement. Tu vois tout dans /activity.",
+                    },
+                    {
+                      n: 4,
+                      t: "Tu es payé·e chaque mois",
+                      d: "Versement automatique des commissions sur ton compte (Stripe Connect, ~2 jours ouvrés).",
+                    },
+                  ]
+                : [
+                    {
+                      n: 1,
+                      t: "Envoie ta candidature",
+                      d: "Un message court + tes réseaux. La marque répond sous quelques jours.",
+                    },
+                    {
+                      n: 2,
+                      t: "La marque te valide",
+                      d: "Si tu corresponds, on génère le contrat avec les coordonnées légales déjà remplies.",
+                    },
+                    {
+                      n: 3,
+                      t: "Tu livres le contenu",
+                      d: "Tu déposes le ou les contenus dans le deal. La marque valide (avec retouches incluses si besoin).",
+                    },
+                    {
+                      n: 4,
+                      t: "Paiement sécurisé",
+                      d: "Les fonds sont déjà en séquestre. Dès validation, tu reçois ta part nette automatiquement.",
+                    },
+                  ]
+              ).map((s) => (
+                <li key={s.n} className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-xs font-bold text-white shadow-sm">
+                    {s.n}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-ink">{s.t}</p>
+                    <p className="text-xs text-zinc-600">{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          {/* FAQ */}
+          <section className="mt-8">
+            <h2 className="font-display text-lg font-black text-ink">
+              Questions fréquentes
+            </h2>
+            <FaqAccordion
+              items={
+                isAffiliation
+                  ? [
+                      {
+                        q: "Quand est-ce que je suis payé·e ?",
+                        a: "Les commissions sont calculées en temps réel et versées le 1er de chaque mois pour le mois précédent, automatiquement sur ton compte connecté (Stripe Connect, 2-3 jours ouvrés).",
+                      },
+                      {
+                        q: "Combien est-ce que je peux gagner ?",
+                        a: "Ça dépend de ton audience et de ton taux de conversion. Tu peux jouer avec la calculatrice ci-dessus pour estimer. Les meilleurs créateurs sur ce type de campagne gagnent typiquement entre 200€ et 2 000€ par mois.",
+                      },
+                      {
+                        q: "Est-ce que je peux quitter la campagne ?",
+                        a: "Oui, tu peux désactiver ton lien à tout moment depuis /activity. Tes ventes déjà confirmées te restent dues.",
+                      },
+                      {
+                        q: "Y a-t-il une exclusivité ?",
+                        a: c.avoid
+                          ? `Vérifie la section "Ce qu'attend la marque" ci-dessus. Restrictions précisées : ${c.avoid}.`
+                          : "Non, aucune exclusivité par défaut. Tu peux promouvoir d'autres marques en parallèle.",
+                      },
+                      {
+                        q: "Comment savoir si une vente est validée ?",
+                        a: "On track via un script chez la marque qui nous remonte chaque conversion confirmée (paiement effectif). Tu vois le compteur en temps réel sur /activity et dans tes analytics.",
+                      },
+                    ]
+                  : [
+                      {
+                        q: "Quand est-ce que je suis payé·e ?",
+                        a: "Dès que tu acceptes le deal, la marque dépose les fonds en séquestre. Quand tu livres et qu'elle valide, le paiement net t'est versé automatiquement (Stripe Connect, 2-3 jours ouvrés).",
+                      },
+                      {
+                        q: "Et si je dois refaire le contenu ?",
+                        a: `${c.fixed_amount ?? "Le forfait"} inclut 2 rounds de retouches. Si la marque demande plus, elle doit te le payer en plus (à négocier en messagerie).`,
+                      },
+                      {
+                        q: "Et si la marque ne valide pas mon contenu ?",
+                        a: "Elle a 5 jours pour valider après ta livraison. Passé ce délai, le paiement t'est versé automatiquement.",
+                      },
+                      {
+                        q: "Est-ce que je peux candidater à plusieurs deals ?",
+                        a: "Oui, sauf mention d'exclusivité. Vérifie la section 'Ce qu'attend la marque' pour les restrictions.",
+                      },
+                      {
+                        q: "Comment se passe le contrat ?",
+                        a: "Le contrat est généré automatiquement avec tes coordonnées légales et celles de la marque. Tu valides en 1 clic à l'acceptation du deal. Aucun fichier à signer.",
+                      },
+                    ]
+              }
+            />
           </section>
         </div>
 
