@@ -16,6 +16,7 @@ const CREATOR_NAV: NavItem[] = [
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/payouts", label: "Paiements", icon: "💶" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/analytics", label: "Analytics", icon: "📈" },
   { href: "/profile", label: "Mon profil", icon: "👤" },
   { href: "/settings", label: "Réglages", icon: "⚙️" },
 ];
@@ -30,6 +31,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/tracking", label: "Tracking", icon: "🔗" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
+  { href: "/analytics", label: "Analytics", icon: "📈" },
   { href: "/profile", label: "Mon profil", icon: "🏢" },
   { href: "/settings", label: "Réglages", icon: "⚙️" },
 ];
