@@ -73,6 +73,16 @@ export default async function ProfilePage() {
       .order("position");
     const portfolio = portfolioData ?? [];
 
+    // Si l'user a renseigné un compte YouTube dans creator_platforms,
+    // on pré-remplit la modale d'import avec son @handle ou URL.
+    const youtubePlatformId = (platformsRes.data ?? []).find(
+      (p) => p.slug === "youtube",
+    )?.id;
+    const youtubeRow = (cPlatformsRes.data ?? []).find(
+      (cp) => cp.platform_id === youtubePlatformId,
+    );
+    const defaultYouTube = youtubeRow?.url || youtubeRow?.handle || "";
+
     // Note : on NE redirige PAS vers le wizard, même si tout est vide.
     // /profile doit toujours afficher les 5 sections complètes. L'utilisateur
     // remplit dans l'ordre qu'il veut. Le wizard /onboarding/* reste accessible
@@ -86,7 +96,12 @@ export default async function ProfilePage() {
         platforms={platformsRes.data ?? []}
         publicHandle={creatorRes.data?.handle ?? null}
         legalSection={<LegalInfoSection initial={legalInitial} role="creator" />}
-        portfolioSection={<PortfolioManager initial={portfolio} />}
+        portfolioSection={
+          <PortfolioManager
+            initial={portfolio}
+            defaultYouTubeHandle={defaultYouTube}
+          />
+        }
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",
