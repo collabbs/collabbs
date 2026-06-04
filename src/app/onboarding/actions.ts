@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { OfferId } from "@/components/landing/creators";
 
 /**
@@ -36,6 +37,7 @@ export async function uploadAvatar(
     return { ok: false, error: "Format non supporté — utilise une image (JPG, PNG, WEBP)." };
   }
 
+  // Vérification d'identité avec le client SSR (lecture du cookie session).
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,9 +46,17 @@ export async function uploadAvatar(
 
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  // Path verrouillé sur l'user.id authentifié → impossible d'écrire dans le
+  // dossier d'un autre user via cette action.
   const path = `${user.id}/${kind}.${safeExt}`;
 
-  const { error: upErr } = await supabase.storage
+  // L'upload lui-même est fait avec le client admin (service-role) qui
+  // bypass RLS. Pourquoi : le client SSR @supabase/ssr ne propage pas
+  // toujours le JWT vers Storage (constaté en prod, 400 RLS systématique
+  // même avec session OK). Comme l'identité a déjà été vérifiée et le path
+  // verrouillé sur user.id juste au-dessus, c'est safe.
+  const admin = createAdminClient();
+  const { error: upErr } = await admin.storage
     .from("avatars")
     .upload(path, file, { upsert: true, cacheControl: "3600", contentType: file.type });
   if (upErr) {
@@ -54,7 +64,7 @@ export async function uploadAvatar(
     return { ok: false, error: upErr.message };
   }
 
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  const { data } = admin.storage.from("avatars").getPublicUrl(path);
   // ?v=timestamp pour invalider le cache CDN si l'image change.
   return { ok: true, url: `${data.publicUrl}?v=${Date.now()}` };
 }
