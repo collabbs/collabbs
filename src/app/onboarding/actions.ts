@@ -4,6 +4,61 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { OfferId } from "@/components/landing/creators";
 
+/**
+ * Upload d'avatar / logo côté SERVEUR.
+ *
+ * Pourquoi pas en direct côté browser ? Le client Supabase browser propage
+ * mal la session JWT vers Storage dans certains cas (cookies SSR), ce qui
+ * faisait planter l'upload en 400 (RLS — auth.uid() vu comme NULL). Côté
+ * serveur, on a une session vérifiée propre via @supabase/ssr → l'upload
+ * passe systématiquement.
+ *
+ * Le paramètre `kind` choisit le préfixe de fichier ("avatar" ou "logo").
+ * On garde le même bucket "avatars" pour les deux : c'est public en lecture
+ * et la policy RLS ne distingue pas (juste foldername = auth.uid()).
+ */
+export async function uploadAvatar(
+  formData: FormData,
+  kind: "avatar" | "logo" = "avatar",
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { ok: false, error: "Aucun fichier reçu." };
+  }
+  if (file.size === 0) {
+    return { ok: false, error: "Fichier vide." };
+  }
+  // 5 MB max — large mais évite des uploads abusifs depuis un mobile photo brute.
+  if (file.size > 5 * 1024 * 1024) {
+    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "Format non supporté — utilise une image (JPG, PNG, WEBP)." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  const path = `${user.id}/${kind}.${safeExt}`;
+
+  const { error: upErr } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, cacheControl: "3600", contentType: file.type });
+  if (upErr) {
+    console.error("uploadAvatar: storage upload failed", upErr);
+    return { ok: false, error: upErr.message };
+  }
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  // ?v=timestamp pour invalider le cache CDN si l'image change.
+  return { ok: true, url: `${data.publicUrl}?v=${Date.now()}` };
+}
+
 export type OnboardingData = {
   handle: string;
   bio: string;

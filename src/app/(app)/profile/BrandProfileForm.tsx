@@ -2,8 +2,7 @@
 
 import { useRef, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
-import { createClient } from "@/lib/supabase/client";
-import { saveBrandOnboarding } from "@/app/onboarding/actions";
+import { saveBrandOnboarding, uploadAvatar } from "@/app/onboarding/actions";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -83,22 +82,18 @@ export default function BrandProfileForm({
     setError(null);
     setSaving(true);
     try {
-      // Logo : best-effort, on sauve quand même le reste si l'upload échoue.
+      // Logo via SERVER ACTION (cf. CreatorProfileForm pour le pourquoi).
       let logoUrl = initial.logoUrl;
       let logoError: string | null = null;
       if (logoFile) {
-        const supabase = createClient();
-        const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
-        const path = `${userId}/logo.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("avatars")
-          .upload(path, logoFile, { upsert: true, cacheControl: "3600" });
-        if (upErr) {
-          logoError = upErr.message;
-          console.error("Logo upload failed", upErr);
+        const fd = new FormData();
+        fd.append("file", logoFile);
+        const up = await uploadAvatar(fd, "logo");
+        if (!up.ok || !up.url) {
+          logoError = up.error ?? "Erreur inconnue lors de l'upload";
+          console.error("Logo upload failed", up.error);
         } else {
-          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-          logoUrl = `${data.publicUrl}?v=${Date.now()}`;
+          logoUrl = up.url;
         }
       }
 

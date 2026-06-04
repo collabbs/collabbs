@@ -113,7 +113,7 @@ export default async function CreatorProfilePage({
             </div>
 
             <div className="p-5">
-              {/* Niches + plateforme principale */}
+              {/* Niches */}
               <div className="flex flex-wrap items-center gap-2">
                 {c.niches.slice(0, 3).map((n) => (
                   <span
@@ -123,13 +123,25 @@ export default async function CreatorProfilePage({
                     {n}
                   </span>
                 ))}
-                {c.mainPlatform && (
-                  <span className="flex items-center gap-1.5 rounded-full bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                    <PlatformIcon slug={c.mainPlatform.slug} className="h-3.5 w-3.5" />
-                    {c.totalFollowers}
-                  </span>
-                )}
               </div>
+
+              {/* Réseaux avec VRAIS abonnés par plateforme (pas le total —
+                  le chip précédent affichait `totalFollowers` à côté du logo
+                  Instagram, ce qui laissait croire que c'étaient les abonnés
+                  Insta uniquement.) */}
+              {c.platforms.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {c.platforms.map((p) => (
+                    <span
+                      key={p.slug}
+                      className="flex items-center gap-1 rounded-full bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-700"
+                    >
+                      <PlatformIcon slug={p.slug} className="h-3 w-3" />
+                      {p.followers}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* CTA */}
               {isBrandViewer ? (
@@ -162,12 +174,12 @@ export default async function CreatorProfilePage({
 
               {/* Stats vitaux */}
               <dl className="mt-5 grid grid-cols-3 gap-1 border-t border-zinc-100 pt-4 text-center">
-                <div>
+                <div title={`Somme des abonnés sur ${c.platforms.length} réseau${c.platforms.length > 1 ? "x" : ""}`}>
                   <dt className="font-display text-xl font-black text-ink">
                     {c.totalFollowers}
                   </dt>
                   <dd className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                    Abonnés
+                    {c.platforms.length > 1 ? "Abonnés cumulés" : "Abonnés"}
                   </dd>
                 </div>
                 <div className="border-x border-zinc-100">

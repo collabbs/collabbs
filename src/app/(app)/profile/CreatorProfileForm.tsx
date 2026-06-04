@@ -3,9 +3,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import PlatformIcon from "@/components/PlatformIcon";
-import { createClient } from "@/lib/supabase/client";
 import { OFFER_TYPES, OFFER_BY_ID, type OfferId } from "@/components/landing/creators";
-import { saveCreatorOnboarding } from "@/app/onboarding/actions";
+import { saveCreatorOnboarding, uploadAvatar } from "@/app/onboarding/actions";
+import { extractHandleFromUrl } from "@/lib/social-handle";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -122,23 +122,20 @@ export default function CreatorProfileForm({
     setError(null);
     setSaving(true);
     try {
-      // Upload photo (best-effort : si ça échoue, on garde l'ancienne photo
-      // et on sauve quand même le reste — on remontera juste un warning).
+      // Upload photo VIA SERVER ACTION (la session SSR est plus fiable que
+      // le client browser pour Storage). Best-effort : si ça échoue, on garde
+      // l'ancienne photo et on sauve quand même le reste.
       let avatarUrl = initial.avatarUrl;
       let photoError: string | null = null;
       if (photoFile) {
-        const supabase = createClient();
-        const ext = (photoFile.name.split(".").pop() || "jpg").toLowerCase();
-        const path = `${userId}/avatar.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("avatars")
-          .upload(path, photoFile, { upsert: true, cacheControl: "3600" });
-        if (upErr) {
-          photoError = upErr.message;
-          console.error("Avatar upload failed", upErr);
+        const fd = new FormData();
+        fd.append("file", photoFile);
+        const up = await uploadAvatar(fd, "avatar");
+        if (!up.ok || !up.url) {
+          photoError = up.error ?? "Erreur inconnue lors de l'upload";
+          console.error("Avatar upload failed", up.error);
         } else {
-          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-          avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+          avatarUrl = up.url;
         }
       }
 
@@ -371,29 +368,67 @@ export default function CreatorProfileForm({
             return (
               <div
                 key={p.id}
-                className={`rounded-xl border p-3 transition ${
-                  sel ? "border-purple-200 bg-purple-50/40" : "border-zinc-200"
+                className={`rounded-xl border transition ${
+                  sel
+                    ? "border-purple-300 bg-purple-50/40"
+                    : "border-zinc-200 hover:border-purple-200 hover:bg-purple-50/20"
                 }`}
               >
+                {/* Le card entier est cliquable quand pas sélectionné : grande
+                    surface tactile + curseur pointer. Une fois sélectionné, on
+                    sépare le clic toggle (sur l'icône X) du clic dans les
+                    inputs pour éviter qu'un focus input ne fasse refermer. */}
                 <button
                   type="button"
                   onClick={() => togglePlatform(p.id)}
-                  className="flex w-full items-center gap-3"
+                  className="group flex w-full cursor-pointer items-center gap-3 p-3 text-left"
                 >
-                  <PlatformIcon slug={p.slug} className="h-5 w-5 shrink-0" />
-                  <span className="flex-1 text-left text-sm font-medium text-ink">
+                  <PlatformIcon slug={p.slug} className="h-6 w-6 shrink-0" />
+                  <span className="flex-1 text-sm font-semibold text-ink">
                     {p.label}
                   </span>
-                  <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-full text-xs text-white ${
-                      sel ? "bg-gradient-to-r from-purple-600 to-pink-600" : "bg-zinc-300"
-                    }`}
-                  >
-                    {sel ? "✓" : "+"}
-                  </span>
+                  {sel ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1 text-xs font-bold text-white">
+                      <span>✓</span>
+                      Ajouté
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600 group-hover:bg-purple-100 group-hover:text-purple-700">
+                      <span className="text-base leading-none">+</span>
+                      Ajouter
+                    </span>
+                  )}
                 </button>
                 {sel && (
-                  <div className="mt-3 space-y-2">
+                  <div className="space-y-2 px-3 pb-3">
+                    <input
+                      value={sel.url}
+                      onChange={(e) => {
+                        const newUrl = e.target.value;
+                        setPlatformSel((c) => {
+                          const cur = c[p.id];
+                          if (!cur) return c;
+                          // Auto-extract @handle quand le user colle une URL
+                          // (et seulement si le handle est encore vide pour ne
+                          // pas écraser ce qu'il aurait tapé à la main).
+                          const auto =
+                            !cur.handle.trim()
+                              ? extractHandleFromUrl(newUrl, p.slug)
+                              : null;
+                          return {
+                            ...c,
+                            [p.id]: {
+                              ...cur,
+                              url: newUrl,
+                              handle: auto ?? cur.handle,
+                            },
+                          };
+                        });
+                      }}
+                      inputMode="url"
+                      placeholder={`Lien vers ton ${p.label} (https://…)`}
+                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    />
                     <input
                       value={sel.handle}
                       onChange={(e) =>
@@ -402,19 +437,7 @@ export default function CreatorProfileForm({
                           [p.id]: { ...c[p.id], handle: e.target.value },
                         }))
                       }
-                      placeholder="@ ton compte"
-                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-400"
-                    />
-                    <input
-                      value={sel.url}
-                      onChange={(e) =>
-                        setPlatformSel((c) => ({
-                          ...c,
-                          [p.id]: { ...c[p.id], url: e.target.value },
-                        }))
-                      }
-                      inputMode="url"
-                      placeholder="Lien vers ton compte (https://…)"
+                      placeholder="@ ton pseudo (rempli auto depuis l'URL)"
                       className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-400"
                     />
                     <div className="flex items-center gap-2">
