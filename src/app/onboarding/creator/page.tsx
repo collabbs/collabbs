@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import Wizard from "./Wizard";
+import PortfolioManager from "@/app/(app)/profile/PortfolioManager";
 
 export const metadata = {
   title: "Compléter mon profil — Collabbs",
@@ -46,6 +47,13 @@ export default async function CreatorOnboardingPage() {
       .eq("creator_id", user.id),
   ]);
 
+  // Portfolio existant (en mode edit, l'user revoit ses items)
+  const { data: portfolioData } = await supabase
+    .from("creator_portfolio_items")
+    .select("id, url, title, thumbnail_url, platform_slug")
+    .eq("creator_id", user.id)
+    .order("position");
+
   // L'onboarding créateur n'est pertinent que pour les créateurs.
   if (profileRes.data?.role !== "creator") redirect("/dashboard");
 
@@ -69,6 +77,15 @@ export default async function CreatorOnboardingPage() {
     initialOffers.length > 0;
   const mode: "create" | "edit" = hasContent ? "edit" : "create";
 
+  // YouTube handle pré-rempli si renseigné dans creator_platforms
+  const youtubePlatformId = (platformsRes.data ?? []).find(
+    (p) => p.slug === "youtube",
+  )?.id;
+  const youtubeRow = (creatorPlatformsRes.data ?? []).find(
+    (cp) => cp.platform_id === youtubePlatformId,
+  );
+  const defaultYouTube = youtubeRow?.url || youtubeRow?.handle || "";
+
   return (
     <AppOrLandingShell>
       <Wizard
@@ -77,6 +94,12 @@ export default async function CreatorOnboardingPage() {
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         mode={mode}
+        portfolioSection={
+          <PortfolioManager
+            initial={portfolioData ?? []}
+            defaultYouTubeHandle={defaultYouTube}
+          />
+        }
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",

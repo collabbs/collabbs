@@ -11,7 +11,7 @@ import { saveCreatorOnboarding } from "../actions";
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
 
-const STEPS = ["Photo & identité", "Niches", "Réseaux", "Offres & tarifs"];
+const STEPS = ["Photo & identité", "Niches", "Réseaux", "Offres & tarifs", "Portfolio"];
 
 // Le créateur ne fixe que ses formats à prix fixe.
 // Affiliation & performance dépendent de la marque → pas dans l'onboarding.
@@ -25,6 +25,7 @@ export default function Wizard({
   niches,
   platforms,
   mode = "create",
+  portfolioSection,
   initial,
 }: {
   userId: string;
@@ -32,6 +33,11 @@ export default function Wizard({
   niches: Niche[];
   platforms: Platform[];
   mode?: "create" | "edit";
+  /**
+   * Section Portfolio rendue à l'étape 4 (skippable). Server-side, on injecte
+   * <PortfolioManager initial={portfolio} defaultYouTubeHandle={...} />.
+   */
+  portfolioSection?: React.ReactNode;
   initial: {
     handle: string;
     bio: string;
@@ -184,7 +190,8 @@ export default function Wizard({
           // clic sur "Enregistrer".
           if (avatarUrl) setPhotoPreview(avatarUrl);
         } else {
-          setStep(4);
+          // Success screen = juste après la dernière étape (Portfolio)
+          setStep(STEPS.length);
         }
       } else {
         setError(res.error ?? "Une erreur est survenue.");
@@ -250,7 +257,7 @@ export default function Wizard({
   }
 
   // Écran "Bienvenue" uniquement à la création initiale.
-  if (step === 4 && !isEdit) {
+  if (step === STEPS.length && !isEdit) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-3xl text-white shadow-lg shadow-purple-200">
@@ -643,6 +650,29 @@ export default function Wizard({
                 rien à configurer ici. Ils s&apos;activent au cas par cas, selon la campagne et
                 la commission fixées par chaque marque.
               </div>
+            </div>
+          )}
+
+          {/* Étape 5 — Portfolio (OPTIONNEL) */}
+          {step === 4 && (
+            <div>
+              <h1 className="font-display text-3xl font-black tracking-tight text-ink">
+                Donne-leur envie 🎬
+              </h1>
+              <p className="mt-2 text-sm text-zinc-500">
+                Ajoute quelques vidéos pour que les marques voient ton style.
+                C&apos;est <strong>l&apos;étape qui fait la différence</strong> entre
+                un profil oublié et un profil qui décroche des deals.
+              </p>
+
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs leading-relaxed text-amber-800">
+                💡 Cette étape est <strong>optionnelle</strong> — tu peux la
+                passer et la faire depuis ton profil plus tard. Mais on
+                te le déconseille fortement : un profil sans portfolio reçoit
+                beaucoup moins de propositions.
+              </div>
+
+              <div className="mt-4">{portfolioSection}</div>
             </div>
           )}
         </div>
