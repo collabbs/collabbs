@@ -689,6 +689,10 @@ export type Database = {
           platform_slug: string | null
           position: number
           created_at: string
+          view_count: number | null
+          like_count: number | null
+          duration_seconds: number | null
+          is_short: boolean
         }
         Insert: {
           id?: string
@@ -699,6 +703,10 @@ export type Database = {
           platform_slug?: string | null
           position?: number
           created_at?: string
+          view_count?: number | null
+          like_count?: number | null
+          duration_seconds?: number | null
+          is_short?: boolean
         }
         Update: {
           id?: string
@@ -709,6 +717,10 @@ export type Database = {
           platform_slug?: string | null
           position?: number
           created_at?: string
+          view_count?: number | null
+          like_count?: number | null
+          duration_seconds?: number | null
+          is_short?: boolean
         }
         Relationships: [
           {

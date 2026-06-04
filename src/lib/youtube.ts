@@ -18,7 +18,22 @@ export type YouTubeVideo = {
   title: string;
   thumbnailUrl: string;
   url: string;
+  viewCount: number | null;
+  likeCount: number | null;
+  durationSeconds: number | null;
+  isShort: boolean;
 };
+
+/** PT1H2M3S → 3723. Tolère M ou S manquants. */
+function parseISO8601Duration(s: string): number {
+  const m = s.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return 0;
+  return (
+    parseInt(m[1] ?? "0", 10) * 3600 +
+    parseInt(m[2] ?? "0", 10) * 60 +
+    parseInt(m[3] ?? "0", 10)
+  );
+}
 
 function apiKey(): string {
   const k = process.env.YOUTUBE_API_KEY;
@@ -124,7 +139,7 @@ export async function fetchRecentVideos(
   };
 
   const items = (plData.items ?? []) as Item[];
-  return items
+  const baseVideos = items
     .map((it) => {
       const sn = it.snippet;
       const videoId = sn?.resourceId?.videoId ?? null;
@@ -142,5 +157,51 @@ export async function fetchRecentVideos(
         url: `https://www.youtube.com/watch?v=${videoId}`,
       };
     })
-    .filter((v): v is YouTubeVideo => v !== null);
+    .filter((v): v is { videoId: string; title: string; thumbnailUrl: string; url: string } => v !== null);
+
+  if (baseVideos.length === 0) return [];
+
+  // Enrichit avec stats + durée (1 unité de quota pour le batch).
+  // videos.list accepte jusqu'à 50 ids comma-separated.
+  const videoIds = baseVideos.map((v) => v.videoId).join(",");
+  const statsRes = await fetch(
+    `${API_BASE}/videos?part=statistics,contentDetails&id=${videoIds}&key=${key}`,
+    { cache: "no-store" },
+  );
+  type StatsItem = {
+    id: string;
+    statistics?: { viewCount?: string; likeCount?: string };
+    contentDetails?: { duration?: string };
+  };
+  const statsById = new Map<
+    string,
+    { views: number | null; likes: number | null; durSec: number | null }
+  >();
+  if (statsRes.ok) {
+    const statsData = await statsRes.json();
+    for (const it of (statsData.items ?? []) as StatsItem[]) {
+      const views = it.statistics?.viewCount
+        ? Number(it.statistics.viewCount)
+        : null;
+      const likes = it.statistics?.likeCount
+        ? Number(it.statistics.likeCount)
+        : null;
+      const durSec = it.contentDetails?.duration
+        ? parseISO8601Duration(it.contentDetails.duration)
+        : null;
+      statsById.set(it.id, { views, likes, durSec });
+    }
+  }
+
+  return baseVideos.map((v) => {
+    const s = statsById.get(v.videoId);
+    const durationSeconds = s?.durSec ?? null;
+    return {
+      ...v,
+      viewCount: s?.views ?? null,
+      likeCount: s?.likes ?? null,
+      durationSeconds,
+      isShort: durationSeconds != null && durationSeconds <= 60,
+    };
+  });
 }

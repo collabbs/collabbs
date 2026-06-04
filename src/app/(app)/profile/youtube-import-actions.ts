@@ -93,6 +93,10 @@ export async function importYouTubeVideos(
     thumbnail_url: v.thumbnailUrl || null,
     platform_slug: "youtube",
     position: pos++,
+    view_count: v.viewCount,
+    like_count: v.likeCount,
+    duration_seconds: v.durationSeconds,
+    is_short: v.isShort,
   }));
 
   const { error } = await supabase

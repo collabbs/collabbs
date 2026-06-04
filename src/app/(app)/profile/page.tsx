@@ -68,7 +68,9 @@ export default async function ProfilePage() {
 
     const { data: portfolioData } = await supabase
       .from("creator_portfolio_items")
-      .select("id, url, title, thumbnail_url, platform_slug")
+      .select(
+        "id, url, title, thumbnail_url, platform_slug, view_count, like_count, duration_seconds, is_short",
+      )
       .eq("creator_id", user.id)
       .order("position");
     const portfolio = portfolioData ?? [];
@@ -100,6 +102,7 @@ export default async function ProfilePage() {
           <PortfolioManager
             initial={portfolio}
             defaultYouTubeHandle={defaultYouTube}
+            publicHandle={creatorRes.data?.handle ?? null}
           />
         }
         initial={{

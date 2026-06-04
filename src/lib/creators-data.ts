@@ -224,6 +224,9 @@ export type CreatorProfileData = {
     title: string | null;
     thumbnailUrl: string | null;
     platformSlug: string | null;
+    viewCount: number | null;
+    durationSeconds: number | null;
+    isShort: boolean;
   }[];
 };
 
@@ -244,11 +247,16 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
   const totalSubs = plats.reduce((sum, p) => sum + p.subs, 0);
 
-  // Portfolio (public via RLS)
+  // Portfolio (public via RLS). Trié par vues décroissantes pour montrer
+  // d'abord les vidéos qui marchent le mieux (puis fallback sur position
+  // pour les items sans stats).
   const { data: portfolioData } = await supabase
     .from("creator_portfolio_items")
-    .select("id, url, title, thumbnail_url, platform_slug")
+    .select(
+      "id, url, title, thumbnail_url, platform_slug, view_count, duration_seconds, is_short, position",
+    )
     .eq("creator_id", c.id)
+    .order("view_count", { ascending: false, nullsFirst: false })
     .order("position");
 
   const rating = c.rating ?? 5;
@@ -293,6 +301,9 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
       title: p.title,
       thumbnailUrl: p.thumbnail_url,
       platformSlug: p.platform_slug,
+      viewCount: p.view_count,
+      durationSeconds: p.duration_seconds,
+      isShort: p.is_short ?? false,
     })),
   };
 }
