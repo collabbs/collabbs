@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { resolveChannelId, fetchRecentVideos } from "@/lib/youtube";
+import {
+  resolveChannelId,
+  fetchRecentVideos,
+  fetchVideoStats,
+  videoIdFromUrl,
+} from "@/lib/youtube";
 
 /**
  * Importe les 10 dernières vidéos publiques d'un channel YouTube
@@ -114,4 +119,85 @@ export async function importYouTubeVideos(
   if (creator?.handle) revalidatePath(`/creators/${creator.handle}`);
 
   return { ok: true, imported: toInsert.length };
+}
+
+/**
+ * Re-fetch les stats (vues, durée, short) des vidéos YouTube déjà
+ * importées dans le portfolio du créateur connecté.
+ *
+ * Pourquoi : pour les imports faits AVANT qu'on stocke les stats en DB
+ * (migration 0031), ou pour rafraîchir le compteur de vues plus tard.
+ * Coût quota = 1 unité YouTube par batch de 50 vidéos.
+ */
+export async function refreshYouTubeStats(): Promise<{
+  ok: boolean;
+  error?: string;
+  updated?: number;
+}> {
+  if (!process.env.YOUTUBE_API_KEY) {
+    return { ok: false, error: "L'API YouTube n'est pas configurée côté serveur." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  // Charge toutes les vidéos YouTube du créateur.
+  const { data: items, error: selErr } = await supabase
+    .from("creator_portfolio_items")
+    .select("id, url")
+    .eq("creator_id", user.id)
+    .eq("platform_slug", "youtube");
+  if (selErr) return { ok: false, error: selErr.message };
+  if (!items || items.length === 0) return { ok: true, updated: 0 };
+
+  // Map id → videoId YouTube extrait de l'URL stockée.
+  const idToVid = new Map<string, string>();
+  for (const it of items) {
+    const vid = videoIdFromUrl(it.url);
+    if (vid) idToVid.set(it.id, vid);
+  }
+  if (idToVid.size === 0) return { ok: true, updated: 0 };
+
+  let stats;
+  try {
+    stats = await fetchVideoStats(Array.from(idToVid.values()));
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Erreur côté API YouTube.",
+    };
+  }
+
+  // Update une row par vidéo. Les vidéos supprimées / privées côté YouTube
+  // n'apparaissent pas dans le retour API → on garde leurs anciennes valeurs.
+  let updated = 0;
+  for (const [rowId, videoId] of idToVid.entries()) {
+    const s = stats.get(videoId);
+    if (!s) continue;
+    const dur = s.durSec;
+    const { error: upErr } = await supabase
+      .from("creator_portfolio_items")
+      .update({
+        view_count: s.views,
+        like_count: s.likes,
+        duration_seconds: dur,
+        is_short: dur != null && dur <= 60,
+      })
+      .eq("id", rowId)
+      .eq("creator_id", user.id);
+    if (!upErr) updated++;
+  }
+
+  revalidatePath("/profile");
+  const { data: creator } = await supabase
+    .from("creators")
+    .select("handle")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (creator?.handle) revalidatePath(`/creators/${creator.handle}`);
+
+  return { ok: true, updated };
 }

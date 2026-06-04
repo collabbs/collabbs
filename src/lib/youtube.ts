@@ -162,36 +162,7 @@ export async function fetchRecentVideos(
   if (baseVideos.length === 0) return [];
 
   // Enrichit avec stats + durée (1 unité de quota pour le batch).
-  // videos.list accepte jusqu'à 50 ids comma-separated.
-  const videoIds = baseVideos.map((v) => v.videoId).join(",");
-  const statsRes = await fetch(
-    `${API_BASE}/videos?part=statistics,contentDetails&id=${videoIds}&key=${key}`,
-    { cache: "no-store" },
-  );
-  type StatsItem = {
-    id: string;
-    statistics?: { viewCount?: string; likeCount?: string };
-    contentDetails?: { duration?: string };
-  };
-  const statsById = new Map<
-    string,
-    { views: number | null; likes: number | null; durSec: number | null }
-  >();
-  if (statsRes.ok) {
-    const statsData = await statsRes.json();
-    for (const it of (statsData.items ?? []) as StatsItem[]) {
-      const views = it.statistics?.viewCount
-        ? Number(it.statistics.viewCount)
-        : null;
-      const likes = it.statistics?.likeCount
-        ? Number(it.statistics.likeCount)
-        : null;
-      const durSec = it.contentDetails?.duration
-        ? parseISO8601Duration(it.contentDetails.duration)
-        : null;
-      statsById.set(it.id, { views, likes, durSec });
-    }
-  }
+  const statsById = await fetchVideoStats(baseVideos.map((v) => v.videoId));
 
   return baseVideos.map((v) => {
     const s = statsById.get(v.videoId);
@@ -204,4 +175,69 @@ export async function fetchRecentVideos(
       isShort: durationSeconds != null && durationSeconds <= 60,
     };
   });
+}
+
+/**
+ * Batch fetch des stats d'une liste de videoIds YouTube.
+ * Coût quota = 1 unité pour 50 vidéos max (videos.list accepte ?id=a,b,c,…).
+ *
+ * Utilisé par fetchRecentVideos (import) ET par refreshYouTubeStats (resync
+ * d'items déjà en DB qui auraient été importés avant qu'on enregistre les
+ * stats).
+ */
+export async function fetchVideoStats(
+  videoIds: string[],
+): Promise<Map<string, { views: number | null; likes: number | null; durSec: number | null }>> {
+  const result = new Map<
+    string,
+    { views: number | null; likes: number | null; durSec: number | null }
+  >();
+  if (videoIds.length === 0) return result;
+  const key = apiKey();
+  // YouTube API accepte max 50 ids par appel — chunk si besoin.
+  const CHUNK = 50;
+  for (let i = 0; i < videoIds.length; i += CHUNK) {
+    const chunk = videoIds.slice(i, i + CHUNK).join(",");
+    const res = await fetch(
+      `${API_BASE}/videos?part=statistics,contentDetails&id=${chunk}&key=${key}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) continue;
+    type StatsItem = {
+      id: string;
+      statistics?: { viewCount?: string; likeCount?: string };
+      contentDetails?: { duration?: string };
+    };
+    const data = await res.json();
+    for (const it of (data.items ?? []) as StatsItem[]) {
+      const views = it.statistics?.viewCount ? Number(it.statistics.viewCount) : null;
+      const likes = it.statistics?.likeCount ? Number(it.statistics.likeCount) : null;
+      const durSec = it.contentDetails?.duration
+        ? parseISO8601Duration(it.contentDetails.duration)
+        : null;
+      result.set(it.id, { views, likes, durSec });
+    }
+  }
+  return result;
+}
+
+/**
+ * Extrait l'ID de vidéo YouTube depuis une URL.
+ *   https://www.youtube.com/watch?v=ABC123     → "ABC123"
+ *   https://youtu.be/ABC123                    → "ABC123"
+ *   https://www.youtube.com/shorts/ABC123      → "ABC123"
+ *   https://youtube.com/embed/ABC123           → "ABC123"
+ */
+export function videoIdFromUrl(url: string): string | null {
+  const patterns = [
+    /[?&]v=([\w-]{11})/,
+    /youtu\.be\/([\w-]{11})/,
+    /youtube\.com\/shorts\/([\w-]{11})/,
+    /youtube\.com\/embed\/([\w-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m && m[1]) return m[1];
+  }
+  return null;
 }

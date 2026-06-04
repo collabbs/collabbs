@@ -227,14 +227,6 @@ export default async function CreatorProfilePage({
             <p className="mt-3 whitespace-pre-line leading-relaxed text-zinc-600">{bio}</p>
           </section>
 
-          {/* Portfolio — vidéos / contenus phares du créateur (top 6 par vues) */}
-          {c.portfolio.length > 0 && (
-            <PortfolioSection
-              items={c.portfolio}
-              firstName={first}
-            />
-          )}
-
           {/* Réseaux — chaque card est cliquable vers le compte externe si URL fournie */}
           {c.platforms.length > 0 && (
             <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
@@ -306,6 +298,10 @@ export default async function CreatorProfilePage({
               {c.offers.map((id) => {
                 const o = OFFER_BY_ID[id];
                 const paid = id === "ugc" || id === "post" || id === "story";
+                // Prix réel saisi par le créateur pour CETTE offre (vs avant
+                // où on affichait c.priceFrom = min global pour toutes les
+                // offres, ce qui était trompeur).
+                const price = c.offerPrices[id];
                 return (
                   <div
                     key={id}
@@ -320,12 +316,17 @@ export default async function CreatorProfilePage({
                         <p className="text-xs text-zinc-500">{o.tag}</p>
                       </div>
                     </div>
-                    {paid && c.priceFrom !== null && (
+                    {paid && price != null && price > 0 && (
                       <p className="mt-3 border-t border-zinc-100 pt-3 text-sm">
                         <span className="text-zinc-500">À partir de </span>
                         <span className="font-display text-lg font-black text-ink">
-                          {c.priceFrom}€
+                          {price}€
                         </span>
+                      </p>
+                    )}
+                    {paid && (price == null || price === 0) && (
+                      <p className="mt-3 border-t border-zinc-100 pt-3 text-xs font-medium text-zinc-500">
+                        Tarif à discuter
                       </p>
                     )}
                     {!paid && (
@@ -338,6 +339,12 @@ export default async function CreatorProfilePage({
               })}
             </div>
           </section>
+
+          {/* Portfolio — placé APRÈS les offres pour que la marque voie
+              d'abord ce qui se vend (formats + prix) avant les exemples. */}
+          {c.portfolio.length > 0 && (
+            <PortfolioSection items={c.portfolio} firstName={first} />
+          )}
 
           {/* Avis */}
           <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">

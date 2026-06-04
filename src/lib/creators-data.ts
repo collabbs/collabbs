@@ -88,7 +88,7 @@ async function loadRelations(ids: string[]) {
       .select("creator_id, platform_id, subscribers, handle, url")
       .in("creator_id", ids),
     supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
-    supabase.from("creator_offers").select("creator_id, offer").in("creator_id", ids),
+    supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", ids),
     supabase.from("platforms").select("id, label, slug"),
     supabase.from("niches").select("id, label"),
   ]);
@@ -125,13 +125,19 @@ async function loadRelations(ids: string[]) {
     nichesBy.set(cn.creator_id, arr);
   }
   const offersBy = new Map<string, string[]>();
+  // Map créateur → offre → prix (pour exposer le prix réel de chaque offre
+  // sur la fiche publique, vs un priceFrom = min global qui mentait).
+  const offerPriceBy = new Map<string, Record<string, number | null>>();
   for (const co of cosRes.data ?? []) {
     const arr = offersBy.get(co.creator_id) ?? [];
     arr.push(co.offer);
     offersBy.set(co.creator_id, arr);
+    const priceMap = offerPriceBy.get(co.creator_id) ?? {};
+    priceMap[co.offer] = co.price ?? null;
+    offerPriceBy.set(co.creator_id, priceMap);
   }
 
-  return { profMap, platsBy, nichesBy, offersBy };
+  return { profMap, platsBy, nichesBy, offersBy, offerPriceBy };
 }
 
 /** Carte marketplace : créateurs « complets » (photo, réseau, niche, offre). */
@@ -209,6 +215,9 @@ export type CreatorProfileData = {
   engagement: string;
   priceFrom: number | null;
   offers: OfferId[];
+  /** Prix par offre (clé = OfferId). Pour les offres non-payées au fixe
+   *  (perf, affil), la valeur est null. */
+  offerPrices: Partial<Record<OfferId, number | null>>;
   photo: string | null;
   tint: string;
   niches: string[];
@@ -242,7 +251,8 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     .maybeSingle();
   if (!c) return null;
 
-  const { profMap, platsBy, nichesBy, offersBy } = await loadRelations([c.id]);
+  const { profMap, platsBy, nichesBy, offersBy, offerPriceBy } =
+    await loadRelations([c.id]);
   const prof = profMap.get(c.id);
   const plats = (platsBy.get(c.id) ?? []).slice().sort((a, b) => b.subs - a.subs);
   const totalSubs = plats.reduce((sum, p) => sum + p.subs, 0);
@@ -280,6 +290,7 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     engagement: c.engagement != null ? `${c.engagement}%` : "—",
     priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
     offers: orderOffers(offersBy.get(c.id) ?? []),
+    offerPrices: (offerPriceBy.get(c.id) ?? {}) as Partial<Record<OfferId, number | null>>,
     photo: prof?.avatar_url ?? null,
     tint: tintFor(c.handle ?? handle),
     niches: nichesBy.get(c.id) ?? [],

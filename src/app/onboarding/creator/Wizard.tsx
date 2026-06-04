@@ -15,8 +15,12 @@ const STEPS = ["Photo & identité", "Niches", "Réseaux", "Offres & tarifs", "Po
 
 // Le créateur ne fixe que ses formats à prix fixe.
 // Affiliation & performance dépendent de la marque → pas dans l'onboarding.
+// Le créateur choisit ses formats. Pour UGC / Vidéo / Story il fixe un
+// prix de départ. Pour l'affiliation, il signale juste qu'il l'accepte —
+// le taux de commission est fixé par la marque dans sa campagne.
+// Performance pure reste exclue (toujours définie par campagne, pas par profil).
 const CREATOR_OFFERS = OFFER_TYPES.filter(
-  (o) => o.id === "ugc" || o.id === "post" || o.id === "story",
+  (o) => o.id === "ugc" || o.id === "post" || o.id === "story" || o.id === "affil",
 );
 
 export default function Wizard({
@@ -639,7 +643,7 @@ export default function Wizard({
                           {sel ? "✓" : "+"}
                         </span>
                       </button>
-                      {sel && (
+                      {sel && o.id !== "affil" && (
                         <div className="mt-3 flex items-center gap-2">
                           <input
                             value={sel.price}
@@ -656,16 +660,20 @@ export default function Wizard({
                           <span className="text-sm text-zinc-400">€</span>
                         </div>
                       )}
+                      {sel && o.id === "affil" && (
+                        <p className="mt-3 text-xs italic text-brand-deep">
+                          💎 Taux de commission défini par la marque dans sa campagne.
+                        </p>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
               <div className="mt-4 rounded-xl bg-purple-50/60 p-3 text-xs leading-relaxed text-zinc-600">
-                🔗 <span className="font-semibold text-brand-deep">Affiliation</span> et 📊{" "}
-                <span className="font-semibold text-brand-deep">paiement à la performance</span> :
-                rien à configurer ici. Ils s&apos;activent au cas par cas, selon la campagne et
-                la commission fixées par chaque marque.
+                📊 <span className="font-semibold text-brand-deep">Paiement à la performance</span> :
+                il n&apos;y a rien à configurer ici, il s&apos;active au cas par cas selon
+                la campagne et la commission proposées par la marque.
               </div>
             </div>
           )}

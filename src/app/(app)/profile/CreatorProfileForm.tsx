@@ -11,8 +11,10 @@ type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
 
 // Le créateur ne fixe que ses formats à prix fixe.
+// Idem Wizard : UGC/Vidéo/Story = prix fixe au créateur ; Affiliation = signal
+// d'acceptation (taux fixé par la marque) ; Performance = défini par campagne.
 const CREATOR_OFFERS = OFFER_TYPES.filter(
-  (o) => o.id === "ugc" || o.id === "post" || o.id === "story",
+  (o) => o.id === "ugc" || o.id === "post" || o.id === "story" || o.id === "affil",
 );
 
 export default function CreatorProfileForm({
@@ -521,7 +523,7 @@ export default function CreatorProfileForm({
                     {sel ? "✓" : "+"}
                   </span>
                 </button>
-                {sel && (
+                {sel && o.id !== "affil" && (
                   <div className="mt-3 flex items-center gap-2">
                     <input
                       value={sel.price}
@@ -537,6 +539,11 @@ export default function CreatorProfileForm({
                     />
                     <span className="text-sm text-zinc-400">€</span>
                   </div>
+                )}
+                {sel && o.id === "affil" && (
+                  <p className="mt-3 text-xs italic text-brand-deep">
+                    💎 Taux de commission défini par la marque dans sa campagne.
+                  </p>
                 )}
               </div>
             );

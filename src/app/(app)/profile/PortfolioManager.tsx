@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import PlatformIcon from "@/components/PlatformIcon";
 import { useToast } from "@/components/Toast";
 import { addPortfolioItem, removePortfolioItem } from "./portfolio-actions";
-import { importYouTubeVideos } from "./youtube-import-actions";
+import { importYouTubeVideos, refreshYouTubeStats } from "./youtube-import-actions";
 
 export type PortfolioItem = {
   id: string;
@@ -94,6 +94,28 @@ export default function PortfolioManager({
     }
   }
 
+  async function onRefreshStats() {
+    if (busy) return;
+    setBusy(true);
+    const res = await refreshYouTubeStats();
+    setBusy(false);
+    if (res.ok) {
+      toast.success(
+        `Stats à jour pour ${res.updated ?? 0} vidéo${(res.updated ?? 0) > 1 ? "s" : ""}.`,
+      );
+      router.refresh();
+    } else {
+      toast.error(res.error ?? "Échec du rafraîchissement.");
+    }
+  }
+
+  // Détecte si au moins une vidéo YouTube n'a pas encore ses stats remplies —
+  // c'est le cas des items importés avant la migration view_count. On affiche
+  // alors le bouton "Rafraîchir mes stats" pour rebrancher en 1 clic.
+  const hasYoutubeWithoutStats = items.some(
+    (it) => it.platform_slug === "youtube" && it.view_count == null,
+  );
+
   async function onRemove(id: string) {
     if (busy) return;
     setBusy(true);
@@ -134,6 +156,26 @@ export default function PortfolioManager({
           </Link>
         )}
       </div>
+
+      {/* Bandeau "stats manquantes" : si l'utilisateur a importé ses vidéos
+          AVANT qu'on stocke les stats en DB, on lui propose de re-fetch en
+          1 clic — il évite ainsi de devoir tout supprimer et ré-importer. */}
+      {hasYoutubeWithoutStats && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs">
+          <p className="text-amber-800">
+            ⚡ Tes vues / durées YouTube ne sont pas encore visibles sur tes
+            vidéos. Clique pour les rafraîchir.
+          </p>
+          <button
+            type="button"
+            onClick={onRefreshStats}
+            disabled={busy}
+            className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
+          >
+            {busy ? "…" : "🔄 Rafraîchir mes stats"}
+          </button>
+        </div>
+      )}
 
       {/* CTAs compact en 1 ligne */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
