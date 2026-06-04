@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
 import { saveBrandOnboarding, uploadAvatar } from "@/app/onboarding/actions";
+import { compressImage } from "@/lib/image-compress";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -86,8 +87,9 @@ export default function BrandProfileForm({
       let logoUrl = initial.logoUrl;
       let logoError: string | null = null;
       if (logoFile) {
+        const compressed = await compressImage(logoFile, { maxSize: 800 });
         const fd = new FormData();
-        fd.append("file", logoFile);
+        fd.append("file", compressed);
         const up = await uploadAvatar(fd, "logo");
         if (!up.ok || !up.url) {
           logoError = up.error ?? "Erreur inconnue lors de l'upload";

@@ -7,6 +7,7 @@ import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_TYPES, OFFER_BY_ID, type OfferId } from "@/components/landing/creators";
 import { saveCreatorOnboarding, uploadAvatar } from "../actions";
 import { extractHandleFromUrl } from "@/lib/social-handle";
+import { compressImage } from "@/lib/image-compress";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -152,8 +153,9 @@ export default function Wizard({
       let avatarUrl = initial.avatarUrl;
       let photoError: string | null = null;
       if (photoFile) {
+        const compressed = await compressImage(photoFile, { maxSize: 800 });
         const fd = new FormData();
-        fd.append("file", photoFile);
+        fd.append("file", compressed);
         const up = await uploadAvatar(fd, "avatar");
         if (!up.ok || !up.url) {
           photoError = up.error ?? "Erreur inconnue lors de l'upload";

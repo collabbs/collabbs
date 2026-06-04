@@ -32,6 +32,8 @@ export default async function CreatorProfilePage({
   const first = c.name.split(" ")[0];
 
   // Viewer : une marque connectée peut booker / contacter directement.
+  // Et si le viewer EST le créateur, on lui propose un retour vers son profil
+  // d'édition plutôt que vers la marketplace.
   const supabase = await createClient();
   const {
     data: { user },
@@ -45,6 +47,7 @@ export default async function CreatorProfilePage({
       .single();
     isBrandViewer = vp?.role === "brand";
   }
+  const isOwnProfile = user?.id === c.id;
   const niche = c.niches[0] ?? "lifestyle";
   const bio =
     c.bio ??
@@ -52,11 +55,14 @@ export default async function CreatorProfilePage({
 
   return (
     <AppOrLandingShell contentClassName="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+      {/* Lien retour contextuel : si le créateur regarde sa propre fiche
+          publique, on le ramène à /profile (édition) — sinon vers la
+          marketplace pour continuer à browse. */}
       <Link
-        href="/creators"
+        href={isOwnProfile ? "/profile" : "/creators"}
         className="inline-flex items-center gap-1 text-sm font-medium text-zinc-500 transition hover:text-ink"
       >
-        <span>←</span> Tous les créateurs
+        <span>←</span> {isOwnProfile ? "Retour à mon profil" : "Tous les créateurs"}
       </Link>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[360px_1fr]">
