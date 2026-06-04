@@ -144,7 +144,10 @@ export default function Wizard({
     setError(null);
     setSaving(true);
     try {
+      // Photo : best-effort. Si ça échoue, on sauve quand même le reste pour
+      // ne pas perdre ce que le user a rempli, et on remonte un warning ciblé.
       let avatarUrl = initial.avatarUrl;
+      let photoError: string | null = null;
       if (photoFile) {
         const supabase = createClient();
         const ext = (photoFile.name.split(".").pop() || "jpg").toLowerCase();
@@ -153,12 +156,12 @@ export default function Wizard({
           .from("avatars")
           .upload(path, photoFile, { upsert: true, cacheControl: "3600" });
         if (upErr) {
-          setError("La photo n'a pas pu être envoyée. Réessaie.");
-          setSaving(false);
-          return;
+          photoError = upErr.message;
+          console.error("Avatar upload failed", upErr);
+        } else {
+          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+          avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
         }
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-        avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
       }
 
       const res = await saveCreatorOnboarding({
@@ -181,17 +184,18 @@ export default function Wizard({
 
       if (res.ok) {
         if (isEdit) {
-          // En édition : on reste sur la page avec un toast de confirmation,
-          // pas d'écran "🎉 Bienvenue" qui n'aurait aucun sens pour un retour.
           setSavedAt(Date.now());
-          setPhotoFile(null);
-          // L'avatar éventuellement uploadé a déjà été persisté ; on enlève le
-          // marqueur "fichier à uploader" pour ne pas le ré-envoyer au prochain
-          // clic sur "Enregistrer".
-          if (avatarUrl) setPhotoPreview(avatarUrl);
+          if (!photoError) {
+            setPhotoFile(null);
+            if (avatarUrl) setPhotoPreview(avatarUrl);
+          }
         } else {
-          // Success screen = juste après la dernière étape (Portfolio)
           setStep(STEPS.length);
+        }
+        if (photoError) {
+          setError(
+            `Tes infos sont sauvegardées, mais la photo n'a pas pu être envoyée (${photoError}). Choisis-la à nouveau et clique Enregistrer.`,
+          );
         }
       } else {
         setError(res.error ?? "Une erreur est survenue.");

@@ -83,7 +83,9 @@ export default function BrandProfileForm({
     setError(null);
     setSaving(true);
     try {
+      // Logo : best-effort, on sauve quand même le reste si l'upload échoue.
       let logoUrl = initial.logoUrl;
+      let logoError: string | null = null;
       if (logoFile) {
         const supabase = createClient();
         const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
@@ -92,12 +94,12 @@ export default function BrandProfileForm({
           .from("avatars")
           .upload(path, logoFile, { upsert: true, cacheControl: "3600" });
         if (upErr) {
-          setError("Le logo n'a pas pu être envoyé. Réessaie.");
-          setSaving(false);
-          return;
+          logoError = upErr.message;
+          console.error("Logo upload failed", upErr);
+        } else {
+          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+          logoUrl = `${data.publicUrl}?v=${Date.now()}`;
         }
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-        logoUrl = `${data.publicUrl}?v=${Date.now()}`;
       }
 
       const res = await saveBrandOnboarding({
@@ -116,8 +118,18 @@ export default function BrandProfileForm({
 
       if (res.ok) {
         setSavedAt(Date.now());
-        setLogoFile(null);
-        if (logoUrl) setLogoPreview(logoUrl);
+        if (!logoError) {
+          setLogoFile(null);
+          if (logoUrl) setLogoPreview(logoUrl);
+        }
+        if (logoError) {
+          setError(
+            `Tes infos sont sauvegardées, mais le logo n'a pas pu être envoyé (${logoError}). Réessaie de le choisir et clique Enregistrer.`,
+          );
+        }
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } else {
         setError(res.error ?? "Une erreur est survenue.");
       }

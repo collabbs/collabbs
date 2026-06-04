@@ -122,7 +122,10 @@ export default function CreatorProfileForm({
     setError(null);
     setSaving(true);
     try {
+      // Upload photo (best-effort : si ça échoue, on garde l'ancienne photo
+      // et on sauve quand même le reste — on remontera juste un warning).
       let avatarUrl = initial.avatarUrl;
+      let photoError: string | null = null;
       if (photoFile) {
         const supabase = createClient();
         const ext = (photoFile.name.split(".").pop() || "jpg").toLowerCase();
@@ -131,12 +134,12 @@ export default function CreatorProfileForm({
           .from("avatars")
           .upload(path, photoFile, { upsert: true, cacheControl: "3600" });
         if (upErr) {
-          setError("La photo n'a pas pu être envoyée. Réessaie.");
-          setSaving(false);
-          return;
+          photoError = upErr.message;
+          console.error("Avatar upload failed", upErr);
+        } else {
+          const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+          avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
         }
-        const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-        avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
       }
 
       const res = await saveCreatorOnboarding({
@@ -159,8 +162,19 @@ export default function CreatorProfileForm({
 
       if (res.ok) {
         setSavedAt(Date.now());
-        setPhotoFile(null);
-        if (avatarUrl) setPhotoPreview(avatarUrl);
+        if (!photoError) {
+          setPhotoFile(null);
+          if (avatarUrl) setPhotoPreview(avatarUrl);
+        }
+        if (photoError) {
+          setError(
+            `Tes infos sont sauvegardées, mais la photo n'a pas pu être envoyée (${photoError}). Réessaie de la choisir et clique à nouveau Enregistrer.`,
+          );
+        }
+        // Scroll en haut pour que le user voie le toast de confirmation.
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } else {
         setError(res.error ?? "Une erreur est survenue.");
       }
@@ -207,14 +221,30 @@ export default function CreatorProfileForm({
         </div>
       </div>
 
-      {/* Toast confirmation */}
+      {/* Toast confirmation — voyant et persistant 8s grâce à la key qui
+          force le remount donc retrigger des transitions Tailwind. */}
       {savedAt && (
         <div
           key={savedAt}
-          className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-700"
+          className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm"
         >
-          <span>✓</span>
-          <span className="font-medium">Modifications enregistrées.</span>
+          <span className="text-xl">✅</span>
+          <div className="flex-1">
+            <p className="font-bold">Modifications enregistrées.</p>
+            <p className="mt-0.5 text-xs">
+              {listable
+                ? "Ton profil est visible par les marques dans la marketplace."
+                : "Continue à compléter pour devenir visible (photo + niche + 1 offre minimum)."}
+            </p>
+          </div>
+          {publicHandle && listable && (
+            <Link
+              href={`/creators/${publicHandle}`}
+              className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-50"
+            >
+              👁 Voir ma fiche →
+            </Link>
+          )}
         </div>
       )}
 
@@ -503,21 +533,49 @@ export default function CreatorProfileForm({
 
       {displayName && <span className="hidden">{displayName}</span>}
 
-      {/* ============ Barre d'action sticky en bas ============ */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur lg:left-60">
-        <div className="mx-auto flex max-w-5xl items-center justify-end gap-3 px-1">
-          <span className="hidden text-sm text-zinc-500 sm:inline">
-            {listable
-              ? "Tes modifs sont prêtes — clique pour les publier."
-              : "Complète au moins photo + niche + 1 offre pour devenir visible."}
-          </span>
+      {/* ============ Barre d'action sticky en bas ============
+          Voyante : fond opaque + ombre, message explicite côté gauche,
+          bouton grand format avec icône à droite. Sur mobile, le message
+          se passe en dessous du bouton pour rester lisible. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.05)] lg:left-60">
+        <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <span
+              className={`flex h-2 w-2 shrink-0 rounded-full ${
+                listable ? "bg-emerald-500" : "bg-amber-400"
+              }`}
+            />
+            <span className="text-zinc-600">
+              {listable ? (
+                <>
+                  <strong className="text-emerald-700">Visible par les marques.</strong>{" "}
+                  Tes modifs sont prêtes à être enregistrées.
+                </>
+              ) : (
+                <>
+                  <strong className="text-amber-700">Pas encore visible.</strong>{" "}
+                  Il te manque photo + niche + 1 offre.
+                </>
+              )}
+            </span>
+          </div>
           <button
             type="button"
             onClick={save}
             disabled={saving}
-            className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-7 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-[1.02] hover:opacity-95 active:scale-100 disabled:opacity-50"
           >
-            {saving ? "Enregistrement…" : "Enregistrer"}
+            {saving ? (
+              <>
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                Enregistrement…
+              </>
+            ) : (
+              <>
+                <span>💾</span>
+                Enregistrer mon profil
+              </>
+            )}
           </button>
         </div>
       </div>
