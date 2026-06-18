@@ -278,12 +278,27 @@ export default function OpportunityCard({
           </div>
         </div>
 
-        {/* Type badge sous le bandeau */}
+        {/* Type badge + assets bonus sous le bandeau. Les assets sont des
+            mini-badges qui montrent qu'en plus du modèle de paiement
+            principal, il y a des bonus à diffuser (code promo, concours). */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.pill}`}>
             <span>{meta.emoji}</span>
             <span>{meta.label}</span>
           </span>
+          {o.withPromoCode && (
+            <span className="flex items-center gap-1 rounded-full bg-fuchsia-100 px-2 py-0.5 text-[10px] font-bold text-fuchsia-800">
+              🎟️ {o.promoDiscountPct ? `-${o.promoDiscountPct}%` : "Code promo"}
+            </span>
+          )}
+          {o.withGiveaway && (
+            <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+              🎁{" "}
+              {o.giveawayPrizeValue
+                ? `${o.giveawayPrizeValue}€ à gagner`
+                : "Concours"}
+            </span>
+          )}
           {urgent && premium && (
             <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
               🔥 {o.spots} place{o.spots && o.spots > 1 ? "s" : ""}

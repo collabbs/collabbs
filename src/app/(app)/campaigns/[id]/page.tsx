@@ -14,6 +14,7 @@ import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
 import ExamplesManager from "./ExamplesManager";
+import PromoTrackingPanel from "./PromoTrackingPanel";
 import TrackingStatusCard from "./TrackingStatusCard";
 import ShareCampaignCard from "./ShareCampaignCard";
 
@@ -69,7 +70,7 @@ export default async function CampaignManagePage({
       .order("created_at", { ascending: false }),
     supabase
       .from("affiliate_links")
-      .select("id, creator_id, code, created_at")
+      .select("id, creator_id, code, promo_code, created_at")
       .eq("campaign_id", id),
     supabase.from("deals").select("id, creator_id").eq("campaign_id", id),
     supabase
@@ -84,6 +85,65 @@ export default async function CampaignManagePage({
       .order("position"),
   ]);
   const examples = examplesRes.data ?? [];
+
+  // Sprint B v2 — agréger les events de tracking promo par lien.
+  // Charge UNIQUEMENT si la campagne a l'asset code promo activé pour
+  // éviter une requête inutile en branche normale.
+  let promoRows: Array<{
+    linkId: string;
+    creatorId: string;
+    creatorName: string;
+    creatorHandle: string | null;
+    promoCode: string;
+    salesCount: number;
+    salesAmount: number;
+    commissionAmount: number;
+  }> = [];
+  if (c.with_promo_code) {
+    const linksWithCode = (linksRes.data ?? []).filter((l) => l.promo_code);
+    if (linksWithCode.length > 0) {
+      const linkIds = linksWithCode.map((l) => l.id);
+      const [eventsRes, profilesRes, creatorsRes] = await Promise.all([
+        supabase
+          .from("affiliate_events")
+          .select("link_id, sale_amount, commission_amount")
+          .in("link_id", linkIds)
+          .eq("source", "promo_code")
+          .eq("type", "sale"),
+        supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", linksWithCode.map((l) => l.creator_id)),
+        supabase
+          .from("creators")
+          .select("id, handle")
+          .in("id", linksWithCode.map((l) => l.creator_id)),
+      ]);
+      const profMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
+      const credMap = new Map((creatorsRes.data ?? []).map((c) => [c.id, c]));
+      const agg = new Map<string, { count: number; amount: number; commission: number }>();
+      for (const ev of eventsRes.data ?? []) {
+        const cur = agg.get(ev.link_id) ?? { count: 0, amount: 0, commission: 0 };
+        cur.count += 1;
+        cur.amount += ev.sale_amount ?? 0;
+        cur.commission += ev.commission_amount ?? 0;
+        agg.set(ev.link_id, cur);
+      }
+      promoRows = linksWithCode.map((l) => {
+        const a = agg.get(l.id) ?? { count: 0, amount: 0, commission: 0 };
+        return {
+          linkId: l.id,
+          creatorId: l.creator_id,
+          creatorName: profMap.get(l.creator_id)?.display_name ?? "Créateur",
+          creatorHandle: credMap.get(l.creator_id)?.handle ?? null,
+          promoCode: l.promo_code ?? "",
+          salesCount: a.count,
+          salesAmount: a.amount,
+          commissionAmount: a.commission,
+        };
+      });
+    }
+  }
 
   // Origine pour construire l'URL d'endpoint montrée à la marque.
   const h = await headers();
@@ -362,7 +422,16 @@ export default async function CampaignManagePage({
         </section>
       )}
 
-      {/* Code promo — vue marque (asset activé). */}
+      {/* Panneau tracking code promo (stats par créateur + saisie manuelle). */}
+      {c.with_promo_code && (
+        <PromoTrackingPanel
+          campaignId={c.id}
+          commissionPct={c.promo_commission_pct}
+          rows={promoRows}
+        />
+      )}
+
+      {/* Code promo — vue marque (asset activé, config). */}
       {c.with_promo_code && (
         <section className="mt-8 rounded-2xl border border-purple-100 bg-purple-50/30 p-5 shadow-sm">
           <h2 className="font-display text-lg font-black text-ink">

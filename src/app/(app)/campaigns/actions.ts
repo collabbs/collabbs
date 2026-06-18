@@ -165,6 +165,75 @@ export async function createCampaign(
   return { ok: true, id: inserted.id };
 }
 
+/**
+ * Saisie MANUELLE d'une vente attribuée à un code promo.
+ * Sert aux marques qui n'ont pas (encore) intégré le postback /api/track/promo.
+ * La marque déclare "le code MARTIN20 a généré 49.99€ via la commande ORD-123",
+ * et Collabbs crée un affiliate_events source='promo_code'.
+ */
+export async function recordManualPromoSale(input: {
+  campaignId: string;
+  code: string;
+  amount: number;
+  orderRef?: string | null;
+}): Promise<{ ok: boolean; error?: string; commission?: number }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+  if (!input.code || !Number.isFinite(input.amount) || input.amount <= 0) {
+    return { ok: false, error: "Code et montant valide requis." };
+  }
+
+  // Vérifie que la campagne appartient bien à la marque connectée.
+  const { data: c } = await supabase
+    .from("campaigns")
+    .select("brand_id, promo_commission_pct")
+    .eq("id", input.campaignId)
+    .maybeSingle();
+  if (!c || c.brand_id !== user.id) {
+    return { ok: false, error: "Action non autorisée." };
+  }
+
+  // Résout le lien d'affiliation correspondant à ce code promo.
+  const normalized = input.code.toUpperCase().replace(/\s+/g, "");
+  const { data: link } = await supabase
+    .from("affiliate_links")
+    .select("id, creator_id")
+    .eq("campaign_id", input.campaignId)
+    .eq("promo_code", normalized)
+    .maybeSingle();
+  if (!link) {
+    return {
+      ok: false,
+      error: `Aucun créateur n'a le code "${normalized}" sur cette campagne.`,
+    };
+  }
+
+  const pct = c.promo_commission_pct ?? 0;
+  const commission = Math.round((input.amount * pct) / 100);
+
+  const { error } = await supabase.from("affiliate_events").insert({
+    link_id: link.id,
+    type: "sale",
+    source: "promo_code",
+    sale_amount: input.amount,
+    commission_amount: commission,
+    external_ref: input.orderRef?.trim() || null,
+  });
+  if (error) {
+    // Idempotent : même order_ref déjà saisi pour ce lien
+    if ((error as { code?: string }).code === "23505") {
+      return { ok: false, error: "Vente déjà enregistrée pour cette commande." };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/campaigns/${input.campaignId}`);
+  return { ok: true, commission };
+}
+
 /** La marque accepte ou refuse une candidature reçue sur l'une de ses campagnes. */
 export async function decideApplication(
   applicationId: string,

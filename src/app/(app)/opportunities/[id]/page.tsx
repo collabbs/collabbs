@@ -83,7 +83,7 @@ export default async function OpportunityDetailPage({
   const [linkRes, appRes, examplesRes, brandStatsRes] = await Promise.all([
     supabase
       .from("affiliate_links")
-      .select("id, code")
+      .select("id, code, promo_code")
       .eq("creator_id", user.id)
       .eq("campaign_id", id)
       .maybeSingle(),
@@ -139,14 +139,25 @@ export default async function OpportunityDetailPage({
 
   let clicks = 0;
   let gains = 0;
+  // Stats spécifiques au CODE PROMO du créateur sur cette campagne :
+  // séparées des stats lien d'affi pour pouvoir afficher "ton code a fait
+  // X ventes / Y€" dans la card promo.
+  let promoSalesCount = 0;
+  let promoCommissionTotal = 0;
   if (linkRes.data) {
     const evRes = await supabase
       .from("affiliate_events")
-      .select("type, commission_amount")
+      .select("type, source, sale_amount, commission_amount")
       .eq("link_id", linkRes.data.id);
     for (const e of evRes.data ?? []) {
       if (e.type === "click") clicks += 1;
-      else if (e.type === "sale") gains += e.commission_amount ?? 0;
+      else if (e.type === "sale") {
+        gains += e.commission_amount ?? 0;
+        if (e.source === "promo_code") {
+          promoSalesCount += 1;
+          promoCommissionTotal += e.commission_amount ?? 0;
+        }
+      }
     }
   }
 
@@ -362,6 +373,17 @@ export default async function OpportunityDetailPage({
                       Généré quand la marque accepte ta candidature.
                     </p>
                   </div>
+                ) : linkRes.data?.promo_code ? (
+                  // Si le créateur a déjà activé sa participation, on lui
+                  // montre SON code unique (priorité sur le code partagé).
+                  <div className="rounded-xl border-2 border-purple-400 bg-white px-5 py-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
+                      Ton code
+                    </p>
+                    <p className="mt-0.5 font-mono text-2xl font-black tracking-wider text-ink">
+                      {linkRes.data.promo_code}
+                    </p>
+                  </div>
                 ) : c.promo_code ? (
                   <div className="rounded-xl border-2 border-purple-300 bg-white px-5 py-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
@@ -399,6 +421,29 @@ export default async function OpportunityDetailPage({
                   )}
                 </div>
               </div>
+
+              {/* Stats du créateur sur SON code promo : visible uniquement
+                  s'il a déjà commencé à générer des ventes. */}
+              {promoSalesCount > 0 && (
+                <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white p-3 text-center ring-1 ring-purple-100">
+                    <p className="font-display text-xl font-black text-ink">
+                      {promoSalesCount}
+                    </p>
+                    <p className="text-[11px] uppercase tracking-wide text-zinc-500">
+                      Ventes via ton code
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 p-3 text-center ring-1 ring-emerald-100 sm:col-span-2">
+                    <p className="font-display text-xl font-black text-emerald-700">
+                      {promoCommissionTotal.toLocaleString("fr-FR")}€
+                    </p>
+                    <p className="text-[11px] uppercase tracking-wide text-emerald-700">
+                      Commission cumulée
+                    </p>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
