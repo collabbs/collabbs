@@ -419,6 +419,10 @@ export type Database = {
           id: string
           min_subscribers: number | null
           name: string
+          product_image_url: string | null
+          product_kind: Database["public"]["Enums"]["product_kind"] | null
+          product_name: string | null
+          product_url: string | null
           requirements: string | null
           spots: number | null
           starts_at: string | null
@@ -446,6 +450,10 @@ export type Database = {
           id?: string
           min_subscribers?: number | null
           name: string
+          product_image_url?: string | null
+          product_kind?: Database["public"]["Enums"]["product_kind"] | null
+          product_name?: string | null
+          product_url?: string | null
           requirements?: string | null
           spots?: number | null
           starts_at?: string | null
@@ -473,6 +481,10 @@ export type Database = {
           id?: string
           min_subscribers?: number | null
           name?: string
+          product_image_url?: string | null
+          product_kind?: Database["public"]["Enums"]["product_kind"] | null
+          product_name?: string | null
+          product_url?: string | null
           requirements?: string | null
           spots?: number | null
           starts_at?: string | null
@@ -1321,6 +1333,7 @@ export type Database = {
       deal_format: "video_post" | "ugc" | "story" | "reel" | "live"
       deal_status: "negotiation" | "active" | "completed" | "cancelled"
       offer_type: "ugc" | "post" | "perf" | "affil" | "story"
+      product_kind: "physical" | "digital" | "service"
       transaction_status:
         | "pending"
         | "in_escrow"

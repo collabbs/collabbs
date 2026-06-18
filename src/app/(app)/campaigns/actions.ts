@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 
 export type CampaignType = "affiliation" | "video" | "hybrid" | "performance";
+export type ProductKind = "physical" | "digital" | "service";
 
 export type CampaignData = {
   type: CampaignType;
@@ -19,6 +20,11 @@ export type CampaignData = {
   commission: { nano: number; micro: number; mid: number; macro: number };
   niches: number[];
   platforms: number[];
+  // Sprint A — Produit ciblé
+  productName: string;
+  productUrl: string;
+  productImageUrl: string;
+  productKind: ProductKind | null;
 };
 
 export async function createCampaign(
@@ -34,6 +40,12 @@ export async function createCampaign(
   const withFixed = data.type === "video" || data.type === "hybrid";
   const isPerformance = data.type === "performance";
 
+  // Si la marque n'a renseigné que product_url, on le réutilise comme cible
+  // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
+  // Si elle a explicitement saisi targetUrl, on respecte son choix.
+  const targetUrl =
+    data.targetUrl.trim() || (withAffiliation ? data.productUrl.trim() : "");
+
   const { data: inserted, error } = await supabase
     .from("campaigns")
     .insert({
@@ -43,7 +55,11 @@ export async function createCampaign(
       requirements: data.requirements || null,
       type: data.type,
       status: "active",
-      target_url: data.targetUrl || null,
+      target_url: targetUrl || null,
+      product_name: data.productName.trim() || null,
+      product_url: data.productUrl.trim() || null,
+      product_image_url: data.productImageUrl.trim() || null,
+      product_kind: data.productKind,
       min_subscribers: data.minSubscribers,
       spots: data.spots,
       commission_type: withAffiliation

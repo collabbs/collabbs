@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import PlatformIcon from "@/components/PlatformIcon";
-import { createCampaign, type CampaignType } from "../actions";
+import { createCampaign, type CampaignType, type ProductKind } from "../actions";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -25,6 +25,12 @@ const TYPES: { id: CampaignType; emoji: string; label: string; desc: string }[] 
   { id: "hybrid", emoji: "✨", label: "Hybride", desc: "Fixe + commission" },
 ];
 
+const PRODUCT_KINDS: { id: ProductKind; emoji: string; label: string; desc: string }[] = [
+  { id: "physical", emoji: "📦", label: "Physique", desc: "Produit livrable" },
+  { id: "digital", emoji: "💻", label: "Digital", desc: "App, SaaS, formation…" },
+  { id: "service", emoji: "🛠️", label: "Service", desc: "Prestation, abo…" },
+];
+
 export default function CampaignForm({
   niches,
   platforms,
@@ -42,6 +48,11 @@ export default function CampaignForm({
   const [fixedAmount, setFixedAmount] = useState("");
   const [perfRate, setPerfRate] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
+  // Produit ciblé — la marque dit ce qu'elle veut promouvoir.
+  const [productName, setProductName] = useState("");
+  const [productUrl, setProductUrl] = useState("");
+  const [productImageUrl, setProductImageUrl] = useState("");
+  const [productKind, setProductKind] = useState<ProductKind | null>(null);
   const [nicheIds, setNicheIds] = useState<number[]>([]);
   const [platformIds, setPlatformIds] = useState<number[]>([]);
   const [minSubs, setMinSubs] = useState("");
@@ -87,6 +98,10 @@ export default function CampaignForm({
       },
       niches: nicheIds,
       platforms: platformIds,
+      productName,
+      productUrl,
+      productImageUrl,
+      productKind,
     });
     if (res.ok) {
       router.push("/dashboard");
@@ -174,6 +189,94 @@ export default function CampaignForm({
             placeholder="Ex : mention en story + lien en bio, ton authentique…"
             className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
           />
+        </div>
+      </div>
+
+      {/* Produit ciblé — optionnel mais fortement recommandé : c'est ce que
+          la marque souhaite mettre en avant. Sans ces champs, la fiche
+          créateur reste vague sur ce qu'il y a à promouvoir. */}
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        Quel produit met-on en avant ? <span className="text-zinc-300">(optionnel)</span>
+      </h2>
+      <p className="mt-1 text-xs text-zinc-500">
+        Si tu veux promouvoir un produit précis (vs ton catalogue entier),
+        renseigne-le ici — il s&apos;affichera sur la fiche du créateur.
+      </p>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {PRODUCT_KINDS.map((k) => {
+          const active = productKind === k.id;
+          return (
+            <button
+              key={k.id}
+              type="button"
+              onClick={() => setProductKind(active ? null : k.id)}
+              className={`rounded-xl border p-3 text-left transition ${
+                active
+                  ? "border-transparent bg-gradient-to-br from-purple-50 to-pink-50 ring-2 ring-purple-300"
+                  : "border-zinc-200 hover:border-zinc-300"
+              }`}
+            >
+              <span className="text-lg">{k.emoji}</span>
+              <p className="mt-0.5 text-xs font-semibold text-ink">{k.label}</p>
+              <p className="text-[11px] text-zinc-500">{k.desc}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Nom du produit
+          </label>
+          <input
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            placeholder="Ex : Sérum acide hyaluronique 30ml"
+            className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Lien vers le produit
+          </label>
+          <input
+            value={productUrl}
+            onChange={(e) => setProductUrl(e.target.value)}
+            inputMode="url"
+            placeholder="https://ta-marque.com/produit"
+            className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          />
+          <p className="mt-1 text-xs text-zinc-400">
+            {withAffiliation
+              ? "Sera aussi utilisé comme cible des liens d'affiliation si tu n'en spécifies pas une autre plus bas."
+              : "C'est où le créateur enverra ses abonnés."}
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink">
+            Image produit{" "}
+            <span className="text-zinc-400">(URL)</span>
+          </label>
+          <input
+            value={productImageUrl}
+            onChange={(e) => setProductImageUrl(e.target.value)}
+            inputMode="url"
+            placeholder="https://ta-marque.com/img/produit.jpg"
+            className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          />
+          {productImageUrl.trim() && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={productImageUrl}
+              alt="Aperçu produit"
+              className="mt-2 h-24 w-24 rounded-lg border border-zinc-200 object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
         </div>
       </div>
 

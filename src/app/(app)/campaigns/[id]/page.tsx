@@ -50,7 +50,7 @@ export default async function CampaignManagePage({
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, product_name, product_url, product_image_url, product_kind, campaign_niches(niche_id), campaign_platforms(platform_id)",
     )
     .eq("id", id)
     .single();
@@ -265,6 +265,58 @@ export default async function CampaignManagePage({
           </div>
         ))}
       </div>
+
+      {/* Produit ciblé — visible côté marque pour vérifier ce qu'elle a
+          renseigné. Card compacte au-dessus des détails. */}
+      {(c.product_name || c.product_url || c.product_image_url) && (
+        <section className="mt-8 rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">Produit</h2>
+          <div className="mt-3 flex gap-4">
+            {c.product_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={c.product_image_url}
+                alt={c.product_name ?? "Produit"}
+                className="h-20 w-20 shrink-0 rounded-xl border border-zinc-100 object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 text-2xl">
+                {c.product_kind === "physical"
+                  ? "📦"
+                  : c.product_kind === "digital"
+                    ? "💻"
+                    : c.product_kind === "service"
+                      ? "🛠️"
+                      : "🎁"}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              {c.product_kind && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-brand-deep">
+                  {c.product_kind === "physical"
+                    ? "📦 Physique"
+                    : c.product_kind === "digital"
+                      ? "💻 Digital"
+                      : "🛠️ Service"}
+                </span>
+              )}
+              {c.product_name && (
+                <p className="mt-1.5 text-sm font-bold text-ink">{c.product_name}</p>
+              )}
+              {c.product_url && (
+                <a
+                  href={c.product_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+                >
+                  Page produit ↗
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Détails campagne */}
       <section className="mt-8 rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
