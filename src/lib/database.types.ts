@@ -418,11 +418,20 @@ export type Database = {
           fixed_amount: number | null
           id: string
           min_subscribers: number | null
+          giveaway_prize_label: string | null
+          giveaway_prize_value: number | null
+          giveaway_rules_url: string | null
+          giveaway_winners_count: number | null
           name: string
           product_image_url: string | null
           product_kind: Database["public"]["Enums"]["product_kind"] | null
           product_name: string | null
           product_url: string | null
+          promo_auto_generate: boolean
+          promo_code: string | null
+          promo_discount_pct: number | null
+          promo_expires_at: string | null
+          promo_min_purchase: number | null
           requirements: string | null
           spots: number | null
           starts_at: string | null
@@ -449,11 +458,20 @@ export type Database = {
           fixed_amount?: number | null
           id?: string
           min_subscribers?: number | null
+          giveaway_prize_label?: string | null
+          giveaway_prize_value?: number | null
+          giveaway_rules_url?: string | null
+          giveaway_winners_count?: number | null
           name: string
           product_image_url?: string | null
           product_kind?: Database["public"]["Enums"]["product_kind"] | null
           product_name?: string | null
           product_url?: string | null
+          promo_auto_generate?: boolean
+          promo_code?: string | null
+          promo_discount_pct?: number | null
+          promo_expires_at?: string | null
+          promo_min_purchase?: number | null
           requirements?: string | null
           spots?: number | null
           starts_at?: string | null
@@ -480,11 +498,20 @@ export type Database = {
           fixed_amount?: number | null
           id?: string
           min_subscribers?: number | null
+          giveaway_prize_label?: string | null
+          giveaway_prize_value?: number | null
+          giveaway_rules_url?: string | null
+          giveaway_winners_count?: number | null
           name?: string
           product_image_url?: string | null
           product_kind?: Database["public"]["Enums"]["product_kind"] | null
           product_name?: string | null
           product_url?: string | null
+          promo_auto_generate?: boolean
+          promo_code?: string | null
+          promo_discount_pct?: number | null
+          promo_expires_at?: string | null
+          promo_min_purchase?: number | null
           requirements?: string | null
           spots?: number | null
           starts_at?: string | null
@@ -1326,7 +1353,13 @@ export type Database = {
       application_initiator: "creator" | "brand"
       application_status: "pending" | "accepted" | "rejected" | "withdrawn"
       campaign_status: "draft" | "active" | "ended"
-      campaign_type: "affiliation" | "video" | "hybrid" | "performance"
+      campaign_type:
+        | "affiliation"
+        | "video"
+        | "hybrid"
+        | "performance"
+        | "promo_code"
+        | "giveaway"
       commission_type: "percentage" | "fixed_per_action" | "recurring"
       content_tone: "authentic" | "educational" | "testimonial"
       contract_status: "draft" | "pending_signature" | "signed" | "terminated"

@@ -55,7 +55,7 @@ export default async function OpportunityDetailPage({
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, starts_at, ends_at, created_at, target_url, product_name, product_url, product_image_url, product_kind, brands(name, logo_url, website, sector), campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, starts_at, ends_at, created_at, target_url, product_name, product_url, product_image_url, product_kind, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, brands(name, logo_url, website, sector), campaign_niches(niche_id), campaign_platforms(platform_id)",
     )
     .eq("id", id)
     .single();
@@ -286,6 +286,116 @@ export default async function OpportunityDetailPage({
                   )}
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* Code promo — affiché AVANT la description pour mettre en avant
+              le coeur de l'offre quand la campagne est de ce type. */}
+          {c.type === "promo_code" && (
+            <section className="mt-8 rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/60 to-pink-50/40 p-5 sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                🎟️ Ton code promo à diffuser
+              </h2>
+              <div className="mt-4 flex flex-wrap items-end gap-4">
+                {c.promo_auto_generate ? (
+                  <div className="rounded-xl border-2 border-dashed border-purple-300 bg-white px-5 py-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
+                      Code unique
+                    </p>
+                    <p className="mt-0.5 font-mono text-lg font-black tracking-wider text-ink">
+                      TON@HANDLE-XX
+                    </p>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Généré quand la marque accepte ta candidature.
+                    </p>
+                  </div>
+                ) : c.promo_code ? (
+                  <div className="rounded-xl border-2 border-purple-300 bg-white px-5 py-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
+                      Code à utiliser
+                    </p>
+                    <p className="mt-0.5 font-mono text-2xl font-black tracking-wider text-ink">
+                      {c.promo_code}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="space-y-1.5 text-sm">
+                  {c.promo_discount_pct != null && (
+                    <p>
+                      <span className="font-bold text-emerald-700">
+                        -{c.promo_discount_pct}%
+                      </span>{" "}
+                      <span className="text-zinc-600">de réduction</span>
+                    </p>
+                  )}
+                  {c.promo_min_purchase != null && c.promo_min_purchase > 0 && (
+                    <p className="text-xs text-zinc-500">
+                      Dès {c.promo_min_purchase}€ d&apos;achat
+                    </p>
+                  )}
+                  {c.promo_expires_at && (
+                    <p className="text-xs text-zinc-500">
+                      Valable jusqu&apos;au{" "}
+                      {new Date(c.promo_expires_at).toLocaleDateString("fr-FR")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Concours — argument marketing fourni par la marque, à relayer. */}
+          {c.type === "giveaway" && (
+            <section className="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 p-5 sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                🎁 Concours à faire gagner
+              </h2>
+              <p className="mt-1 text-xs text-zinc-600">
+                La marque gère le tirage et l&apos;envoi du lot. Toi tu en parles
+                à ta communauté.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {c.giveaway_prize_label && (
+                  <div className="sm:col-span-2 rounded-xl bg-white p-3 ring-1 ring-amber-100">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                      Lot
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-ink">
+                      {c.giveaway_prize_label}
+                    </p>
+                  </div>
+                )}
+                {c.giveaway_prize_value != null && (
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-amber-100">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                      Valeur
+                    </p>
+                    <p className="mt-1 font-display text-xl font-black text-ink">
+                      {c.giveaway_prize_value}€
+                    </p>
+                  </div>
+                )}
+                {c.giveaway_winners_count != null && c.giveaway_winners_count > 0 && (
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-amber-100">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                      Gagnants
+                    </p>
+                    <p className="mt-1 font-display text-xl font-black text-ink">
+                      {c.giveaway_winners_count}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {c.giveaway_rules_url && (
+                <a
+                  href={c.giveaway_rules_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline"
+                >
+                  Voir le règlement officiel ↗
+                </a>
+              )}
             </section>
           )}
 

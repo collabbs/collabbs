@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 
-export type CampaignType = "affiliation" | "video" | "hybrid" | "performance";
+export type CampaignType =
+  | "affiliation"
+  | "video"
+  | "hybrid"
+  | "performance"
+  | "promo_code"
+  | "giveaway";
 export type ProductKind = "physical" | "digital" | "service";
 
 export type CampaignData = {
@@ -25,6 +31,17 @@ export type CampaignData = {
   productUrl: string;
   productImageUrl: string;
   productKind: ProductKind | null;
+  // Sprint B — Code promo (type = promo_code)
+  promoCode: string;
+  promoAutoGenerate: boolean;
+  promoDiscountPct: number | null;
+  promoMinPurchase: number | null;
+  promoExpiresAt: string | null;
+  // Sprint B — Concours (type = giveaway)
+  giveawayPrizeLabel: string;
+  giveawayPrizeValue: number | null;
+  giveawayWinnersCount: number | null;
+  giveawayRulesUrl: string;
 };
 
 export async function createCampaign(
@@ -39,6 +56,8 @@ export async function createCampaign(
   const withAffiliation = data.type === "affiliation" || data.type === "hybrid";
   const withFixed = data.type === "video" || data.type === "hybrid";
   const isPerformance = data.type === "performance";
+  const isPromoCode = data.type === "promo_code";
+  const isGiveaway = data.type === "giveaway";
 
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
@@ -60,6 +79,20 @@ export async function createCampaign(
       product_url: data.productUrl.trim() || null,
       product_image_url: data.productImageUrl.trim() || null,
       product_kind: data.productKind,
+      // Code promo : si auto-generate, on ne stocke pas de code générique
+      // (un code unique sera frappé à l'acceptation du deal par créateur)
+      promo_code: isPromoCode && !data.promoAutoGenerate
+        ? data.promoCode.trim() || null
+        : null,
+      promo_auto_generate: isPromoCode ? data.promoAutoGenerate : false,
+      promo_discount_pct: isPromoCode ? data.promoDiscountPct : null,
+      promo_min_purchase: isPromoCode ? data.promoMinPurchase : null,
+      promo_expires_at: isPromoCode ? data.promoExpiresAt : null,
+      // Concours : la marque renseigne juste l'argument marketing
+      giveaway_prize_label: isGiveaway ? data.giveawayPrizeLabel.trim() || null : null,
+      giveaway_prize_value: isGiveaway ? data.giveawayPrizeValue : null,
+      giveaway_winners_count: isGiveaway ? data.giveawayWinnersCount : null,
+      giveaway_rules_url: isGiveaway ? data.giveawayRulesUrl.trim() || null : null,
       min_subscribers: data.minSubscribers,
       spots: data.spots,
       commission_type: withAffiliation

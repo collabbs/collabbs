@@ -50,7 +50,7 @@ export default async function CampaignManagePage({
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, product_name, product_url, product_image_url, product_kind, campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, product_name, product_url, product_image_url, product_kind, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, campaign_niches(niche_id), campaign_platforms(platform_id)",
     )
     .eq("id", id)
     .single();
@@ -315,6 +315,93 @@ export default async function CampaignManagePage({
               )}
             </div>
           </div>
+        </section>
+      )}
+
+      {/* Code promo — vue marque (rappel de ce qu'elle a configuré). */}
+      {c.type === "promo_code" && (
+        <section className="mt-8 rounded-2xl border border-purple-100 bg-purple-50/30 p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">
+            🎟️ Code promo
+          </h2>
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+            {c.promo_auto_generate ? (
+              <span className="rounded-full bg-white px-3 py-1.5 font-bold text-purple-700 ring-1 ring-purple-200">
+                ✨ Codes uniques générés par créateur
+              </span>
+            ) : c.promo_code ? (
+              <div>
+                <span className="text-zinc-500">Code partagé : </span>
+                <span className="font-mono text-base font-black text-ink">
+                  {c.promo_code}
+                </span>
+              </div>
+            ) : (
+              <span className="text-zinc-400">Aucun code renseigné.</span>
+            )}
+            {c.promo_discount_pct != null && (
+              <span className="text-zinc-600">
+                -<strong className="text-emerald-700">{c.promo_discount_pct}%</strong>
+              </span>
+            )}
+            {c.promo_min_purchase != null && c.promo_min_purchase > 0 && (
+              <span className="text-xs text-zinc-500">
+                Dès {c.promo_min_purchase}€
+              </span>
+            )}
+            {c.promo_expires_at && (
+              <span className="text-xs text-zinc-500">
+                Expire le {new Date(c.promo_expires_at).toLocaleDateString("fr-FR")}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Concours — vue marque. */}
+      {c.type === "giveaway" && (
+        <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/30 p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">🎁 Concours</h2>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+            {c.giveaway_prize_label && (
+              <div className="sm:col-span-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                  Lot
+                </p>
+                <p className="mt-0.5 font-bold text-ink">{c.giveaway_prize_label}</p>
+              </div>
+            )}
+            {c.giveaway_prize_value != null && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                  Valeur
+                </p>
+                <p className="mt-0.5 font-display text-lg font-black text-ink">
+                  {c.giveaway_prize_value}€
+                </p>
+              </div>
+            )}
+            {c.giveaway_winners_count != null && c.giveaway_winners_count > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                  Gagnants
+                </p>
+                <p className="mt-0.5 font-display text-lg font-black text-ink">
+                  {c.giveaway_winners_count}
+                </p>
+              </div>
+            )}
+          </div>
+          {c.giveaway_rules_url && (
+            <a
+              href={c.giveaway_rules_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline"
+            >
+              Règlement officiel ↗
+            </a>
+          )}
         </section>
       )}
 

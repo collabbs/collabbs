@@ -49,7 +49,7 @@ export default async function OpportunitiesPage({
       supabase
         .from("campaigns")
         .select(
-          "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, brands(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id)",
+          "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, promo_discount_pct, giveaway_prize_label, giveaway_prize_value, brands(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id)",
         )
         .eq("status", "active")
         .order("created_at", { ascending: false }),
@@ -391,6 +391,9 @@ export default async function OpportunitiesPage({
                 platforms: c.campaign_platforms
                   .map((x) => platMap.get(x.platform_id))
                   .filter((v): v is { label: string; slug: string } => Boolean(v)),
+                promoDiscountPct: c.promo_discount_pct,
+                giveawayPrizeLabel: c.giveaway_prize_label,
+                giveawayPrizeValue: c.giveaway_prize_value,
               };
               const code = linkMap.get(c.id);
               const status: "none" | "linked" | "applied" = code

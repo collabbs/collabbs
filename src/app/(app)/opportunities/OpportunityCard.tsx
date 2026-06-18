@@ -9,7 +9,13 @@ export type Opportunity = {
   id: string;
   name: string;
   description: string | null;
-  type: "affiliation" | "video" | "hybrid" | "performance";
+  type:
+    | "affiliation"
+    | "video"
+    | "hybrid"
+    | "performance"
+    | "promo_code"
+    | "giveaway";
   fixedAmount: number | null;
   commissionValue: number | null;
   tiers: { nano: number | null; macro: number | null };
@@ -19,6 +25,10 @@ export type Opportunity = {
   brandLogo: string | null;
   niches: string[];
   platforms: { label: string; slug: string }[];
+  // Sprint B — résumé visuel sur la card
+  promoDiscountPct: number | null;
+  giveawayPrizeLabel: string | null;
+  giveawayPrizeValue: number | null;
 };
 
 const TYPE_META: Record<
@@ -57,6 +67,22 @@ const TYPE_META: Record<
     bg: "from-cyan-50 to-purple-50",
     pill: "bg-gradient-to-r from-cyan-100 to-purple-100 text-cyan-800",
   },
+  promo_code: {
+    label: "Code promo",
+    short: "Promo",
+    emoji: "🎟️",
+    ring: "ring-fuchsia-200",
+    bg: "from-fuchsia-50 to-pink-50",
+    pill: "bg-fuchsia-100 text-fuchsia-800",
+  },
+  giveaway: {
+    label: "Concours",
+    short: "Concours",
+    emoji: "🎁",
+    ring: "ring-amber-200",
+    bg: "from-amber-50 to-yellow-50",
+    pill: "bg-amber-100 text-amber-800",
+  },
 };
 
 function rewardParts(o: Opportunity): { main: string; sub: string } {
@@ -79,6 +105,14 @@ function rewardParts(o: Opportunity): { main: string; sub: string } {
         main: `${o.fixedAmount ?? 0}€`,
         sub: `+ ${o.tiers.nano ?? "?"}–${o.tiers.macro ?? "?"}% comm.`,
       };
+    case "promo_code":
+      return o.promoDiscountPct
+        ? { main: `-${o.promoDiscountPct}%`, sub: "à diffuser" }
+        : { main: "Code promo", sub: "à diffuser" };
+    case "giveaway":
+      return o.giveawayPrizeValue
+        ? { main: `${o.giveawayPrizeValue}€`, sub: "à faire gagner" }
+        : { main: "Concours", sub: o.giveawayPrizeLabel ?? "à organiser" };
   }
 }
 
@@ -113,6 +147,12 @@ function monthlyProjection(o: Opportunity): string | null {
       if (!v) return null;
       return `≈ ${v * 100}€ pour 100k vues`;
     }
+    case "promo_code":
+    case "giveaway":
+      // Pas de projection monétaire : ces formats ne paient pas le créateur
+      // directement (côté code promo : c'est l'audience qui économise ;
+      // côté concours : la marque envoie le lot au gagnant).
+      return null;
   }
 }
 
