@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import PlatformIcon from "@/components/PlatformIcon";
-import { createCampaign, type CampaignType, type ProductKind } from "../actions";
+import {
+  createCampaign,
+  type CampaignType,
+  type ProductKind,
+  type CpaTier,
+} from "../actions";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -18,13 +23,16 @@ const TIERS: { key: TierKey; label: string; range: string }[] = [
   { key: "macro", label: "Macro", range: "> 200k" },
 ];
 
+// Les types représentent le MODÈLE DE PAIEMENT créateur, pas les assets.
+// Code promo / concours sont des ASSETS activables sur n'importe quel type
+// (cf checkboxes plus bas).
 const TYPES: { id: CampaignType; emoji: string; label: string; desc: string }[] = [
-  { id: "affiliation", emoji: "🔗", label: "Affiliation", desc: "Commission sur les ventes" },
-  { id: "video", emoji: "🎬", label: "Paiement fixe", desc: "Montant fixe par contenu" },
-  { id: "performance", emoji: "📊", label: "Performance", desc: "Payé aux vues générées" },
+  { id: "video", emoji: "🎬", label: "Paiement fixe", desc: "Montant fixe par contenu livré" },
+  { id: "affiliation", emoji: "🔗", label: "Commission %", desc: "% sur les ventes générées" },
+  { id: "cpa_flat", emoji: "🎯", label: "CPA fixe", desc: "X€ par inscription / lead" },
+  { id: "cpa_tiers", emoji: "📈", label: "CPA paliers", desc: "1000 inscrits = X€, 5000 = Y€…" },
+  { id: "performance", emoji: "📊", label: "Aux vues", desc: "Payé aux vues du contenu" },
   { id: "hybrid", emoji: "✨", label: "Hybride", desc: "Fixe + commission" },
-  { id: "promo_code", emoji: "🎟️", label: "Code promo", desc: "Code de réduction diffusé" },
-  { id: "giveaway", emoji: "🎁", label: "Concours", desc: "Cadeau offert à la communauté" },
 ];
 
 const PRODUCT_KINDS: { id: ProductKind; emoji: string; label: string; desc: string }[] = [
@@ -55,13 +63,24 @@ export default function CampaignForm({
   const [productUrl, setProductUrl] = useState("");
   const [productImageUrl, setProductImageUrl] = useState("");
   const [productKind, setProductKind] = useState<ProductKind | null>(null);
-  // Sprint B — code promo
+  // Sprint B v2 — CPA
+  const [cpaActionLabel, setCpaActionLabel] = useState("");
+  const [cpaValuePerAction, setCpaValuePerAction] = useState("");
+  // Paliers CPA : tableau de paliers édités par la marque. On démarre vide,
+  // ligne par ligne ajoutée. Les paliers sont triés par minActions au save.
+  const [cpaTiers, setCpaTiers] = useState<CpaTier[]>([
+    { minActions: 0, payout: 0, label: "" },
+  ]);
+  // Asset code promo
+  const [withPromoCode, setWithPromoCode] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoAutoGenerate, setPromoAutoGenerate] = useState(false);
   const [promoDiscountPct, setPromoDiscountPct] = useState("");
   const [promoMinPurchase, setPromoMinPurchase] = useState("");
   const [promoExpiresAt, setPromoExpiresAt] = useState("");
-  // Sprint B — concours
+  const [promoCommissionPct, setPromoCommissionPct] = useState("");
+  // Asset concours
+  const [withGiveaway, setWithGiveaway] = useState(false);
   const [giveawayPrizeLabel, setGiveawayPrizeLabel] = useState("");
   const [giveawayPrizeValue, setGiveawayPrizeValue] = useState("");
   const [giveawayWinnersCount, setGiveawayWinnersCount] = useState("");
@@ -82,8 +101,20 @@ export default function CampaignForm({
   const withAffiliation = type === "affiliation" || type === "hybrid";
   const withFixed = type === "video" || type === "hybrid";
   const isPerformance = type === "performance";
-  const isPromoCode = type === "promo_code";
-  const isGiveaway = type === "giveaway";
+  const isCpaFlat = type === "cpa_flat";
+  const isCpaTiers = type === "cpa_tiers";
+
+  function updateTier(i: number, patch: Partial<CpaTier>) {
+    setCpaTiers((cur) => cur.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+  }
+  function addTier() {
+    setCpaTiers((cur) => [...cur, { minActions: 0, payout: 0, label: "" }]);
+  }
+  function removeTier(i: number) {
+    setCpaTiers((cur) =>
+      cur.length > 1 ? cur.filter((_, idx) => idx !== i) : cur,
+    );
+  }
 
   const toggle = (arr: number[], id: number) =>
     arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -117,11 +148,21 @@ export default function CampaignForm({
       productUrl,
       productImageUrl,
       productKind,
+      cpaActionLabel,
+      cpaValuePerAction: cpaValuePerAction ? Number(cpaValuePerAction) : null,
+      cpaTiers: cpaTiers.map((t) => ({
+        minActions: Number(t.minActions) || 0,
+        payout: Number(t.payout) || 0,
+        label: t.label,
+      })),
+      withPromoCode,
       promoCode,
       promoAutoGenerate,
       promoDiscountPct: promoDiscountPct ? Number(promoDiscountPct) : null,
       promoMinPurchase: promoMinPurchase ? Number(promoMinPurchase) : null,
       promoExpiresAt: promoExpiresAt || null,
+      promoCommissionPct: promoCommissionPct ? Number(promoCommissionPct) : null,
+      withGiveaway,
       giveawayPrizeLabel,
       giveawayPrizeValue: giveawayPrizeValue ? Number(giveawayPrizeValue) : null,
       giveawayWinnersCount: giveawayWinnersCount ? Number(giveawayWinnersCount) : null,
@@ -155,8 +196,12 @@ export default function CampaignForm({
         leur lien d&apos;affiliation.
       </p>
 
-      {/* Type de campagne */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        Modèle de paiement créateur
+      </p>
+      {/* Type de campagne = MODÈLE DE PAIEMENT créateur (vs assets diffusés
+          qui sont activables séparément plus bas dans le form). */}
+      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {TYPES.map((t) => {
           const active = type === t.id;
           return (
@@ -402,185 +447,143 @@ export default function CampaignForm({
         </div>
       )}
 
-      {/* Code promo (type promo_code) */}
-      {isPromoCode && (
+      {/* CPA flat — X€ par action déclarée. Le libellé est important pour
+          que le créateur comprenne ce qu'il "vend" (inscription, lead, achat). */}
+      {isCpaFlat && (
         <div className="mt-8">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Détails du code promo
+            Paiement par action
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Choisis si tous les créateurs reçoivent le même code ou si Collabbs
-            génère un code unique par créateur (mieux pour mesurer ce qui marche).
+            Le créateur est payé un montant fixe pour chaque action déclarée
+            (inscription au service, lead qualifié, premier achat…).
           </p>
-
-          {/* Toggle : code partagé vs auto-généré */}
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setPromoAutoGenerate(false)}
-              className={`rounded-xl border p-3 text-left transition ${
-                !promoAutoGenerate
-                  ? "border-transparent bg-gradient-to-br from-purple-50 to-pink-50 ring-2 ring-purple-300"
-                  : "border-zinc-200 hover:border-zinc-300"
-              }`}
-            >
-              <p className="text-sm font-bold text-ink">🎟️ Code unique partagé</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Tu fournis ton propre code (ex : ETE20). Tous les créateurs le diffusent.
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPromoAutoGenerate(true)}
-              className={`rounded-xl border p-3 text-left transition ${
-                promoAutoGenerate
-                  ? "border-transparent bg-gradient-to-br from-purple-50 to-pink-50 ring-2 ring-purple-300"
-                  : "border-zinc-200 hover:border-zinc-300"
-              }`}
-            >
-              <p className="text-sm font-bold text-ink">✨ Codes auto par créateur</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Collabbs génère un code unique par créateur (ex : MARTIN20).
-              </p>
-            </button>
-          </div>
-
-          {!promoAutoGenerate && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-ink">Ton code promo</label>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-ink">Type d&apos;action</label>
               <input
-                value={promoCode}
-                onChange={(e) =>
-                  setPromoCode(e.target.value.toUpperCase().replace(/\s+/g, ""))
-                }
-                placeholder="ETE20"
-                className="mt-1.5 w-48 rounded-lg border border-zinc-300 px-3 py-2.5 text-sm font-mono outline-none focus:border-purple-400"
+                value={cpaActionLabel}
+                onChange={(e) => setCpaActionLabel(e.target.value)}
+                placeholder="inscription"
+                className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
               />
-            </div>
-          )}
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-ink">
-                Réduction <span className="text-zinc-400">(%)</span>
-              </label>
-              <div className="mt-1.5 flex items-center rounded-lg border border-zinc-300 px-3">
-                <input
-                  value={promoDiscountPct}
-                  onChange={(e) =>
-                    setPromoDiscountPct(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))
-                  }
-                  inputMode="numeric"
-                  placeholder="20"
-                  className="w-full py-2.5 text-sm outline-none"
-                />
-                <span className="text-sm text-zinc-400">%</span>
-              </div>
+              <p className="mt-1 text-xs text-zinc-400">
+                Ex : inscription, lead, demande de démo…
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink">
-                Min. d&apos;achat <span className="text-zinc-400">(optionnel)</span>
-              </label>
+              <label className="block text-sm font-medium text-ink">Montant par action</label>
               <div className="mt-1.5 flex items-center rounded-lg border border-zinc-300 px-3">
                 <input
-                  value={promoMinPurchase}
+                  value={cpaValuePerAction}
                   onChange={(e) =>
-                    setPromoMinPurchase(e.target.value.replace(/[^0-9]/g, ""))
+                    setCpaValuePerAction(e.target.value.replace(/[^0-9]/g, ""))
                   }
                   inputMode="numeric"
-                  placeholder="50"
+                  placeholder="5"
                   className="w-full py-2.5 text-sm outline-none"
                 />
                 <span className="text-sm text-zinc-400">€</span>
               </div>
             </div>
           </div>
-
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-ink">
-              Date d&apos;expiration <span className="text-zinc-400">(optionnel)</span>
-            </label>
-            <input
-              type="date"
-              value={promoExpiresAt}
-              onChange={(e) => setPromoExpiresAt(e.target.value)}
-              className="mt-1.5 w-56 rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
-            />
-          </div>
         </div>
       )}
 
-      {/* Concours (type giveaway) */}
-      {isGiveaway && (
+      {/* CPA paliers — cas Revolut : "1000 inscrits = 200€, 5000 = 1000€" */}
+      {isCpaTiers && (
         <div className="mt-8">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Détails du concours
+            Paliers d&apos;actions
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Tu gères le tirage et l&apos;envoi du lot — Collabbs affiche
-            simplement l&apos;argument au créateur pour qu&apos;il en parle.
+            Le créateur touche le palier le plus haut atteint. Ex : 1000
+            inscriptions = 200€, 5000 = 1000€, 20000 = 5000€.
           </p>
-
-          <div className="mt-4 space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-ink">
-                Lot à gagner
-              </label>
-              <input
-                value={giveawayPrizeLabel}
-                onChange={(e) => setGiveawayPrizeLabel(e.target.value)}
-                placeholder="Ex : 1 sac à dos de la collection été"
-                className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-ink">
-                  Valeur du lot
-                </label>
-                <div className="mt-1.5 flex items-center rounded-lg border border-zinc-300 px-3">
-                  <input
-                    value={giveawayPrizeValue}
-                    onChange={(e) =>
-                      setGiveawayPrizeValue(e.target.value.replace(/[^0-9]/g, ""))
-                    }
-                    inputMode="numeric"
-                    placeholder="120"
-                    className="w-full py-2.5 text-sm outline-none"
-                  />
-                  <span className="text-sm text-zinc-400">€</span>
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-ink">
+              Type d&apos;action
+            </label>
+            <input
+              value={cpaActionLabel}
+              onChange={(e) => setCpaActionLabel(e.target.value)}
+              placeholder="inscription"
+              className="mt-1.5 w-48 rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+            />
+          </div>
+          <div className="mt-4 space-y-2">
+            {cpaTiers.map((t, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 rounded-xl border border-zinc-200 bg-white p-3"
+              >
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+                    À partir de
+                  </label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={t.minActions || ""}
+                      onChange={(e) =>
+                        updateTier(i, {
+                          minActions: Number(e.target.value.replace(/[^0-9]/g, "")) || 0,
+                        })
+                      }
+                      inputMode="numeric"
+                      placeholder="1000"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">actions</span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-ink">
-                  Gagnants
-                </label>
-                <div className="mt-1.5 flex items-center rounded-lg border border-zinc-300 px-3">
-                  <input
-                    value={giveawayWinnersCount}
-                    onChange={(e) =>
-                      setGiveawayWinnersCount(e.target.value.replace(/[^0-9]/g, ""))
-                    }
-                    inputMode="numeric"
-                    placeholder="1"
-                    className="w-full py-2.5 text-sm outline-none"
-                  />
-                  <span className="text-sm text-zinc-400">pers.</span>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+                    Payout
+                  </label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={t.payout || ""}
+                      onChange={(e) =>
+                        updateTier(i, {
+                          payout: Number(e.target.value.replace(/[^0-9]/g, "")) || 0,
+                        })
+                      }
+                      inputMode="numeric"
+                      placeholder="200"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">€</span>
+                  </div>
                 </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+                    Label <span className="text-zinc-300">(opt.)</span>
+                  </label>
+                  <input
+                    value={t.label}
+                    onChange={(e) => updateTier(i, { label: e.target.value })}
+                    placeholder="Bronze"
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeTier(i)}
+                  disabled={cpaTiers.length === 1}
+                  className="rounded-lg px-2 py-2 text-zinc-400 transition hover:text-red-500 disabled:opacity-30"
+                  aria-label="Supprimer le palier"
+                >
+                  ×
+                </button>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-ink">
-                Lien règlement <span className="text-zinc-400">(optionnel)</span>
-              </label>
-              <input
-                value={giveawayRulesUrl}
-                onChange={(e) => setGiveawayRulesUrl(e.target.value)}
-                inputMode="url"
-                placeholder="https://ta-marque.com/concours-reglement"
-                className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
-              />
-            </div>
+            ))}
+            <button
+              type="button"
+              onClick={addTier}
+              className="text-xs font-semibold text-brand hover:underline"
+            >
+              + Ajouter un palier
+            </button>
           </div>
         </div>
       )}
@@ -655,6 +658,260 @@ export default function CampaignForm({
           </div>
         </div>
       )}
+
+      {/* Assets diffusés — activables sur N'IMPORTE QUEL type de campagne.
+          Une campagne peut donc être "video fixe + code promo tracké + concours"
+          simultanément. C'est le point clé de la refonte. */}
+      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        Bonus à diffuser <span className="text-zinc-300">(optionnel)</span>
+      </h2>
+      <p className="mt-1 text-xs text-zinc-500">
+        En plus du paiement créateur, qu&apos;est-ce qu&apos;on offre à
+        l&apos;audience pour la convaincre ? (Coche les assets activés.)
+      </p>
+
+      <div className="mt-3 space-y-3">
+        {/* Asset CODE PROMO */}
+        <div
+          className={`rounded-2xl border p-4 transition ${
+            withPromoCode
+              ? "border-fuchsia-300 bg-gradient-to-br from-fuchsia-50/60 to-pink-50/40"
+              : "border-zinc-200 bg-white hover:border-zinc-300"
+          }`}
+        >
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={withPromoCode}
+              onChange={(e) => setWithPromoCode(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-fuchsia-600"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-ink">
+                🎟️ Code promo tracké
+              </p>
+              <p className="text-xs text-zinc-500">
+                Le créateur reçoit un code à diffuser. Les ventes via ce code
+                sont remontées à Collabbs (postback ou saisie manuelle) et
+                rémunérées avec une commission spécifique.
+              </p>
+            </div>
+          </label>
+
+          {withPromoCode && (
+            <div className="mt-4 space-y-3 pl-7">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setPromoAutoGenerate(false)}
+                  className={`rounded-xl border p-2.5 text-left transition ${
+                    !promoAutoGenerate
+                      ? "border-fuchsia-400 bg-white ring-2 ring-fuchsia-200"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <p className="text-xs font-bold text-ink">
+                    🎟️ Code unique partagé
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    Tu fournis un code (ex : ETE20). Tous les créateurs le
+                    diffusent — moins d&apos;attribution par créateur.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPromoAutoGenerate(true)}
+                  className={`rounded-xl border p-2.5 text-left transition ${
+                    promoAutoGenerate
+                      ? "border-fuchsia-400 bg-white ring-2 ring-fuchsia-200"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <p className="text-xs font-bold text-ink">
+                    ✨ Codes auto par créateur
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    Collabbs génère 1 code par créateur (ex : MARTIN20) —
+                    attribution propre.
+                  </p>
+                </button>
+              </div>
+
+              {!promoAutoGenerate && (
+                <div>
+                  <label className="block text-xs font-medium text-ink">
+                    Code promo
+                  </label>
+                  <input
+                    value={promoCode}
+                    onChange={(e) =>
+                      setPromoCode(e.target.value.toUpperCase().replace(/\s+/g, ""))
+                    }
+                    placeholder="ETE20"
+                    className="mt-1 w-48 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-mono outline-none focus:border-fuchsia-400"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs font-medium text-ink">
+                    Réduction <span className="text-zinc-400">(%)</span>
+                  </label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={promoDiscountPct}
+                      onChange={(e) =>
+                        setPromoDiscountPct(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))
+                      }
+                      inputMode="numeric"
+                      placeholder="20"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">%</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink">
+                    Min. achat
+                  </label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={promoMinPurchase}
+                      onChange={(e) =>
+                        setPromoMinPurchase(e.target.value.replace(/[^0-9]/g, ""))
+                      }
+                      inputMode="numeric"
+                      placeholder="50"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">€</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink">
+                    Expire le
+                  </label>
+                  <input
+                    type="date"
+                    value={promoExpiresAt}
+                    onChange={(e) => setPromoExpiresAt(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm outline-none focus:border-fuchsia-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink">
+                  Commission créateur sur ventes via le code{" "}
+                  <span className="text-zinc-400">(%)</span>
+                </label>
+                <div className="mt-1 flex w-48 items-center rounded-lg border border-zinc-300 px-2">
+                  <input
+                    value={promoCommissionPct}
+                    onChange={(e) =>
+                      setPromoCommissionPct(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))
+                    }
+                    inputMode="numeric"
+                    placeholder="10"
+                    className="w-full py-2 text-sm outline-none"
+                  />
+                  <span className="text-xs text-zinc-400">%</span>
+                </div>
+                <p className="mt-1 text-[11px] text-zinc-400">
+                  Le créateur touche ce % sur les ventes attribuées à son code.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Asset CONCOURS */}
+        <div
+          className={`rounded-2xl border p-4 transition ${
+            withGiveaway
+              ? "border-amber-300 bg-gradient-to-br from-amber-50/60 to-yellow-50/40"
+              : "border-zinc-200 bg-white hover:border-zinc-300"
+          }`}
+        >
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={withGiveaway}
+              onChange={(e) => setWithGiveaway(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-amber-600"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-ink">🎁 Concours / Cadeau</p>
+              <p className="text-xs text-zinc-500">
+                Argument marketing : la communauté du créateur peut gagner un
+                lot. Tu gères le tirage et l&apos;envoi — Collabbs affiche
+                juste l&apos;info au créateur.
+              </p>
+            </div>
+          </label>
+
+          {withGiveaway && (
+            <div className="mt-4 space-y-3 pl-7">
+              <div>
+                <label className="block text-xs font-medium text-ink">
+                  Lot à gagner
+                </label>
+                <input
+                  value={giveawayPrizeLabel}
+                  onChange={(e) => setGiveawayPrizeLabel(e.target.value)}
+                  placeholder="Ex : 5000€ en cash"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-amber-400"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-ink">Valeur</label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={giveawayPrizeValue}
+                      onChange={(e) =>
+                        setGiveawayPrizeValue(e.target.value.replace(/[^0-9]/g, ""))
+                      }
+                      inputMode="numeric"
+                      placeholder="5000"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">€</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink">Gagnants</label>
+                  <div className="mt-1 flex items-center rounded-lg border border-zinc-300 px-2">
+                    <input
+                      value={giveawayWinnersCount}
+                      onChange={(e) =>
+                        setGiveawayWinnersCount(e.target.value.replace(/[^0-9]/g, ""))
+                      }
+                      inputMode="numeric"
+                      placeholder="1"
+                      className="w-full py-2 text-sm outline-none"
+                    />
+                    <span className="text-xs text-zinc-400">pers.</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink">
+                  Lien règlement <span className="text-zinc-400">(opt.)</span>
+                </label>
+                <input
+                  value={giveawayRulesUrl}
+                  onChange={(e) => setGiveawayRulesUrl(e.target.value)}
+                  inputMode="url"
+                  placeholder="https://ta-marque.com/concours-reglement"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {error && (
         <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>

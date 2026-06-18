@@ -18,6 +18,7 @@ export type Database = {
     Tables: {
       affiliate_events: {
         Row: {
+          action_count: number
           commission_amount: number | null
           created_at: string
           external_ref: string | null
@@ -25,9 +26,11 @@ export type Database = {
           link_id: string
           occurred_at: string
           sale_amount: number | null
+          source: string
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Insert: {
+          action_count?: number
           commission_amount?: number | null
           created_at?: string
           external_ref?: string | null
@@ -35,9 +38,11 @@ export type Database = {
           link_id: string
           occurred_at?: string
           sale_amount?: number | null
+          source?: string
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Update: {
+          action_count?: number
           commission_amount?: number | null
           created_at?: string
           external_ref?: string | null
@@ -45,6 +50,7 @@ export type Database = {
           link_id?: string
           occurred_at?: string
           sale_amount?: number | null
+          source?: string
           type?: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Relationships: [
@@ -64,6 +70,7 @@ export type Database = {
           created_at: string
           creator_id: string
           id: string
+          promo_code: string | null
         }
         Insert: {
           campaign_id: string
@@ -71,6 +78,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           id?: string
+          promo_code?: string | null
         }
         Update: {
           campaign_id?: string
@@ -78,6 +86,7 @@ export type Database = {
           created_at?: string
           creator_id?: string
           id?: string
+          promo_code?: string | null
         }
         Relationships: [
           {
@@ -340,6 +349,44 @@ export type Database = {
           },
         ]
       }
+      campaign_cpa_tiers: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          label: string | null
+          min_actions: number
+          payout: number
+          position: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          min_actions: number
+          payout: number
+          position?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          min_actions?: number
+          payout?: number
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_cpa_tiers_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_niches: {
         Row: {
           campaign_id: string
@@ -418,6 +465,8 @@ export type Database = {
           fixed_amount: number | null
           id: string
           min_subscribers: number | null
+          cpa_action_label: string | null
+          cpa_value_per_action: number | null
           giveaway_prize_label: string | null
           giveaway_prize_value: number | null
           giveaway_rules_url: string | null
@@ -429,10 +478,13 @@ export type Database = {
           product_url: string | null
           promo_auto_generate: boolean
           promo_code: string | null
+          promo_commission_pct: number | null
           promo_discount_pct: number | null
           promo_expires_at: string | null
           promo_min_purchase: number | null
           requirements: string | null
+          with_giveaway: boolean
+          with_promo_code: boolean
           spots: number | null
           starts_at: string | null
           status: Database["public"]["Enums"]["campaign_status"]
@@ -458,6 +510,8 @@ export type Database = {
           fixed_amount?: number | null
           id?: string
           min_subscribers?: number | null
+          cpa_action_label?: string | null
+          cpa_value_per_action?: number | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null
@@ -469,6 +523,7 @@ export type Database = {
           product_url?: string | null
           promo_auto_generate?: boolean
           promo_code?: string | null
+          promo_commission_pct?: number | null
           promo_discount_pct?: number | null
           promo_expires_at?: string | null
           promo_min_purchase?: number | null
@@ -480,6 +535,8 @@ export type Database = {
           tone?: Database["public"]["Enums"]["content_tone"] | null
           type: Database["public"]["Enums"]["campaign_type"]
           updated_at?: string
+          with_giveaway?: boolean
+          with_promo_code?: boolean
         }
         Update: {
           avoid?: string | null
@@ -498,6 +555,8 @@ export type Database = {
           fixed_amount?: number | null
           id?: string
           min_subscribers?: number | null
+          cpa_action_label?: string | null
+          cpa_value_per_action?: number | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null
@@ -509,6 +568,7 @@ export type Database = {
           product_url?: string | null
           promo_auto_generate?: boolean
           promo_code?: string | null
+          promo_commission_pct?: number | null
           promo_discount_pct?: number | null
           promo_expires_at?: string | null
           promo_min_purchase?: number | null
@@ -520,6 +580,8 @@ export type Database = {
           tone?: Database["public"]["Enums"]["content_tone"] | null
           type?: Database["public"]["Enums"]["campaign_type"]
           updated_at?: string
+          with_giveaway?: boolean
+          with_promo_code?: boolean
         }
         Relationships: [
           {
@@ -1360,6 +1422,8 @@ export type Database = {
         | "performance"
         | "promo_code"
         | "giveaway"
+        | "cpa_flat"
+        | "cpa_tiers"
       commission_type: "percentage" | "fixed_per_action" | "recurring"
       content_tone: "authentic" | "educational" | "testimonial"
       contract_status: "draft" | "pending_signature" | "signed" | "terminated"

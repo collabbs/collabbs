@@ -4,14 +4,19 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 
+// Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
+// Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
+// activables sur n'importe quel type, pas des types exclusifs.
 export type CampaignType =
   | "affiliation"
   | "video"
   | "hybrid"
   | "performance"
-  | "promo_code"
-  | "giveaway";
+  | "cpa_flat"
+  | "cpa_tiers";
 export type ProductKind = "physical" | "digital" | "service";
+
+export type CpaTier = { minActions: number; payout: number; label: string };
 
 export type CampaignData = {
   type: CampaignType;
@@ -31,13 +36,21 @@ export type CampaignData = {
   productUrl: string;
   productImageUrl: string;
   productKind: ProductKind | null;
-  // Sprint B — Code promo (type = promo_code)
+  // Sprint B v2 — CPA flat (type = cpa_flat)
+  cpaActionLabel: string;
+  cpaValuePerAction: number | null;
+  // Sprint B v2 — Paliers CPA (type = cpa_tiers)
+  cpaTiers: CpaTier[];
+  // Sprint B v2 — Asset Code promo (activable sur n'importe quel type)
+  withPromoCode: boolean;
   promoCode: string;
   promoAutoGenerate: boolean;
   promoDiscountPct: number | null;
   promoMinPurchase: number | null;
   promoExpiresAt: string | null;
-  // Sprint B — Concours (type = giveaway)
+  promoCommissionPct: number | null;
+  // Sprint B v2 — Asset Concours (activable sur n'importe quel type)
+  withGiveaway: boolean;
   giveawayPrizeLabel: string;
   giveawayPrizeValue: number | null;
   giveawayWinnersCount: number | null;
@@ -56,8 +69,8 @@ export async function createCampaign(
   const withAffiliation = data.type === "affiliation" || data.type === "hybrid";
   const withFixed = data.type === "video" || data.type === "hybrid";
   const isPerformance = data.type === "performance";
-  const isPromoCode = data.type === "promo_code";
-  const isGiveaway = data.type === "giveaway";
+  const isCpaFlat = data.type === "cpa_flat";
+  const isCpaTiers = data.type === "cpa_tiers";
 
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
@@ -79,20 +92,25 @@ export async function createCampaign(
       product_url: data.productUrl.trim() || null,
       product_image_url: data.productImageUrl.trim() || null,
       product_kind: data.productKind,
-      // Code promo : si auto-generate, on ne stocke pas de code générique
-      // (un code unique sera frappé à l'acceptation du deal par créateur)
-      promo_code: isPromoCode && !data.promoAutoGenerate
+      // Asset code promo (activable sur n'importe quel type)
+      with_promo_code: data.withPromoCode,
+      promo_code: data.withPromoCode && !data.promoAutoGenerate
         ? data.promoCode.trim() || null
         : null,
-      promo_auto_generate: isPromoCode ? data.promoAutoGenerate : false,
-      promo_discount_pct: isPromoCode ? data.promoDiscountPct : null,
-      promo_min_purchase: isPromoCode ? data.promoMinPurchase : null,
-      promo_expires_at: isPromoCode ? data.promoExpiresAt : null,
-      // Concours : la marque renseigne juste l'argument marketing
-      giveaway_prize_label: isGiveaway ? data.giveawayPrizeLabel.trim() || null : null,
-      giveaway_prize_value: isGiveaway ? data.giveawayPrizeValue : null,
-      giveaway_winners_count: isGiveaway ? data.giveawayWinnersCount : null,
-      giveaway_rules_url: isGiveaway ? data.giveawayRulesUrl.trim() || null : null,
+      promo_auto_generate: data.withPromoCode ? data.promoAutoGenerate : false,
+      promo_discount_pct: data.withPromoCode ? data.promoDiscountPct : null,
+      promo_min_purchase: data.withPromoCode ? data.promoMinPurchase : null,
+      promo_expires_at: data.withPromoCode ? data.promoExpiresAt : null,
+      promo_commission_pct: data.withPromoCode ? data.promoCommissionPct : null,
+      // Asset concours (activable sur n'importe quel type)
+      with_giveaway: data.withGiveaway,
+      giveaway_prize_label: data.withGiveaway ? data.giveawayPrizeLabel.trim() || null : null,
+      giveaway_prize_value: data.withGiveaway ? data.giveawayPrizeValue : null,
+      giveaway_winners_count: data.withGiveaway ? data.giveawayWinnersCount : null,
+      giveaway_rules_url: data.withGiveaway ? data.giveawayRulesUrl.trim() || null : null,
+      // CPA flat (X€ par action)
+      cpa_action_label: isCpaFlat || isCpaTiers ? data.cpaActionLabel.trim() || null : null,
+      cpa_value_per_action: isCpaFlat ? data.cpaValuePerAction : null,
       min_subscribers: data.minSubscribers,
       spots: data.spots,
       commission_type: withAffiliation
@@ -111,6 +129,24 @@ export async function createCampaign(
     .select("id")
     .single();
   if (error || !inserted) return { ok: false, error: error?.message ?? "Erreur." };
+
+  // Paliers CPA — table dédiée car nombre variable de paliers par campagne.
+  // Filtre les paliers vides ou invalides (mais permet le V1 simple "qty + €").
+  if (isCpaTiers && data.cpaTiers.length > 0) {
+    const tiersToInsert = data.cpaTiers
+      .filter((t) => t.minActions > 0 && t.payout > 0)
+      .sort((a, b) => a.minActions - b.minActions)
+      .map((t, i) => ({
+        campaign_id: inserted.id,
+        min_actions: t.minActions,
+        payout: t.payout,
+        label: t.label.trim() || null,
+        position: i,
+      }));
+    if (tiersToInsert.length > 0) {
+      await supabase.from("campaign_cpa_tiers").insert(tiersToInsert);
+    }
+  }
 
   if (data.niches.length > 0) {
     await supabase

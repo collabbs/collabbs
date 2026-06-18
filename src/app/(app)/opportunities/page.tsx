@@ -49,7 +49,7 @@ export default async function OpportunitiesPage({
       supabase
         .from("campaigns")
         .select(
-          "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, promo_discount_pct, giveaway_prize_label, giveaway_prize_value, brands(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id)",
+          "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, cpa_action_label, cpa_value_per_action, with_promo_code, promo_discount_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, brands(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(payout)",
         )
         .eq("status", "active")
         .order("created_at", { ascending: false }),
@@ -90,7 +90,22 @@ export default async function OpportunitiesPage({
   }
 
   const query = (q ?? "").trim().toLowerCase();
+  // Types valides côté V2 = modèles de paiement créateur. promo_code et
+  // giveaway sont des enum values legacy du V1 (assets aujourd'hui),
+  // on les filtre — aucune campagne ne devrait y être mais belt+braces.
+  const VALID_TYPES = new Set([
+    "affiliation",
+    "video",
+    "hybrid",
+    "performance",
+    "cpa_flat",
+    "cpa_tiers",
+  ] as const);
+  type ValidType = typeof VALID_TYPES extends Set<infer T> ? T : never;
+  const isValidType = (t: string): t is ValidType => VALID_TYPES.has(t as ValidType);
+
   const results = (campaignsRes.data ?? []).filter((c) => {
+    if (!isValidType(c.type)) return false;
     if (type && c.type !== type) return false;
     if (niche && !c.campaign_niches.some((x) => x.niche_id === Number(niche))) return false;
     if (platform && !c.campaign_platforms.some((x) => x.platform_id === Number(platform)))
@@ -100,7 +115,9 @@ export default async function OpportunitiesPage({
       if (!hay.includes(query)) return false;
     }
     return true;
-  });
+  }) as (typeof campaignsRes.data extends (infer R)[] | null
+    ? R & { type: ValidType }
+    : never)[];
 
   const activeFilterCount =
     (type ? 1 : 0) + (niche ? 1 : 0) + (platform ? 1 : 0);
@@ -391,7 +408,15 @@ export default async function OpportunitiesPage({
                 platforms: c.campaign_platforms
                   .map((x) => platMap.get(x.platform_id))
                   .filter((v): v is { label: string; slug: string } => Boolean(v)),
+                cpaActionLabel: c.cpa_action_label,
+                cpaValuePerAction: c.cpa_value_per_action,
+                cpaTopTierPayout:
+                  (c.campaign_cpa_tiers ?? [])
+                    .map((t) => t.payout)
+                    .sort((a, b) => b - a)[0] ?? null,
+                withPromoCode: c.with_promo_code ?? false,
                 promoDiscountPct: c.promo_discount_pct,
+                withGiveaway: c.with_giveaway ?? false,
                 giveawayPrizeLabel: c.giveaway_prize_label,
                 giveawayPrizeValue: c.giveaway_prize_value,
               };

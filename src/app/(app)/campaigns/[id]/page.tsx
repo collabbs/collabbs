@@ -50,7 +50,7 @@ export default async function CampaignManagePage({
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, product_name, product_url, product_image_url, product_kind, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, ends_at, created_at, product_name, product_url, product_image_url, product_kind, with_promo_code, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, promo_commission_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, cpa_action_label, cpa_value_per_action, campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(min_actions, payout, label)",
     )
     .eq("id", id)
     .single();
@@ -318,8 +318,52 @@ export default async function CampaignManagePage({
         </section>
       )}
 
-      {/* Code promo — vue marque (rappel de ce qu'elle a configuré). */}
-      {c.type === "promo_code" && (
+      {/* Paliers CPA — vue marque récap. */}
+      {c.type === "cpa_tiers" && c.campaign_cpa_tiers && c.campaign_cpa_tiers.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">
+            📈 Paliers CPA configurés
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Action déclarée :{" "}
+            <strong className="text-ink">{c.cpa_action_label || "—"}</strong>
+          </p>
+          <div className="mt-3 space-y-1.5 text-sm">
+            {c.campaign_cpa_tiers
+              .slice()
+              .sort((a, b) => a.min_actions - b.min_actions)
+              .map((t, i) => (
+                <div key={i} className="flex items-center gap-3 text-zinc-600">
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                    {t.label || `P${i + 1}`}
+                  </span>
+                  <span>
+                    Dès <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
+                    {c.cpa_action_label || "actions"} →{" "}
+                    <strong className="text-emerald-700">{t.payout.toLocaleString("fr-FR")}€</strong>
+                  </span>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* CPA flat — vue marque récap. */}
+      {c.type === "cpa_flat" && c.cpa_value_per_action != null && (
+        <section className="mt-8 rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">
+            🎯 Paiement par action
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            <strong className="text-emerald-700">{c.cpa_value_per_action}€</strong>{" "}
+            par <strong className="text-ink">{c.cpa_action_label || "action"}</strong>{" "}
+            déclarée.
+          </p>
+        </section>
+      )}
+
+      {/* Code promo — vue marque (asset activé). */}
+      {c.with_promo_code && (
         <section className="mt-8 rounded-2xl border border-purple-100 bg-purple-50/30 p-5 shadow-sm">
           <h2 className="font-display text-lg font-black text-ink">
             🎟️ Code promo
@@ -358,8 +402,8 @@ export default async function CampaignManagePage({
         </section>
       )}
 
-      {/* Concours — vue marque. */}
-      {c.type === "giveaway" && (
+      {/* Concours — vue marque (asset activé). */}
+      {c.with_giveaway && (
         <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/30 p-5 shadow-sm">
           <h2 className="font-display text-lg font-black text-ink">🎁 Concours</h2>
           <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">

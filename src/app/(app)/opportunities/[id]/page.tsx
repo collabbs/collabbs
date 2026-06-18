@@ -55,7 +55,7 @@ export default async function OpportunityDetailPage({
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, starts_at, ends_at, created_at, target_url, product_name, product_url, product_image_url, product_kind, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, brands(name, logo_url, website, sector), campaign_niches(niche_id), campaign_platforms(platform_id)",
+      "id, brand_id, name, description, requirements, type, status, fixed_amount, commission_value, commission_unit, commission_nano, commission_micro, commission_mid, commission_macro, min_subscribers, spots, tone, avoid, starts_at, ends_at, created_at, target_url, product_name, product_url, product_image_url, product_kind, with_promo_code, promo_code, promo_auto_generate, promo_discount_pct, promo_min_purchase, promo_expires_at, promo_commission_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, giveaway_winners_count, giveaway_rules_url, cpa_action_label, cpa_value_per_action, brands(name, logo_url, website, sector), campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(min_actions, payout, label)",
     )
     .eq("id", id)
     .single();
@@ -289,9 +289,62 @@ export default async function OpportunityDetailPage({
             </section>
           )}
 
-          {/* Code promo — affiché AVANT la description pour mettre en avant
-              le coeur de l'offre quand la campagne est de ce type. */}
-          {c.type === "promo_code" && (
+          {/* Paliers CPA — affichés en hero quand type=cpa_tiers (gros enjeu
+              de motivation : le créateur voit qu'il peut viser plus haut). */}
+          {c.type === "cpa_tiers" && c.campaign_cpa_tiers && c.campaign_cpa_tiers.length > 0 && (
+            <section className="mt-8 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 p-5 sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                📈 Paliers de rémunération
+              </h2>
+              <p className="mt-1 text-xs text-zinc-600">
+                Tu touches le palier le plus haut atteint sur la campagne. Vise
+                plus haut, gagne plus.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {c.campaign_cpa_tiers
+                  .slice()
+                  .sort((a, b) => a.min_actions - b.min_actions)
+                  .map((t, i) => (
+                    <div
+                      key={i}
+                      className="rounded-xl bg-white p-3 ring-1 ring-emerald-100"
+                    >
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                        {t.label || `Palier ${i + 1}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        À partir de <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
+                        {c.cpa_action_label || "actions"}
+                      </p>
+                      <p className="mt-1.5 font-display text-2xl font-black text-emerald-700">
+                        {t.payout.toLocaleString("fr-FR")}€
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
+
+          {/* CPA flat — X€ par action déclarée. */}
+          {c.type === "cpa_flat" && c.cpa_value_per_action != null && (
+            <section className="mt-8 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 p-5 sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                🎯 Paiement par action
+              </h2>
+              <p className="mt-3 text-sm text-zinc-700">
+                Tu touches{" "}
+                <span className="font-display text-2xl font-black text-emerald-700">
+                  {c.cpa_value_per_action}€
+                </span>{" "}
+                pour chaque{" "}
+                <strong className="text-ink">{c.cpa_action_label || "action"}</strong>{" "}
+                déclarée via ton lien.
+              </p>
+            </section>
+          )}
+
+          {/* Code promo — affiché AVANT la description si l'asset est activé. */}
+          {c.with_promo_code && (
             <section className="mt-8 rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50/60 to-pink-50/40 p-5 sm:p-6">
               <h2 className="font-display text-lg font-black text-ink">
                 🎟️ Ton code promo à diffuser
@@ -339,13 +392,18 @@ export default async function OpportunityDetailPage({
                       {new Date(c.promo_expires_at).toLocaleDateString("fr-FR")}
                     </p>
                   )}
+                  {c.promo_commission_pct != null && c.promo_commission_pct > 0 && (
+                    <p className="mt-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+                      💰 Tu touches {c.promo_commission_pct}% sur les ventes via ton code
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
           )}
 
           {/* Concours — argument marketing fourni par la marque, à relayer. */}
-          {c.type === "giveaway" && (
+          {c.with_giveaway && (
             <section className="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 p-5 sm:p-6">
               <h2 className="font-display text-lg font-black text-ink">
                 🎁 Concours à faire gagner

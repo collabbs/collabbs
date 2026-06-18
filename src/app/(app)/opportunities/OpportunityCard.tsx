@@ -9,13 +9,15 @@ export type Opportunity = {
   id: string;
   name: string;
   description: string | null;
+  // Sprint B v2 : types = modèles de paiement créateur uniquement.
+  // promo_code/giveaway sont devenus des FLAGS (cf withPromoCode/withGiveaway).
   type:
     | "affiliation"
     | "video"
     | "hybrid"
     | "performance"
-    | "promo_code"
-    | "giveaway";
+    | "cpa_flat"
+    | "cpa_tiers";
   fixedAmount: number | null;
   commissionValue: number | null;
   tiers: { nano: number | null; macro: number | null };
@@ -25,8 +27,14 @@ export type Opportunity = {
   brandLogo: string | null;
   niches: string[];
   platforms: { label: string; slug: string }[];
-  // Sprint B — résumé visuel sur la card
+  // Sprint B v2 — CPA
+  cpaActionLabel: string | null;
+  cpaValuePerAction: number | null;
+  cpaTopTierPayout: number | null;
+  // Sprint B v2 — assets affichés en mini-badge sur la card
+  withPromoCode: boolean;
   promoDiscountPct: number | null;
+  withGiveaway: boolean;
   giveawayPrizeLabel: string | null;
   giveawayPrizeValue: number | null;
 };
@@ -67,21 +75,21 @@ const TYPE_META: Record<
     bg: "from-cyan-50 to-purple-50",
     pill: "bg-gradient-to-r from-cyan-100 to-purple-100 text-cyan-800",
   },
-  promo_code: {
-    label: "Code promo",
-    short: "Promo",
-    emoji: "🎟️",
-    ring: "ring-fuchsia-200",
-    bg: "from-fuchsia-50 to-pink-50",
-    pill: "bg-fuchsia-100 text-fuchsia-800",
+  cpa_flat: {
+    label: "CPA fixe",
+    short: "CPA",
+    emoji: "🎯",
+    ring: "ring-emerald-200",
+    bg: "from-emerald-50 to-teal-50",
+    pill: "bg-emerald-100 text-emerald-800",
   },
-  giveaway: {
-    label: "Concours",
-    short: "Concours",
-    emoji: "🎁",
-    ring: "ring-amber-200",
-    bg: "from-amber-50 to-yellow-50",
-    pill: "bg-amber-100 text-amber-800",
+  cpa_tiers: {
+    label: "Paliers",
+    short: "Paliers",
+    emoji: "📈",
+    ring: "ring-emerald-200",
+    bg: "from-emerald-50 to-teal-50",
+    pill: "bg-emerald-100 text-emerald-800",
   },
 };
 
@@ -105,14 +113,17 @@ function rewardParts(o: Opportunity): { main: string; sub: string } {
         main: `${o.fixedAmount ?? 0}€`,
         sub: `+ ${o.tiers.nano ?? "?"}–${o.tiers.macro ?? "?"}% comm.`,
       };
-    case "promo_code":
-      return o.promoDiscountPct
-        ? { main: `-${o.promoDiscountPct}%`, sub: "à diffuser" }
-        : { main: "Code promo", sub: "à diffuser" };
-    case "giveaway":
-      return o.giveawayPrizeValue
-        ? { main: `${o.giveawayPrizeValue}€`, sub: "à faire gagner" }
-        : { main: "Concours", sub: o.giveawayPrizeLabel ?? "à organiser" };
+    case "cpa_flat":
+      return o.cpaValuePerAction
+        ? { main: `${o.cpaValuePerAction}€`, sub: `par ${o.cpaActionLabel ?? "action"}` }
+        : { main: "CPA", sub: "à définir" };
+    case "cpa_tiers":
+      return o.cpaTopTierPayout
+        ? {
+            main: `${o.cpaTopTierPayout.toLocaleString("fr-FR")}€`,
+            sub: "au palier max",
+          }
+        : { main: "Paliers", sub: "à définir" };
   }
 }
 
@@ -147,12 +158,16 @@ function monthlyProjection(o: Opportunity): string | null {
       if (!v) return null;
       return `≈ ${v * 100}€ pour 100k vues`;
     }
-    case "promo_code":
-    case "giveaway":
-      // Pas de projection monétaire : ces formats ne paient pas le créateur
-      // directement (côté code promo : c'est l'audience qui économise ;
-      // côté concours : la marque envoie le lot au gagnant).
-      return null;
+    case "cpa_flat": {
+      const v = o.cpaValuePerAction;
+      if (!v) return null;
+      // Heuristique : 100 actions/mois pour une campagne CPA crédible.
+      return `≈ ${v * 100}€ pour 100 ${o.cpaActionLabel ?? "actions"}`;
+    }
+    case "cpa_tiers": {
+      const top = o.cpaTopTierPayout;
+      return top ? `jusqu'à ${top.toLocaleString("fr-FR")}€` : null;
+    }
   }
 }
 
