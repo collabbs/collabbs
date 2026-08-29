@@ -72,9 +72,15 @@ export default function Sidebar({
   const notifCount = badges["/notifications"] ?? 0;
 
   // Fermer le drawer quand on change de page.
-  useEffect(() => {
+  //
+  // Ajustement pendant le rendu plutôt que dans un effet : c'est le motif
+  // recommandé par React pour réagir à un changement de props. Le tiroir se
+  // ferme dans la même passe de rendu, sans le clignotement d'un aller-retour.
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
     setDrawerOpen(false);
-  }, [pathname]);
+  }
 
   // Bloquer le scroll du body quand le drawer est ouvert.
   useEffect(() => {

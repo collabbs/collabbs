@@ -93,7 +93,6 @@ export default async function ProfilePage() {
 
     return (
       <CreatorProfileForm
-        userId={user.id}
         displayName={profile.display_name ?? "Créateur"}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
@@ -161,7 +160,6 @@ export default async function ProfilePage() {
 
     return (
       <BrandProfileForm
-        userId={user.id}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         legalSection={<LegalInfoSection initial={legalInitial} role="brand" />}

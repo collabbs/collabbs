@@ -23,9 +23,13 @@ export default function FiltersDrawer({
   const [open, setOpen] = useState(false);
 
   // Fermer quand l'URL change (un chip a été cliqué).
-  useEffect(() => {
+  // Ajustement pendant le rendu : motif recommandé par React pour réagir à un
+  // changement de props, sans passe de rendu supplémentaire.
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   // Bloquer le scroll du body quand ouverte.
   useEffect(() => {

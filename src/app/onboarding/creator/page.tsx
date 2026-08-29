@@ -91,7 +91,6 @@ export default async function CreatorOnboardingPage() {
   return (
     <AppOrLandingShell>
       <Wizard
-        userId={user.id}
         displayName={profileRes.data?.display_name ?? "Créateur"}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}

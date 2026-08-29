@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 type Mode = "drop" | "server";
@@ -36,20 +36,37 @@ export default function PostbackPanel({
   website: string | null;
 }) {
   const [mode, setMode] = useState<Mode>("drop");
-  const [platform, setPlatform] = useState<Platform | null>(null);
+  // Choix explicite de l'utilisateur pendant cette visite. `undefined` tant
+  // qu'il n'a rien touché — on retombe alors sur la valeur persistée.
+  const [chosen, setChosen] = useState<Platform | null | undefined>(undefined);
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
 
-  // Persiste le choix de plateforme entre les visites.
-  useEffect(() => {
-    const saved = localStorage.getItem("collabbs_track_platform");
-    if (saved && PLATFORMS.some((p) => p.id === saved)) setPlatform(saved as Platform);
-  }, []);
-  useEffect(() => {
-    if (platform) localStorage.setItem("collabbs_track_platform", platform);
-  }, [platform]);
+  // Choix persisté entre les visites.
+  //
+  // Lu via `useSyncExternalStore` plutôt qu'écrit dans l'état depuis un effet :
+  // c'est le mécanisme prévu par React pour une source extérieure au rendu. Il
+  // fournit un instantané côté serveur (null) distinct du côté navigateur, ce
+  // qui évite à la fois l'écriture en cascade et le désaccord d'hydratation
+  // qu'un simple `useState(() => localStorage…)` provoquerait.
+  const saved: Platform | null = useSyncExternalStore<Platform | null>(
+    () => () => {}, // rien à écouter : nous sommes seuls à écrire cette clé
+    () => {
+      const v = localStorage.getItem("collabbs_track_platform");
+      return v && PLATFORMS.some((p) => p.id === v) ? (v as Platform) : null;
+    },
+    () => null, // instantané serveur
+  );
+
+  const platform = chosen === undefined ? saved : chosen;
+
+  function setPlatform(next: Platform | null) {
+    setChosen(next);
+    if (next) localStorage.setItem("collabbs_track_platform", next);
+    else localStorage.removeItem("collabbs_track_platform");
+  }
 
   const scriptSrc = `${origin}/track.js`;
   const endpoint = `${origin}/api/track/sale`;

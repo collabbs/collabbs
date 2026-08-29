@@ -24,8 +24,87 @@ const CREATOR_OFFERS = OFFER_TYPES.filter(
   (o) => o.id === "ugc" || o.id === "post" || o.id === "story" || o.id === "affil",
 );
 
+/**
+ * Aperçu de la carte créateur.
+ *
+ * Défini au niveau du module et non dans le composant parent : un composant
+ * recréé à chaque rendu perd son identité pour React, ce qui casse la
+ * mémorisation et peut faire perdre le focus des champs voisins.
+ */
+function PreviewCard({
+  displayName,
+  handle,
+  photoPreview,
+  nicheIds,
+  customNiche,
+  offerIds,
+  minPrice,
+  nicheLabel,
+}: {
+  displayName: string;
+  handle: string;
+  photoPreview: string | null;
+  nicheIds: number[];
+  customNiche: string;
+  offerIds: OfferId[];
+  minPrice: number | null;
+  nicheLabel: (id: number) => string;
+}) {
+    const initials = displayName
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    const nicheText =
+      nicheIds.length > 0
+        ? nicheLabel(nicheIds[0]) + (nicheIds.length > 1 ? ` +${nicheIds.length - 1}` : "")
+        : customNiche.trim();
+    return (
+      <div className="w-full max-w-[220px] overflow-hidden rounded-2xl border border-zinc-100 bg-white p-2.5 shadow-lg">
+        <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-purple-300 to-pink-300">
+          {photoPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoPreview} alt="Aperçu" className="h-full w-full object-cover" />
+          ) : (
+            <span className="font-display text-3xl font-extrabold text-white/90">
+              {initials}
+            </span>
+          )}
+        </div>
+        <div className="px-1 pb-1 pt-3">
+          <p className="text-sm font-semibold text-ink">{displayName}</p>
+          <p className="text-xs text-zinc-500">@{handle || "tonpseudo"}</p>
+          {nicheText && (
+            <p className="mt-1.5 text-[11px] font-medium text-purple-700">{nicheText}</p>
+          )}
+          {offerIds.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {offerIds.map((id) => (
+                <span
+                  key={id}
+                  className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+                >
+                  {OFFER_BY_ID[id].emoji} {OFFER_BY_ID[id].short}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-zinc-500">
+            {minPrice ? (
+              <>
+                à partir de <span className="text-sm font-bold text-ink">{minPrice}€</span>
+              </>
+            ) : (
+              <span className="font-semibold text-ink">Tarif à définir</span>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
 export default function Wizard({
-  userId,
   displayName,
   niches,
   platforms,
@@ -33,7 +112,6 @@ export default function Wizard({
   portfolioSection,
   initial,
 }: {
-  userId: string;
   displayName: string;
   niches: Niche[];
   platforms: Platform[];
@@ -210,60 +288,6 @@ export default function Wizard({
     }
   }
 
-  function PreviewCard() {
-    const initials = displayName
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    const nicheText =
-      nicheIds.length > 0
-        ? nicheLabel(nicheIds[0]) + (nicheIds.length > 1 ? ` +${nicheIds.length - 1}` : "")
-        : customNiche.trim();
-    return (
-      <div className="w-full max-w-[220px] overflow-hidden rounded-2xl border border-zinc-100 bg-white p-2.5 shadow-lg">
-        <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-purple-300 to-pink-300">
-          {photoPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoPreview} alt="Aperçu" className="h-full w-full object-cover" />
-          ) : (
-            <span className="font-display text-3xl font-extrabold text-white/90">
-              {initials}
-            </span>
-          )}
-        </div>
-        <div className="px-1 pb-1 pt-3">
-          <p className="text-sm font-semibold text-ink">{displayName}</p>
-          <p className="text-xs text-zinc-500">@{handle || "tonpseudo"}</p>
-          {nicheText && (
-            <p className="mt-1.5 text-[11px] font-medium text-purple-700">{nicheText}</p>
-          )}
-          {offerIds.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {offerIds.map((id) => (
-                <span
-                  key={id}
-                  className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
-                >
-                  {OFFER_BY_ID[id].emoji} {OFFER_BY_ID[id].short}
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="mt-2 text-xs text-zinc-500">
-            {minPrice ? (
-              <>
-                à partir de <span className="text-sm font-bold text-ink">{minPrice}€</span>
-              </>
-            ) : (
-              <span className="font-semibold text-ink">Tarif à définir</span>
-            )}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // Écran "Bienvenue" uniquement à la création initiale.
   if (step === STEPS.length && !isEdit) {
@@ -281,7 +305,16 @@ export default function Wizard({
             : "Ajoute une photo et au moins une offre pour devenir visible par les marques."}
         </p>
         <div className="mt-8">
-          <PreviewCard />
+          <PreviewCard
+            displayName={displayName}
+            handle={handle}
+            photoPreview={photoPreview}
+            nicheIds={nicheIds}
+            customNiche={customNiche}
+            offerIds={offerIds}
+            minPrice={minPrice}
+            nicheLabel={nicheLabel}
+          />
         </div>
         <div className="mt-8 flex flex-col gap-2">
           <Link
@@ -789,7 +822,16 @@ export default function Wizard({
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
             Aperçu de ta carte
           </p>
-          <PreviewCard />
+          <PreviewCard
+            displayName={displayName}
+            handle={handle}
+            photoPreview={photoPreview}
+            nicheIds={nicheIds}
+            customNiche={customNiche}
+            offerIds={offerIds}
+            minPrice={minPrice}
+            nicheLabel={nicheLabel}
+          />
           <p className="mt-3 text-xs text-zinc-400">
             C&apos;est ce que les marques verront dans la marketplace.
           </p>

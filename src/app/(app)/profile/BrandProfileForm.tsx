@@ -9,13 +9,11 @@ type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
 
 export default function BrandProfileForm({
-  userId,
   niches,
   platforms,
   legalSection,
   initial,
 }: {
-  userId: string;
   niches: Niche[];
   platforms: Platform[];
   legalSection?: React.ReactNode;

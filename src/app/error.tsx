@@ -20,7 +20,6 @@ export default function GlobalError({
     // Log côté client — en prod ça remonte dans les outils dev.
     // Vercel logue automatiquement le digest server-side.
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
       console.error("App error boundary caught:", error);
     }
   }, [error]);

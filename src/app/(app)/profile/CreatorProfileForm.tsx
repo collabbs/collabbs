@@ -19,7 +19,6 @@ const CREATOR_OFFERS = OFFER_TYPES.filter(
 );
 
 export default function CreatorProfileForm({
-  userId,
   displayName,
   niches,
   platforms,
@@ -28,7 +27,6 @@ export default function CreatorProfileForm({
   portfolioSection,
   initial,
 }: {
-  userId: string;
   displayName: string;
   niches: Niche[];
   platforms: Platform[];

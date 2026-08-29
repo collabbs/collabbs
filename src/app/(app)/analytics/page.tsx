@@ -438,7 +438,6 @@ async function BrandAnalytics({
   const clicksCurrent = evCurrent.filter((e) => e.type === "click").length;
   const clicksPrev = evPrev.filter((e) => e.type === "click").length;
   const salesCurrent = evCurrent.filter((e) => e.type === "sale").length;
-  const salesPrev = evPrev.filter((e) => e.type === "sale").length;
 
   // ===== Time series CA affiliation =====
   const caSeries = bucketize(
