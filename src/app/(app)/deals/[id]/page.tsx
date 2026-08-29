@@ -320,6 +320,13 @@ export default async function DealDetailPage({
 
               {contract.status === "signed" ? (
                 <>
+                  <Link
+                    href={`/contracts/${id}`}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    📄 Lire le contrat complet
+                  </Link>
+
                   {/* Coordonnées des 2 parties (depuis le snapshot gelé) */}
                   {contract.terms_snapshot &&
                     typeof contract.terms_snapshot === "object" &&

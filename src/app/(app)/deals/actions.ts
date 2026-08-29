@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
+import { thresholdWith } from "@/lib/legal-threshold";
 
 type Result = { ok: boolean; error?: string };
 
@@ -209,10 +210,19 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   if (deal.status !== "negotiation")
     return { ok: false, error: "Ce deal n'est plus en négociation." };
 
-  // Avant d'accepter, on essaie de construire le snapshot du contrat. Si une
-  // partie n'a pas ses infos légales minimales, on bloque ici avec un
-  // message explicite — sinon on signerait un contrat à trous.
-  const build = await buildContractSnapshot(dealId);
+  // Le contrat écrit détaillé n'est légalement obligatoire qu'au-delà de
+  // 1 000 € HT cumulés sur l'année civile entre ces deux mêmes parties
+  // (décret n° 2025-1137). En dessous, on n'exige pas les informations
+  // d'entreprise : un créateur qui fait sa première collab à 80 € n'a souvent
+  // pas encore de statut juridique, et le bloquer là le ferait fuir.
+  const threshold = await thresholdWith(deal.brand_id, deal.creator_id, deal.amount);
+
+  const build = await buildContractSnapshot(dealId, {
+    allowIncomplete: !threshold.required,
+  });
+  // `allowIncomplete` étant l'inverse de `required`, un échec ici signifie
+  // toujours qu'on doit s'arrêter : soit le deal est introuvable, soit le seuil
+  // légal est franchi et des mentions obligatoires manquent.
   if (!build.ok) {
     if (build.reason === "incomplete_legal_info" && build.missing) {
       const fields = build.missing.fields
@@ -220,8 +230,8 @@ export async function acceptDeal(dealId: string): Promise<Result> {
         .join(", ");
       const who =
         build.missing.who === "creator"
-          ? "Tu dois compléter tes infos légales avant de pouvoir accepter"
-          : "La marque doit d'abord compléter ses infos légales pour pouvoir signer";
+          ? "Cette collaboration porte le cumul annuel avec cette marque au-dessus de 1 000 €, seuil à partir duquel la loi impose un contrat écrit complet. Tu dois compléter tes infos légales avant d'accepter"
+          : "Cette collaboration dépasse le seuil légal de 1 000 € par an. La marque doit compléter ses infos légales pour que le contrat soit valable";
       return { ok: false, error: `${who} : ${fields}.` };
     }
     return { ok: false, error: "Impossible de générer le contrat." };
@@ -259,7 +269,10 @@ export async function acceptDeal(dealId: string): Promise<Result> {
       status: "signed",
       brand_signed_at: now,
       creator_signed_at: now,
-      terms_snapshot: build.snapshot,
+      terms_snapshot: {
+        ...build.snapshot,
+        regime: threshold.required ? "complete" : "simplified",
+      },
     })
     .eq("deal_id", dealId);
 

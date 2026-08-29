@@ -11,6 +11,12 @@ import { LEGAL_STATUSES } from "@/app/(app)/profile/legal-utils";
 export type ContractSnapshot = {
   version: 1;
   generated_at: string;
+  /**
+   * Régime au moment de la signature — figé lui aussi. Un contrat signé sous
+   * le seuil reste simplifié même si le cumul annuel monte ensuite : ce qui
+   * compte, c'est l'état du droit applicable au jour de l'engagement.
+   */
+  regime?: "simplified" | "complete";
   /** Coordonnées légales gelées des 2 parties. */
   brand: PartySnapshot;
   creator: PartySnapshot;
@@ -52,7 +58,15 @@ export type PartySnapshot = {
  *   Le call-site décide quoi faire (message d'erreur, blocage).
  */
 export type BuildResult =
-  | { ok: true; snapshot: ContractSnapshot }
+  | {
+      ok: true;
+      snapshot: ContractSnapshot;
+      /**
+       * Renseigné en régime simplifié : ce qui manque encore, sans bloquer.
+       * Permet d'avertir sans empêcher la signature sous le seuil légal.
+       */
+      incomplete?: { who: "brand" | "creator"; fields: string[] }[];
+    }
   | {
       ok: false;
       reason: "deal_not_found" | "incomplete_legal_info";
@@ -90,7 +104,10 @@ function statusLabel(id: string | null): string | null {
  * signature, on a besoin des coordonnées légales des 2 parties qui ne se
  * sont pas mutuellement autorisées à se lire.
  */
-export async function buildContractSnapshot(dealId: string): Promise<BuildResult> {
+export async function buildContractSnapshot(
+  dealId: string,
+  opts: { allowIncomplete?: boolean } = {},
+): Promise<BuildResult> {
   const admin = createAdminClient();
 
   const { data: deal } = await admin
@@ -133,17 +150,29 @@ export async function buildContractSnapshot(dealId: string): Promise<BuildResult
     ]);
 
   // Validation : les 2 parties doivent avoir le minimum.
+  // En régime simplifié (sous le seuil légal de 1 000 €/an), on laisse passer
+  // et on se contente de signaler ce qui manque.
   const bMissing = missingFields(brandLegal.data);
-  if (bMissing.length > 0) {
-    return { ok: false, reason: "incomplete_legal_info", missing: { who: "brand", fields: bMissing } };
-  }
   const cMissing = missingFields(creatorLegal.data);
-  if (cMissing.length > 0) {
-    return {
-      ok: false,
-      reason: "incomplete_legal_info",
-      missing: { who: "creator", fields: cMissing },
-    };
+  const incomplete: { who: "brand" | "creator"; fields: string[] }[] = [];
+  if (bMissing.length > 0) incomplete.push({ who: "brand", fields: bMissing });
+  if (cMissing.length > 0) incomplete.push({ who: "creator", fields: cMissing });
+
+  if (!opts.allowIncomplete) {
+    if (bMissing.length > 0) {
+      return {
+        ok: false,
+        reason: "incomplete_legal_info",
+        missing: { who: "brand", fields: bMissing },
+      };
+    }
+    if (cMissing.length > 0) {
+      return {
+        ok: false,
+        reason: "incomplete_legal_info",
+        missing: { who: "creator", fields: cMissing },
+      };
+    }
   }
 
   const brand: PartySnapshot = {
@@ -198,6 +227,7 @@ export async function buildContractSnapshot(dealId: string): Promise<BuildResult
         usage_rights_months: deal.usage_rights_months ?? null,
       },
     },
+    ...(incomplete.length > 0 ? { incomplete } : {}),
   };
 }
 
