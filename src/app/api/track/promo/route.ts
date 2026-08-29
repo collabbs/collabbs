@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
 
 // Postback de VENTE attribuée à un CODE PROMO.
 // Sémantiquement proche de /api/track/sale mais résout par code promo
@@ -63,7 +64,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(promo_commission_pct, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, promo_commission_pct, brands(postback_secret))",
     )
     .eq("promo_code", normalized)
     .maybeSingle();
@@ -80,16 +81,23 @@ async function handle(p: Payload) {
   }
 
   const pct = link.campaigns?.promo_commission_pct ?? 0;
-  const commission = Math.round((amount * pct) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(amount * pct) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    source: "promo_code",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: p.externalRef,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      source: "promo_code",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: p.externalRef,
+    })
+    .select("id")
+    .single();
   if (error) {
     if ((error as { code?: string }).code === "23505") {
       return NextResponse.json({
@@ -102,6 +110,15 @@ async function handle(p: Payload) {
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
+
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  await settleSale({
+    eventId: inserted.id,
+    brandId: link.campaigns!.brand_id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: amount,
+  });
 
   notifyOnce({
     userId: link.creator_id,

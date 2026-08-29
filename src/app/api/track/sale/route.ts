@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
 
 // Postback de VENTE attribuée à un lien d'affiliation.
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization: Bearer <secret>`,
@@ -52,7 +53,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
     )
     .eq("code", p.code)
     .maybeSingle();
@@ -80,15 +81,22 @@ async function handle(p: Payload) {
     else if (subs >= 10000) rate = c.commission_micro ?? 0;
     else rate = c.commission_nano ?? 0;
   }
-  const commission = Math.round((amount * rate) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round((amount * rate)) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: p.externalRef,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: p.externalRef,
+    })
+    .select("id")
+    .single();
   if (error) {
     // Unique violation → vente déjà enregistrée pour ce order_id → succès idempotent.
     if ((error as { code?: string }).code === "23505") {
@@ -103,6 +111,16 @@ async function handle(p: Payload) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  // C'est ce qui transforme une ligne de statistique en argent réellement dû.
+  const settlement = await settleSale({
+    eventId: inserted.id,
+    brandId: link.campaigns!.brand_id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: amount,
+  });
+
   // Notification 1ʳᵉ fois : première vente affiliée de toute la vie du créateur.
   notifyOnce({
     userId: link.creator_id,
@@ -112,7 +130,13 @@ async function handle(p: Payload) {
     link: "/opportunities",
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true, sale_amount: amount, rate, commission });
+  return NextResponse.json({
+    ok: true,
+    sale_amount: amount,
+    rate,
+    commission,
+    status: settlement,
+  });
 }
 
 export async function GET(request: Request) {

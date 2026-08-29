@@ -31,6 +31,7 @@ const BRAND_NAV: NavItem[] = [
   { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/tracking", label: "Tracking", icon: "🔗" },
+  { href: "/billing", label: "Provision", icon: "💳" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
   { href: "/analytics", label: "Analytics", icon: "📈" },
   { href: "/profile", label: "Mon profil", icon: "🏢" },

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { startCreatorPayoutOnboarding } from "../deals/actions";
-import { eur } from "@/lib/deal";
+import { eur, eurExact } from "@/lib/deal";
 import EmptyState from "@/components/EmptyState";
 
 export const metadata = { title: "Paiements — Collabbs" };
@@ -74,6 +74,37 @@ export default async function PayoutsPage({
     : { data: [] };
   const brandMap = new Map((brandsData ?? []).map((b) => [b.id, b.name]));
 
+  // Commissions d'affiliation : trois états distincts, parce qu'un créateur
+  // doit savoir ce qui est encore réversible, ce qui lui est acquis, et ce qui
+  // est déjà parti sur son compte.
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const { data: myLinks } = await supabase
+    .from("affiliate_links")
+    .select("id")
+    .eq("creator_id", user.id);
+  const myLinkIds = (myLinks ?? []).map((l) => l.id);
+
+  let affPending = 0;   // réservée par la marque, en cours de validation
+  let affValidated = 0; // acquise, en attente du prochain versement
+  let affPaid = 0;      // déjà versée
+  let affUnfunded = 0;  // la marque doit réapprovisionner
+  if (myLinkIds.length > 0) {
+    const { data: affEvents } = await (supabase as any)
+      .from("affiliate_events")
+      .select("status, commission_amount")
+      .eq("type", "sale")
+      .in("link_id", myLinkIds);
+    for (const e of (affEvents ?? []) as any[]) {
+      const c = Number(e.commission_amount ?? 0);
+      if (e.status === "pending") affPending += c;
+      else if (e.status === "validated") affValidated += c;
+      else if (e.status === "paid") affPaid += c;
+      else if (e.status === "unfunded") affUnfunded += c;
+    }
+  }
+  const hasAffiliate =
+    affPending + affValidated + affPaid + affUnfunded > 0;
+
   const TX_STATUS_META: Record<
     string,
     { label: string; tone: string }
@@ -118,6 +149,49 @@ export default async function PayoutsPage({
           <p className="text-xs text-zinc-500">En attente (séquestre)</p>
         </div>
       </div>
+
+      {/* Commissions d'affiliation */}
+      {hasAffiliate && (
+        <div className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-ink">Commissions d&apos;affiliation</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Dès qu&apos;une vente est enregistrée, la marque met ta commission de côté.
+            Elle t&apos;est définitivement acquise au bout de 30 jours, puis versée au
+            début du mois suivant à partir de 20 €.
+          </p>
+
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-zinc-50 p-3">
+              <p className="font-display text-xl font-black text-ink">{eurExact(affPending)}</p>
+              <p className="mt-0.5 text-xs text-zinc-500">Mise de côté</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <p className="font-display text-xl font-black text-emerald-700">
+                {eurExact(affValidated)}
+              </p>
+              <p className="mt-0.5 text-xs text-emerald-700">Acquise</p>
+            </div>
+            <div className="rounded-xl bg-zinc-50 p-3">
+              <p className="font-display text-xl font-black text-ink">{eurExact(affPaid)}</p>
+              <p className="mt-0.5 text-xs text-zinc-500">Déjà versée</p>
+            </div>
+          </div>
+
+          {affValidated > 0 && affValidated < 20 && (
+            <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600">
+              Encore {eurExact(20 - affValidated)} avant ton prochain versement. Le reste
+              s&apos;accumule, rien n&apos;est perdu.
+            </p>
+          )}
+
+          {affUnfunded > 0 && (
+            <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+              {eurExact(affUnfunded)} de commissions attendent que la marque réapprovisionne
+              son compte. Elle a été prévenue.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Carte connexion */}
       <div className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">

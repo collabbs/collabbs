@@ -18,6 +18,13 @@ export type Database = {
     Tables: {
       affiliate_events: {
         Row: {
+          paid_at: string | null
+          payout_id: string | null
+          platform_fee: number
+          refunded_at: string | null
+          reject_reason: string | null
+          status: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at: string | null
           action_count: number
           commission_amount: number | null
           created_at: string
@@ -30,6 +37,13 @@ export type Database = {
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Insert: {
+          paid_at?: string | null
+          payout_id?: string | null
+          platform_fee?: number
+          refunded_at?: string | null
+          reject_reason?: string | null
+          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at?: string | null
           action_count?: number
           commission_amount?: number | null
           created_at?: string
@@ -42,6 +56,13 @@ export type Database = {
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Update: {
+          paid_at?: string | null
+          payout_id?: string | null
+          platform_fee?: number
+          refunded_at?: string | null
+          reject_reason?: string | null
+          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at?: string | null
           action_count?: number
           commission_amount?: number | null
           created_at?: string
@@ -257,6 +278,13 @@ export type Database = {
       }
       brands: {
         Row: {
+          autotopup_amount: number
+          autotopup_enabled: boolean
+          autotopup_threshold: number
+          balance: number
+          payment_method_id: string | null
+          stripe_customer_id: string | null
+          topup_failed_at: string | null
           commission_macro: number
           commission_micro: number
           commission_mid: number
@@ -273,6 +301,13 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          autotopup_amount?: number
+          autotopup_enabled?: boolean
+          autotopup_threshold?: number
+          balance?: number
+          payment_method_id?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -289,6 +324,13 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          autotopup_amount?: number
+          autotopup_enabled?: boolean
+          autotopup_threshold?: number
+          balance?: number
+          payment_method_id?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -1411,6 +1453,19 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      affiliate_event_status:
+        | "unfunded"
+        | "pending"
+        | "validated"
+        | "paid"
+        | "refunded"
+        | "rejected"
+      ledger_kind:
+        | "topup"
+        | "reserve"
+        | "reserve_release"
+        | "payout"
+        | "adjustment"
       affiliate_event_type: "click" | "sale"
       application_initiator: "creator" | "brand"
       application_status: "pending" | "accepted" | "rejected" | "withdrawn"

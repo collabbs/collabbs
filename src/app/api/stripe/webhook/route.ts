@@ -6,6 +6,7 @@ import {
   ensureCheckoutSessionRecorded,
   handleChargeRefunded,
 } from "@/lib/stripe";
+import { handleTopupCheckout } from "@/lib/affiliate-billing";
 
 // Webhook Stripe — source de vérité asynchrone pour les événements de paiement.
 // Sécurité : la signature Stripe est vérifiée avec STRIPE_WEBHOOK_SECRET (sinon 401).
@@ -45,7 +46,14 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        await ensureCheckoutSessionRecorded(event.data.object as Stripe.Checkout.Session);
+        const session = event.data.object as Stripe.Checkout.Session;
+        // Deux natures de paiement transitent par Checkout : le règlement d'un
+        // deal (séquestre) et l'approvisionnement d'une provision d'affiliation.
+        if (session.metadata?.kind === "topup") {
+          await handleTopupCheckout(session);
+        } else {
+          await ensureCheckoutSessionRecorded(session);
+        }
         break;
       }
       case "charge.refunded": {

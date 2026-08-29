@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -176,7 +177,7 @@ export async function recordManualPromoSale(input: {
   code: string;
   amount: number;
   orderRef?: string | null;
-}): Promise<{ ok: boolean; error?: string; commission?: number }> {
+}): Promise<{ ok: boolean; error?: string; commission?: number; warning?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -212,16 +213,23 @@ export async function recordManualPromoSale(input: {
   }
 
   const pct = c.promo_commission_pct ?? 0;
-  const commission = Math.round((input.amount * pct) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(input.amount * pct) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    source: "promo_code",
-    sale_amount: input.amount,
-    commission_amount: commission,
-    external_ref: input.orderRef?.trim() || null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      source: "promo_code",
+      sale_amount: input.amount,
+      commission_amount: commission,
+      external_ref: input.orderRef?.trim() || null,
+    })
+    .select("id")
+    .single();
   if (error) {
     // Idempotent : même order_ref déjà saisi pour ce lien
     if ((error as { code?: string }).code === "23505") {
@@ -230,7 +238,26 @@ export async function recordManualPromoSale(input: {
     return { ok: false, error: error.message };
   }
 
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  const settlement = await settleSale({
+    eventId: inserted.id,
+    brandId: user.id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: input.amount,
+  });
+
   revalidatePath(`/campaigns/${input.campaignId}`);
+  revalidatePath("/billing");
+
+  if (settlement === "unfunded") {
+    return {
+      ok: true,
+      commission,
+      warning:
+        "Vente enregistrée, mais ta provision ne la couvre pas. Recharge ton compte pour que le créateur soit payé.",
+    };
+  }
   return { ok: true, commission };
 }
 

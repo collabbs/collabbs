@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
 
 // Pixel "client-side" pour le drop-in script (track.js).
 // Sécurité : on n'a pas de secret côté navigateur, donc on vérifie que le
@@ -89,19 +90,35 @@ export async function GET(request: Request) {
     else if (subs >= 10000) rate = c.commission_micro ?? 0;
     else rate = c.commission_nano ?? 0;
   }
-  const commission = Math.round((amount * rate) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(amount * rate) / 100;
 
-  const insertRes = await admin.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: orderId,
-  });
+  const insertRes = await admin
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: orderId,
+    })
+    .select("id")
+    .single();
   // En cas de doublon (même order_id), l'index unique renvoie une erreur
   // qu'on ignore — c'est exactement ce qu'on veut (succès idempotent).
 
-  if (!insertRes.error) {
+  if (!insertRes.error && insertRes.data) {
+    // Réserve la commission + les frais Collabbs sur la provision de la marque.
+    await settleSale({
+      eventId: insertRes.data.id,
+      brandId: brand.id,
+      creatorId: link.creator_id,
+      commission,
+      saleAmount: amount,
+    });
+
     notifyOnce({
       userId: link.creator_id,
       type: "first_affiliate_sale",
