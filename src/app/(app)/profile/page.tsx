@@ -4,6 +4,7 @@ import CreatorProfileForm from "./CreatorProfileForm";
 import BrandProfileForm from "./BrandProfileForm";
 import LegalInfoSection from "./LegalInfoSection";
 import PortfolioManager from "./PortfolioManager";
+import AudienceVerification from "./AudienceVerification";
 import type { LegalInfoData } from "./legal-utils";
 
 export const metadata = {
@@ -61,7 +62,7 @@ export default async function ProfilePage() {
         supabase.from("creator_niches").select("niche_id").eq("creator_id", user.id),
         supabase
           .from("creator_platforms")
-          .select("platform_id, handle, subscribers, url")
+          .select("platform_id, handle, subscribers, url, verified_at, verified_subscribers")
           .eq("creator_id", user.id),
         supabase.from("creator_offers").select("offer, price").eq("creator_id", user.id),
       ]);
@@ -97,7 +98,15 @@ export default async function ProfilePage() {
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         publicHandle={creatorRes.data?.handle ?? null}
-        legalSection={<LegalInfoSection initial={legalInitial} role="creator" />}
+        legalSection={
+          <>
+            <AudienceVerification
+              verifiedAt={youtubeRow?.verified_at ?? null}
+              verifiedSubscribers={youtubeRow?.verified_subscribers ?? null}
+            />
+            <LegalInfoSection initial={legalInitial} role="creator" />
+          </>
+        }
         portfolioSection={
           <PortfolioManager
             initial={portfolio}

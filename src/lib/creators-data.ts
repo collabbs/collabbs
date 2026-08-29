@@ -85,7 +85,7 @@ async function loadRelations(ids: string[]) {
     supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
     supabase
       .from("creator_platforms")
-      .select("creator_id, platform_id, subscribers, handle, url")
+      .select("creator_id, platform_id, subscribers, handle, url, verified_at, verified_source")
       .in("creator_id", ids),
     supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
     supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", ids),
@@ -101,7 +101,16 @@ async function loadRelations(ids: string[]) {
 
   const platsBy = new Map<
     string,
-    { label: string; slug: string; subs: number; handle: string | null; url: string | null }[]
+    {
+      label: string;
+      slug: string;
+      subs: number;
+      handle: string | null;
+      url: string | null;
+      /** Date à laquelle l'audience a été constatée auprès de la plateforme. */
+      verifiedAt: string | null;
+      verifiedSource: string | null;
+    }[]
   >();
   for (const cp of cpsRes.data ?? []) {
     const p = platMap.get(cp.platform_id);
@@ -113,6 +122,8 @@ async function loadRelations(ids: string[]) {
       subs: cp.subscribers ?? 0,
       handle: cp.handle ?? null,
       url: cp.url ?? null,
+      verifiedAt: (cp as { verified_at?: string | null }).verified_at ?? null,
+      verifiedSource: (cp as { verified_source?: string | null }).verified_source ?? null,
     });
     platsBy.set(cp.creator_id, arr);
   }
@@ -173,7 +184,11 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
     const rating = c.rating ?? 5;
     const dealsCount = c.deals_count ?? 0;
     const reviewsCount = c.reviews_count ?? 0;
-    const verified = Boolean(c.verified);
+    // « Vérifié » signifie désormais UNE seule chose : l'audience d'au moins un
+    // réseau a été constatée auprès de l'API de la plateforme. Le booléen
+    // `creators.verified` ne concerne que la vérification d'identité et ne doit
+    // plus faire lever ce badge — il valait `true` sur tous les comptes de démo.
+    const verified = plats.some((p) => Boolean(p.verifiedAt));
     const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
     const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
     // "Top" = vétéran avec excellente note. Au moins 5 deals OU 5 reviews + note ≥ 4.8.
@@ -221,7 +236,16 @@ export type CreatorProfileData = {
   photo: string | null;
   tint: string;
   niches: string[];
-  platforms: { label: string; slug: string; followers: string; handle: string | null; url: string | null }[];
+  platforms: {
+    label: string;
+    slug: string;
+    followers: string;
+    handle: string | null;
+    url: string | null;
+    /** Audience constatée auprès de la plateforme, pas seulement déclarée. */
+    verified: boolean;
+    verifiedAt: string | null;
+  }[];
   mainPlatform: { label: string; slug: string } | null;
   totalFollowers: string;
   isTop: boolean;
@@ -272,7 +296,8 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const rating = c.rating ?? 5;
   const dealsCount = c.deals_count ?? 0;
   const reviewsCount = c.reviews_count ?? 0;
-  const verified = Boolean(c.verified);
+  // Même règle sur la fiche publique : le badge suit la vérification réelle.
+  const verified = plats.some((p) => Boolean(p.verifiedAt));
   const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
   const NOW = Date.now();
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -300,6 +325,9 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
       followers: fmtFollowers(p.subs),
       handle: p.handle,
       url: p.url,
+      /** Vrai seulement si l'audience a été constatée auprès de la plateforme. */
+      verified: Boolean(p.verifiedAt),
+      verifiedAt: p.verifiedAt,
     })),
     mainPlatform: plats[0] ? { label: plats[0].label, slug: plats[0].slug } : null,
     totalFollowers: fmtFollowers(totalSubs),

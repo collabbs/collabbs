@@ -782,6 +782,10 @@ export type Database = {
       }
       creator_platforms: {
         Row: {
+          platform_ref: string | null
+          verified_at: string | null
+          verified_source: string | null
+          verified_subscribers: number | null
           creator_id: string
           handle: string | null
           id: string
@@ -790,6 +794,10 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          platform_ref?: string | null
+          verified_at?: string | null
+          verified_source?: string | null
+          verified_subscribers?: number | null
           creator_id: string
           handle?: string | null
           id?: string
@@ -798,6 +806,10 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          platform_ref?: string | null
+          verified_at?: string | null
+          verified_source?: string | null
+          verified_subscribers?: number | null
           creator_id?: string
           handle?: string | null
           id?: string
