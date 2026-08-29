@@ -14,28 +14,30 @@
 export const TODO = "À_COMPLÉTER" as const;
 
 export const LEGAL_ENTITY = {
-  /** Dénomination sociale, ou nom et prénom si entreprise individuelle. */
-  name: TODO,
-  /** Forme juridique : SASU, SARL, entreprise individuelle, micro-entreprise… */
-  legalForm: TODO,
-  /** Capital social, le cas échéant. Laisser TODO si entreprise individuelle. */
-  capital: TODO,
-  /** Adresse du siège social. */
-  address: TODO,
-  zip: TODO,
-  city: TODO,
+  /**
+   * Depuis la loi du 14 février 2022, un entrepreneur individuel doit faire
+   * figurer la mention « EI » ou « entrepreneur individuel » à côté de son nom
+   * sur ses documents commerciaux.
+   */
+  name: "Julien DRENEAU — Entrepreneur individuel (EI)",
+  legalForm: "Entreprise individuelle, régime de la micro-entreprise",
+  /** Sans objet : une entreprise individuelle n'a pas de capital social. */
+  capital: "Sans objet",
+  address: "3 impasse de Bourgogne",
+  zip: "37390",
+  city: "Chanceaux-sur-Choisille",
   country: "France",
-  /** SIREN ou SIRET. */
-  siret: TODO,
-  /** Ville du greffe + numéro RCS, si société. */
+  siret: "947 466 918 00010",
+  /**
+   * ⚠️ À CONFIRMER — déduit du SIREN et du greffe compétent (Tours), non lu
+   * dans un document officiel. Vérifier l'immatriculation exacte sur
+   * annuaire-entreprises.data.gouv.fr avant l'ouverture au public.
+   */
   rcs: TODO,
-  /** TVA intracommunautaire, si assujetti. */
-  vat: TODO,
-  /** Personne physique responsable du contenu publié. */
-  publicationDirector: TODO,
-  /** Adresse de contact affichée publiquement. */
+  vat: "FR66947466918",
+  publicationDirector: "Julien Dreneau",
   contactEmail: "contact@collabbs.com",
-  /** Téléphone. Facultatif, mais un moyen de contact direct est exigé. */
+  /** ⚠️ À COMPLÉTER — un moyen de contact direct est exigé par la LCEN. */
   phone: TODO,
 } as const;
 
