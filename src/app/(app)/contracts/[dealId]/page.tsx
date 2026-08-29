@@ -86,6 +86,57 @@ export default async function ContractPage({
     );
   }
 
+  // Les contrats signés avant juin 2026 ont un snapshot d'ancien format : les
+  // termes du deal, sans les coordonnées des parties (les infos légales
+  // n'existaient pas encore). On ne peut pas en faire un contrat conforme, et
+  // on ne va sûrement pas en inventer le contenu — on affiche honnêtement ce
+  // qu'on a.
+  if (snapshot.version !== 1) {
+    const legacy = snapshot as unknown as {
+      title?: string;
+      amount?: number;
+      format?: string;
+      quantity?: number;
+    };
+    return (
+      <>
+        <ContractActions reference={contract.reference} dealId={dealId} canExport={false} />
+        <article className="mx-auto max-w-3xl px-6 py-10 sm:px-10">
+          <p className="font-mono text-xs uppercase tracking-widest text-zinc-400">
+            Contrat archivé
+          </p>
+          <h1 className="mt-2 font-display text-2xl font-black text-ink">
+            {legacy.title ?? "Collaboration"}
+          </h1>
+          <p className="mt-1 font-mono text-sm text-zinc-500">{contract.reference}</p>
+
+          <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+            Ce contrat a été signé avant la mise en place du format actuel. Il
+            conserve les termes convenus et les signatures horodatées, mais pas les
+            coordonnées légales des parties — elles n&apos;étaient pas encore
+            collectées à l&apos;époque. Il ne satisfait donc pas aux mentions
+            obligatoires introduites au 1<sup>er</sup> janvier 2026.
+          </p>
+
+          <dl className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-100">
+            {[
+              ["Montant", legacy.amount != null ? `${legacy.amount} €` : "—"],
+              ["Format", legacy.format ?? "—"],
+              ["Quantité", legacy.quantity != null ? String(legacy.quantity) : "—"],
+              ["Signé par la marque", dateTimeFr(contract.brand_signed_at)],
+              ["Signé par le créateur", dateTimeFr(contract.creator_signed_at)],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4 px-4 py-3 text-sm">
+                <dt className="text-zinc-500">{k}</dt>
+                <dd className="font-medium text-ink">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+      </>
+    );
+  }
+
   const doc = buildContractDocument({
     reference: contract.reference,
     snapshot,

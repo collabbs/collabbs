@@ -11,6 +11,7 @@ import {
 } from "@/lib/deal";
 import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
+import { thresholdWith, LEGAL_THRESHOLD } from "@/lib/legal-threshold";
 import { openConversation } from "../../messages/actions";
 import { createDealCheckout } from "../actions";
 import DealControls from "./DealControls";
@@ -151,6 +152,9 @@ export default async function DealDetailPage({
   const existingReview = reviewRes.data ?? null;
   const contract = contractRes.data ?? null;
   const myLegalReady = isLegalInfoComplete(myLegalRes.data);
+  // Cumul annuel avec cette contrepartie, en incluant ce deal — ce qui permet
+  // de dire « cette collaboration fait franchir le seuil » avant de signer.
+  const thresholdState = await thresholdWith(deal.brand_id, deal.creator_id, deal.amount);
   const payment = txRes.data ?? null;
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
@@ -363,13 +367,37 @@ export default async function DealDetailPage({
                     dès que le créateur accepte les termes proposés.
                   </p>
 
-                  {/* Nudge légal : si l'utilisateur connecté n'a pas ses infos
-                      complètes, on lui dit avant qu'il bloque sur l'acceptation. */}
-                  {!myLegalReady && (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  {/* Où en est le cumul annuel avec cette contrepartie, et ce
+                      que cette collaboration va y changer. C'est le moment où
+                      l'information est utile : avant de s'engager. */}
+                  <div
+                    className={`mt-4 rounded-xl border p-3 ${
+                      thresholdState.required
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-zinc-200 bg-zinc-50"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-ink">
+                      Cumul {new Date().getFullYear()} avec {other?.display_name ?? "cette partie"} :{" "}
+                      {eur(thresholdState.total)} sur {eur(LEGAL_THRESHOLD)}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                      {thresholdState.crossesWithThisDeal
+                        ? "Cette collaboration fait franchir le seuil légal. Un contrat écrit détaillé devient obligatoire, et les infos légales des deux parties sont exigées pour signer."
+                        : thresholdState.required
+                          ? "Le seuil légal est déjà franchi cette année : le contrat écrit détaillé est obligatoire."
+                          : `En dessous de ${eur(LEGAL_THRESHOLD)} cumulés sur l'année, la loi n'impose pas de contrat détaillé — un contrat simplifié suffit. Il reste ${eur(thresholdState.remaining)} de marge.`}
+                    </p>
+                  </div>
+
+                  {/* Nudge légal — seulement quand ces infos sont réellement
+                      exigées, c'est-à-dire au-dessus du seuil. En dessous, on
+                      n'embête pas un créateur qui n'a pas encore de statut. */}
+                  {!myLegalReady && thresholdState.required && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="text-sm font-medium text-amber-800">
-                        ⚠️ Tes infos légales sont incomplètes — la signature sera bloquée
-                        tant qu&apos;elles ne sont pas à jour.
+                        ⚠️ Tes infos légales sont incomplètes — au-dessus du seuil, la
+                        signature sera bloquée tant qu&apos;elles ne sont pas à jour.
                       </p>
                       <Link
                         href="/profile"

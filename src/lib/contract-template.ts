@@ -97,6 +97,14 @@ export function buildContractDocument(params: {
 }): ContractDocument {
   const { reference, snapshot, regime } = params;
   const { brand, creator, deal } = snapshot;
+  if (!deal || !brand || !creator) {
+    // Ne devrait pas arriver : l'appelant filtre sur `version === 1`. Garde-fou
+    // pour qu'un snapshot abîmé remonte une erreur claire plutôt qu'un plantage
+    // au milieu du rendu.
+    throw new Error(
+      `Contrat ${reference} : snapshot incomplet, impossible de générer le document.`,
+    );
+  }
   const complete = regime === "complete";
 
   const formatLabel = FORMAT_LABELS[deal.format] ?? deal.format;
