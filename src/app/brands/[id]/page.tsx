@@ -5,6 +5,7 @@ import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { openConversation } from "@/app/(app)/messages/actions";
+import { brandReliability, reliabilityHighlights } from "@/lib/brand-reliability";
 
 export async function generateMetadata({
   params,
@@ -157,6 +158,11 @@ export default async function BrandPublicPage({
   const totalCampaigns = allCampaignsRes.count ?? 0;
   const totalDeals = dealsRes.count ?? 0;
   const reviews = reviewsRes.data ?? [];
+  // Fiabilité mesurée depuis les collaborations terminées. Ne renvoie rien
+  // en dessous de trois deals : un pourcentage sur un seul cas ne veut rien
+  // dire et condamnerait injustement une marque.
+  const reliability = await brandReliability(id);
+  const highlights = reliabilityHighlights(reliability);
   const reviewAvg =
     reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -332,6 +338,48 @@ export default async function BrandPublicPage({
 
         {/* Contenu */}
         <div className="space-y-8">
+          {/* Fiabilité mesurée — ce qu'un créateur veut savoir avant de
+              s'engager, et que seule une plateforme qui tient l'argent et
+              l'horloge peut constater. */}
+          {reliability.meaningful && highlights.length > 0 && (
+            <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="font-display text-lg font-black text-ink">
+                Comment cette marque se comporte
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Constaté sur {reliability.deals} collaboration
+                {reliability.deals > 1 ? "s" : ""} terminée
+                {reliability.deals > 1 ? "s" : ""} — pas déclaré.
+              </p>
+              <ul className="mt-4 flex flex-col gap-2">
+                {highlights.map((h: { label: string; tone: string }) => (
+                  <li
+                    key={h.label}
+                    className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+                      h.tone === "good"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : h.tone === "warn"
+                          ? "bg-amber-50 text-amber-800"
+                          : "bg-zinc-50 text-zinc-700"
+                    }`}
+                  >
+                    <span aria-hidden>
+                      {h.tone === "good" ? "✓" : h.tone === "warn" ? "!" : "·"}
+                    </span>
+                    {h.label}
+                  </li>
+                ))}
+                {reliability.avgPaymentDays !== null && (
+                  <li className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                    <span aria-hidden>·</span>
+                    Règle en moyenne {reliability.avgPaymentDays} jour
+                    {reliability.avgPaymentDays > 1 ? "s" : ""} après acceptation
+                  </li>
+                )}
+              </ul>
+            </section>
+          )}
+
           {/* À propos */}
           <section className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="font-display text-lg font-black text-ink">À propos</h2>

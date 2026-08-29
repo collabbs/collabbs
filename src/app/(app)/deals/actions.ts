@@ -944,3 +944,73 @@ export async function leaveReview(
   revalidatePath(`/deals/${dealId}`);
   return { ok: true };
 }
+
+/**
+ * Le créateur note la marque, une fois la collaboration terminée.
+ *
+ * Miroir exact de `leaveReview`, dans l'autre sens. La symétrie n'est pas
+ * cosmétique : sur une place de marché, le côté qu'on doit convaincre est
+ * celui qui a le moins d'informations. Un créateur qui ne sait pas à qui il a
+ * affaire prend un risque que la marque, elle, ne prend pas.
+ */
+export async function leaveBrandReview(
+  dealId: string,
+  rating: number,
+  comment: string,
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const r = Math.round(rating);
+  if (r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.creator_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+  if (deal.status !== "completed")
+    return { ok: false, error: "Tu pourras laisser un avis une fois la collaboration terminée." };
+
+  const { data: existing } = await (supabase as never as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: unknown }> };
+      };
+    };
+  })
+    .from("brand_reviews")
+    .select("id")
+    .eq("deal_id", dealId)
+    .maybeSingle();
+  if (existing) return { ok: false, error: "Tu as déjà laissé un avis sur cette marque." };
+
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const { error } = await (supabase as any).from("brand_reviews").insert({
+    deal_id: dealId,
+    brand_id: deal.brand_id,
+    creator_id: user.id,
+    rating: r,
+    comment: comment.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.brand_id,
+    type: "brand_review_received",
+    title: `Un créateur vous a noté ${"⭐".repeat(r)}`,
+    body: comment.trim()
+      ? `« ${comment.trim().slice(0, 200)} »`
+      : "Un créateur vient de noter votre collaboration.",
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath(`/brands/${deal.brand_id}`);
+  return { ok: true };
+}

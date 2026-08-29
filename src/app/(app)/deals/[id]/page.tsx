@@ -150,6 +150,16 @@ export default async function DealDetailPage({
   const other = otherRes.data;
   const deliverables = delsRes.data ?? [];
   const existingReview = reviewRes.data ?? null;
+  // Avis laissé par le créateur SUR la marque. La table arrive avec la
+  // migration 0039 ; tant qu'elle n'est pas appliquée on n'affiche rien plutôt
+  // que de casser la page.
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const { data: brandReviewRow } = await (supabase as any)
+    .from("brand_reviews")
+    .select("rating, comment")
+    .eq("deal_id", id)
+    .maybeSingle();
+  const existingBrandReview = brandReviewRow ?? null;
   const contract = contractRes.data ?? null;
   const myLegalReady = isLegalInfoComplete(myLegalRes.data);
   // Cumul annuel avec cette contrepartie, en incluant ce deal — ce qui permet
@@ -466,6 +476,7 @@ export default async function DealDetailPage({
             role={role}
             status={status}
             existingReview={existingReview}
+            existingBrandReview={existingBrandReview}
           />
         </div>
 
