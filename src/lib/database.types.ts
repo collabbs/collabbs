@@ -1301,6 +1301,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          is_admin: boolean
           avatar_url: string | null
           created_at: string
           display_name: string | null
@@ -1309,6 +1310,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -1317,6 +1319,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null

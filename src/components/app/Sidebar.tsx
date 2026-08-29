@@ -46,6 +46,7 @@ export default function Sidebar({
   avatarUrl,
   badges = {},
   attention = [],
+  isAdmin = false,
 }: {
   role: "creator" | "brand";
   name: string;
@@ -53,10 +54,17 @@ export default function Sidebar({
   badges?: Record<string, number>;
   /** Hrefs avec un point ambré « à attention » (ex. tracking pas vérifié). */
   attention?: string[];
+  /** Ajoute l'entrée d'administration. Le contrôle réel est côté serveur. */
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const items = role === "creator" ? CREATOR_NAV : BRAND_NAV;
+  const items = [
+    ...(role === "creator" ? CREATOR_NAV : BRAND_NAV),
+    // L'entrée n'est qu'un raccourci : /admin refait la vérification côté
+    // serveur, donc la masquer ne protège rien — ça évite juste du bruit.
+    ...(isAdmin ? [{ href: "/admin", label: "Administration", icon: "🛠" }] : []),
+  ];
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 
