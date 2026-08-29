@@ -432,6 +432,25 @@ export default function Wizard({
                 className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
               />
               <p className="mt-1 text-right text-xs text-zinc-400">{bio.length}/250</p>
+
+              {/* Ville — beaucoup de marques cherchent en local, et un tournage
+                  en boutique n'a de sens qu'avec quelqu'un du coin. */}
+              <label className="mt-5 block text-sm font-medium text-ink">Ta ville</label>
+              <input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ex : Lyon"
+                className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400 sm:max-w-xs"
+              />
+              <label className="mt-3 flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={travels}
+                  onChange={(e) => setTravels(e.target.checked)}
+                  className="h-4 w-4 accent-purple-600"
+                />
+                J&apos;accepte de me déplacer hors de ma ville
+              </label>
             </div>
           )}
 
