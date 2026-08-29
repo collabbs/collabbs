@@ -889,6 +889,10 @@ export type Database = {
       }
       creators: {
         Row: {
+          city: string | null
+          city_slug: string | null
+          country: string | null
+          travels: boolean
           bio: string | null
           created_at: string
           custom_niche: string | null
@@ -909,6 +913,10 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          city?: string | null
+          city_slug?: string | null
+          country?: string | null
+          travels?: boolean
           bio?: string | null
           created_at?: string
           custom_niche?: string | null
@@ -929,6 +937,10 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          city?: string | null
+          city_slug?: string | null
+          country?: string | null
+          travels?: boolean
           bio?: string | null
           created_at?: string
           custom_niche?: string | null

@@ -97,6 +97,16 @@ export default function CreatorCard({
           <span className="font-semibold text-brand-deep">{creator.niche}</span>{" "}
           <span className="text-zinc-400">·</span>{" "}
           <span className="font-medium text-zinc-600">{creator.engagement} eng.</span>
+          {creator.city && (
+            <>
+              {" "}
+              <span className="text-zinc-400">·</span>{" "}
+              <span className="text-zinc-600">
+                📍 {creator.city}
+                {creator.travels && <span className="text-zinc-400"> · se déplace</span>}
+              </span>
+            </>
+          )}
         </p>
 
         {/* Façons de collaborer */}

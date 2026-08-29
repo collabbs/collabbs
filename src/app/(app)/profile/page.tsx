@@ -56,7 +56,7 @@ export default async function ProfilePage() {
         supabase.from("platforms").select("id, label, slug").order("id"),
         supabase
           .from("creators")
-          .select("handle, bio, custom_niche")
+          .select("handle, bio, custom_niche, city, travels")
           .eq("id", user.id)
           .maybeSingle(),
         supabase.from("creator_niches").select("niche_id").eq("creator_id", user.id),
@@ -117,6 +117,8 @@ export default async function ProfilePage() {
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",
+          city: creatorRes.data?.city ?? "",
+          travels: creatorRes.data?.travels ?? false,
           avatarUrl: profile.avatar_url ?? null,
           customNiche: creatorRes.data?.custom_niche ?? "",
           nicheIds: (cNichesRes.data ?? []).map((r) => r.niche_id),

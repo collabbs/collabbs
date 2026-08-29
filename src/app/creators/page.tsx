@@ -27,6 +27,7 @@ type Params = {
   niche?: string;
   platform?: string;
   offre?: string;
+  ville?: string;
 };
 
 function buildHref(params: Params): string {
@@ -49,7 +50,7 @@ export default async function CreatorsPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { q, niche, platform, offre } = await searchParams;
+  const { q, niche, platform, offre, ville } = await searchParams;
 
   const query = (q ?? "").trim().toLowerCase();
   const all = await getMarketplaceCreators();
@@ -85,11 +86,26 @@ export default async function CreatorsPage({
     if (niche && !c.niches.includes(niche)) return false;
     if (platform && !c.platformLabels.includes(platform)) return false;
     if (offre && !c.offers.includes(offre as OfferId)) return false;
+    // Filtre par ville : on compare des slugs, jamais des saisies libres.
+    // Un créateur qui accepte de se déplacer remonte aussi dans les autres
+    // villes — c'est justement l'intérêt d'avoir posé la question.
+    if (ville && c.citySlug !== ville && !c.travels) return false;
     return true;
   });
 
   const activeCount =
-    (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0);
+    (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0) + (ville ? 1 : 0);
+
+  // Villes réellement représentées, les plus fournies d'abord. On ne propose
+  // que ce qui existe : un filtre qui renvoie zéro résultat est pire qu'absent.
+  const cityCounts = new Map<string, { slug: string; label: string; n: number }>();
+  for (const c of all) {
+    if (!c.citySlug || !c.city) continue;
+    const entry = cityCounts.get(c.citySlug) ?? { slug: c.citySlug, label: c.city, n: 0 };
+    entry.n++;
+    cityCounts.set(c.citySlug, entry);
+  }
+  const cities = [...cityCounts.values()].sort((a, b) => b.n - a.n).slice(0, 12);
 
   // Chips par groupe (réutilisées dans le drawer mobile ET les popovers desktop).
   const offerChips = (
@@ -99,7 +115,7 @@ export default async function CreatorsPage({
           key={o.id}
           label={`${o.emoji} ${o.short}`}
           active={offre === o.id}
-          href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
+          href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id, ville })}
         />
       ))}
     </div>
@@ -116,11 +132,31 @@ export default async function CreatorsPage({
             </span>
           }
           active={platform === p}
-          href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
+          href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre, ville })}
         />
       ))}
     </div>
   );
+  const cityChips =
+    cities.length > 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {cities.map((c) => (
+          <Chip
+            key={c.slug}
+            label={`${c.label} (${c.n})`}
+            active={ville === c.slug}
+            href={buildHref({
+              q,
+              niche,
+              platform,
+              offre,
+              ville: ville === c.slug ? undefined : c.slug,
+            })}
+          />
+        ))}
+      </div>
+    ) : null;
+
   const nicheChips = (
     <div className="flex flex-wrap gap-2">
       {NICHES.map((n) => (
@@ -128,7 +164,7 @@ export default async function CreatorsPage({
           key={n}
           label={n}
           active={niche === n}
-          href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
+          href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre, ville })}
         />
       ))}
     </div>
@@ -243,6 +279,16 @@ export default async function CreatorsPage({
             <FilterPopover label="Plateforme" activeLabel={platform ?? null}>
               {platformChips}
             </FilterPopover>
+            {cityChips && (
+              <FilterPopover
+                label="Ville"
+                activeLabel={
+                  ville ? cities.find((c) => c.slug === ville)?.label ?? ville : null
+                }
+              >
+                {cityChips}
+              </FilterPopover>
+            )}
             <FilterPopover label="Niche" activeLabel={niche ?? null}>
               {nicheChips}
             </FilterPopover>

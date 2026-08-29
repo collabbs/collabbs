@@ -40,6 +40,8 @@ export default function CreatorProfileForm({
     bio: string;
     avatarUrl: string | null;
     customNiche: string;
+    city?: string | null;
+    travels?: boolean | null;
     nicheIds: number[];
     platforms: { platformId: number; handle: string; subs: string; url: string }[];
     offers: { offer: string; price: string }[];
@@ -51,6 +53,8 @@ export default function CreatorProfileForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(initial.avatarUrl);
   const [nicheIds, setNicheIds] = useState<number[]>(initial.nicheIds);
   const [customNiche, setCustomNiche] = useState(initial.customNiche);
+  const [city, setCity] = useState(initial.city ?? "");
+  const [travels, setTravels] = useState(Boolean(initial.travels));
   const [otherOpen, setOtherOpen] = useState(Boolean(initial.customNiche));
   const [platformSel, setPlatformSel] = useState<
     Record<number, { handle: string; subs: string; url: string }>
@@ -150,6 +154,8 @@ export default function CreatorProfileForm({
         bio: bio.trim(),
         avatarUrl,
         customNiche: customNiche.trim(),
+        city: city.trim(),
+        travels,
         niches: nicheIds,
         platforms: Object.entries(platformSel).map(([pid, v]) => ({
           platformId: Number(pid),
@@ -313,6 +319,28 @@ export default function CreatorProfileForm({
           className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
         />
         <p className="mt-1 text-right text-xs text-zinc-400">{bio.length}/250</p>
+
+        {/* Localisation — beaucoup de marques cherchent en local : un tournage
+            en boutique n'a de sens qu'avec quelqu'un du coin. */}
+        <label className="mt-5 block text-sm font-medium text-ink">Ta ville</label>
+        <input
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Ex : Lyon"
+          className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400 sm:max-w-xs"
+        />
+        <p className="mt-1 text-xs text-zinc-500">
+          Les marques filtrent souvent par ville pour les tournages sur place.
+        </p>
+        <label className="mt-3 flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={travels}
+            onChange={(e) => setTravels(e.target.checked)}
+            className="h-4 w-4 accent-purple-600"
+          />
+          J&apos;accepte de me déplacer hors de ma ville
+        </label>
       </section>
 
       {/* ============ Section 2 — Niches ============ */}

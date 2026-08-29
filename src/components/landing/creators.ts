@@ -56,6 +56,10 @@ export type Creator = {
   photo: string;
   /** Dégradé affiché en secours si la photo ne charge pas. */
   tint: string;
+  /** Ville du créateur, pour les tournages sur place. */
+  city?: string | null;
+  /** Accepte de se déplacer hors de sa ville. */
+  travels?: boolean;
   /** Signaux de qualité affichés en badges sur la card. */
   isTop?: boolean;
   isVerified?: boolean;

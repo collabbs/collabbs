@@ -62,6 +62,12 @@ export type MarketplaceCreator = {
   isTop: boolean;
   isVerified: boolean;
   isNew: boolean;
+  /** Ville affichée telle que saisie. */
+  city: string | null;
+  /** Forme normalisée, pour filtrer. */
+  citySlug: string | null;
+  /** Accepte de se déplacer hors de sa ville. */
+  travels: boolean;
   reviewsCount: number;
 };
 
@@ -171,7 +177,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   const { data: creators } = await supabase
     .from("creators")
     .select(
-      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at",
+      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels",
     )
     .order("rating", { ascending: false });
   const rows = (creators ?? []) as CreatorRow[];
@@ -221,6 +227,9 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       offers,
       rating,
       photo: prof.avatar_url,
+      city: (c as { city?: string | null }).city ?? null,
+      citySlug: (c as { city_slug?: string | null }).city_slug ?? null,
+      travels: Boolean((c as { travels?: boolean | null }).travels),
       tint: tintFor(c.handle),
       niches,
       platformLabels: plats.map((p) => p.label),

@@ -59,6 +59,8 @@ export default function Wizard({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(initial.avatarUrl);
   const [nicheIds, setNicheIds] = useState<number[]>(initial.nicheIds ?? []);
+  const [city, setCity] = useState("");
+  const [travels, setTravels] = useState(false);
   const [customNiche, setCustomNiche] = useState(initial.customNiche);
   const [otherOpen, setOtherOpen] = useState(Boolean(initial.customNiche));
   const [platformSel, setPlatformSel] = useState<
@@ -170,6 +172,8 @@ export default function Wizard({
         bio: bio.trim(),
         avatarUrl,
         customNiche: customNiche.trim(),
+        city: city.trim(),
+        travels,
         niches: nicheIds,
         platforms: Object.entries(platformSel).map(([pid, v]) => ({
           platformId: Number(pid),
