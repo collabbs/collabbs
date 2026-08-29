@@ -88,14 +88,19 @@ export default async function PayoutsPage({
   let affValidated = 0; // acquise, en attente du prochain versement
   let affPaid = 0;      // déjà versée
   let affUnfunded = 0;  // la marque doit réapprovisionner
+  let affToReview = 0;  // déclarée par la boutique, la marque doit confirmer
   if (myLinkIds.length > 0) {
     const { data: affEvents } = await (supabase as any)
       .from("affiliate_events")
-      .select("status, commission_amount")
+      .select("status, commission_amount, needs_review")
       .eq("type", "sale")
       .in("link_id", myLinkIds);
     for (const e of (affEvents ?? []) as any[]) {
       const c = Number(e.commission_amount ?? 0);
+      // Une vente déclarée par le script de la boutique attend la confirmation
+      // de la marque. La compter comme « non financée » l'accuserait à tort
+      // d'être à sec, alors qu'elle n'a simplement pas encore vérifié.
+      if (e.needs_review) { affToReview += c; continue; }
       if (e.status === "pending") affPending += c;
       else if (e.status === "validated") affValidated += c;
       else if (e.status === "paid") affPaid += c;
@@ -103,7 +108,7 @@ export default async function PayoutsPage({
     }
   }
   const hasAffiliate =
-    affPending + affValidated + affPaid + affUnfunded > 0;
+    affPending + affValidated + affPaid + affUnfunded + affToReview > 0;
 
   const TX_STATUS_META: Record<
     string,
@@ -181,6 +186,14 @@ export default async function PayoutsPage({
             <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600">
               Encore {eurExact(20 - affValidated)} avant ton prochain versement. Le reste
               s&apos;accumule, rien n&apos;est perdu.
+            </p>
+          )}
+
+          {affToReview > 0 && (
+            <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-700">
+              {eurExact(affToReview)} de commissions attendent que la marque confirme
+              la commande dans son back-office. C&apos;est une vérification normale
+              pour les ventes remontées par sa boutique.
             </p>
           )}
 

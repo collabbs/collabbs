@@ -89,6 +89,9 @@ async function handle(p: Payload) {
     .insert({
       link_id: link.id,
       type: "sale",
+      // Authentifiée par le secret de la marque : ce chemin est digne de
+      // confiance, il règle automatiquement. Voir la migration 0042.
+      source: "postback",
       // Non financée tant que la réservation sur la provision n'a pas abouti.
       status: "unfunded",
       sale_amount: amount,

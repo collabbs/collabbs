@@ -1,6 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyOnce } from "@/lib/notifications";
-import { settleSale } from "@/lib/affiliate-billing";
+import { notify } from "@/lib/notifications";
 
 // Pixel "client-side" pour le drop-in script (track.js).
 // Sécurité : on n'a pas de secret côté navigateur, donc on vérifie que le
@@ -21,6 +20,10 @@ function pixelResponse(status = 200) {
       "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
+}
+
+function eur(n: number): string {
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
 function hostOf(input: string | null): string | null {
@@ -98,7 +101,12 @@ export async function GET(request: Request) {
     .insert({
       link_id: link.id,
       type: "sale",
-      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      // Le navigateur DÉCLARE une vente, il ne la prouve pas : le seul contrôle
+      // possible ici est le `Referer`, que n'importe qui falsifie en une ligne
+      // de commande. On enregistre donc sans rien réserver, et on demande à la
+      // marque de confirmer. Voir la migration 0042 pour le détail.
+      source: "pixel",
+      needs_review: true,
       status: "unfunded",
       sale_amount: amount,
       commission_amount: commission,
@@ -110,21 +118,17 @@ export async function GET(request: Request) {
   // qu'on ignore — c'est exactement ce qu'on veut (succès idempotent).
 
   if (!insertRes.error && insertRes.data) {
-    // Réserve la commission + les frais Collabbs sur la provision de la marque.
-    await settleSale({
-      eventId: insertRes.data.id,
-      brandId: brand.id,
-      creatorId: link.creator_id,
-      commission,
-      saleAmount: amount,
-    });
-
-    notifyOnce({
-      userId: link.creator_id,
-      type: "first_affiliate_sale",
-      title: "🎉 Ta première vente affiliée !",
-      body: `Une vente de ${amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} vient d'être attribuée à ton lien. Commission : ${commission.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}. Bienvenue dans le revenu passif.`,
-      link: "/opportunities",
+    // Pas de `settleSale` ici : aucun argent ne bouge avant confirmation.
+    // On prévient la marque, qui seule peut vérifier la commande chez elle.
+    // `notify` et non `notifyOnce` : chaque vente en attente est de l'argent
+    // dû à un créateur, elle mérite sa propre alerte.
+    notify({
+      // `brands.id` est aussi l'identifiant du profil propriétaire.
+      userId: brand.id,
+      type: "pixel_sale_to_review",
+      title: "Une vente à confirmer",
+      body: `Une vente de ${eur(amount)} a été déclarée depuis ta boutique. Confirme-la pour verser ${eur(commission)} de commission au créateur.`,
+      link: "/billing",
     }).catch(() => {});
   }
 

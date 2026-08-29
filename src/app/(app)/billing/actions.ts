@@ -9,7 +9,9 @@ import {
   createTopupCheckout,
   attemptAutoTopup,
   releaseReservation,
+  settleSale,
 } from "@/lib/affiliate-billing";
+import { notify } from "@/lib/notifications";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
@@ -153,4 +155,111 @@ export async function forgetCard() {
 
   revalidatePath("/billing");
   redirect("/billing?saved=1");
+}
+
+/**
+ * Vérifie qu'une vente en attente appartient bien à la marque connectée, et
+ * qu'elle est effectivement en attente. Renvoie l'événement, ou redirige.
+ */
+async function requireReviewableSale(brandId: string, eventId: string) {
+  if (!eventId) redirect("/billing?error=Vente+introuvable.");
+
+  const admin = createAdminClient();
+  const { data: ev } = await untyped(admin)
+    .from("affiliate_events")
+    .select(
+      "id, needs_review, commission_amount, sale_amount, affiliate_links(creator_id, campaigns(brand_id))",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!ev || ev.affiliate_links?.campaigns?.brand_id !== brandId) {
+    redirect("/billing?error=Cette+vente+ne+t%27appartient+pas.");
+  }
+  if (!ev.needs_review) {
+    // Déjà tranchée — probablement un double clic, ou deux onglets ouverts.
+    redirect("/billing?error=Cette+vente+a+d%C3%A9j%C3%A0+%C3%A9t%C3%A9+trait%C3%A9e.");
+  }
+  return ev;
+}
+
+/**
+ * La marque confirme une vente déclarée depuis sa boutique.
+ *
+ * C'est ici — et nulle part ailleurs — qu'une vente venue du navigateur devient
+ * de l'argent. Le pixel ne peut pas prouver qu'une commande existe ; la marque,
+ * elle, la voit dans son propre back-office.
+ */
+export async function confirmPixelSale(formData: FormData) {
+  const brandId = await requireBrand();
+  const eventId = String(formData.get("eventId") ?? "");
+  const ev = await requireReviewableSale(brandId, eventId);
+
+  const admin = createAdminClient();
+  // On lève le drapeau AVANT de réserver, en le conditionnant à son état
+  // actuel : si deux confirmations partent en même temps, une seule passe et
+  // la commission n'est réservée qu'une fois.
+  const { data: claimed } = await untyped(admin)
+    .from("affiliate_events")
+    .update({ needs_review: false, reviewed_at: new Date().toISOString() })
+    .eq("id", eventId)
+    .eq("needs_review", true)
+    .select("id");
+
+  if (!claimed || claimed.length === 0) {
+    redirect("/billing?error=Cette+vente+a+d%C3%A9j%C3%A0+%C3%A9t%C3%A9+trait%C3%A9e.");
+  }
+
+  const res = await settleSale({
+    eventId,
+    brandId,
+    creatorId: ev.affiliate_links?.creator_id,
+    commission: Number(ev.commission_amount ?? 0),
+    saleAmount: Number(ev.sale_amount ?? 0),
+  });
+
+  revalidatePath("/billing");
+  redirect(
+    res === "unfunded"
+      ? "/billing?error=Vente+confirm%C3%A9e%2C+mais+ta+provision+est+insuffisante+pour+la+couvrir."
+      : "/billing?confirmed=1",
+  );
+}
+
+/**
+ * La marque refuse une vente déclarée : aucune commande ne lui correspond.
+ * Aucun argent n'ayant été réservé, il n'y a rien à libérer.
+ */
+export async function rejectPixelSale(formData: FormData) {
+  const brandId = await requireBrand();
+  const eventId = String(formData.get("eventId") ?? "");
+  const ev = await requireReviewableSale(brandId, eventId);
+
+  const admin = createAdminClient();
+  await untyped(admin)
+    .from("affiliate_events")
+    .update({
+      needs_review: false,
+      reviewed_at: new Date().toISOString(),
+      status: "rejected",
+      reject_reason: "Aucune commande correspondante chez la marque",
+    })
+    .eq("id", eventId)
+    .eq("needs_review", true);
+
+  // Le créateur doit savoir, et pouvoir contester : une vente légitime peut
+  // être refusée par erreur.
+  const creatorId = ev.affiliate_links?.creator_id;
+  if (creatorId) {
+    notify({
+      userId: creatorId,
+      type: "affiliate_sale_rejected",
+      title: "Une vente attribuée a été refusée",
+      body: "La marque n'a pas retrouvé de commande correspondante. Si tu penses qu'il s'agit d'une erreur, contacte-la depuis la messagerie.",
+      link: "/opportunities",
+    }).catch(() => {});
+  }
+
+  revalidatePath("/billing");
+  redirect("/billing?rejected=1");
 }

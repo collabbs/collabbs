@@ -23,6 +23,8 @@ export type Database = {
           platform_fee: number
           refunded_at: string | null
           reject_reason: string | null
+          needs_review: boolean
+          reviewed_at: string | null
           status: Database["public"]["Enums"]["affiliate_event_status"] | null
           validate_at: string | null
           action_count: number
@@ -42,6 +44,8 @@ export type Database = {
           platform_fee?: number
           refunded_at?: string | null
           reject_reason?: string | null
+          needs_review?: boolean
+          reviewed_at?: string | null
           status?: Database["public"]["Enums"]["affiliate_event_status"] | null
           validate_at?: string | null
           action_count?: number
@@ -61,6 +65,8 @@ export type Database = {
           platform_fee?: number
           refunded_at?: string | null
           reject_reason?: string | null
+          needs_review?: boolean
+          reviewed_at?: string | null
           status?: Database["public"]["Enums"]["affiliate_event_status"] | null
           validate_at?: string | null
           action_count?: number

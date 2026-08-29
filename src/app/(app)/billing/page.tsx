@@ -4,7 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { eurExact as eur } from "@/lib/deal";
 import { stripeConfigured } from "@/lib/stripe";
 import { AFFILIATE_FEE_RATE, VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
-import { startTopup, saveAutoTopup, retryTopup, forgetCard, refundSale } from "./actions";
+import {
+  startTopup,
+  saveAutoTopup,
+  retryTopup,
+  forgetCard,
+  refundSale,
+  confirmPixelSale,
+  rejectPixelSale,
+} from "./actions";
 import EmptyState from "@/components/EmptyState";
 
 export const metadata = { title: "Provision — Collabbs" };
@@ -89,6 +97,7 @@ export default async function BillingPage({
   let validated = 0;
   let unfunded = 0;
   let sales: any[] = [];
+  let toReview: any[] = [];
   if (campaignIds.length > 0) {
     const { data: links } = await supabase
       .from("affiliate_links")
@@ -100,14 +109,18 @@ export default async function BillingPage({
       const { data: events } = await untyped(supabase)
         .from("affiliate_events")
         .select(
-          "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, affiliate_links(creators(handle))",
+          "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
         )
         .eq("type", "sale")
         .in("link_id", linkIds)
         .order("occurred_at", { ascending: false })
         .limit(30);
 
-      sales = (events ?? []) as any[];
+      const all = (events ?? []) as any[];
+      // Les ventes en attente de confirmation ne sont pas encore de l'argent :
+      // elles ont leur propre section et ne comptent dans aucun total.
+      toReview = all.filter((e) => e.needs_review);
+      sales = all.filter((e) => !e.needs_review);
       for (const e of sales) {
         const total = Number(e.commission_amount ?? 0) + Number(e.platform_fee ?? 0);
         if (e.status === "pending") reserved += total;
@@ -199,6 +212,63 @@ export default async function BillingPage({
           <p className="text-xs text-zinc-500">Non financé</p>
         </div>
       </div>
+
+      {toReview.length > 0 && (
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <h2 className="font-semibold text-amber-900">
+            {toReview.length} vente{toReview.length > 1 ? "s" : ""} à confirmer
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            Ces ventes ont été déclarées par le script installé sur ta boutique. Un
+            script tourne dans le navigateur du visiteur : il ne peut pas prouver
+            qu&apos;une commande existe vraiment. Vérifie-les dans ton back-office avant
+            de verser. Rien n&apos;est débité tant que tu n&apos;as pas confirmé.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {toReview.map((s2: any) => {
+              const commission = Number(s2.commission_amount ?? 0);
+              return (
+                <li
+                  key={s2.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-ink">
+                      {eur(Number(s2.sale_amount ?? 0))}
+                      {s2.affiliate_links?.creators?.handle
+                        ? ` · @${s2.affiliate_links.creators.handle}`
+                        : ""}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {dateFr(s2.occurred_at)} · commission {eur(commission)} si tu confirmes
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <form action={rejectPixelSale}>
+                      <input type="hidden" name="eventId" value={s2.id} />
+                      <button
+                        type="submit"
+                        className="text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-800"
+                      >
+                        Aucune commande
+                      </button>
+                    </form>
+                    <form action={confirmPixelSale}>
+                      <input type="hidden" name="eventId" value={s2.id} />
+                      <button
+                        type="submit"
+                        className="rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+                      >
+                        Confirmer
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {unfunded > 0 && (
         <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4">

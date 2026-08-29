@@ -77,6 +77,18 @@ export async function settleSale(params: {
 }): Promise<SettlementStatus> {
   const { eventId, brandId, creatorId, commission } = params;
   const admin = createAdminClient();
+
+  // Garde-fou : une vente déclarée par un navigateur attend la confirmation de
+  // la marque. Tant que le drapeau est levé, aucun argent ne bouge — même si un
+  // appelant se trompe. C'est la dernière barrière avant la provision, et elle
+  // reste ici pour que tout nouveau chemin en hérite gratuitement.
+  const { data: guard } = await untyped(admin)
+    .from("affiliate_events")
+    .select("needs_review")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (guard?.needs_review) return "unfunded";
+
   const { creatorAmount, platformFee, brandTotal } = affiliateBreakdown(commission);
 
   const validateAt = new Date();
