@@ -155,23 +155,50 @@ export async function releaseReservation(params: {
   if (ev.status === "refunded" || ev.status === "rejected") {
     return { ok: true, message: "Déjà traitée." };
   }
-  if (ev.status === "paid") {
-    // Le créateur a déjà été payé : on ne peut plus reprendre l'argent
-    // automatiquement, ça relève d'une régularisation manuelle.
-    return {
-      ok: false,
-      message:
-        "Cette commission a déjà été versée au créateur. Une régularisation manuelle est nécessaire.",
-    };
-  }
-
-  const { data: link } = await untyped(admin)
+  const { data: linkRow } = await untyped(admin)
     .from("affiliate_links")
-    .select("id, campaigns(brand_id)")
+    .select("id, creator_id, campaigns(brand_id)")
     .eq("id", ev.link_id)
     .maybeSingle();
+  const brandOf = linkRow?.campaigns?.brand_id as string | undefined;
 
-  const brandId = link?.campaigns?.brand_id as string | undefined;
+  if (ev.status === "paid") {
+    // L'argent est parti chez le créateur : on ne le reprend pas. On inscrit
+    // une dette qui sera déduite de son prochain versement — c'est la pratique
+    // du secteur, et c'est la seule honnête : reprendre un virement déjà reçu
+    // n'est ni possible techniquement, ni acceptable pour le créateur.
+    const owed = round2(Number(ev.commission_amount ?? 0));
+    if (owed > 0 && linkRow?.creator_id) {
+      await untyped(admin).from("affiliate_clawbacks").insert({
+        creator_id: linkRow.creator_id,
+        brand_id: brandOf ?? null,
+        affiliate_event_id: eventId,
+        amount: owed,
+        reason: reason ?? "Vente remboursée après versement de la commission",
+      });
+      await notify({
+        userId: linkRow.creator_id,
+        type: "affiliate_clawback",
+        title: `Une vente a été remboursée — ${owed.toFixed(2)} €`,
+        body:
+          "La marque a remboursé son client sur une vente qui t'avait déjà été " +
+          "commissionnée. Ce montant sera déduit de ton prochain versement — rien " +
+          "ne te sera repris sur ce que tu as déjà reçu.",
+        link: "/payouts",
+      });
+    }
+    await untyped(admin)
+      .from("affiliate_events")
+      .update({
+        status,
+        refunded_at: status === "refunded" ? new Date().toISOString() : null,
+        reject_reason: reason ?? null,
+      })
+      .eq("id", eventId);
+    return { ok: true, message: "Régularisation inscrite sur le prochain versement." };
+  }
+
+  const brandId = brandOf;
   const total = round2(Number(ev.commission_amount ?? 0) + Number(ev.platform_fee ?? 0));
 
   // Seule une vente réservée a consommé de la provision. Une vente "unfunded"
@@ -489,8 +516,23 @@ export async function runAffiliatePayouts(): Promise<{
   }
 
   for (const [creatorId, bucket] of byCreator) {
-    const net = round2(bucket.commission);
+    // Régularisations en attente : commissions versées puis annulées parce que
+    // la marque a remboursé son client. On les déduit ici, jamais en reprenant
+    // un virement déjà reçu.
+    const { data: clawbacks } = await untyped(admin)
+      .from("affiliate_clawbacks")
+      .select("id, amount")
+      .eq("creator_id", creatorId)
+      .is("settled_at", null);
+    const owed = round2(
+      (clawbacks ?? []).reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0),
+    );
+
+    const net = round2(bucket.commission - owed);
     if (net < MIN_PAYOUT) {
+      // Sous le seuil — soit les gains sont faibles, soit la dette les absorbe.
+      // Dans les deux cas on ne verse pas, et rien n'est perdu : les commissions
+      // restent validées et la dette reste ouverte pour le mois suivant.
       result.skipped++;
       continue;
     }
@@ -565,12 +607,23 @@ export async function runAffiliatePayouts(): Promise<{
         .update({ status: "paid", paid_at: new Date().toISOString(), payout_id: tx.id })
         .in("id", bucket.ids);
 
+      // La dette est soldée seulement maintenant : si le virement avait échoué,
+      // elle serait restée ouverte pour le mois suivant.
+      if (owed > 0) {
+        await untyped(admin)
+          .from("affiliate_clawbacks")
+          .update({ settled_at: new Date().toISOString(), settled_by_tx: tx.id })
+          .in("id", (clawbacks ?? []).map((c: any) => c.id));
+      }
+
       await notify({
         userId: creatorId,
         type: "affiliate_payout_sent",
         title: `💸 ${net.toFixed(2)} € en route`,
         body:
-          "Tes commissions d'affiliation viennent d'être versées sur ton compte. " +
+          (owed > 0
+            ? `Tes commissions d'affiliation viennent d'être versées, après déduction de ${owed.toFixed(2)} € correspondant à des ventes remboursées par la marque. `
+            : "Tes commissions d'affiliation viennent d'être versées sur ton compte. ") +
           "Compte 2 à 3 jours ouvrés avant de les voir sur ton compte bancaire.",
         link: "/payouts",
       });
