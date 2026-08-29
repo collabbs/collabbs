@@ -15,9 +15,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * même si aucun ne l'atteint seul. C'est précisément ce que personne ne suit à
  * la main — et ce que Collabbs peut calculer tout seul.
  *
- * ⚠️ Ce module compte ce que la plateforme connaît. Les cadeaux et dotations
- * envoyés hors Collabbs entrent aussi dans le calcul légal mais nous échappent :
- * le chiffre affiché est donc un plancher, jamais un quitus.
+ * ⚠️ Ce module compte ce que la plateforme connaît : deals, commissions
+ * d'affiliation, et avantages en nature DÉCLARÉS. Un cadeau envoyé sans être
+ * déclaré entre dans le calcul légal mais nous échappe — le chiffre affiché est
+ * donc un plancher, jamais un quitus.
  */
 
 /** Seuil légal, en euros hors taxes, par couple marque × créateur et par année civile. */
@@ -33,6 +34,8 @@ export type ThresholdState = {
   fromDeals: number;
   /** Commissions d'affiliation acquises au créateur. */
   fromAffiliate: number;
+  /** Valeur des avantages en nature déclarés (cadeaux, dotations, services). */
+  fromInKind: number;
   /** Total connu de la plateforme. */
   total: number;
   /** Ce qu'il reste avant de déclencher l'obligation (0 si déjà atteinte). */
@@ -105,11 +108,28 @@ export async function thresholdFor(
     );
   }
 
-  const total = round2(fromDeals + fromAffiliate);
+  // Avantages en nature : la loi les compte au même titre que l'argent.
+  // On ne retient que ceux qui sont déclarés — un avantage contesté par le
+  // créateur ou annulé par la marque ne pèse pas sur le cumul.
+  const { data: inKind } = await untyped(admin)
+    .from("in_kind_benefits")
+    .select("value, sent_at, status")
+    .eq("brand_id", brandId)
+    .eq("creator_id", creatorId)
+    .eq("status", "declared")
+    .gte("sent_at", from.slice(0, 10))
+    .lt("sent_at", to.slice(0, 10));
+  const fromInKind = (inKind ?? []).reduce(
+    (s: number, g: any) => s + Number(g.value ?? 0),
+    0,
+  );
+
+  const total = round2(fromDeals + fromAffiliate + fromInKind);
   return {
     year,
     fromDeals: round2(fromDeals),
     fromAffiliate: round2(fromAffiliate),
+    fromInKind: round2(fromInKind),
     total,
     remaining: round2(Math.max(0, LEGAL_THRESHOLD - total)),
     required: total >= LEGAL_THRESHOLD,

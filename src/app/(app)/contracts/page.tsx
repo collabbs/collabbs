@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { eurExact } from "@/lib/deal";
 import { LEGAL_THRESHOLD } from "@/lib/legal-threshold";
 import EmptyState from "@/components/EmptyState";
+import { declareInKind, cancelInKind, disputeInKind } from "./actions";
 
 export const metadata = { title: "Contrats — Collabbs" };
 
@@ -32,7 +33,12 @@ function dateFr(iso: string | null) {
   });
 }
 
-export default async function ContractsPage() {
+export default async function ContractsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,6 +79,20 @@ export default async function ContractsPage() {
   for (const b of brandsRes.data ?? []) if (b.name) nameOf.set(b.id, b.name);
   for (const c of creatorsRes.data ?? []) if (c.handle) nameOf.set(c.id, `@${c.handle}`);
 
+  // Avantages en nature. Si la migration 0036 n'est pas encore appliquée, la
+  // requête échoue proprement et la section reste masquée plutôt que de casser
+  // toute la page.
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const { data: inKindRaw, error: inKindErr } = await (supabase as any)
+    .from("in_kind_benefits")
+    .select("id, brand_id, creator_id, label, value, sent_at, note, status, dispute_reason")
+    .or(`brand_id.eq.${user.id},creator_id.eq.${user.id}`)
+    .neq("status", "cancelled")
+    .order("sent_at", { ascending: false })
+    .limit(50);
+  const inKindReady = !inKindErr;
+  const inKind = (inKindRaw ?? []) as any[];
+
   // Cumul par contrepartie sur l'année civile en cours — la maille du seuil légal.
   const year = new Date().getFullYear();
   const cumul = new Map<string, number>();
@@ -81,6 +101,12 @@ export default async function ContractsPage() {
     if (d.status !== "active" && d.status !== "completed") continue;
     const other = d.brand_id === user.id ? d.creator_id : d.brand_id;
     cumul.set(other, (cumul.get(other) ?? 0) + Number(d.amount ?? 0));
+  }
+  for (const g of inKind) {
+    if (g.status !== "declared") continue;
+    if (new Date(g.sent_at).getFullYear() !== year) continue;
+    const other = g.brand_id === user.id ? g.creator_id : g.brand_id;
+    cumul.set(other, (cumul.get(other) ?? 0) + Number(g.value ?? 0));
   }
   const partners = [...cumul.entries()]
     .map(([id, total]) => ({ id, total, name: nameOf.get(id) ?? "Partenaire" }))
@@ -93,6 +119,13 @@ export default async function ContractsPage() {
         Tous tes contrats signés, conservés et consultables. Et le suivi du seuil légal
         de {eurExact(LEGAL_THRESHOLD)} par partenaire et par année civile.
       </p>
+
+      {sp.saved && (
+        <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">✓ {sp.saved}</p>
+      )}
+      {sp.error && (
+        <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{sp.error}</p>
+      )}
 
       {/* Suivi du seuil */}
       {partners.length > 0 && (
@@ -143,6 +176,164 @@ export default async function ContractsPage() {
             Ce cumul ne compte que ce qui passe par Collabbs. Les cadeaux et
             collaborations réglés en dehors entrent aussi dans le calcul légal.
           </p>
+        </section>
+      )}
+
+      {/* Avantages en nature */}
+      {inKindReady && (
+        <section className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-ink">Cadeaux et dotations</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            {role === "brand"
+              ? "Un produit offert compte dans le seuil légal au même titre qu'un paiement. Déclare-le pour que le cumul soit juste."
+              : "Ce que les marques déclarent t'avoir offert. La valeur entre dans ton cumul annuel — si c'est inexact, conteste."}
+          </p>
+
+          {role === "brand" && (
+            <details className="mt-4 rounded-xl border border-zinc-200 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-ink">
+                Déclarer un cadeau ou une dotation
+              </summary>
+              <form action={declareInKind} className="mt-4 flex flex-col gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-zinc-500">Créateur (@)</span>
+                    <input
+                      name="handle"
+                      required
+                      placeholder="ines.fit"
+                      className="rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-zinc-500">Date d&apos;envoi</span>
+                    <input
+                      type="date"
+                      name="sentAt"
+                      className="rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    />
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-500">Ce qui a été offert</span>
+                  <input
+                    name="label"
+                    required
+                    placeholder="Paire de sneakers, modèle Runner X"
+                    className="rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-500">
+                    Valeur commerciale (€)
+                  </span>
+                  <input
+                    type="number"
+                    name="value"
+                    min={0}
+                    step="0.01"
+                    required
+                    placeholder="129.90"
+                    className="w-40 rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-zinc-500">Note (facultatif)</span>
+                  <input
+                    name="note"
+                    className="rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="self-start rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Déclarer
+                </button>
+              </form>
+            </details>
+          )}
+
+          {inKind.length === 0 ? (
+            <p className="mt-4 text-sm text-zinc-500">Aucun avantage déclaré pour l&apos;instant.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-zinc-100">
+              {inKind.map((g) => {
+                const other = g.brand_id === user.id ? g.creator_id : g.brand_id;
+                const disputed = g.status === "disputed";
+                return (
+                  <li key={g.id} className="py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">
+                          {g.label}
+                          <span className="font-normal text-zinc-500">
+                            {" "}
+                            · {nameOf.get(other) ?? "Partenaire"}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {eurExact(Number(g.value ?? 0))} · envoyé le {dateFr(g.sent_at)}
+                          {g.note ? ` · ${g.note}` : ""}
+                        </p>
+                        {disputed && (
+                          <p className="mt-1 text-xs text-amber-700">
+                            Contesté : {g.dispute_reason}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                            disputed
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-zinc-100 text-zinc-600"
+                          }`}
+                        >
+                          {disputed ? "Contesté — hors cumul" : "Compté dans le cumul"}
+                        </span>
+                        {role === "brand" && (
+                          <form action={cancelInKind}>
+                            <input type="hidden" name="id" value={g.id} />
+                            <button
+                              type="submit"
+                              className="text-xs font-medium text-red-600 underline underline-offset-2"
+                            >
+                              Retirer
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+
+                    {role === "creator" && !disputed && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs font-medium text-zinc-500">
+                          Ce n&apos;est pas exact ?
+                        </summary>
+                        <form action={disputeInKind} className="mt-2 flex flex-wrap gap-2">
+                          <input type="hidden" name="id" value={g.id} />
+                          <input
+                            name="reason"
+                            required
+                            minLength={5}
+                            placeholder="Jamais reçu, ou valeur surévaluée…"
+                            className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                          />
+                          <button
+                            type="submit"
+                            className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white"
+                          >
+                            Contester
+                          </button>
+                        </form>
+                      </details>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 
