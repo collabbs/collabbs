@@ -11,7 +11,8 @@ import { settleSale } from "@/lib/affiliate-billing";
 // utilisé pour les ventes via lien tracké).
 //
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization:
-// Bearer <secret>`, ou en repli ?key=<secret> dans l'URL).
+// Bearer <secret>`, ou `key` dans le corps JSON en POST). Jamais dans l'URL :
+//            un paramètre d'URL finit dans les journaux d'accès.
 // Idempotence : si la même `order_id` est postée 2 fois pour le même
 // lien (et même source=promo_code), la 2e tentative est ignorée.
 //
@@ -133,7 +134,11 @@ async function handle(p: Payload) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = extractSecret(request, url.searchParams.get("key"));
+  // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
+  // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
+  // journaux donnerait le pouvoir de fabriquer des ventes. L'en-tête
+  // `Authorization: Bearer <secret>` est la seule voie en GET.
+  const secret = extractSecret(request, null);
   return handle({
     code: url.searchParams.get("code"),
     amount: url.searchParams.get("amount"),

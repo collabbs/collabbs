@@ -144,7 +144,11 @@ async function handle(p: Payload) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = extractSecret(request, url.searchParams.get("key"));
+  // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
+  // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
+  // journaux donnerait le pouvoir de fabriquer des ventes. L'en-tête
+  // `Authorization: Bearer <secret>` est la seule voie en GET.
+  const secret = extractSecret(request, null);
   return handle({
     code: url.searchParams.get("code"),
     amount: url.searchParams.get("amount"),
