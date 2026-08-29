@@ -83,10 +83,24 @@ async function loadRelations(ids: string[]) {
   const supabase = await createClient();
   const [profsRes, cpsRes, cnsRes, cosRes, platRes, nicheRes] = await Promise.all([
     supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
+    // Les colonnes de vérification arrivent avec la migration 0037. Si elle
+    // n'est pas encore appliquée, la requête échouerait et — le gating exigeant
+    // au moins un réseau — la marketplace se viderait SILENCIEUSEMENT. On
+    // retente donc sans ces colonnes plutôt que de tout perdre.
     supabase
       .from("creator_platforms")
       .select("creator_id, platform_id, subscribers, handle, url, verified_at, verified_source")
-      .in("creator_id", ids),
+      .in("creator_id", ids)
+      .then(async (res) => {
+        if (!res.error) return res;
+        console.warn(
+          "[creators-data] colonnes de vérification absentes — repli sans elles. Applique la migration 0037.",
+        );
+        return supabase
+          .from("creator_platforms")
+          .select("creator_id, platform_id, subscribers, handle, url")
+          .in("creator_id", ids);
+      }),
     supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
     supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", ids),
     supabase.from("platforms").select("id, label, slug"),
