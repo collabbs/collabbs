@@ -450,6 +450,11 @@ async function BrandAnalytics({
   const caPrev = evPrev
     .filter((e) => e.type === "sale" && countsAsEarning(e))
     .reduce((s, e) => s + Number(e.sale_amount ?? 0), 0);
+  // ⚠️ Ce total, ce sont les commissions DUES aux créateurs — réservées,
+  // acquises, versées, et même celles que la provision n'a pas pu couvrir.
+  // La page les annonçait « versées », alors que le versement d'affiliation
+  // est mensuel : la marque lisait comme un paiement effectué ce qu'elle
+  // devait encore.
   const commissionsCurrent = evCurrent
     .filter(countsAsEarning)
     .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
@@ -547,7 +552,7 @@ async function BrandAnalytics({
     { label: "Clics", value: clicksCurrent, format: "int" as const },
     { label: "Ventes", value: salesCurrent, format: "int" as const },
     { label: "CA généré", value: caCurrent, format: "eur" as const },
-    { label: "Commissions versées", value: commissionsCurrent, format: "eur" as const },
+    { label: "Commissions générées", value: commissionsCurrent, format: "eur" as const },
   ];
 
   const hasData =
@@ -576,12 +581,13 @@ async function BrandAnalytics({
           suffix="€"
         />
         <KpiTrend
-          label="Commissions versées"
+          label="Commissions générées"
           value={commissionsCurrent}
           icon="🔗"
           tone="amber"
           delta={pctDelta(commissionsCurrent, commissionsPrev)}
           suffix="€"
+          hint="Dues aux créateurs · versées le 1er du mois"
         />
         <KpiTrend
           label="Clics affiliation"

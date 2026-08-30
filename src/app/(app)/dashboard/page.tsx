@@ -345,7 +345,7 @@ export default async function DashboardPage() {
       ],
       secondaryStats: [
         { label: "Investi en deals", value: eur(invested) },
-        { label: "Commissions versées", value: eur(commissions) },
+        { label: "Commissions générées", value: eur(commissions) },
         { label: "Ventes confirmées", value: String(sales) },
         { label: "Campagnes totales", value: String(campaigns.length) },
       ],
