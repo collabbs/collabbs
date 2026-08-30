@@ -20,8 +20,11 @@ export async function generateMetadata({
     .select("name, sector")
     .eq("id", id)
     .maybeSingle();
+  // Le titre est calculé avant la page : sans cette garde, l'onglet d'une 404
+  // affichait « Sephora — Collabbs », c'est-à-dire le nom qu'on cache.
+  const cachee = !demoVisible() && (await marqueDeDemo(supabase, id));
   return {
-    title: b ? `${b.name} — Collabbs` : "Marque — Collabbs",
+    title: b && !cachee ? `${b.name} — Collabbs` : "Marque — Collabbs",
   };
 }
 
