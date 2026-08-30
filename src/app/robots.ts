@@ -54,7 +54,6 @@ export default function robots(): MetadataRoute.Robots {
           // Points d'entrée techniques.
           "/api/",
           "/auth/",
-          "/health",
           // Les liens d'affiliation sont des redirections : les indexer
           // fausserait les statistiques de clics et n'apporterait rien.
           "/r/",
