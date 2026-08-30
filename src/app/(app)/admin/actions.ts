@@ -197,3 +197,24 @@ export async function adminRejectSale(formData: FormData) {
   revalidatePath("/admin");
   back("Vente écartée, réservation rendue à la marque.");
 }
+
+/**
+ * Marque une erreur de production comme traitée.
+ *
+ * Elle sort de l'écran mais reste en base : on veut pouvoir constater qu'une
+ * panne revient après avoir été « traitée ».
+ */
+export async function resolveError(formData: FormData) {
+  await requireAdmin();
+  const errorId = String(formData.get("errorId") ?? "");
+  if (!errorId) back("Erreur introuvable.", "error");
+
+  const admin = createAdminClient();
+  await untyped(admin)
+    .from("error_reports")
+    .update({ resolved_at: new Date().toISOString() })
+    .eq("id", errorId);
+
+  revalidatePath("/admin");
+  back("Erreur marquée traitée.");
+}

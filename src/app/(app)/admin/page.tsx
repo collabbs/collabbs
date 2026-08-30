@@ -7,6 +7,7 @@ import {
   adminRefundEscrow,
   adminResolveInKind,
   adminRejectSale,
+  resolveError,
 } from "./actions";
 
 export const metadata = { title: "Administration — Collabbs" };
@@ -128,7 +129,21 @@ export default async function AdminPage({
   const unfunded = sales.filter(
     (s) => s.status === "unfunded" && Number(s.commission_amount ?? 0) > 0,
   );
-  const attention = stuckEscrow.filter((x) => x.days >= 14).length + disputes.length + unfunded.length;
+  // Erreurs de production non traitées. Sans cet écran, le journal serait
+  // aussi invisible que les `console.error` qu'il remplace.
+  const { data: erreursRaw } = await (admin as any)
+    .from("error_reports")
+    .select("id, context, message, detail, occurrences, first_seen_at, last_seen_at")
+    .is("resolved_at", null)
+    .order("last_seen_at", { ascending: false })
+    .limit(20);
+  const erreurs = (erreursRaw ?? []) as any[];
+
+  const attention =
+    stuckEscrow.filter((x) => x.days >= 14).length +
+    disputes.length +
+    unfunded.length +
+    erreurs.length;
 
   return (
     <>
@@ -178,6 +193,57 @@ export default async function AdminPage({
       </div>
 
       {/* Séquestres en attente */}
+      {erreurs.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-red-200 bg-red-50/40 p-6">
+          <h2 className="font-semibold text-red-900">
+            {erreurs.length} erreur{erreurs.length > 1 ? "s" : ""} en production
+          </h2>
+          <p className="mt-1 text-sm text-red-800">
+            Regroupées par cause. Tout ce qui casse sur un chemin qui touche à
+            l&apos;argent atterrit ici — c&apos;est le seul endroit où tu
+            l&apos;apprendras.
+          </p>
+          <ul className="mt-4 space-y-3">
+            {erreurs.map((e) => (
+              <li
+                key={e.id}
+                className="rounded-xl border border-red-200 bg-white p-3"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-mono text-xs font-semibold text-red-700">
+                    {e.context}
+                  </p>
+                  <span className="text-xs text-zinc-500">
+                    {e.occurrences > 1 ? `${e.occurrences} fois · ` : ""}
+                    dernière {dateFr(e.last_seen_at)}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-ink">{e.message}</p>
+                {e.detail && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-zinc-500">
+                      Détail
+                    </summary>
+                    <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-900 p-3 text-[11px] leading-relaxed text-zinc-100">
+                      {e.detail}
+                    </pre>
+                  </details>
+                )}
+                <form action={resolveError} className="mt-2">
+                  <input type="hidden" name="errorId" value={e.id} />
+                  <button
+                    type="submit"
+                    className="text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
+                  >
+                    Marquer traitée
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
         <h2 className="font-semibold text-ink">Séquestres en cours</h2>
         <p className="mt-1 text-sm text-zinc-500">

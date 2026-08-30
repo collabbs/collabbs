@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Circuit d'argent de l'affiliation.
@@ -152,7 +153,7 @@ async function tryReserve(
     p_label: "Commission d'affiliation",
   });
   if (error) {
-    console.error("[affiliate-billing] reserve_commission a échoué", error);
+    void reportError("affiliate/reserve", error, { detail: `événement ${eventId}` });
     return false;
   }
   return data === true;
@@ -365,7 +366,7 @@ export async function creditTopup(
     p_label: label,
   });
   if (error) {
-    console.error("[affiliate-billing] credit_balance (topup) a échoué", error);
+    void reportError("affiliate/topup", error, { detail: `marque ${brandId}` });
     return { ok: false };
   }
 
@@ -677,7 +678,7 @@ export async function runAffiliatePayouts(): Promise<{
       .single();
 
     if (txErr || !tx) {
-      console.error("[affiliate-billing] transaction de versement impossible", txErr);
+      void reportError("affiliate/payout", txErr, { detail: `créateur ${creatorId}` });
       result.failed++;
       continue;
     }
@@ -730,7 +731,9 @@ export async function runAffiliatePayouts(): Promise<{
     } catch (err) {
       // Transfert refusé (solde plateforme insuffisant, compte incomplet…) :
       // on annule la transaction, les ventes restent validées pour le prochain tour.
-      console.error("[affiliate-billing] transfert Stripe refusé", err);
+      void reportError("affiliate/transfer", err, {
+        detail: `créateur ${creatorId} · ${net} €`,
+      });
       await untyped(admin)
         .from("transactions")
         .update({ status: "cancelled" })

@@ -10,6 +10,7 @@ import { notify } from "@/lib/notifications";
 import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { thresholdWith } from "@/lib/legal-threshold";
+import { reportError } from "@/lib/report-error";
 
 type Result = { ok: boolean; error?: string };
 
@@ -792,9 +793,9 @@ export async function completeDeal(dealId: string): Promise<Result> {
   // d'ailleurs. Il aurait cherché en vain, et l'erreur n'apparaissait nulle
   // part.
   if (!payoutRes.released) {
-    console.error(
-      `[deals] versement impossible sur ${dealId} (${payoutRes.reason ?? "?"}) : ${payoutRes.error}`,
-    );
+    await reportError("deals/payout", payoutRes.error ?? "versement impossible", {
+      detail: `collaboration ${dealId} · raison ${payoutRes.reason ?? "?"}`,
+    });
   }
 
   await notify({

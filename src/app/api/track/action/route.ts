@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
 import { cpaTotalFor, cpaTierLabel, type CpaTier } from "@/lib/cpa";
+import { reportError } from "@/lib/report-error";
 
 // Postback d'ACTION attribuée à un lien d'affiliation (campagnes au CPA).
 //
@@ -154,7 +155,9 @@ async function handle(p: Payload) {
     p_total: totalGagne,
   });
   if (erreurCredit) {
-    console.error("[track/action] credit_cpa_action a échoué", erreurCredit);
+    await reportError("track/action", erreurCredit, {
+      detail: `lien ${link.id}`,
+    });
     return NextResponse.json(
       { ok: false, error: "crédit impossible" },
       { status: 500 },

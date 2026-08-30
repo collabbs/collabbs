@@ -7,6 +7,7 @@ import {
   handleChargeRefunded,
 } from "@/lib/stripe";
 import { handleTopupCheckout } from "@/lib/affiliate-billing";
+import { reportError } from "@/lib/report-error";
 
 // Webhook Stripe — source de vérité asynchrone pour les événements de paiement.
 // Sécurité : la signature Stripe est vérifiée avec STRIPE_WEBHOOK_SECRET (sinon 401).
@@ -73,10 +74,9 @@ export async function POST(request: Request) {
     // Mais l'erreur DOIT être visible. Le commentaire disait « on logue (à
     // brancher plus tard) » et le bloc était vide : un séquestre perdu des
     // deux côtés n'aurait laissé aucune trace, alors que la marque a payé.
-    console.error(
-      `[stripe-webhook] échec du traitement de ${event.type} (${event.id})`,
-      err,
-    );
+    await reportError("stripe-webhook", err, {
+      detail: `évènement ${event.type} (${event.id})`,
+    });
   }
 
   return NextResponse.json({ ok: true });
