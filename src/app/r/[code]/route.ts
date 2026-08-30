@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { limitByIp, tooManyRequests, RATE_POLICIES, clientIp } from "@/lib/rate-limit";
 
 /**
  * Empreinte non réversible d'un visiteur, propre à un lien.
@@ -14,10 +15,11 @@ import { notifyOnce } from "@/lib/notifications";
 function visitorHash(request: Request, linkId: string): string | null {
   const secret = process.env.COLLABBS_POSTBACK_SECRET;
   if (!secret) return null; // pas de secret → pas d'empreinte, on compte tout
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "";
+  // Même règle que pour la limitation de débit : on ne lit jamais l'adresse
+  // que l'appelant DÉCLARE. Prendre le premier élément de `x-forwarded-for`
+  // rendait la déduplication des clics contournable — il suffisait de changer
+  // l'en-tête à chaque appel pour gonfler le compteur d'un créateur.
+  const ip = clientIp(request.headers) ?? "";
   const ua = request.headers.get("user-agent") ?? "";
   if (!ip && !ua) return null;
   return createHmac("sha256", secret).update(`${linkId}|${ip}|${ua}`).digest("hex");
@@ -29,6 +31,12 @@ export async function GET(
   request: Request,
   ctx: { params: Promise<{ code: string }> },
 ) {
+  // Un humain qui clique ne dépasse jamais ce plafond. Ce qu'on arrête, c'est
+  // la boucle qui gonfle le compteur de clics d'un créateur — et, accessoirement,
+  // la lecture en base que chaque appel déclenche.
+  const verdict = await limitByIp(request, "redirect", RATE_POLICIES.redirect);
+  if (!verdict.allowed) return tooManyRequests(verdict.retryAfter);
+
   const { code } = await ctx.params;
   const origin = new URL(request.url).origin;
   const supabase = createAdminClient();

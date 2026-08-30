@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
+import { limitByIp, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Pixel "client-side" pour le drop-in script (track.js).
 // Sécurité : on n'a pas de secret côté navigateur, donc on vérifie que le
@@ -12,12 +13,13 @@ const PIXEL = Buffer.from(
   "base64",
 );
 
-function pixelResponse(status = 200) {
+function pixelResponse(status = 200, extra?: Record<string, string>) {
   return new Response(new Uint8Array(PIXEL), {
     status,
     headers: {
       "Content-Type": "image/gif",
       "Cache-Control": "no-store, no-cache, must-revalidate",
+      ...extra,
     },
   });
 }
@@ -44,6 +46,15 @@ function refererAllowed(referer: string | null, website: string | null): boolean
 }
 
 export async function GET(request: Request) {
+  // Plafond par visiteur, avant toute lecture en base. Le corps reste le GIF :
+  // la page de la marque ne doit pas afficher d'image cassée parce qu'un autre
+  // onglet a trop tiré. Le statut 429 et `Retry-After` sont là pour les
+  // clients qui les lisent.
+  const verdict = await limitByIp(request, "track:pixel", RATE_POLICIES.pixel);
+  if (!verdict.allowed) {
+    return pixelResponse(429, { "Retry-After": String(verdict.retryAfter) });
+  }
+
   const url = new URL(request.url);
   const brandId = url.searchParams.get("brand");
   const ref = url.searchParams.get("ref");
