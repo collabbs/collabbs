@@ -176,7 +176,11 @@ export default function LegalInfoSection({
             onChange={(e) => set("siret", e.target.value.replace(/[^0-9 ]/g, ""))}
             placeholder="14 chiffres (SIRET) ou 9 (SIREN)"
             inputMode="numeric"
-            maxLength={16}
+            // 14 chiffres + les espaces tels qu'ils sont imprimés sur le Kbis
+            // (« 912 345 678 00029 » = 17 signes). À 16, le champ coupait le
+            // DERNIER chiffre — c'est-à-dire la clé de contrôle : le numéro
+            // était recopié correctement et refusé quand même.
+            maxLength={20}
             className="mt-1.5 w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
           />
 
