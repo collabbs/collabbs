@@ -360,7 +360,79 @@ export async function creditTopup(
     .update({ topup_failed_at: null })
     .eq("id", brandId);
 
+  // La provision vient d'être renflouée : on régularise ce qui était dû.
+  // C'est exactement ce que l'écran de facturation promet à la marque.
+  const rattrapage = await reserveOutstanding(brandId);
+  if (rattrapage.reserved > 0) {
+    console.info(
+      `[affiliate-billing] ${rattrapage.reserved}/${rattrapage.total} commission(s) régularisée(s) après approvisionnement`,
+    );
+  }
+
   return { ok: true };
+}
+
+/**
+ * Réserve les commissions restées « non financées » faute de provision.
+ *
+ * Sans ça, le circuit avait un trou : une commission née pendant que la
+ * provision était à sec restait `unfunded` POUR TOUJOURS. Rien ne la
+ * repêchait — ni un approvisionnement, ni un cron. Le créateur n'était jamais
+ * payé, alors que l'écran de facturation disait à la marque
+ * « Approvisionne pour régulariser » : une promesse que le code ne tenait pas.
+ *
+ * Les plus anciennes d'abord : c'est le créateur qui attend depuis le plus
+ * longtemps qui doit être servi en premier. On s'arrête à la première qui ne
+ * passe pas — la provision est épuisée, inutile d'insister.
+ */
+export async function reserveOutstanding(
+  brandId: string,
+): Promise<{ reserved: number; total: number }> {
+  const admin = createAdminClient();
+
+  // Les commissions dues par CETTE marque : on passe par ses campagnes.
+  const { data: campaigns } = await untyped(admin)
+    .from("campaigns")
+    .select("id")
+    .eq("brand_id", brandId);
+  const campaignIds = ((campaigns ?? []) as { id: string }[]).map((c) => c.id);
+  if (campaignIds.length === 0) return { reserved: 0, total: 0 };
+
+  const { data: links } = await untyped(admin)
+    .from("affiliate_links")
+    .select("id")
+    .in("campaign_id", campaignIds);
+  const linkIds = ((links ?? []) as { id: string }[]).map((l) => l.id);
+  if (linkIds.length === 0) return { reserved: 0, total: 0 };
+
+  const { data: dues } = await untyped(admin)
+    .from("affiliate_events")
+    .select("id, commission_amount, platform_fee")
+    .eq("status", "unfunded")
+    .in("link_id", linkIds)
+    .order("occurred_at", { ascending: true });
+
+  const lignes = ((dues ?? []) as {
+    id: string;
+    commission_amount: number | null;
+    platform_fee: number | null;
+  }[]).filter((e) => Number(e.commission_amount ?? 0) > 0);
+
+  let reserved = 0;
+  for (const e of lignes) {
+    const total = round2(Number(e.commission_amount ?? 0) + Number(e.platform_fee ?? 0));
+    const ok = await tryReserve(admin, brandId, e.id, total);
+    if (!ok) break; // provision épuisée
+    const validateAt = new Date();
+    validateAt.setDate(validateAt.getDate() + VALIDATION_DAYS);
+    await untyped(admin)
+      .from("affiliate_events")
+      .update({ status: "pending", validate_at: validateAt.toISOString() })
+      .eq("id", e.id);
+    reserved++;
+  }
+
+  return { reserved, total: lignes.length };
 }
 
 /**

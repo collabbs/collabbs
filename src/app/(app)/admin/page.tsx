@@ -123,7 +123,11 @@ export default async function AdminPage({
     .map((x) => ({ ...x, days: daysSince(x.tx.created_at) ?? 0 }))
     .sort((a, b) => b.days - a.days);
 
-  const unfunded = sales.filter((s) => s.status === "unfunded");
+  // Seules les dettes réelles méritent une alerte : une action CPA sous le
+  // premier palier ne rapporte rien et ne doit rien signaler.
+  const unfunded = sales.filter(
+    (s) => s.status === "unfunded" && Number(s.commission_amount ?? 0) > 0,
+  );
   const attention = stuckEscrow.filter((x) => x.days >= 14).length + disputes.length + unfunded.length;
 
   return (

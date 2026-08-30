@@ -3,7 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
-import { cpaIncrement, cpaTierLabel, type CpaTier } from "@/lib/cpa";
+import { cpaTotalFor, cpaTierLabel, type CpaTier } from "@/lib/cpa";
 
 // Postback d'ACTION attribuée à un lien d'affiliation (campagnes au CPA).
 //
@@ -101,8 +101,12 @@ async function handle(p: Payload) {
       type: "action",
       source: "cpa_action",
       action_count: p.count,
-      // Non financée tant que la réservation sur la provision n'a pas abouti.
-      status: "unfunded",
+      // Statut posé juste après, une fois le crédit connu. On part de
+      // « validée » plutôt que « non financée » : en paliers, la plupart des
+      // actions ne rapportent rien tant qu'un seuil n'est pas franchi, et
+      // rien n'est dû pour celles-là. Les marquer « non financées »
+      // reviendrait à signaler une dette inexistante.
+      status: "validated",
       commission_amount: 0,
       external_ref: p.actionId,
     })
@@ -133,21 +137,37 @@ async function handle(p: Payload) {
       .eq("campaign_id", link.campaign_id),
   ]);
 
-  const lignes = (evenements ?? []) as { action_count: number | null; commission_amount: number | null }[];
+  const lignes = (evenements ?? []) as { action_count: number | null }[];
   const cumul = lignes.reduce((n, e) => n + (e.action_count ?? 0), 0);
-  const dejaCredite = lignes.reduce((n, e) => n + Number(e.commission_amount ?? 0), 0);
 
-  const commission = cpaIncrement(
-    campaign,
-    (tiers ?? []) as CpaTier[],
-    cumul,
-    dejaCredite,
-  );
+  // Total gagné au niveau atteint. La logique des paliers vit ici, en un seul
+  // endroit, testée — la base ne fait que l'appliquer.
+  const totalGagne = cpaTotalFor(campaign, (tiers ?? []) as CpaTier[], cumul);
+
+  // Le crédit lui-même est atomique : `credit_cpa_action` verrouille les
+  // actions du lien, relit ce qui a déjà été versé et n'écrit que l'écart.
+  // Sans ce verrou, deux déclarations simultanées liraient la même somme et
+  // créditeraient chacune le palier entier — un double paiement.
+  const { data: credite, error: erreurCredit } = await supabase.rpc("credit_cpa_action", {
+    p_link: link.id,
+    p_event: inserted.id,
+    p_total: totalGagne,
+  });
+  if (erreurCredit) {
+    console.error("[track/action] credit_cpa_action a échoué", erreurCredit);
+    return NextResponse.json(
+      { ok: false, error: "crédit impossible" },
+      { status: 500 },
+    );
+  }
+  const commission = Number(credite ?? 0);
 
   // En paliers, des actions supplémentaires sans nouveau palier franchi ne
   // rapportent rien : l'événement reste enregistré à 0 €, ce qui est
   // exactement ce que l'interface annonce au créateur.
   if (commission > 0) {
+    // `settleSale` pose le statut définitif : « pending » si la provision a
+    // couvert, « unfunded » sinon.
     await settleSale({
       eventId: inserted.id,
       brandId: campaign.brand_id,
