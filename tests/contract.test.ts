@@ -184,4 +184,42 @@ describe("contrat de collaboration", () => {
       expect(lu, `trou de gabarit « ${trou} »`).not.toContain(trou);
     }
   });
+
+  /**
+   * Les libellés de format sont des locutions, pas des noms isolés. Le code
+   * leur ajoutait un « s » au pluriel, ce qui produisait « 2 vidéo publiée sur
+   * les réseaux sociauxs » — une faute d'accord et un mot inexistant, dans un
+   * document juridique. Constaté le 30 août 2026 en lisant le contrat à
+   * l'écran pour la première fois.
+   */
+  it("accorde le format au nombre, sans inventer de mot", () => {
+    const attendus: [string, number, string][] = [
+      ["video_post", 1, "1 vidéo publiée sur les réseaux sociaux."],
+      ["video_post", 2, "2 vidéos publiées sur les réseaux sociaux."],
+      ["story", 3, "3 stories publiées sur les réseaux sociaux."],
+      ["reel", 2, "2 reels publiés sur les réseaux sociaux."],
+      ["ugc", 4, "4 contenus générés par l'utilisateur (UGC), livrés à l'annonceur."],
+      ["live", 2, "2 sessions en direct (live)."],
+    ];
+    for (const [format, quantity, fin] of attendus) {
+      const doc = buildContractDocument({
+        reference: "CT", regime: "complete", snapshot: snapshot({ format, quantity }),
+      });
+      const objet = doc.clauses.find((c) => c.title.startsWith("Objet"))!;
+      const ligne = objet.paragraphs.find((x) => x.includes("Nature de la prestation"))!;
+      expect(ligne, `${format} ×${quantity}`).toContain(fin);
+    }
+  });
+
+  it("ne déforme pas un format inconnu", () => {
+    const doc = buildContractDocument({
+      reference: "CT", regime: "complete",
+      snapshot: snapshot({ format: "podcast", quantity: 3 }),
+    });
+    const ligne = doc.clauses
+      .find((c) => c.title.startsWith("Objet"))!
+      .paragraphs.find((x) => x.includes("Nature de la prestation"))!;
+    // Rendu tel quel plutôt qu'affublé d'un « s » hasardeux.
+    expect(ligne).toContain("3 podcast.");
+  });
 });

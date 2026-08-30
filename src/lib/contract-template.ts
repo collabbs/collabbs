@@ -41,13 +41,50 @@ export type ContractDocument = {
   footer: string[];
 };
 
-const FORMAT_LABELS: Record<string, string> = {
-  video_post: "vidéo publiée sur les réseaux sociaux",
-  ugc: "contenu généré par l'utilisateur (UGC), livré à l'annonceur",
-  story: "story publiée sur les réseaux sociaux",
-  reel: "reel publié sur les réseaux sociaux",
-  live: "session en direct (live)",
+/**
+ * Libellés des formats, au singulier ET au pluriel.
+ *
+ * Ce sont des locutions entières, pas des noms isolés : leur pluriel ne se
+ * déduit pas en ajoutant un « s ». C'est pourtant ce que faisait le code, et
+ * les cinq formats en sortaient fautifs — « 2 vidéo publiée sur les réseaux
+ * sociauxs », « 3 contenu généré par l'utilisateur (UGC), livré à
+ * l'annonceurs ». Une faute d'accord dans un contrat entame la confiance
+ * qu'on lui accorde ; trois des cinq formats produisaient en plus un mot qui
+ * n'existe pas.
+ */
+const FORMAT_LABELS: Record<string, { one: string; many: string }> = {
+  video_post: {
+    one: "vidéo publiée sur les réseaux sociaux",
+    many: "vidéos publiées sur les réseaux sociaux",
+  },
+  ugc: {
+    one: "contenu généré par l'utilisateur (UGC), livré à l'annonceur",
+    many: "contenus générés par l'utilisateur (UGC), livrés à l'annonceur",
+  },
+  story: {
+    one: "story publiée sur les réseaux sociaux",
+    many: "stories publiées sur les réseaux sociaux",
+  },
+  reel: {
+    one: "reel publié sur les réseaux sociaux",
+    many: "reels publiés sur les réseaux sociaux",
+  },
+  live: {
+    one: "session en direct (live)",
+    many: "sessions en direct (live)",
+  },
 };
+
+/**
+ * Libellé accordé au nombre. Un format inconnu — ajouté plus tard sans passer
+ * par ici — est rendu tel quel plutôt que déformé : mieux vaut un libellé
+ * brut qu'un mot inventé.
+ */
+function formatLabelFor(format: string, quantity: number): string {
+  const entry = FORMAT_LABELS[format];
+  if (!entry) return format;
+  return quantity > 1 ? entry.many : entry.one;
+}
 
 function eur(n: number): string {
   return `${n.toLocaleString("fr-FR", {
@@ -107,7 +144,7 @@ export function buildContractDocument(params: {
   }
   const complete = regime === "complete";
 
-  const formatLabel = FORMAT_LABELS[deal.format] ?? deal.format;
+
   const quantity = deal.quantity ?? 1;
   const clauses: Clause[] = [];
   let n = 0;
@@ -124,7 +161,7 @@ export function buildContractDocument(params: {
     deal.title
       ? `Le présent contrat a pour objet la réalisation par le créateur de la prestation d'influence commerciale intitulée « ${deal.title} ».`
       : "Le présent contrat a pour objet la réalisation par le créateur d'une prestation d'influence commerciale au bénéfice de l'annonceur.",
-    `**Nature de la prestation** : ${quantity} ${formatLabel}${quantity > 1 ? "s" : ""}.`,
+    `**Nature de la prestation** : ${quantity} ${formatLabelFor(deal.format, quantity)}.`,
     deal.brand_notes
       ? `**Attentes de l'annonceur** : ${deal.brand_notes}`
       : "Les attentes détaillées de l'annonceur sont celles échangées entre les Parties sur la plateforme Collabbs, annexées au présent contrat.",
