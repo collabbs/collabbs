@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractSnapshot } from "@/lib/contract-snapshot";
 import { buildContractDocument } from "@/lib/contract-template";
-import ContractActions from "./ContractActions";
+import ContractActions from "../ContractActions";
 import ContractView, { dateTimeFr } from "../ContractView";
 
 export const metadata = { title: "Contrat — Collabbs" };
@@ -72,7 +72,13 @@ export default async function ContractPage({
     };
     return (
       <>
-        <ContractActions reference={contract.reference} dealId={dealId} canExport={false} />
+        <ContractActions
+          reference={contract.reference}
+          backHref={`/deals/${dealId}`}
+          backLabel="Retour à la collaboration"
+          pdfHref={`/contracts/${dealId}/pdf`}
+          canExport={false}
+        />
         <article className="mx-auto max-w-3xl px-6 py-10 sm:px-10">
           <p className="font-mono text-xs uppercase tracking-widest text-zinc-400">
             Contrat archivé
@@ -119,7 +125,12 @@ export default async function ContractPage({
 
   return (
     <>
-      <ContractActions reference={contract.reference} dealId={dealId} />
+      <ContractActions
+        reference={contract.reference}
+        backHref={`/deals/${dealId}`}
+        backLabel="Retour à la collaboration"
+        pdfHref={`/contracts/${dealId}/pdf`}
+      />
       <ContractView
         doc={doc}
         eyebrow="Contrat de collaboration commerciale"

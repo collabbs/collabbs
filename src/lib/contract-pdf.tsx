@@ -171,11 +171,13 @@ function ContractPdf({
   brandSignedAt,
   creatorSignedAt,
   terminatedAt,
+  eyebrow = "Contrat de collaboration commerciale",
 }: {
   doc: ContractDocument;
   brandSignedAt: string | null;
   creatorSignedAt: string | null;
   terminatedAt: string | null;
+  eyebrow?: string;
 }) {
   const brandName =
     doc.parties.brand.legal_name || doc.parties.brand.display_name;
@@ -186,10 +188,10 @@ function ContractPdf({
     <Document
       title={`Contrat ${doc.reference}`}
       author="Collabbs"
-      subject="Contrat de collaboration commerciale"
+      subject={eyebrow}
     >
       <Page size="A4" style={styles.page}>
-        <Text style={styles.eyebrow}>Contrat de collaboration commerciale</Text>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
         <Text style={styles.title}>
           {brandName} × {creatorName}
         </Text>
@@ -270,6 +272,12 @@ export async function renderContractPdf(params: {
   brandSignedAt: string | null;
   creatorSignedAt: string | null;
   terminatedAt: string | null;
+  /**
+   * Nature du contrat, en tête de document. Le PDF l'affichait en dur : un
+   * contrat-cadre d'affiliation en sortait intitulé « Contrat de collaboration
+   * commerciale ». Un document juridique doit dire ce qu'il est.
+   */
+  eyebrow?: string;
 }): Promise<Buffer> {
   // Assaini une seule fois, en amont : aucun texte ne doit atteindre la mise
   // en page sans être passé par là.

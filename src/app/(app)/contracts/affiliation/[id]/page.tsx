@@ -1,11 +1,11 @@
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildAffiliateContractDocument,
   type AffiliateContractSnapshot,
 } from "@/lib/contract-template";
 import ContractView from "../../ContractView";
+import ContractActions from "../../ContractActions";
 import { signAffiliateContract } from "./actions";
 
 export const metadata = { title: "Contrat-cadre — Collabbs" };
@@ -59,40 +59,34 @@ export default async function AffiliateContractPage({
 
   return (
     <>
-      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white/90 px-6 py-4 backdrop-blur print:hidden sm:px-10">
-        <div className="min-w-0">
-          <Link
-            href="/contracts"
-            className="text-sm font-medium text-zinc-500 hover:text-ink"
-          >
-            ← Tous les contrats
-          </Link>
-          <p className="font-mono text-xs text-zinc-400">{contract.reference}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {!maSignature && (
-            <form action={signAffiliateContract}>
-              <input type="hidden" name="contractId" value={contract.id} />
-              <button
-                type="submit"
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-              >
-                Signer le contrat
-              </button>
-            </form>
-          )}
-          {maSignature && !complet && (
-            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
-              En attente de l&apos;autre partie
-            </span>
-          )}
-          {complet && (
-            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800">
-              Signé par les deux parties
-            </span>
-          )}
-        </div>
-      </div>
+      <ContractActions
+        reference={contract.reference}
+        backHref="/contracts"
+        backLabel="Tous les contrats"
+        pdfHref={`/contracts/affiliation/${contract.id}/pdf`}
+      >
+        {!maSignature && (
+          <form action={signAffiliateContract}>
+            <input type="hidden" name="contractId" value={contract.id} />
+            <button
+              type="submit"
+              className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Signer le contrat
+            </button>
+          </form>
+        )}
+        {maSignature && !complet && (
+          <span className="rounded-full bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            En attente de l&apos;autre partie
+          </span>
+        )}
+        {complet && (
+          <span className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+            Signé par les deux parties
+          </span>
+        )}
+      </ContractActions>
 
       <ContractView
         doc={doc}
