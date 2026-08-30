@@ -568,12 +568,27 @@ export default async function DealDetailPage({
                 </p>
               </form>
             ) : (
-              <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
-                {status === "negotiation"
-                  ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
-                  : status === "active"
-                    ? "🔒 En attente du règlement de la marque (mise en séquestre)."
-                    : "Aucun paiement enregistré pour ce deal."}
+              <div
+                className={
+                  status === "negotiation" && deal.amount <= 0
+                    ? "mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800"
+                    : "mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500"
+                }
+              >
+                {/* Un deal naît à 0 € : booking direct, ou candidature sur une
+                    campagne à la performance qui n'a pas de forfait. Tant que
+                    la marque n'a rien fixé, le créateur ne peut pas accepter —
+                    il signerait un contrat à 0 €. On le dit ici, à côté du
+                    montant, plutôt que de laisser le bouton échouer. */}
+                {status === "negotiation" && deal.amount <= 0
+                  ? role === "brand"
+                    ? "✏️ Montant à fixer. Cette collaboration est à 0 € : utilise « Modifier les termes » pour indiquer ce que tu proposes. Le créateur ne peut pas accepter avant."
+                    : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
+                  : status === "negotiation"
+                    ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
+                    : status === "active"
+                      ? "🔒 En attente du règlement de la marque (mise en séquestre)."
+                      : "Aucun paiement enregistré pour ce deal."}
               </div>
             )}
 

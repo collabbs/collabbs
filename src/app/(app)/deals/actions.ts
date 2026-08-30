@@ -10,6 +10,7 @@ import { notify } from "@/lib/notifications";
 import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { thresholdWith } from "@/lib/legal-threshold";
+import { eur } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
 import { valider } from "@/lib/validation";
 import { termesDealSchema } from "@/lib/schemas/deals";
@@ -151,13 +152,19 @@ export async function createDealFromApplication(applicationId: string) {
     redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
   }
 
-  await notify({
-    userId: app.creator_id,
-    type: "deal_proposed",
-    title: `Nouveau deal proposé — "${app.campaigns?.name ?? "campagne"}"`,
-    body: "La marque vient de te proposer une collaboration. Ouvre la page pour voir les termes et l'accepter.",
-    link: `/deals/${deal.id}`,
-  });
+  // On ne prévient le créateur que s'il y a un montant à lui montrer. Une
+  // campagne à la performance ou au CPA n'a pas de forfait : l'inviter à
+  // « voir les termes » d'un deal à 0 € ne lui offre qu'un cul-de-sac. La
+  // notification part quand la marque fixe le montant (`updateDealTerms`).
+  if (amount > 0) {
+    await notify({
+      userId: app.creator_id,
+      type: "deal_proposed",
+      title: `Nouveau deal proposé — "${app.campaigns?.name ?? "campagne"}"`,
+      body: "La marque vient de te proposer une collaboration. Ouvre la page pour voir les termes et l'accepter.",
+      link: `/deals/${deal.id}`,
+    });
+  }
 
   redirect(`/deals/${deal.id}`);
 }
@@ -222,13 +229,8 @@ export async function createDirectDeal(creatorId: string) {
     redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
   }
 
-  await notify({
-    userId: creatorId,
-    type: "deal_proposed",
-    title: "Nouveau deal proposé",
-    body: "Une marque vient de te proposer une collaboration directe. Ouvre la page pour voir les termes.",
-    link: `/deals/${deal.id}`,
-  });
+  // Pas de notification ici : un booking direct naît toujours à 0 €. Le
+  // créateur sera prévenu quand la marque aura fixé le montant.
 
   redirect(`/deals/${deal.id}`);
 }
@@ -246,7 +248,7 @@ export async function updateDealTerms(
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, status")
+    .select("brand_id, creator_id, title, status")
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
@@ -276,6 +278,17 @@ export async function updateDealTerms(
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
+  // Le créateur DOIT l'apprendre : ce sont les termes qu'il va signer. Rien ne
+  // le prévenait, et c'est ici que le montant d'un deal né à 0 € est fixé —
+  // sans cette notification, il n'avait aucune raison de revenir voir.
+  await notify({
+    userId: deal.creator_id,
+    type: "deal_terms_updated",
+    title: `Termes mis à jour — "${deal.title ?? "collaboration"}"`,
+    body: `La marque propose ${eur(controle.data.amount)} pour ${controle.data.quantity} contenu${controle.data.quantity > 1 ? "s" : ""}. Ouvre la collaboration pour accepter ou en discuter.`,
+    link: `/deals/${dealId}`,
+  });
+
   revalidatePath(`/deals/${dealId}`);
   return { ok: true };
 }
@@ -298,6 +311,18 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   if (!deal || deal.creator_id !== user.id) return { ok: false, error: "Action non autorisée." };
   if (deal.status !== "negotiation")
     return { ok: false, error: "Ce deal n'est plus en négociation." };
+
+  // Un deal naît à 0 € : le booking direct part de zéro, et une candidature
+  // sur une campagne à la performance ou au CPA n'a pas de montant fixe à
+  // reprendre. Tant que la marque n'a rien fixé, accepter reviendrait à
+  // SIGNER UN CONTRAT À 0 € — et le séquestre refuse ensuite ce montant, donc
+  // la collaboration serait bloquée avec un contrat signé pour rien.
+  if (!deal.amount || deal.amount <= 0)
+    return {
+      ok: false,
+      error:
+        "La marque n'a pas encore fixé le montant de cette collaboration. Accepter maintenant reviendrait à signer un contrat à 0 € — demande-lui de le préciser avant.",
+    };
 
   // Le contrat écrit détaillé n'est légalement obligatoire qu'au-delà de
   // 1 000 € HT cumulés sur l'année civile entre ces deux mêmes parties
