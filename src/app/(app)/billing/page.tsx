@@ -487,14 +487,25 @@ export default async function BillingPage({
                     >
                       {meta.label}
                     </span>
-                    {(s.status === "pending" || s.status === "unfunded") && (
+                    {/* Le bouton n'apparaissait que sur les ventes « en
+                        attente » et « non financées ». Passé les 30 jours de
+                        validation, la marque n'avait donc PLUS AUCUN moyen de
+                        déclarer un remboursement — alors que c'est justement
+                        le délai d'un retour produit. Tout le mécanisme de
+                        régularisation existait sans être atteignable. */}
+                    {s.status !== "refunded" && s.status !== "rejected" && (
                       <form action={refundSale}>
                         <input type="hidden" name="eventId" value={s.id} />
                         <button
                           type="submit"
+                          title={
+                            s.status === "paid"
+                              ? "La commission a déjà été versée au créateur : elle sera déduite de son prochain versement, jamais reprise sur ce qu'il a reçu."
+                              : "La réservation te sera rendue sur ta provision."
+                          }
                           className="text-xs font-medium text-red-600 underline underline-offset-2 hover:text-red-700"
                         >
-                          Remboursée
+                          {s.status === "paid" ? "Remboursée (déjà versée)" : "Remboursée"}
                         </button>
                       </form>
                     )}

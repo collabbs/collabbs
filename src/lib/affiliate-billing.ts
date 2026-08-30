@@ -267,9 +267,17 @@ export async function releaseReservation(params: {
     return { ok: true, message: "Déjà traitée." };
   }
 
-  // Seule une vente réservée a consommé de la provision. Une vente "unfunded"
-  // n'a rien pris : il n'y a rien à rendre.
-  if (brandId && ev.status === "pending" && total > 0) {
+  // Une vente "unfunded" n'a rien pris à la provision : il n'y a rien à
+  // rendre. Une vente "pending" OU "validated", si.
+  //
+  // Le cas `validated` manquait, et c'était une perte sèche pour la marque :
+  // la commission est réservée sur sa provision dès la vente, la validation à
+  // 30 jours ne fait que la rendre définitivement acquise au créateur — mais
+  // tant qu'elle n'est pas VERSÉE, l'argent est encore chez nous. Un
+  // remboursement à ce moment-là marquait la vente « remboursée » sans rien
+  // recréditer : la marque perdait sa réservation, et personne ne la touchait.
+  const encoreChezNous = ev.status === "pending" || ev.status === "validated";
+  if (brandId && encoreChezNous && total > 0) {
     const { error } = await untyped(admin).rpc("credit_balance", {
       p_brand: brandId,
       p_amount: total,
