@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildContractDocument } from "@/lib/contract-template";
+import { dealBreakdown } from "@/lib/deal";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 
 const party = (name: string): PartySnapshot => ({
@@ -221,5 +222,44 @@ describe("contrat de collaboration", () => {
       .paragraphs.find((x) => x.includes("Nature de la prestation"))!;
     // Rendu tel quel plutôt qu'affublé d'un « s » hasardeux.
     expect(ligne).toContain("3 podcast.");
+  });
+
+  /**
+   * Le contrat annonçait « la somme de 1 400,00 €, montant net revenant au
+   * créateur » en reprenant le montant BRUT — alors que la plateforme en
+   * déduit 10 %, et que le créateur en reçoit 1 260 €. Un document juridique
+   * affirmait par écrit un montant que personne n'allait toucher.
+   *
+   * Ce test lie le contrat au calcul réel du versement : si l'un change sans
+   * l'autre, il tombe.
+   */
+  it("annonce exactement ce que le créateur recevra", () => {
+    for (const montant of [100, 500, 1400, 2999]) {
+      const doc = buildContractDocument({
+        reference: "CT",
+        regime: "complete",
+        snapshot: snapshot({ amount: montant }),
+      });
+      const clause = doc.clauses
+        .find((c) => c.title.startsWith("Rémunération"))!
+        .paragraphs.join(" ");
+
+      const { gross, fee, net } = dealBreakdown(montant);
+      // Le contrat écrit les montants au centime, comme tout document
+      // juridique : « 1 400,00 € », pas « 1400€ ».
+      // Même formatage que le modèle : espace ORDINAIRE avant l'euro, pas
+      // l'espace insécable de `style: "currency"`.
+      const fmt = (n: number) =>
+        `${n.toLocaleString("fr-FR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} €`;
+      // Les trois montants sont énoncés, et le net est celui du calcul.
+      expect(clause, `brut pour ${montant}`).toContain(fmt(gross));
+      expect(clause, `frais pour ${montant}`).toContain(fmt(fee));
+      expect(clause, `net pour ${montant}`).toContain(fmt(net));
+      // Et surtout : le brut n'est plus présenté comme le net.
+      expect(clause).not.toContain(`${fmt(gross)}**, montant net`);
+    }
   });
 });

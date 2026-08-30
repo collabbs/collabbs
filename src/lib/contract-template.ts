@@ -1,5 +1,7 @@
 import "server-only";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
+// Taux unique, celui qu'applique réellement le calcul du versement.
+import { PLATFORM_FEE_RATE } from "@/lib/deal";
 
 /**
  * Corps du contrat de collaboration commerciale.
@@ -168,8 +170,22 @@ export function buildContractDocument(params: {
     "Le créateur conserve la maîtrise éditoriale de son contenu, dans le respect des attentes ci-dessus et de la réglementation applicable.",
   ]);
 
+  // ATTENTION — le contrat énonçait « la somme de X, montant net revenant au
+  // créateur » en reprenant le montant BRUT de la collaboration. Or la
+  // plateforme en déduit sa commission : sur 1 400 €, le créateur en reçoit
+  // 1 260 €. Le contrat affirmait donc par écrit un montant que le créateur
+  // n'allait pas toucher. Constaté le 30 août 2026 en comparant le contrat à
+  // l'écran de la collaboration.
+  //
+  // Les trois montants sont désormais énoncés séparément : ce que l'annonceur
+  // verse, ce que la plateforme prélève, ce que le créateur reçoit. Un contrat
+  // ne peut pas dire autre chose que ce qui se passe.
+  const dealFee = Math.round(deal.amount * PLATFORM_FEE_RATE);
+  const dealNet = deal.amount - dealFee;
+
   add("Rémunération et avantages en nature", [
-    `En contrepartie de la prestation, l'annonceur verse au créateur la somme de **${eur(deal.amount)}**, montant net revenant au créateur.`,
+    `En contrepartie de la prestation, l'annonceur verse la somme de **${eur(deal.amount)}**.`,
+    `Sur cette somme, la plateforme Collabbs prélève une commission de **${Math.round(PLATFORM_FEE_RATE * 100)} %**, soit ${eur(dealFee)}. Le montant net revenant au créateur s'élève ainsi à **${eur(dealNet)}**.`,
     "Le paiement est effectué par l'intermédiaire de la plateforme Collabbs, qui séquestre les fonds dès l'acceptation du contrat et les libère au bénéfice du créateur après validation de la livraison par l'annonceur.",
     "Les Parties déclarent que la rémunération ci-dessus est exhaustive. Tout avantage en nature complémentaire (produit, dotation, service offert) doit être déclaré sur la plateforme et sa valeur ajoutée au cumul annuel, conformément à la réglementation.",
   ]);
