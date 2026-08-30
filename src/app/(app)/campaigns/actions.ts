@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
+import { valider } from "@/lib/validation";
+import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -72,6 +74,30 @@ export async function createCampaign(
   const isPerformance = data.type === "performance";
   const isCpaFlat = data.type === "cpa_flat";
   const isCpaTiers = data.type === "cpa_tiers";
+
+  // Aucune de ces valeurs n'était vérifiée : elles partaient du formulaire
+  // directement en base. La plus dangereuse est le taux de commission — une
+  // virgule mal placée donne 500 %, soit 500 € de commission plus 125 € de
+  // frais sur une vente de 100 €, réservés dès la première vente sur la
+  // provision de la marque.
+  const chiffres = valider(valeursCampagneSchema, {
+    fixedAmount: data.fixedAmount,
+    perfRate: data.perfRate,
+    cpaValuePerAction: data.cpaValuePerAction,
+    minSubscribers: data.minSubscribers,
+    spots: data.spots,
+    promoDiscountPct: data.promoDiscountPct,
+    promoCommissionPct: data.promoCommissionPct,
+    promoMinPurchase: data.promoMinPurchase,
+    giveawayPrizeValue: data.giveawayPrizeValue,
+    giveawayWinnersCount: data.giveawayWinnersCount,
+  });
+  if (!chiffres.ok) return { ok: false, error: chiffres.error };
+
+  if (withAffiliation) {
+    const grille = valider(grilleCommissionSchema, data.commission);
+    if (!grille.ok) return { ok: false, error: grille.error };
+  }
 
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
