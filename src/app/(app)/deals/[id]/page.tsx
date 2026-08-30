@@ -143,7 +143,7 @@ export default async function DealDetailPage({
     supabase
       .from("transactions")
       .select(
-        "status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
+        "id, status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
       )
       .eq("deal_id", id)
       .eq("type", "deal_payment")
@@ -590,6 +590,19 @@ export default async function DealDetailPage({
                       ? "🔒 En attente du règlement de la marque (mise en séquestre)."
                       : "Aucun paiement enregistré pour ce deal."}
               </div>
+            )}
+
+            {payment && payment.status !== "refunded" && (
+              // La facture n'était atteignable que depuis la page des
+              // versements — c'est-à-dire seulement par le créateur. La marque,
+              // qui paie et qui supporte la commission, n'avait accès à aucun
+              // justificatif pour sa comptabilité.
+              <Link
+                href={`/invoices/${payment.id}`}
+                className="mt-3 block rounded-full px-5 py-2.5 text-center text-sm font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 transition hover:text-ink"
+              >
+                🧾 Récapitulatif de paiement
+              </Link>
             )}
 
             <form action={openConversation.bind(null, otherId)} className="mt-4">

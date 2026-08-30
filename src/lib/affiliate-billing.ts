@@ -722,7 +722,10 @@ export async function runAffiliatePayouts(): Promise<{
         brand_id: null, // un versement peut couvrir plusieurs marques
         creator_id: creatorId,
         gross_amount: round2(net + fee),
-        platform_fee_rate: AFFILIATE_FEE_RATE * 100,
+        // Un TAUX (0,25), pas un pourcentage : c'est la convention de
+        // `deal_payment` (0,1) et celle que lit la facture. Écrit en
+        // pourcentage ici, il s'affichait « Commission Collabbs (2500 %) ».
+        platform_fee_rate: AFFILIATE_FEE_RATE,
         platform_fee: fee,
         net_amount: net,
         currency: "eur",

@@ -302,7 +302,7 @@ export default async function PayoutsPage({
                       href={`/invoices/${t.id}`}
                       className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
                     >
-                      📄 Facture
+                      📄 Récapitulatif
                     </Link>
                   </div>
                 </div>

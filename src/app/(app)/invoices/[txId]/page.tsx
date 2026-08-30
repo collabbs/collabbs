@@ -2,13 +2,27 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LEGAL_STATUSES } from "@/app/(app)/profile/legal-utils";
+import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
 import PrintButton from "./PrintButton";
 
 export const metadata = {
-  title: "Facture — Collabbs",
+  title: "Récapitulatif de paiement — Collabbs",
 };
 
 const eur = (n: number) => `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+/**
+ * Deux conventions ont coexisté dans `platform_fee_rate` : un taux (0,1) pour
+ * les collaborations, un pourcentage (25) pour l'affiliation. La facture
+ * multipliait par 100 dans les deux cas et annonçait « 2500 % » sur les
+ * versements d'affiliation. Le code écrit désormais un taux partout ; cette
+ * fonction rattrape les lignes déjà enregistrées à l'ancienne, qu'on ne peut
+ * pas réécrire — une facture émise ne se corrige pas rétroactivement.
+ */
+function pourcentageFrais(valeur: number): string {
+  const pct = valeur > 1 ? valeur : valeur * 100;
+  return pct.toFixed(0);
+}
 
 function statusLabel(id: string | null): string {
   if (!id) return "—";
@@ -81,10 +95,21 @@ export default async function InvoicePage({
   const brandRowData = brandRow.data;
   const creatorRowData = creatorRow.data;
 
-  // Numéro de facture lisible : YYYYMM-XXXX (4 derniers chars du tx id)
+  // ⚠️ Ce document N'EST PAS une facture, et il ne doit pas s'en donner le nom.
+  //
+  // Les CGV de Collabbs disent l'inverse de ce que faisait cette page :
+  // « chaque créateur demeure responsable […] de l'émission de ses factures
+  // lorsque son statut l'exige. Collabbs ne se substitue à lui sur aucun de
+  // ces points. » Émettre une facture au nom du créateur suppose un mandat de
+  // facturation — que les CGV ne prévoient pas.
+  //
+  // Et une vraie facture exige une numérotation chronologique CONTINUE
+  // (art. 242 nonies A, ann. II du CGI) : quatre caractères repris d'un
+  // identifiant ne forment pas une série. Comme référence de paiement, en
+  // revanche, ils conviennent parfaitement.
   const txShort = tx.id.slice(-4).toUpperCase();
   const dateRef = new Date(tx.created_at);
-  const invoiceNumber = `${dateRef.getFullYear()}${String(dateRef.getMonth() + 1).padStart(2, "0")}-${txShort}`;
+  const reference = `${dateRef.getFullYear()}${String(dateRef.getMonth() + 1).padStart(2, "0")}-${txShort}`;
   const issueDate = dateRef.toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "long",
@@ -104,7 +129,7 @@ export default async function InvoicePage({
 
   return (
     <div className="print:p-0">
-      <PrintButton invoiceNumber={invoiceNumber} />
+      <PrintButton invoiceNumber={reference} />
 
       <article className="invoice-page mx-auto max-w-3xl rounded-lg bg-white p-8 shadow-lg print:max-w-none print:rounded-none print:p-0 print:shadow-none sm:p-12">
         {/* Header */}
@@ -117,18 +142,19 @@ export default async function InvoicePage({
             <p className="mt-1 text-xs text-zinc-500">
               Marketplace créateurs × marques
             </p>
+            {/* Pas d'identité juridique inventée : la page affichait
+                « Collabbs SAS » avec un « SIRET — » vide. Sur un document
+                comptable, un numéro manquant est pire que pas de ligne. */}
             <p className="mt-3 text-[11px] leading-relaxed text-zinc-600">
-              Collabbs SAS · 75002 Paris, France
-              <br />
-              SIRET — · contact@collabbs.com
+              contact@collabbs.com
             </p>
           </div>
           <div className="text-right">
             <p className="font-display text-2xl font-black tracking-tight text-ink">
-              Facture
+              Récapitulatif de paiement
             </p>
             <p className="mt-1 font-mono text-sm font-semibold text-ink">
-              N° {invoiceNumber}
+              Réf. {reference}
             </p>
             <p className="text-xs text-zinc-500">Émise le {issueDate}</p>
             {tx.paid_at && (
@@ -143,7 +169,7 @@ export default async function InvoicePage({
         <section className="mt-8 grid gap-6 sm:grid-cols-2">
           <div className="rounded-lg border border-zinc-100 bg-zinc-50/40 p-4">
             <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-              Émetteur
+              Créateur (bénéficiaire)
             </p>
             <p className="mt-2 text-sm font-bold text-ink">{creatorLegal?.legal_name ?? creatorName}</p>
             {creatorLegal?.status && (
@@ -173,7 +199,7 @@ export default async function InvoicePage({
 
           <div className="rounded-lg border border-zinc-100 bg-zinc-50/40 p-4">
             <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-              Destinataire
+              Annonceur (payeur)
             </p>
             <p className="mt-2 text-sm font-bold text-ink">{brandLegal?.legal_name ?? brandName}</p>
             {brandLegal?.status && (
@@ -224,8 +250,12 @@ export default async function InvoicePage({
                   <p className="font-medium text-ink">
                     {deal?.title ?? "Collaboration Collabbs"}
                   </p>
+                  {/* `video_post` s'affichait tel quel : un nom de colonne
+                      sur un document remis à un comptable. */}
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {deal?.format ? `Format : ${deal.format}` : ""}
+                    {deal?.format
+                      ? `Format : ${DEAL_FORMAT_LABEL[deal.format as DealFormat] ?? deal.format}`
+                      : ""}
                     {deal?.quantity ? ` · Quantité : ${deal.quantity}` : ""}
                   </p>
                   {tx.reference && (
@@ -240,7 +270,7 @@ export default async function InvoicePage({
               </tr>
               <tr className="border-b border-zinc-100">
                 <td className="py-3 text-xs text-zinc-500">
-                  Commission Collabbs ({(tx.platform_fee_rate * 100).toFixed(0)} %)
+                  Commission Collabbs ({pourcentageFrais(tx.platform_fee_rate)} %)
                 </td>
                 <td className="py-3 text-right text-xs text-zinc-500">
                   − {eur(tx.platform_fee)}
@@ -261,8 +291,18 @@ export default async function InvoicePage({
         {/* Pied */}
         <footer className="mt-12 border-t border-zinc-200 pt-4 text-[10px] leading-relaxed text-zinc-500">
           <p>
-            Document généré automatiquement par Collabbs. TVA non applicable —
-            art. 293 B du CGI (à adapter selon le statut juridique des parties).
+            {/* L'espace après la balise disparaît à la compilation : elle est
+                écrite explicitement, sinon on lit « …facture.C'est ». */}
+            <strong>Ce document n&apos;est pas une facture.</strong>{" "}
+            C&apos;est le récapitulatif du paiement passé par Collabbs, à conserver comme
+            justificatif. Conformément aux CGV, le créateur reste responsable
+            d&apos;émettre sa propre facture lorsque son statut l&apos;exige, et
+            Collabbs facture séparément sa commission à l&apos;annonceur.
+          </p>
+          <p className="mt-2">
+            Les montants sont indiqués tels qu&apos;ils ont été réglés. Le régime
+            de TVA applicable dépend du statut de chaque partie — par exemple
+            « TVA non applicable, art. 293 B du CGI » en franchise en base.
           </p>
           <p className="mt-2">
             En cas de question : <strong>support@collabbs.com</strong>
