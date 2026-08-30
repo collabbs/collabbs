@@ -25,6 +25,11 @@ export async function GET(request: Request) {
 
     const res = await ensureCheckoutSessionRecorded(session);
     dealId = res.dealId ?? (session.metadata?.deal_id as string | undefined);
+    // Paiement encaissé mais non enregistré : la marque doit l'apprendre ici,
+    // sinon elle revient sur une page qui affiche toujours « À régler ».
+    if (!res.ok && dealId) {
+      return NextResponse.redirect(`${url.origin}/deals/${dealId}?payerror=1`, 302);
+    }
   } catch {
     if (dealId) return NextResponse.redirect(`${url.origin}/deals/${dealId}?payerror=1`, 302);
     return NextResponse.redirect(`${url.origin}/deals`, 302);

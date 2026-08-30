@@ -90,10 +90,13 @@ function ContractParties({ snap }: { snap: ContractSnapshot }) {
 
 export default async function DealDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string; payerror?: string; stripe?: string }>;
 }) {
   const { id } = await params;
+  const retour = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -258,6 +261,34 @@ export default async function DealDetailPage({
           {meta.label}
         </span>
       </div>
+
+      {/* Retour de Stripe. Ces paramètres étaient posés par les redirections
+          (`?paid=1`, `?payerror=1`, `?stripe=missing`) et lus par personne :
+          la marque revenait de sa banque sans un mot, y compris quand le
+          paiement avait été encaissé sans être enregistré chez nous. */}
+      {retour.payerror === "1" && (
+        <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
+          <strong>Ton paiement a été encaissé, mais nous n&apos;avons pas pu
+          l&apos;enregistrer.</strong>{" "}
+          Ne recommence pas : écris à support@collabbs.com en indiquant cette
+          collaboration, on régularise à la main.
+        </div>
+      )}
+      {retour.stripe === "missing" && (
+        <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
+          Le paiement est momentanément indisponible. Réessaie dans quelques
+          minutes — et préviens-nous si ça persiste.
+        </div>
+      )}
+      {/* On ne l'affiche QUE si le paiement existe vraiment : sinon un
+          `?paid=1` collé dans la barre d'adresse annoncerait un séquestre
+          imaginaire. */}
+      {retour.paid === "1" && payment && (
+        <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
+          ✅ Paiement reçu et <strong>mis en séquestre</strong>. Les fonds seront
+          versés au créateur à la clôture de la collaboration.
+        </div>
+      )}
 
       {/* Timeline du parcours — visible en haut, sur toute la largeur */}
       <div className="mt-6">

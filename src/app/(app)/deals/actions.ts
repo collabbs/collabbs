@@ -13,7 +13,7 @@ import { thresholdWith } from "@/lib/legal-threshold";
 import { eur } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
 import { valider } from "@/lib/validation";
-import { termesDealSchema } from "@/lib/schemas/deals";
+import { termesDealSchema, DEAL_QUANTITE_MAX } from "@/lib/schemas/deals";
 
 type Result = { ok: boolean; error?: string };
 
@@ -66,9 +66,24 @@ async function ensureContractRow(
  * même conséquence : un échec silencieux laissait une collaboration
  * inutilisable. On la vérifie, et on la rattrape à l'acceptation.
  */
+/**
+ * Un livrable = UN contenu que le créateur dépose. Rien d'autre.
+ *
+ * Deux erreurs de modèle vivaient ici :
+ *
+ *  - Une ligne « Validation finale de la marque » était créée comme livrable.
+ *    L'écran demandait donc au créateur de « déposer » la validation de la
+ *    marque, et la clôture — qui exige que TOUS les livrables soient validés —
+ *    restait bloquée dessus. La validation de la marque est déjà un geste à
+ *    part : le bouton « Valider », puis « Clôturer le deal ».
+ *  - La quantité était ignorée : une collaboration de 3 vidéos n'avait qu'une
+ *    seule ligne. Le créateur n'avait aucun endroit où déposer les deux
+ *    autres, et la marque aucun moyen d'en valider une sans valider tout.
+ */
 async function ensureDeliverables(
   supabase: Awaited<ReturnType<typeof createClient>>,
   dealId: string,
+  quantity = 1,
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: existants } = await supabase
     .from("deliverables")
@@ -77,10 +92,14 @@ async function ensureDeliverables(
     .limit(1);
   if (existants && existants.length > 0) return { ok: true };
 
-  const { error } = await supabase.from("deliverables").insert([
-    { deal_id: dealId, label: "Contenu livré", position: 1 },
-    { deal_id: dealId, label: "Validation finale de la marque", position: 2 },
-  ]);
+  const combien = Math.max(1, Math.min(quantity || 1, DEAL_QUANTITE_MAX));
+  const lignes = Array.from({ length: combien }, (_, i) => ({
+    deal_id: dealId,
+    label: combien > 1 ? `Contenu ${i + 1} / ${combien}` : "Contenu livré",
+    position: i + 1,
+  }));
+
+  const { error } = await supabase.from("deliverables").insert(lignes);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -137,7 +156,9 @@ export async function createDealFromApplication(applicationId: string) {
   if (error || !deal) redirect(`/campaigns/${app.campaign_id}`);
 
   // Livrables par défaut. Sans eux, le créateur ne peut pas livrer.
-  const livrables = await ensureDeliverables(supabase, deal.id);
+  // Quantité 1 à la création depuis une candidature : la marque l'ajuste
+  // ensuite dans les termes, et les livrables suivent.
+  const livrables = await ensureDeliverables(supabase, deal.id, 1);
   if (!livrables.ok) {
     await supabase.from("deals").delete().eq("id", deal.id);
     redirect(`/deals?error=${encodeURIComponent(livrables.error ?? "Livrables impossibles à créer.")}`);
@@ -277,6 +298,31 @@ export async function updateDealTerms(
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  // Les livrables suivent la quantité. On est en négociation : rien n'a encore
+  // été déposé, on peut donc les refaire proprement. Sans ça, une marque qui
+  // passe de 1 à 3 contenus laissait le créateur avec une seule ligne où
+  // déposer — et la collaboration se clôturait sur un tiers du travail.
+  const { data: dejaDeposes } = await supabase
+    .from("deliverables")
+    .select("id")
+    .eq("deal_id", dealId)
+    .or("done.eq.true,submission_url.not.is.null")
+    .limit(1);
+  if (!dejaDeposes || dejaDeposes.length === 0) {
+    await supabase.from("deliverables").delete().eq("deal_id", dealId);
+    const refaits = await ensureDeliverables(supabase, dealId, controle.data.quantity);
+    if (!refaits.ok) {
+      await reportError("deal/livrables-quantite", refaits.error ?? "inconnu", {
+        detail: `deal ${dealId}, quantité ${controle.data.quantity}`,
+      });
+      return {
+        ok: false,
+        error:
+          "Les termes n'ont pas pu être enregistrés entièrement (livrables). Réessaie.",
+      };
+    }
+  }
 
   // Le créateur DOIT l'apprendre : ce sont les termes qu'il va signer. Rien ne
   // le prévenait, et c'est ici que le montant d'un deal né à 0 € est fixé —
