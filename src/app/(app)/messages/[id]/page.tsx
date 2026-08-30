@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Composer from "./Composer";
+import Thread from "./Thread";
 
 export async function generateMetadata({
   params,
@@ -27,13 +27,6 @@ export async function generateMetadata({
     .eq("id", otherId)
     .single();
   return { title: `${p?.display_name ?? "Conversation"} — Messages` };
-}
-
-function dayLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-function hourLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default async function ThreadPage({
@@ -77,8 +70,6 @@ export default async function ThreadPage({
     .neq("sender_id", user.id)
     .is("read_at", null);
 
-  let lastDay = "";
-
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
       {/* En-tête */}
@@ -102,51 +93,12 @@ export default async function ThreadPage({
         </div>
       </div>
 
-      {/* Fil de messages */}
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto py-5">
-        {messages.length === 0 ? (
-          <div className="m-auto text-center">
-            <p className="text-sm font-medium text-ink">Démarrez la conversation</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Présentez-vous et expliquez votre projet de collaboration.
-            </p>
-          </div>
-        ) : (
-          messages.map((m) => {
-            const mine = m.sender_id === user.id;
-            const showDay = dayLabel(m.created_at) !== lastDay;
-            lastDay = dayLabel(m.created_at);
-            return (
-              <div key={m.id}>
-                {showDay && (
-                  <p className="my-3 text-center text-xs font-medium text-zinc-400">
-                    {lastDay}
-                  </p>
-                )}
-                <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-                      mine
-                        ? "rounded-br-sm bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                        : "rounded-bl-sm bg-white text-ink ring-1 ring-zinc-100"
-                    }`}
-                  >
-                    <p className="whitespace-pre-line">{m.body}</p>
-                    <p className={`mt-1 text-right text-[10px] ${mine ? "text-white/70" : "text-zinc-400"}`}>
-                      {hourLabel(m.created_at)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Composer */}
-      <div className="-mx-5 sm:-mx-8">
-        <Composer conversationId={id} />
-      </div>
+      {/* Fil de messages : rendu ici, puis tenu à jour en direct côté client. */}
+      <Thread
+        conversationId={id}
+        currentUserId={user.id}
+        initialMessages={messages}
+      />
     </div>
   );
 }
