@@ -18,6 +18,15 @@ export type Database = {
     Tables: {
       affiliate_events: {
         Row: {
+          paid_at: string | null
+          payout_id: string | null
+          platform_fee: number
+          refunded_at: string | null
+          reject_reason: string | null
+          needs_review: boolean
+          reviewed_at: string | null
+          status: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at: string | null
           action_count: number
           commission_amount: number | null
           created_at: string
@@ -30,6 +39,15 @@ export type Database = {
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Insert: {
+          paid_at?: string | null
+          payout_id?: string | null
+          platform_fee?: number
+          refunded_at?: string | null
+          reject_reason?: string | null
+          needs_review?: boolean
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at?: string | null
           action_count?: number
           commission_amount?: number | null
           created_at?: string
@@ -42,6 +60,15 @@ export type Database = {
           type: Database["public"]["Enums"]["affiliate_event_type"]
         }
         Update: {
+          paid_at?: string | null
+          payout_id?: string | null
+          platform_fee?: number
+          refunded_at?: string | null
+          reject_reason?: string | null
+          needs_review?: boolean
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
+          validate_at?: string | null
           action_count?: number
           commission_amount?: number | null
           created_at?: string
@@ -257,6 +284,13 @@ export type Database = {
       }
       brands: {
         Row: {
+          autotopup_amount: number
+          autotopup_enabled: boolean
+          autotopup_threshold: number
+          balance: number
+          payment_method_id: string | null
+          stripe_customer_id: string | null
+          topup_failed_at: string | null
           commission_macro: number
           commission_micro: number
           commission_mid: number
@@ -273,6 +307,13 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          autotopup_amount?: number
+          autotopup_enabled?: boolean
+          autotopup_threshold?: number
+          balance?: number
+          payment_method_id?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -289,6 +330,13 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          autotopup_amount?: number
+          autotopup_enabled?: boolean
+          autotopup_threshold?: number
+          balance?: number
+          payment_method_id?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -740,6 +788,10 @@ export type Database = {
       }
       creator_platforms: {
         Row: {
+          platform_ref: string | null
+          verified_at: string | null
+          verified_source: string | null
+          verified_subscribers: number | null
           creator_id: string
           handle: string | null
           id: string
@@ -748,6 +800,10 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          platform_ref?: string | null
+          verified_at?: string | null
+          verified_source?: string | null
+          verified_subscribers?: number | null
           creator_id: string
           handle?: string | null
           id?: string
@@ -756,6 +812,10 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          platform_ref?: string | null
+          verified_at?: string | null
+          verified_source?: string | null
+          verified_subscribers?: number | null
           creator_id?: string
           handle?: string | null
           id?: string
@@ -835,6 +895,10 @@ export type Database = {
       }
       creators: {
         Row: {
+          city: string | null
+          city_slug: string | null
+          country: string | null
+          travels: boolean
           bio: string | null
           created_at: string
           custom_niche: string | null
@@ -855,6 +919,10 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          city?: string | null
+          city_slug?: string | null
+          country?: string | null
+          travels?: boolean
           bio?: string | null
           created_at?: string
           custom_niche?: string | null
@@ -875,6 +943,10 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          city?: string | null
+          city_slug?: string | null
+          country?: string | null
+          travels?: boolean
           bio?: string | null
           created_at?: string
           custom_niche?: string | null
@@ -1247,6 +1319,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          is_admin: boolean
           avatar_url: string | null
           created_at: string
           display_name: string | null
@@ -1255,6 +1328,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -1263,6 +1337,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
@@ -1411,7 +1486,20 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      affiliate_event_type: "click" | "sale"
+      affiliate_event_status:
+        | "unfunded"
+        | "pending"
+        | "validated"
+        | "paid"
+        | "refunded"
+        | "rejected"
+      ledger_kind:
+        | "topup"
+        | "reserve"
+        | "reserve_release"
+        | "payout"
+        | "adjustment"
+      affiliate_event_type: "click" | "sale" | "action"
       application_initiator: "creator" | "brand"
       application_status: "pending" | "accepted" | "rejected" | "withdrawn"
       campaign_status: "draft" | "active" | "ended"
@@ -1422,6 +1510,8 @@ export type Database = {
         | "performance"
         | "promo_code"
         | "giveaway"
+        | "cpa_flat"
+        | "cpa_tiers"
         | "cpa_flat"
         | "cpa_tiers"
       commission_type: "percentage" | "fixed_per_action" | "recurring"

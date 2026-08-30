@@ -184,12 +184,23 @@ export default async function DashboardPage() {
     const linkIds = (linksRes.data ?? []).map((l) => l.id);
     const eventsRes = await supabase
       .from("affiliate_events")
-      .select("type, commission_amount")
+      .select("type, status, commission_amount")
       .in("link_id", linkIds);
     const ev = eventsRes.data ?? [];
     const clicks = ev.filter((e) => e.type === "click").length;
+    // Deux corrections du 30 août 2026 :
+    //  - les actions (CPA) comptent au même titre que les ventes ; les exclure
+    //    rendait invisibles les gains d'une campagne payée à l'action ;
+    //  - une commission rejetée ou remboursée n'est PAS un gain. Elle était
+    //    additionnée ici, si bien que le tableau de bord annonçait de l'argent
+    //    qui ne serait jamais versé.
     const gains = ev
-      .filter((e) => e.type === "sale")
+      .filter(
+        (e) =>
+          (e.type === "sale" || e.type === "action") &&
+          e.status !== "rejected" &&
+          e.status !== "refunded",
+      )
       .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
 
     const deals = dealsRes.data ?? [];
@@ -272,14 +283,20 @@ export default async function DashboardPage() {
     const linkIds = (linksRes.data ?? []).map((l) => l.id);
     const eventsRes = await supabase
       .from("affiliate_events")
-      .select("type, sale_amount, commission_amount")
+      .select("type, status, sale_amount, commission_amount")
       .in("link_id", linkIds);
     const ev = eventsRes.data ?? [];
+    // Une vente ou une action rejetée ou remboursée ne compte nulle part :
+    // ni dans le chiffre d'affaires attribué, ni dans les commissions dues.
+    const compte = (e: { status?: string | null }) =>
+      e.status !== "rejected" && e.status !== "refunded";
     const clicks = ev.filter((e) => e.type === "click").length;
-    const sales = ev.filter((e) => e.type === "sale").length;
-    const ca = ev.filter((e) => e.type === "sale").reduce((s, e) => s + (e.sale_amount ?? 0), 0);
+    const sales = ev.filter((e) => e.type === "sale" && compte(e)).length;
+    const ca = ev
+      .filter((e) => e.type === "sale" && compte(e))
+      .reduce((s, e) => s + (e.sale_amount ?? 0), 0);
     const commissions = ev
-      .filter((e) => e.type === "sale")
+      .filter((e) => (e.type === "sale" || e.type === "action") && compte(e))
       .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
 
     const deals = dealsRes.data ?? [];
@@ -328,7 +345,7 @@ export default async function DashboardPage() {
       ],
       secondaryStats: [
         { label: "Investi en deals", value: eur(invested) },
-        { label: "Commissions versées", value: eur(commissions) },
+        { label: "Commissions générées", value: eur(commissions) },
         { label: "Ventes confirmées", value: String(sales) },
         { label: "Campagnes totales", value: String(campaigns.length) },
       ],

@@ -169,6 +169,14 @@ export default function CampaignForm({
       giveawayRulesUrl,
     });
     if (res.ok) {
+      // La campagne est créée mais incomplète (réseaux non enregistrés) : on
+      // reste sur place pour le dire, sinon la marque part en croyant que tout
+      // est en ligne alors qu'aucun créateur ne la verra.
+      if (res.warning) {
+        setError(res.warning);
+        setSaving(false);
+        return;
+      }
       router.push("/dashboard");
     } else {
       setError(res.error ?? "Une erreur est survenue.");

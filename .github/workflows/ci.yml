@@ -1,0 +1,28 @@
+name: CI
+
+# Vérifie chaque poussée et chaque pull request. Sans ça, les tests écrits
+# aujourd'hui ne serviraient qu'à celui qui pense à les lancer — c'est-à-dire
+# à personne, dans six mois.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npm run typecheck
+      - name: Règles de code
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      # Le build a besoin des variables d'environnement ; il est déjà vérifié
+      # par Vercel sur chaque déploiement de prévisualisation.

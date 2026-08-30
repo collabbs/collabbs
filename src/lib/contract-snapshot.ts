@@ -11,6 +11,12 @@ import { LEGAL_STATUSES } from "@/app/(app)/profile/legal-utils";
 export type ContractSnapshot = {
   version: 1;
   generated_at: string;
+  /**
+   * Régime au moment de la signature — figé lui aussi. Un contrat signé sous
+   * le seuil reste simplifié même si le cumul annuel monte ensuite : ce qui
+   * compte, c'est l'état du droit applicable au jour de l'engagement.
+   */
+  regime?: "simplified" | "complete";
   /** Coordonnées légales gelées des 2 parties. */
   brand: PartySnapshot;
   creator: PartySnapshot;
@@ -52,7 +58,15 @@ export type PartySnapshot = {
  *   Le call-site décide quoi faire (message d'erreur, blocage).
  */
 export type BuildResult =
-  | { ok: true; snapshot: ContractSnapshot }
+  | {
+      ok: true;
+      snapshot: ContractSnapshot;
+      /**
+       * Renseigné en régime simplifié : ce qui manque encore, sans bloquer.
+       * Permet d'avertir sans empêcher la signature sous le seuil légal.
+       */
+      incomplete?: { who: "brand" | "creator"; fields: string[] }[];
+    }
   | {
       ok: false;
       reason: "deal_not_found" | "incomplete_legal_info";
@@ -85,12 +99,73 @@ function statusLabel(id: string | null): string | null {
 }
 
 /**
+ * Construit l'identité gelée d'une partie, indépendamment de toute
+ * collaboration.
+ *
+ * Extraite pour le contrat-cadre d'affiliation, qui n'a pas de deal d'où
+ * déduire les parties. Une seule définition de « qui est cette partie » —
+ * la dupliquer dans du code juridique serait l'assurance qu'elles divergent.
+ */
+export async function partySnapshotFor(
+  userId: string,
+  role: "brand" | "creator",
+): Promise<{ party: PartySnapshot; missing: string[] }> {
+  const admin = createAdminClient();
+
+  const [legal, profile, row] = await Promise.all([
+    admin
+      .from("legal_info")
+      .select(
+        "status, legal_name, rep_name, address, city, zip, country, siret, vat, contact_email",
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
+    role === "brand"
+      ? admin.from("brands").select("name").eq("id", userId).maybeSingle()
+      : admin.from("creators").select("handle").eq("id", userId).maybeSingle(),
+  ]);
+
+  const l = legal.data;
+  const nom =
+    role === "brand"
+      ? ((row.data as { name?: string } | null)?.name ??
+        profile.data?.display_name ??
+        "Marque")
+      : (profile.data?.display_name ??
+        ((row.data as { handle?: string } | null)?.handle
+          ? `@${(row.data as { handle?: string }).handle}`
+          : "Créateur"));
+
+  return {
+    party: {
+      user_id: userId,
+      display_name: nom,
+      legal_status_label: statusLabel(l?.status ?? null),
+      legal_name: l?.legal_name ?? null,
+      rep_name: l?.rep_name ?? null,
+      address: l?.address ?? null,
+      city: l?.city ?? null,
+      zip: l?.zip ?? null,
+      country: l?.country ?? null,
+      siret: l?.siret ?? null,
+      vat: l?.vat ?? null,
+      contact_email: l?.contact_email ?? null,
+    },
+    missing: missingFields(l ?? null),
+  };
+}
+
+/**
  * Construit le snapshot complet d'un deal en lisant via admin client.
  * Bypass RLS volontairement : c'est un appel server-side au moment de la
  * signature, on a besoin des coordonnées légales des 2 parties qui ne se
  * sont pas mutuellement autorisées à se lire.
  */
-export async function buildContractSnapshot(dealId: string): Promise<BuildResult> {
+export async function buildContractSnapshot(
+  dealId: string,
+  opts: { allowIncomplete?: boolean } = {},
+): Promise<BuildResult> {
   const admin = createAdminClient();
 
   const { data: deal } = await admin
@@ -133,17 +208,29 @@ export async function buildContractSnapshot(dealId: string): Promise<BuildResult
     ]);
 
   // Validation : les 2 parties doivent avoir le minimum.
+  // En régime simplifié (sous le seuil légal de 1 000 €/an), on laisse passer
+  // et on se contente de signaler ce qui manque.
   const bMissing = missingFields(brandLegal.data);
-  if (bMissing.length > 0) {
-    return { ok: false, reason: "incomplete_legal_info", missing: { who: "brand", fields: bMissing } };
-  }
   const cMissing = missingFields(creatorLegal.data);
-  if (cMissing.length > 0) {
-    return {
-      ok: false,
-      reason: "incomplete_legal_info",
-      missing: { who: "creator", fields: cMissing },
-    };
+  const incomplete: { who: "brand" | "creator"; fields: string[] }[] = [];
+  if (bMissing.length > 0) incomplete.push({ who: "brand", fields: bMissing });
+  if (cMissing.length > 0) incomplete.push({ who: "creator", fields: cMissing });
+
+  if (!opts.allowIncomplete) {
+    if (bMissing.length > 0) {
+      return {
+        ok: false,
+        reason: "incomplete_legal_info",
+        missing: { who: "brand", fields: bMissing },
+      };
+    }
+    if (cMissing.length > 0) {
+      return {
+        ok: false,
+        reason: "incomplete_legal_info",
+        missing: { who: "creator", fields: cMissing },
+      };
+    }
   }
 
   const brand: PartySnapshot = {
@@ -198,6 +285,7 @@ export async function buildContractSnapshot(dealId: string): Promise<BuildResult
         usage_rights_months: deal.usage_rights_months ?? null,
       },
     },
+    ...(incomplete.length > 0 ? { incomplete } : {}),
   };
 }
 

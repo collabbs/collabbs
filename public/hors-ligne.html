@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#7c3aed" />
+    <title>Hors ligne — Collabbs</title>
+    <!--
+      Page ENTIÈREMENT autonome : styles en ligne, logo en SVG, aucune police
+      ni aucun script externe.
+
+      C'est la raison d'être de ce fichier. Une page Next mise en cache
+      renverrait vers ses feuilles de style et ses scripts, introuvables
+      justement quand on en a besoin : elle s'afficherait en texte brut, et
+      après un déploiement ses fichiers n'existeraient même plus.
+    -->
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 24px;
+        text-align: center;
+        background: #fff;
+        color: #09090b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .marque { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+      .marque em { font-style: normal; color: #7c3aed; }
+      h1 { margin: 28px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+      p { margin: 12px 0 0; max-width: 34ch; font-size: 14px; line-height: 1.6; color: #71717a; }
+      p.discret { margin-top: 24px; color: #a1a1aa; }
+    </style>
+  </head>
+  <body>
+    <div class="marque">
+      <svg width="32" height="32" viewBox="0 0 72 72" aria-hidden="true">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#ec4899" />
+          </linearGradient>
+        </defs>
+        <rect width="72" height="72" rx="16" fill="url(#g)" />
+        <circle cx="28" cy="36" r="14" fill="#fff" />
+        <circle cx="44" cy="36" r="14" fill="#fff" fill-opacity="0.55" />
+      </svg>
+      <span>colla<em>bb</em>s</span>
+    </div>
+    <h1>Pas de connexion</h1>
+    <p>
+      Collabbs a besoin du réseau pour afficher tes collaborations, tes messages
+      et tes paiements — on préfère ne rien te montrer plutôt que de te montrer
+      des chiffres d'hier.
+    </p>
+    <p class="discret">Reviens dès que tu as du réseau : la page se rechargera.</p>
+  </body>
+</html>

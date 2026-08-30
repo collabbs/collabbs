@@ -241,3 +241,47 @@ export function videoIdFromUrl(url: string): string | null {
   }
   return null;
 }
+
+/**
+ * Constate l'audience réelle d'une chaîne auprès de l'API YouTube.
+ *
+ * C'est la seule chose qui autorise à parler d'audience « vérifiée » : un
+ * chiffre renvoyé par la plateforme elle-même, à une date donnée. Tout le reste
+ * est déclaratif.
+ *
+ * Coût quota : 1 unité (+ 1 à 2 pour la résolution du channel si nécessaire).
+ *
+ * ⚠️ Limite assumée : cela prouve l'audience de la CHAÎNE, pas que la personne
+ * connectée en soit propriétaire. Un créateur peut coller l'URL de quelqu'un
+ * d'autre. La preuve de propriété demande un OAuth, prévu avec TikTok et
+ * Instagram. En attendant, on l'écrit noir sur blanc plutôt que de laisser
+ * croire à une garantie qu'on n'a pas.
+ */
+export async function fetchChannelAudience(input: string): Promise<{
+  channelId: string;
+  title: string;
+  subscribers: number;
+  hiddenSubscriberCount: boolean;
+} | null> {
+  const channelId = await resolveChannelId(input);
+  if (!channelId) return null;
+
+  const res = await fetch(
+    `${API_BASE}/channels?part=snippet,statistics&id=${channelId}&key=${apiKey()}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const item = data.items?.[0];
+  if (!item) return null;
+
+  return {
+    channelId,
+    title: item.snippet?.title ?? "",
+    subscribers: Number(item.statistics?.subscriberCount ?? 0),
+    // YouTube autorise à masquer son nombre d'abonnés : dans ce cas la
+    // statistique vaut 0 et ne prouve rien.
+    hiddenSubscriberCount: Boolean(item.statistics?.hiddenSubscriberCount),
+  };
+}

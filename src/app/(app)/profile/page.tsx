@@ -4,6 +4,7 @@ import CreatorProfileForm from "./CreatorProfileForm";
 import BrandProfileForm from "./BrandProfileForm";
 import LegalInfoSection from "./LegalInfoSection";
 import PortfolioManager from "./PortfolioManager";
+import AudienceVerification from "./AudienceVerification";
 import type { LegalInfoData } from "./legal-utils";
 
 export const metadata = {
@@ -55,13 +56,13 @@ export default async function ProfilePage() {
         supabase.from("platforms").select("id, label, slug").order("id"),
         supabase
           .from("creators")
-          .select("handle, bio, custom_niche")
+          .select("handle, bio, custom_niche, city, travels")
           .eq("id", user.id)
           .maybeSingle(),
         supabase.from("creator_niches").select("niche_id").eq("creator_id", user.id),
         supabase
           .from("creator_platforms")
-          .select("platform_id, handle, subscribers, url")
+          .select("platform_id, handle, subscribers, url, verified_at, verified_subscribers")
           .eq("creator_id", user.id),
         supabase.from("creator_offers").select("offer, price").eq("creator_id", user.id),
       ]);
@@ -92,12 +93,19 @@ export default async function ProfilePage() {
 
     return (
       <CreatorProfileForm
-        userId={user.id}
         displayName={profile.display_name ?? "Créateur"}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         publicHandle={creatorRes.data?.handle ?? null}
-        legalSection={<LegalInfoSection initial={legalInitial} role="creator" />}
+        legalSection={
+          <>
+            <AudienceVerification
+              verifiedAt={youtubeRow?.verified_at ?? null}
+              verifiedSubscribers={youtubeRow?.verified_subscribers ?? null}
+            />
+            <LegalInfoSection initial={legalInitial} role="creator" />
+          </>
+        }
         portfolioSection={
           <PortfolioManager
             initial={portfolio}
@@ -108,6 +116,8 @@ export default async function ProfilePage() {
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",
+          city: creatorRes.data?.city ?? "",
+          travels: creatorRes.data?.travels ?? false,
           avatarUrl: profile.avatar_url ?? null,
           customNiche: creatorRes.data?.custom_niche ?? "",
           nicheIds: (cNichesRes.data ?? []).map((r) => r.niche_id),
@@ -150,7 +160,6 @@ export default async function ProfilePage() {
 
     return (
       <BrandProfileForm
-        userId={user.id}
         niches={nichesRes.data ?? []}
         platforms={platformsRes.data ?? []}
         legalSection={<LegalInfoSection initial={legalInitial} role="brand" />}

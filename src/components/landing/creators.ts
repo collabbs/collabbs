@@ -52,10 +52,15 @@ export type Creator = {
   /** Prix de départ d'un format payé au fixe, ou null si le créateur ne fait que perf/affiliation. */
   priceFrom: number | null;
   offers: OfferId[];
-  rating: number;
+  /** `null` tant qu'aucun avis n'a été reçu — jamais une note inventée. */
+  rating: number | null;
   photo: string;
   /** Dégradé affiché en secours si la photo ne charge pas. */
   tint: string;
+  /** Ville du créateur, pour les tournages sur place. */
+  city?: string | null;
+  /** Accepte de se déplacer hors de sa ville. */
+  travels?: boolean;
   /** Signaux de qualité affichés en badges sur la card. */
   isTop?: boolean;
   isVerified?: boolean;

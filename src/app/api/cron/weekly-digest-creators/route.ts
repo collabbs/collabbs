@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 // Tourne tous les lundis matin : pour chaque créateur ayant au moins un lien
 // d'affiliation, calcule ses stats des 7 derniers jours (clics, ventes,
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
 
   const { data: events } = await admin
     .from("affiliate_events")
-    .select("link_id, type, sale_amount, commission_amount, occurred_at")
+    .select("link_id, type, status, sale_amount, commission_amount, occurred_at")
     .in("link_id", allLinkIds)
     .gte("occurred_at", since);
 
@@ -47,7 +48,9 @@ export async function GET(request: Request) {
     let gains = 0;
     for (const e of myEvents) {
       if (e.type === "click") clicks += 1;
-      else if (e.type === "sale") {
+      else if (countsAsEarning(e)) {
+        // Annoncer par courriel des gains qui ont été rejetés serait la pire
+        // façon de les apprendre. Les actions (CPA) comptent, elles.
         sales += 1;
         gains += Number(e.commission_amount ?? 0);
       }

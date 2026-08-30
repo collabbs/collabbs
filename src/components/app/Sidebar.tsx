@@ -14,6 +14,7 @@ const CREATOR_NAV: NavItem[] = [
   { href: "/opportunities", label: "Opportunités", icon: "🎯" },
   { href: "/activity", label: "Mon activité", icon: "⚡" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
+  { href: "/contracts", label: "Contrats", icon: "📄" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/payouts", label: "Paiements", icon: "💶" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
@@ -29,8 +30,10 @@ const BRAND_NAV: NavItem[] = [
   { href: "/creators", label: "Trouver des créateurs", icon: "🔍" },
   { href: "/shortlist", label: "Ma shortlist", icon: "⭐" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
+  { href: "/contracts", label: "Contrats", icon: "📄" },
   { href: "/messages", label: "Messages", icon: "💬" },
   { href: "/tracking", label: "Tracking", icon: "🔗" },
+  { href: "/billing", label: "Provision", icon: "💳" },
   { href: "/notifications", label: "Notifications", icon: "🔔" },
   { href: "/analytics", label: "Analytics", icon: "📈" },
   { href: "/profile", label: "Mon profil", icon: "🏢" },
@@ -43,6 +46,7 @@ export default function Sidebar({
   avatarUrl,
   badges = {},
   attention = [],
+  isAdmin = false,
 }: {
   role: "creator" | "brand";
   name: string;
@@ -50,10 +54,17 @@ export default function Sidebar({
   badges?: Record<string, number>;
   /** Hrefs avec un point ambré « à attention » (ex. tracking pas vérifié). */
   attention?: string[];
+  /** Ajoute l'entrée d'administration. Le contrôle réel est côté serveur. */
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const items = role === "creator" ? CREATOR_NAV : BRAND_NAV;
+  const items = [
+    ...(role === "creator" ? CREATOR_NAV : BRAND_NAV),
+    // L'entrée n'est qu'un raccourci : /admin refait la vérification côté
+    // serveur, donc la masquer ne protège rien — ça évite juste du bruit.
+    ...(isAdmin ? [{ href: "/admin", label: "Administration", icon: "🛠" }] : []),
+  ];
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 
@@ -61,9 +72,15 @@ export default function Sidebar({
   const notifCount = badges["/notifications"] ?? 0;
 
   // Fermer le drawer quand on change de page.
-  useEffect(() => {
+  //
+  // Ajustement pendant le rendu plutôt que dans un effet : c'est le motif
+  // recommandé par React pour réagir à un changement de props. Le tiroir se
+  // ferme dans la même passe de rendu, sans le clignotement d'un aller-retour.
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
     setDrawerOpen(false);
-  }, [pathname]);
+  }
 
   // Bloquer le scroll du body quand le drawer est ouvert.
   useEffect(() => {

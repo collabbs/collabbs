@@ -11,6 +11,7 @@ import {
 } from "@/lib/deal";
 import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
+import { thresholdWith, LEGAL_THRESHOLD } from "@/lib/legal-threshold";
 import { openConversation } from "../../messages/actions";
 import { createDealCheckout } from "../actions";
 import DealControls from "./DealControls";
@@ -89,10 +90,13 @@ function ContractParties({ snap }: { snap: ContractSnapshot }) {
 
 export default async function DealDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ paid?: string; payerror?: string; stripe?: string }>;
 }) {
   const { id } = await params;
+  const retour = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -112,7 +116,8 @@ export default async function DealDetailPage({
   const role: "brand" | "creator" = deal.brand_id === user.id ? "brand" : "creator";
   const otherId = role === "brand" ? deal.creator_id : deal.brand_id;
 
-  const [otherRes, delsRes, platRes, reviewRes, contractRes, txRes, myLegalRes] = await Promise.all([
+  const [otherRes, delsRes, platRes, reviewRes, creatorPayoutRes, contractRes, txRes, myLegalRes] =
+    await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
@@ -125,6 +130,12 @@ export default async function DealDetailPage({
       ? supabase.from("platforms").select("label").eq("id", deal.platform_id).single()
       : Promise.resolve({ data: null }),
     supabase.from("reviews").select("rating, comment").eq("deal_id", id).maybeSingle(),
+    // Sert uniquement à dire la vérité sur un versement en attente.
+    supabase
+      .from("creators")
+      .select("stripe_account_id")
+      .eq("id", deal.creator_id)
+      .maybeSingle(),
     supabase
       .from("contracts")
       .select(
@@ -135,7 +146,7 @@ export default async function DealDetailPage({
     supabase
       .from("transactions")
       .select(
-        "status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
+        "id, status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
       )
       .eq("deal_id", id)
       .eq("type", "deal_payment")
@@ -147,10 +158,30 @@ export default async function DealDetailPage({
       .maybeSingle(),
   ]);
   const other = otherRes.data;
+  // Vrai si le créateur a un compte de paiement connecté. Sert à ne pas
+  // l'accuser à tort quand un versement n'aboutit pas.
+  const creatorHasPayoutAccount = Boolean(
+    (creatorPayoutRes.data as { stripe_account_id?: string | null } | null)
+      ?.stripe_account_id,
+  );
+
   const deliverables = delsRes.data ?? [];
   const existingReview = reviewRes.data ?? null;
+  // Avis laissé par le créateur SUR la marque. La table arrive avec la
+  // migration 0039 ; tant qu'elle n'est pas appliquée on n'affiche rien plutôt
+  // que de casser la page.
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const { data: brandReviewRow } = await (supabase as any)
+    .from("brand_reviews")
+    .select("rating, comment")
+    .eq("deal_id", id)
+    .maybeSingle();
+  const existingBrandReview = brandReviewRow ?? null;
   const contract = contractRes.data ?? null;
   const myLegalReady = isLegalInfoComplete(myLegalRes.data);
+  // Cumul annuel avec cette contrepartie, en incluant ce deal — ce qui permet
+  // de dire « cette collaboration fait franchir le seuil » avant de signer.
+  const thresholdState = await thresholdWith(deal.brand_id, deal.creator_id, deal.amount);
   const payment = txRes.data ?? null;
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
@@ -230,6 +261,34 @@ export default async function DealDetailPage({
           {meta.label}
         </span>
       </div>
+
+      {/* Retour de Stripe. Ces paramètres étaient posés par les redirections
+          (`?paid=1`, `?payerror=1`, `?stripe=missing`) et lus par personne :
+          la marque revenait de sa banque sans un mot, y compris quand le
+          paiement avait été encaissé sans être enregistré chez nous. */}
+      {retour.payerror === "1" && (
+        <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
+          <strong>Ton paiement a été encaissé, mais nous n&apos;avons pas pu
+          l&apos;enregistrer.</strong>{" "}
+          Ne recommence pas : écris à support@collabbs.com en indiquant cette
+          collaboration, on régularise à la main.
+        </div>
+      )}
+      {retour.stripe === "missing" && (
+        <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
+          Le paiement est momentanément indisponible. Réessaie dans quelques
+          minutes — et préviens-nous si ça persiste.
+        </div>
+      )}
+      {/* On ne l'affiche QUE si le paiement existe vraiment : sinon un
+          `?paid=1` collé dans la barre d'adresse annoncerait un séquestre
+          imaginaire. */}
+      {retour.paid === "1" && payment && (
+        <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
+          ✅ Paiement reçu et <strong>mis en séquestre</strong>. Les fonds seront
+          versés au créateur à la clôture de la collaboration.
+        </div>
+      )}
 
       {/* Timeline du parcours — visible en haut, sur toute la largeur */}
       <div className="mt-6">
@@ -320,6 +379,13 @@ export default async function DealDetailPage({
 
               {contract.status === "signed" ? (
                 <>
+                  <Link
+                    href={`/contracts/${id}`}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    📄 Lire le contrat complet
+                  </Link>
+
                   {/* Coordonnées des 2 parties (depuis le snapshot gelé) */}
                   {contract.terms_snapshot &&
                     typeof contract.terms_snapshot === "object" &&
@@ -356,13 +422,37 @@ export default async function DealDetailPage({
                     dès que le créateur accepte les termes proposés.
                   </p>
 
-                  {/* Nudge légal : si l'utilisateur connecté n'a pas ses infos
-                      complètes, on lui dit avant qu'il bloque sur l'acceptation. */}
-                  {!myLegalReady && (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  {/* Où en est le cumul annuel avec cette contrepartie, et ce
+                      que cette collaboration va y changer. C'est le moment où
+                      l'information est utile : avant de s'engager. */}
+                  <div
+                    className={`mt-4 rounded-xl border p-3 ${
+                      thresholdState.required
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-zinc-200 bg-zinc-50"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-ink">
+                      Cumul {new Date().getFullYear()} avec {other?.display_name ?? "cette partie"} :{" "}
+                      {eur(thresholdState.total)} sur {eur(LEGAL_THRESHOLD)}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                      {thresholdState.crossesWithThisDeal
+                        ? "Cette collaboration fait franchir le seuil légal. Un contrat écrit détaillé devient obligatoire, et les infos légales des deux parties sont exigées pour signer."
+                        : thresholdState.required
+                          ? "Le seuil légal est déjà franchi cette année : le contrat écrit détaillé est obligatoire."
+                          : `En dessous de ${eur(LEGAL_THRESHOLD)} cumulés sur l'année, la loi n'impose pas de contrat détaillé — un contrat simplifié suffit. Il reste ${eur(thresholdState.remaining)} de marge.`}
+                    </p>
+                  </div>
+
+                  {/* Nudge légal — seulement quand ces infos sont réellement
+                      exigées, c'est-à-dire au-dessus du seuil. En dessous, on
+                      n'embête pas un créateur qui n'a pas encore de statut. */}
+                  {!myLegalReady && thresholdState.required && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
                       <p className="text-sm font-medium text-amber-800">
-                        ⚠️ Tes infos légales sont incomplètes — la signature sera bloquée
-                        tant qu&apos;elles ne sont pas à jour.
+                        ⚠️ Tes infos légales sont incomplètes — au-dessus du seuil, la
+                        signature sera bloquée tant qu&apos;elles ne sont pas à jour.
                       </p>
                       <Link
                         href="/profile"
@@ -431,6 +521,7 @@ export default async function DealDetailPage({
             role={role}
             status={status}
             existingReview={existingReview}
+            existingBrandReview={existingBrandReview}
           />
         </div>
 
@@ -449,7 +540,14 @@ export default async function DealDetailPage({
               </div>
               <div className="flex justify-between border-t border-zinc-100 pt-2">
                 <dt className="font-semibold text-ink">
-                  {role === "brand" ? "À régler" : "Tu reçois"}
+                  {/* « À régler » se contredisait avec l'encart « Réglé — en
+                      séquestre » juste en dessous. Une fois le séquestre payé,
+                      il n'y a plus rien à régler. */}
+                  {role === "brand"
+                    ? payment && payment.status !== "refunded"
+                      ? "Réglé"
+                      : "À régler"
+                    : "Tu reçois"}
                 </dt>
                 <dd className="font-display text-lg font-black text-ink">
                   {role === "brand" ? eur(b.gross) : eur(b.net)}
@@ -469,11 +567,19 @@ export default async function DealDetailPage({
               <div className="mt-4 space-y-2">
                 <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
                   🔒 Réglé — <strong>{eur(payment.gross_amount)}</strong> en séquestre.
-                  {status === "completed"
-                    ? role === "creator"
-                      ? " Connecte ton compte pour recevoir ta part."
-                      : " Versement au créateur en attente (il doit connecter son compte)."
-                    : " Les fonds seront versés au créateur à la clôture."}
+                  {/* Le motif était écrit en dur : la page annonçait « il doit
+                      connecter son compte » même quand le créateur en avait un
+                      et que le blocage venait d'ailleurs. La marque relançait
+                      le créateur pour rien. */}
+                  {status !== "completed"
+                    ? " Les fonds seront versés au créateur à la clôture."
+                    : creatorHasPayoutAccount
+                      ? role === "creator"
+                        ? " Ton versement n'a pas encore abouti. Vérifie que ton compte de paiement est complet ; nous relançons automatiquement."
+                        : " Versement au créateur en attente. Rien à faire de ton côté : les fonds lui reviennent."
+                      : role === "creator"
+                        ? " Connecte ton compte pour recevoir ta part."
+                        : " Versement en attente : le créateur n'a pas encore connecté son compte de paiement."}
                 </div>
                 {status === "completed" && role === "creator" && (
                   <ReceiveButton dealId={deal.id} amountLabel={eur(payment.net_amount)} />
@@ -493,13 +599,41 @@ export default async function DealDetailPage({
                 </p>
               </form>
             ) : (
-              <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
-                {status === "negotiation"
-                  ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
-                  : status === "active"
-                    ? "🔒 En attente du règlement de la marque (mise en séquestre)."
-                    : "Aucun paiement enregistré pour ce deal."}
+              <div
+                className={
+                  status === "negotiation" && deal.amount <= 0
+                    ? "mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800"
+                    : "mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500"
+                }
+              >
+                {/* Un deal naît à 0 € : booking direct, ou candidature sur une
+                    campagne à la performance qui n'a pas de forfait. Tant que
+                    la marque n'a rien fixé, le créateur ne peut pas accepter —
+                    il signerait un contrat à 0 €. On le dit ici, à côté du
+                    montant, plutôt que de laisser le bouton échouer. */}
+                {status === "negotiation" && deal.amount <= 0
+                  ? role === "brand"
+                    ? "✏️ Montant à fixer. Cette collaboration est à 0 € : utilise « Modifier les termes » pour indiquer ce que tu proposes. Le créateur ne peut pas accepter avant."
+                    : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
+                  : status === "negotiation"
+                    ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
+                    : status === "active"
+                      ? "🔒 En attente du règlement de la marque (mise en séquestre)."
+                      : "Aucun paiement enregistré pour ce deal."}
               </div>
+            )}
+
+            {payment && payment.status !== "refunded" && (
+              // La facture n'était atteignable que depuis la page des
+              // versements — c'est-à-dire seulement par le créateur. La marque,
+              // qui paie et qui supporte la commission, n'avait accès à aucun
+              // justificatif pour sa comptabilité.
+              <Link
+                href={`/invoices/${payment.id}`}
+                className="mt-3 block rounded-full px-5 py-2.5 text-center text-sm font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 transition hover:text-ink"
+              >
+                🧾 Récapitulatif de paiement
+              </Link>
             )}
 
             <form action={openConversation.bind(null, otherId)} className="mt-4">

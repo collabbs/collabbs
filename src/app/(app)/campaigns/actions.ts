@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
+import { valider } from "@/lib/validation";
+import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
+import { reportError } from "@/lib/report-error";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -59,7 +63,7 @@ export type CampaignData = {
 
 export async function createCampaign(
   data: CampaignData,
-): Promise<{ ok: boolean; error?: string; id?: string }> {
+): Promise<{ ok: boolean; error?: string; id?: string; warning?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -71,6 +75,58 @@ export async function createCampaign(
   const isPerformance = data.type === "performance";
   const isCpaFlat = data.type === "cpa_flat";
   const isCpaTiers = data.type === "cpa_tiers";
+
+  // Aucune de ces valeurs n'était vérifiée : elles partaient du formulaire
+  // directement en base. La plus dangereuse est le taux de commission — une
+  // virgule mal placée donne 500 %, soit 500 € de commission plus 125 € de
+  // frais sur une vente de 100 €, réservés dès la première vente sur la
+  // provision de la marque.
+  const chiffres = valider(valeursCampagneSchema, {
+    fixedAmount: data.fixedAmount,
+    perfRate: data.perfRate,
+    cpaValuePerAction: data.cpaValuePerAction,
+    minSubscribers: data.minSubscribers,
+    spots: data.spots,
+    promoDiscountPct: data.promoDiscountPct,
+    promoCommissionPct: data.promoCommissionPct,
+    promoMinPurchase: data.promoMinPurchase,
+    giveawayPrizeValue: data.giveawayPrizeValue,
+    giveawayWinnersCount: data.giveawayWinnersCount,
+  });
+  if (!chiffres.ok) return { ok: false, error: chiffres.error };
+
+  if (withAffiliation) {
+    const grille = valider(grilleCommissionSchema, data.commission);
+    if (!grille.ok) return { ok: false, error: grille.error };
+  }
+
+  // Une campagne doit annoncer ce qu'elle paie. Sans ce contrôle, on pouvait
+  // publier une campagne « Paiement fixe » à 0 € : elle s'affichait « 0€ par
+  // contenu » dans le fil des créateurs, et la candidature acceptée créait une
+  // collaboration à 0 €. La rémunération n'est pas un détail de formulaire,
+  // c'est la seule raison qu'a un créateur de répondre.
+  const remuneration = ((): string | null => {
+    if (withFixed && !(data.fixedAmount && data.fixedAmount > 0))
+      return "Indique le montant que tu paies par contenu : une campagne à 0 € n'attirera personne.";
+    if (isPerformance && !(data.perfRate && data.perfRate > 0))
+      return "Indique ce que tu paies pour 1 000 vues.";
+    if (isCpaFlat && !(data.cpaValuePerAction && data.cpaValuePerAction > 0))
+      return "Indique le montant versé par action réalisée.";
+    if (isCpaTiers && !data.cpaTiers.some((t) => t.minActions > 0 && t.payout > 0))
+      return "Renseigne au moins un palier : un nombre d'actions et le montant correspondant.";
+    if (
+      withAffiliation &&
+      !(
+        data.commission.nano > 0 ||
+        data.commission.micro > 0 ||
+        data.commission.mid > 0 ||
+        data.commission.macro > 0
+      )
+    )
+      return "Renseigne au moins une commission : à 0 %, le créateur ne gagne rien sur les ventes qu'il apporte.";
+    return null;
+  })();
+  if (remuneration) return { ok: false, error: remuneration };
 
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
@@ -144,21 +200,54 @@ export async function createCampaign(
         position: i,
       }));
     if (tiersToInsert.length > 0) {
-      await supabase.from("campaign_cpa_tiers").insert(tiersToInsert);
+      const { error: errPaliers } = await supabase
+        .from("campaign_cpa_tiers")
+        .insert(tiersToInsert);
+      // Une campagne à paliers sans palier n'annonce aucune rémunération.
+      if (errPaliers) {
+        await reportError("campagne/paliers", errPaliers, {
+          userId: user.id,
+          detail: `campagne ${inserted.id}`,
+        });
+      }
     }
   }
 
+  // Niches et réseaux ne sont pas décoratifs : le fil des créateurs FILTRE
+  // dessus. Une campagne dont l'insertion échoue ici existe, se paie, et
+  // n'est proposée à personne — le pire des états, parce qu'il ne ressemble
+  // pas à une panne.
   if (data.niches.length > 0) {
-    await supabase
+    const { error: errNiches } = await supabase
       .from("campaign_niches")
       .insert(data.niches.map((niche_id) => ({ campaign_id: inserted.id, niche_id })));
+    if (errNiches) {
+      await reportError("campagne/niches", errNiches, {
+        userId: user.id,
+        detail: `campagne ${inserted.id}`,
+      });
+    }
   }
   if (data.platforms.length > 0) {
-    await supabase
+    const { error: errReseaux } = await supabase
       .from("campaign_platforms")
       .insert(
         data.platforms.map((platform_id) => ({ campaign_id: inserted.id, platform_id })),
       );
+    if (errReseaux) {
+      await reportError("campagne/reseaux", errReseaux, {
+        userId: user.id,
+        detail: `campagne ${inserted.id}`,
+      });
+      // La campagne existe : la recréer ferait un doublon. On la rend visible
+      // et on dit quoi faire.
+      return {
+        ok: true,
+        id: inserted.id,
+        warning:
+          "Ta campagne est créée, mais les réseaux n'ont pas pu être enregistrés — sans eux, les créateurs ne la verront pas dans leur fil. Ouvre-la et enregistre-les à nouveau.",
+      };
+    }
   }
 
   revalidatePath("/dashboard");
@@ -176,7 +265,7 @@ export async function recordManualPromoSale(input: {
   code: string;
   amount: number;
   orderRef?: string | null;
-}): Promise<{ ok: boolean; error?: string; commission?: number }> {
+}): Promise<{ ok: boolean; error?: string; commission?: number; warning?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -212,16 +301,23 @@ export async function recordManualPromoSale(input: {
   }
 
   const pct = c.promo_commission_pct ?? 0;
-  const commission = Math.round((input.amount * pct) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(input.amount * pct) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    source: "promo_code",
-    sale_amount: input.amount,
-    commission_amount: commission,
-    external_ref: input.orderRef?.trim() || null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      source: "promo_code",
+      sale_amount: input.amount,
+      commission_amount: commission,
+      external_ref: input.orderRef?.trim() || null,
+    })
+    .select("id")
+    .single();
   if (error) {
     // Idempotent : même order_ref déjà saisi pour ce lien
     if ((error as { code?: string }).code === "23505") {
@@ -230,7 +326,26 @@ export async function recordManualPromoSale(input: {
     return { ok: false, error: error.message };
   }
 
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  const settlement = await settleSale({
+    eventId: inserted.id,
+    brandId: user.id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: input.amount,
+  });
+
   revalidatePath(`/campaigns/${input.campaignId}`);
+  revalidatePath("/billing");
+
+  if (settlement === "unfunded") {
+    return {
+      ok: true,
+      commission,
+      warning:
+        "Vente enregistrée, mais ta provision ne la couvre pas. Recharge ton compte pour que le créateur soit payé.",
+    };
+  }
   return { ok: true, commission };
 }
 

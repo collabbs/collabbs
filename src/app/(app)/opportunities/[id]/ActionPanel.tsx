@@ -10,6 +10,7 @@ export default function ActionPanel({
   initialCode,
   clicks = 0,
   gains = 0,
+  rewardedFor = "vente",
 }: {
   campaignId: string;
   isAffiliation: boolean;
@@ -17,6 +18,13 @@ export default function ActionPanel({
   initialCode?: string;
   clicks?: number;
   gains?: number;
+  /**
+   * Ce qui déclenche la rémunération sur cette campagne : « vente » en
+   * affiliation, mais l'action définie par la marque au CPA. Annoncer « chaque
+   * vente générée » sur une campagne payée à l'inscription décrivait un
+   * mécanisme qui n'existe pas.
+   */
+  rewardedFor?: string;
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [code, setCode] = useState(initialCode ?? "");
@@ -58,7 +66,8 @@ export default function ActionPanel({
           ✓ Ton lien d&apos;affiliation est actif
         </p>
         <p className="mt-1 text-xs text-emerald-600">
-          Partage-le partout : chaque vente générée te rapporte une commission.
+          Partage-le partout : chaque {rewardedFor} générée te rapporte une
+          commission.
         </p>
         <div className="mt-3 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-3 py-2 font-mono text-xs text-brand ring-1 ring-emerald-200">

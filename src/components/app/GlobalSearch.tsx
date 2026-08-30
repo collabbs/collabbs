@@ -30,7 +30,11 @@ export default function GlobalSearch() {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [active, setActive] = useState(0);
   const [, startTransition] = useTransition();
-  const [searching, setSearching] = useState(false);
+  // Plutôt qu'un drapeau « en cours », on retient la requête à laquelle
+  // correspondent les résultats affichés. « On cherche » se déduit alors :
+  // c'est quand la requête tapée n'est pas encore celle des résultats. Plus
+  // juste qu'un booléen, et rien à écrire depuis un effet.
+  const [hitsFor, setHitsFor] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -60,26 +64,28 @@ export default function GlobalSearch() {
     };
   }, [open]);
 
-  // Reset à la fermeture.
-  useEffect(() => {
+  // Reset à la fermeture — ajusté pendant le rendu plutôt que dans un effet,
+  // motif recommandé par React pour réagir à un changement d'état.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (!open) {
       setQuery("");
       setHits([]);
+      setHitsFor("");
       setActive(0);
     }
-  }, [open]);
+  }
 
   // Debounce search.
   useEffect(() => {
     if (!open) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setHits([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
+    // Une requête trop courte n'a pas de résultats : c'est un état DÉRIVÉ, pas
+    // un état à écrire. On sort sans rien poser ; l'affichage plus bas s'appuie
+    // sur `tooShort`.
+    if (trimmed.length < 2) return;
     debounceRef.current = setTimeout(() => {
       startTransition(async () => {
         const [base, nameMatch] = await Promise.all([
@@ -95,7 +101,7 @@ export default function GlobalSearch() {
           merged.push(h);
         }
         setHits(merged);
-        setSearching(false);
+        setHitsFor(trimmed);
         setActive(0);
       });
     }, 250);
@@ -112,13 +118,13 @@ export default function GlobalSearch() {
   function onKeyDownInput(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => Math.min(a + 1, hits.length - 1));
+      setActive((a) => Math.min(a + 1, visibleHits.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === "Enter" && hits[active]) {
+    } else if (e.key === "Enter" && visibleHits[active]) {
       e.preventDefault();
-      go(hits[active]);
+      go(visibleHits[active]);
     }
   }
 
@@ -128,7 +134,12 @@ export default function GlobalSearch() {
     brand: [],
     campaign: [],
   };
-  hits.forEach((h) => grouped[h.type].push(h));
+  // Requête trop courte : on n'affiche ni résultats ni indicateur de recherche,
+  // sans avoir eu besoin d'écrire dans l'état.
+  const tooShort = query.trim().length < 2;
+  const visibleHits = tooShort ? [] : hits;
+  const isSearching = !tooShort && hitsFor !== query.trim();
+  visibleHits.forEach((h) => grouped[h.type].push(h));
   let runningIdx = 0;
 
   return (
@@ -223,12 +234,12 @@ export default function GlobalSearch() {
                     campagne ouverte.
                   </p>
                 </div>
-              ) : searching ? (
+              ) : isSearching ? (
                 <div className="px-4 py-12 text-center">
                   <p className="text-3xl">⏳</p>
                   <p className="mt-3 text-sm text-zinc-500">Recherche en cours…</p>
                 </div>
-              ) : hits.length === 0 ? (
+              ) : visibleHits.length === 0 ? (
                 <div className="px-4 py-12 text-center">
                   <p className="text-3xl">🤷</p>
                   <p className="mt-3 text-sm font-medium text-ink">Aucun résultat</p>
@@ -296,7 +307,7 @@ export default function GlobalSearch() {
             </div>
 
             {/* Footer hints */}
-            {hits.length > 0 && (
+            {visibleHits.length > 0 && (
               <div className="hidden items-center justify-between border-t border-zinc-100 bg-zinc-50/50 px-4 py-2 text-[11px] text-zinc-500 sm:flex">
                 <span className="flex items-center gap-2">
                   <kbd className="rounded bg-white px-1.5 py-0.5 font-mono shadow-sm ring-1 ring-zinc-200">↑↓</kbd>

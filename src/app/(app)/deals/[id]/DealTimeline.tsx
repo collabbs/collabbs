@@ -287,7 +287,7 @@ export default function DealTimeline({
             return (
               <li key={s.n} className="flex flex-1 items-center">
                 <StepBubble step={s} />
-                {next && <Connector from={s.state} to={next.state} />}
+                {next && <Connector from={s.state} />}
               </li>
             );
           })}
@@ -388,7 +388,7 @@ function StepBubble({ step }: { step: Step }) {
   );
 }
 
-function Connector({ from, to }: { from: StepState; to: StepState }) {
+function Connector({ from }: { from: StepState }) {
   // Ligne d'horizontale entre 2 bulles. Verte si la précédente est done.
   const color = from === "done" ? "bg-emerald-300" : "bg-zinc-200";
   return <span className={`mx-1 h-0.5 flex-1 rounded ${color}`} />;

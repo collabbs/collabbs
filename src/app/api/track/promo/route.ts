@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback de VENTE attribuée à un CODE PROMO.
 // Sémantiquement proche de /api/track/sale mais résout par code promo
@@ -10,7 +12,8 @@ import { notifyOnce } from "@/lib/notifications";
 // utilisé pour les ventes via lien tracké).
 //
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization:
-// Bearer <secret>`, ou en repli ?key=<secret> dans l'URL).
+// Bearer <secret>`, ou `key` dans le corps JSON en POST). Jamais dans l'URL :
+//            un paramètre d'URL finit dans les journaux d'accès.
 // Idempotence : si la même `order_id` est postée 2 fois pour le même
 // lien (et même source=promo_code), la 2e tentative est ignorée.
 //
@@ -63,7 +66,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(promo_commission_pct, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, promo_commission_pct, brands(postback_secret))",
     )
     .eq("promo_code", normalized)
     .maybeSingle();
@@ -80,16 +83,23 @@ async function handle(p: Payload) {
   }
 
   const pct = link.campaigns?.promo_commission_pct ?? 0;
-  const commission = Math.round((amount * pct) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(amount * pct) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    source: "promo_code",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: p.externalRef,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      source: "promo_code",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: p.externalRef,
+    })
+    .select("id")
+    .single();
   if (error) {
     if ((error as { code?: string }).code === "23505") {
       return NextResponse.json({
@@ -103,6 +113,15 @@ async function handle(p: Payload) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  await settleSale({
+    eventId: inserted.id,
+    brandId: link.campaigns!.brand_id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: amount,
+  });
+
   notifyOnce({
     userId: link.creator_id,
     type: "first_promo_sale",
@@ -114,9 +133,28 @@ async function handle(p: Payload) {
   return NextResponse.json({ ok: true, sale_amount: amount, rate: pct, commission });
 }
 
+/**
+ * Plafond appliqué avant toute lecture en base : c'est l'essai du secret qu'on
+ * veut rendre coûteux, pas la requête SQL qui suit.
+ *
+ * Seau distinct de `/api/track/sale` : un pic de ventes ne doit pas fermer la
+ * porte aux codes promo, et inversement.
+ */
+async function limite(request: Request) {
+  const verdict = await limitByIp(request, "track:promo", RATE_POLICIES.postback);
+  return verdict.allowed ? null : tooManyRequests(verdict.retryAfter);
+}
+
 export async function GET(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const url = new URL(request.url);
-  const secret = extractSecret(request, url.searchParams.get("key"));
+  // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
+  // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
+  // journaux donnerait le pouvoir de fabriquer des ventes. L'en-tête
+  // `Authorization: Bearer <secret>` est la seule voie en GET.
+  const secret = extractSecret(request, null);
   return handle({
     code: url.searchParams.get("code"),
     amount: url.searchParams.get("amount"),
@@ -126,6 +164,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const secret = extractSecret(request, (body.key as string) ?? null);
   return handle({

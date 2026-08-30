@@ -6,6 +6,8 @@ import {
   ensureCheckoutSessionRecorded,
   handleChargeRefunded,
 } from "@/lib/stripe";
+import { handleTopupCheckout } from "@/lib/affiliate-billing";
+import { reportError } from "@/lib/report-error";
 
 // Webhook Stripe — source de vérité asynchrone pour les événements de paiement.
 // Sécurité : la signature Stripe est vérifiée avec STRIPE_WEBHOOK_SECRET (sinon 401).
@@ -45,7 +47,14 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        await ensureCheckoutSessionRecorded(event.data.object as Stripe.Checkout.Session);
+        const session = event.data.object as Stripe.Checkout.Session;
+        // Deux natures de paiement transitent par Checkout : le règlement d'un
+        // deal (séquestre) et l'approvisionnement d'une provision d'affiliation.
+        if (session.metadata?.kind === "topup") {
+          await handleTopupCheckout(session);
+        } else {
+          await ensureCheckoutSessionRecorded(session);
+        }
         break;
       }
       case "charge.refunded": {
@@ -57,9 +66,17 @@ export async function POST(request: Request) {
         // évènement non géré → 200 quand même, on accuse réception
         break;
     }
-  } catch {
-    // Erreur applicative : on logue (à brancher plus tard) mais on renvoie 200
-    // pour ne pas que Stripe retente en boucle. Idempotence garantit le rattrapage.
+  } catch (err) {
+    // On renvoie 200 quoi qu'il arrive, pour que Stripe ne retente pas en
+    // boucle. Le rattrapage existe : `/api/stripe/return` rappelle la même
+    // fonction, idempotente, quand la marque revient du paiement.
+    //
+    // Mais l'erreur DOIT être visible. Le commentaire disait « on logue (à
+    // brancher plus tard) » et le bloc était vide : un séquestre perdu des
+    // deux côtés n'aurait laissé aucune trace, alors que la marque a payé.
+    await reportError("stripe-webhook", err, {
+      detail: `évènement ${event.type} (${event.id})`,
+    });
   }
 
   return NextResponse.json({ ok: true });

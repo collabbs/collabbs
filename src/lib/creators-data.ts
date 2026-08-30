@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
+import { demoVisible } from "./demo-data";
 
 // Source de vérité = Supabase. Les démos seedées (is_demo) et les vrais
 // inscrits qui ont complété leur profil apparaissent ici, sans distinction.
@@ -53,7 +54,8 @@ export type MarketplaceCreator = {
   engagement: string;
   priceFrom: number | null;
   offers: OfferId[];
-  rating: number;
+  /** `null` tant que le créateur n'a reçu aucun avis — jamais une note inventée. */
+  rating: number | null;
   photo: string;
   tint: string;
   niches: string[];
@@ -62,6 +64,12 @@ export type MarketplaceCreator = {
   isTop: boolean;
   isVerified: boolean;
   isNew: boolean;
+  /** Ville affichée telle que saisie. */
+  city: string | null;
+  /** Forme normalisée, pour filtrer. */
+  citySlug: string | null;
+  /** Accepte de se déplacer hors de sa ville. */
+  travels: boolean;
   reviewsCount: number;
 };
 
@@ -83,10 +91,24 @@ async function loadRelations(ids: string[]) {
   const supabase = await createClient();
   const [profsRes, cpsRes, cnsRes, cosRes, platRes, nicheRes] = await Promise.all([
     supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
+    // Les colonnes de vérification arrivent avec la migration 0037. Si elle
+    // n'est pas encore appliquée, la requête échouerait et — le gating exigeant
+    // au moins un réseau — la marketplace se viderait SILENCIEUSEMENT. On
+    // retente donc sans ces colonnes plutôt que de tout perdre.
     supabase
       .from("creator_platforms")
-      .select("creator_id, platform_id, subscribers, handle, url")
-      .in("creator_id", ids),
+      .select("creator_id, platform_id, subscribers, handle, url, verified_at, verified_source")
+      .in("creator_id", ids)
+      .then(async (res) => {
+        if (!res.error) return res;
+        console.warn(
+          "[creators-data] colonnes de vérification absentes — repli sans elles. Applique la migration 0037.",
+        );
+        return supabase
+          .from("creator_platforms")
+          .select("creator_id, platform_id, subscribers, handle, url")
+          .in("creator_id", ids);
+      }),
     supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
     supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", ids),
     supabase.from("platforms").select("id, label, slug"),
@@ -101,7 +123,16 @@ async function loadRelations(ids: string[]) {
 
   const platsBy = new Map<
     string,
-    { label: string; slug: string; subs: number; handle: string | null; url: string | null }[]
+    {
+      label: string;
+      slug: string;
+      subs: number;
+      handle: string | null;
+      url: string | null;
+      /** Date à laquelle l'audience a été constatée auprès de la plateforme. */
+      verifiedAt: string | null;
+      verifiedSource: string | null;
+    }[]
   >();
   for (const cp of cpsRes.data ?? []) {
     const p = platMap.get(cp.platform_id);
@@ -113,6 +144,8 @@ async function loadRelations(ids: string[]) {
       subs: cp.subscribers ?? 0,
       handle: cp.handle ?? null,
       url: cp.url ?? null,
+      verifiedAt: (cp as { verified_at?: string | null }).verified_at ?? null,
+      verifiedSource: (cp as { verified_source?: string | null }).verified_source ?? null,
     });
     platsBy.set(cp.creator_id, arr);
   }
@@ -143,12 +176,19 @@ async function loadRelations(ids: string[]) {
 /** Carte marketplace : créateurs « complets » (photo, réseau, niche, offre). */
 export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   const supabase = await createClient();
-  const { data: creators } = await supabase
+  const requete = supabase
     .from("creators")
     .select(
-      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at",
+      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels, is_demo",
     )
     .order("rating", { ascending: false });
+  // Les profils de démonstration peuplent l'annuaire pendant qu'on construit,
+  // et deviennent un mensonge dès qu'un vrai visiteur arrive : rien ne les
+  // distingue d'un créateur réel, une marque peut leur écrire. Voir
+  // `demoVisible` — visibles en développement, cachés en production.
+  const { data: creators } = demoVisible()
+    ? await requete
+    : await requete.neq("is_demo", true);
   const rows = (creators ?? []) as CreatorRow[];
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
@@ -170,14 +210,23 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       continue;
 
     const main = plats[0];
-    const rating = c.rating ?? 5;
+    // NE PAS inventer de note. Le code écrivait `c.rating ?? 5` : un créateur
+    // sans le moindre avis s'affichait avec la note MAXIMALE. C'est la même
+    // faute que le badge « Vérifié » posé à la main sur tous les comptes de
+    // démonstration — fabriquer une preuve de confiance. Une marque choisit un
+    // créateur sur ces signaux.
+    const rating = c.rating ?? null;
     const dealsCount = c.deals_count ?? 0;
     const reviewsCount = c.reviews_count ?? 0;
-    const verified = Boolean(c.verified);
+    // « Vérifié » signifie désormais UNE seule chose : l'audience d'au moins un
+    // réseau a été constatée auprès de l'API de la plateforme. Le booléen
+    // `creators.verified` ne concerne que la vérification d'identité et ne doit
+    // plus faire lever ce badge — il valait `true` sur tous les comptes de démo.
+    const verified = plats.some((p) => Boolean(p.verifiedAt));
     const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
     const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
     // "Top" = vétéran avec excellente note. Au moins 5 deals OU 5 reviews + note ≥ 4.8.
-    const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+    const isTop = rating !== null && rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
 
     result.push({
       id: c.id,
@@ -192,6 +241,9 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       offers,
       rating,
       photo: prof.avatar_url,
+      city: (c as { city?: string | null }).city ?? null,
+      citySlug: (c as { city_slug?: string | null }).city_slug ?? null,
+      travels: Boolean((c as { travels?: boolean | null }).travels),
       tint: tintFor(c.handle),
       niches,
       platformLabels: plats.map((p) => p.label),
@@ -209,7 +261,8 @@ export type CreatorProfileData = {
   name: string;
   handle: string;
   bio: string | null;
-  rating: number;
+  /** `null` tant qu'aucun avis n'a été reçu. */
+  rating: number | null;
   reviewsCount: number;
   dealsCount: number;
   engagement: string;
@@ -221,7 +274,16 @@ export type CreatorProfileData = {
   photo: string | null;
   tint: string;
   niches: string[];
-  platforms: { label: string; slug: string; followers: string; handle: string | null; url: string | null }[];
+  platforms: {
+    label: string;
+    slug: string;
+    followers: string;
+    handle: string | null;
+    url: string | null;
+    /** Audience constatée auprès de la plateforme, pas seulement déclarée. */
+    verified: boolean;
+    verifiedAt: string | null;
+  }[];
   mainPlatform: { label: string; slug: string } | null;
   totalFollowers: string;
   isTop: boolean;
@@ -245,11 +307,15 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const { data: c } = await supabase
     .from("creators")
     .select(
-      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack, verified, created_at",
+      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack, verified, created_at, is_demo",
     )
     .eq("handle", handle)
     .maybeSingle();
   if (!c) return null;
+  // Même règle que l'annuaire : en production, une fiche de démonstration
+  // n'existe pas. Sans ça, elle resterait atteignable par lien direct — et
+  // c'est justement ce que fait quelqu'un à qui on a envoyé le profil.
+  if (c.is_demo && !demoVisible()) return null;
 
   const { profMap, platsBy, nichesBy, offersBy, offerPriceBy } =
     await loadRelations([c.id]);
@@ -269,15 +335,17 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     .order("view_count", { ascending: false, nullsFirst: false })
     .order("position");
 
-  const rating = c.rating ?? 5;
+  // Même règle que sur la vitrine : pas d'avis, pas de note inventée.
+  const rating = c.rating ?? null;
   const dealsCount = c.deals_count ?? 0;
   const reviewsCount = c.reviews_count ?? 0;
-  const verified = Boolean(c.verified);
+  // Même règle sur la fiche publique : le badge suit la vérification réelle.
+  const verified = plats.some((p) => Boolean(p.verifiedAt));
   const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
   const NOW = Date.now();
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
-  const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+  const isTop = rating !== null && rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
 
   return {
     id: c.id,
@@ -300,6 +368,9 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
       followers: fmtFollowers(p.subs),
       handle: p.handle,
       url: p.url,
+      /** Vrai seulement si l'audience a été constatée auprès de la plateforme. */
+      verified: Boolean(p.verifiedAt),
+      verifiedAt: p.verifiedAt,
     })),
     mainPlatform: plats[0] ? { label: plats[0].label, slug: plats[0].slug } : null,
     totalFollowers: fmtFollowers(totalSubs),

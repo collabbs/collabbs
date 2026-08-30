@@ -6,6 +6,57 @@ import Logo from "@/components/landing/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { saveBrandOnboarding } from "../actions";
 
+/**
+ * Aperçu de la fiche marque.
+ *
+ * Défini au niveau du module et non dans le composant parent : un composant
+ * recréé à chaque rendu perd son identité pour React, ce qui casse la
+ * mémorisation et peut faire perdre le focus des champs voisins.
+ */
+function PreviewCard({
+  name,
+  sector,
+  website,
+  logoPreview,
+}: {
+  name: string;
+  sector: string;
+  website: string;
+  logoPreview: string | null;
+}) {
+    const initials = (name || "Marque")
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    return (
+      <div className="w-full max-w-[240px] rounded-2xl border border-zinc-100 bg-white p-5 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-200">
+            {logoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoPreview} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <span className="font-display text-lg font-extrabold text-zinc-500">
+                {initials}
+              </span>
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-ink">
+              {name || "Ta marque"}
+            </p>
+            <p className="truncate text-xs text-zinc-500">{sector || "Secteur"}</p>
+          </div>
+        </div>
+        {website && (
+          <p className="mt-4 truncate text-xs text-brand">{website}</p>
+        )}
+      </div>
+    );
+  }
+
 export default function BrandWizard({
   userId,
   mode = "create",
@@ -91,39 +142,6 @@ export default function BrandWizard({
     }
   }
 
-  function PreviewCard() {
-    const initials = (name || "Marque")
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    return (
-      <div className="w-full max-w-[240px] rounded-2xl border border-zinc-100 bg-white p-5 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-200">
-            {logoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoPreview} alt="Logo" className="h-full w-full object-cover" />
-            ) : (
-              <span className="font-display text-lg font-extrabold text-zinc-500">
-                {initials}
-              </span>
-            )}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">
-              {name || "Ta marque"}
-            </p>
-            <p className="truncate text-xs text-zinc-500">{sector || "Secteur"}</p>
-          </div>
-        </div>
-        {website && (
-          <p className="mt-4 truncate text-xs text-brand">{website}</p>
-        )}
-      </div>
-    );
-  }
 
   // Écran "Bienvenue" uniquement à la création initiale.
   if (done && !isEdit) {
@@ -140,7 +158,7 @@ export default function BrandWizard({
           collaboration.
         </p>
         <div className="mt-8">
-          <PreviewCard />
+          <PreviewCard name={name} sector={sector} website={website} logoPreview={logoPreview} />
         </div>
         <div className="mt-8 flex flex-col gap-2">
           <Link
@@ -299,7 +317,7 @@ export default function BrandWizard({
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
             Aperçu
           </p>
-          <PreviewCard />
+          <PreviewCard name={name} sector={sector} website={website} logoPreview={logoPreview} />
         </div>
       </aside>
     </main>

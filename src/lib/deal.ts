@@ -34,3 +34,12 @@ export function dealBreakdown(amount: number): {
 }
 
 export const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
+
+/**
+ * Montant financier, toujours au centime : 12 → "12,00€", 562.5 → "562,50€".
+ * À utiliser partout où l'on montre de l'argent réellement dû ou versé
+ * (provision, registre, commissions, versements). `eur` reste pour les
+ * tarifs affichés, où "300€" se lit mieux que "300,00€".
+ */
+export const eurExact = (n: number) =>
+  `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;

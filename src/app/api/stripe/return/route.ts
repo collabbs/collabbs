@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { stripe, ensureCheckoutSessionRecorded } from "@/lib/stripe";
+import { handleTopupCheckout } from "@/lib/affiliate-billing";
 
 // Retour de Stripe Checkout : enregistre la transaction en séquestre via le
 // helper partagé. La même logique tourne aussi côté webhook, donc si le
@@ -12,8 +13,23 @@ export async function GET(request: Request) {
   let dealId: string | undefined;
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Approvisionnement de la provision d'affiliation : autre destination.
+    if (session.metadata?.kind === "topup") {
+      const res = await handleTopupCheckout(session);
+      return NextResponse.redirect(
+        `${url.origin}/billing?${res.ok ? "topup=1" : "topuperror=1"}`,
+        302,
+      );
+    }
+
     const res = await ensureCheckoutSessionRecorded(session);
     dealId = res.dealId ?? (session.metadata?.deal_id as string | undefined);
+    // Paiement encaissé mais non enregistré : la marque doit l'apprendre ici,
+    // sinon elle revient sur une page qui affiche toujours « À régler ».
+    if (!res.ok && dealId) {
+      return NextResponse.redirect(`${url.origin}/deals/${dealId}?payerror=1`, 302);
+    }
   } catch {
     if (dealId) return NextResponse.redirect(`${url.origin}/deals/${dealId}?payerror=1`, 302);
     return NextResponse.redirect(`${url.origin}/deals`, 302);

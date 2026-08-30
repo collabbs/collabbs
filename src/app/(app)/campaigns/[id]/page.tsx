@@ -15,8 +15,11 @@ import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
 import ExamplesManager from "./ExamplesManager";
 import PromoTrackingPanel from "./PromoTrackingPanel";
+import CpaTrackingPanel from "./CpaTrackingPanel";
+import { pluralizeAction } from "@/lib/cpa";
 import TrackingStatusCard from "./TrackingStatusCard";
 import ShareCampaignCard from "./ShareCampaignCard";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 export async function generateMetadata({
   params,
@@ -59,6 +62,7 @@ export default async function CampaignManagePage({
 
   const type = c.type as CampaignType;
   const isAffiliation = type === "affiliation" || type === "hybrid";
+  const isCpa = type === "cpa_flat" || type === "cpa_tiers";
 
   const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes, examplesRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
@@ -106,10 +110,10 @@ export default async function CampaignManagePage({
       const [eventsRes, profilesRes, creatorsRes] = await Promise.all([
         supabase
           .from("affiliate_events")
-          .select("link_id, sale_amount, commission_amount")
+          .select("link_id, type, status, sale_amount, commission_amount")
           .in("link_id", linkIds)
           .eq("source", "promo_code")
-          .eq("type", "sale"),
+          .in("type", ["sale", "action"]),
         supabase
           .from("profiles")
           .select("id, display_name")
@@ -123,10 +127,13 @@ export default async function CampaignManagePage({
       const credMap = new Map((creatorsRes.data ?? []).map((c) => [c.id, c]));
       const agg = new Map<string, { count: number; amount: number; commission: number }>();
       for (const ev of eventsRes.data ?? []) {
+        // Une vente annulée par la marque ne compte ni au volume ni en
+        // commission — l'afficher gonflerait les résultats du code promo.
+        if (!countsAsEarning(ev)) continue;
         const cur = agg.get(ev.link_id) ?? { count: 0, amount: 0, commission: 0 };
         cur.count += 1;
-        cur.amount += ev.sale_amount ?? 0;
-        cur.commission += ev.commission_amount ?? 0;
+        cur.amount += Number(ev.sale_amount ?? 0);
+        cur.commission += Number(ev.commission_amount ?? 0);
         agg.set(ev.link_id, cur);
       }
       promoRows = linksWithCode.map((l) => {
@@ -189,12 +196,20 @@ export default async function CampaignManagePage({
   const eventsRes = links.length
     ? await supabase
         .from("affiliate_events")
-        .select("link_id, type, sale_amount, commission_amount")
+        .select("link_id, type, status, sale_amount, commission_amount")
         .in(
           "link_id",
           links.map((l) => l.id),
         )
-    : { data: [] as { link_id: string; type: string; sale_amount: number | null; commission_amount: number | null }[] };
+    : {
+        data: [] as {
+          link_id: string;
+          type: string;
+          status: string | null;
+          sale_amount: number | null;
+          commission_amount: number | null;
+        }[],
+      };
 
   const perLink = new Map<string, { clicks: number; sales: number; ca: number; commissions: number }>();
   for (const l of links) perLink.set(l.id, { clicks: 0, sales: 0, ca: 0, commissions: 0 });
@@ -208,13 +223,16 @@ export default async function CampaignManagePage({
     if (e.type === "click") {
       agg.clicks += 1;
       totalClicks += 1;
-    } else if (e.type === "sale") {
-      agg.sales += 1;
-      agg.ca += e.sale_amount ?? 0;
-      agg.commissions += e.commission_amount ?? 0;
-      totalSales += 1;
-      totalCA += e.sale_amount ?? 0;
-      totalCommissions += e.commission_amount ?? 0;
+    } else if (countsAsEarning(e)) {
+      // Les actions (CPA) rapportent aussi ; le rejeté et le remboursé non.
+      if (e.type === "sale") {
+        agg.sales += 1;
+        agg.ca += Number(e.sale_amount ?? 0);
+        totalSales += 1;
+        totalCA += Number(e.sale_amount ?? 0);
+      }
+      agg.commissions += Number(e.commission_amount ?? 0);
+      totalCommissions += Number(e.commission_amount ?? 0);
     }
   }
 
@@ -399,7 +417,7 @@ export default async function CampaignManagePage({
                   </span>
                   <span>
                     Dès <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
-                    {c.cpa_action_label || "actions"} →{" "}
+                    {pluralizeAction(c.cpa_action_label || "action", t.min_actions)} →{" "}
                     <strong className="text-emerald-700">{t.payout.toLocaleString("fr-FR")}€</strong>
                   </span>
                 </div>
@@ -420,6 +438,15 @@ export default async function CampaignManagePage({
             déclarée.
           </p>
         </section>
+      )}
+
+      {/* Intégration du suivi des actions — seule la marque peut les constater. */}
+      {isCpa && (
+        <CpaTrackingPanel
+          origin={origin}
+          secret={brandRes.data?.postback_secret ?? null}
+          actionLabel={c.cpa_action_label || "action"}
+        />
       )}
 
       {/* Panneau tracking code promo (stats par créateur + saisie manuelle). */}

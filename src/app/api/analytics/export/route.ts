@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parsePeriod, periodRange } from "@/app/(app)/analytics/period";
+import { earningStatusLabel } from "@/lib/affiliate-earnings";
 
 /**
  * Export CSV des données analytics.
@@ -85,11 +86,13 @@ export async function GET(req: Request) {
     const links = linksRes.data ?? [];
     const linkIds = links.map((l) => l.id);
     if (linkIds.length === 0) {
-      csv = toCsv([["Date", "Type", "Montant vente", "Commission", "Campagne", "Lien"]]);
+      csv = toCsv([
+        ["Date", "Type", "Statut", "Montant vente", "Commission", "Campagne", "Lien"],
+      ]);
     } else {
       const { data: events } = await supabase
         .from("affiliate_events")
-        .select("created_at, type, sale_amount, commission_amount, link_id")
+        .select("created_at, type, status, sale_amount, commission_amount, link_id")
         .in("link_id", linkIds)
         .gte("created_at", startIso)
         .lte("created_at", endIso)
@@ -99,9 +102,14 @@ export async function GET(req: Request) {
         links.map((l) => [l.id, l.campaigns?.name ?? l.campaign_id]),
       );
 
+      // La colonne « Statut » n'est pas décorative : sans elle, une commission
+      // écartée ou remboursée figurait dans l'export exactement comme une
+      // commission acquise. Quelqu'un qui fait sa comptabilité à partir de ce
+      // fichier compterait de l'argent qu'il n'a jamais touché.
       const header = [
         "Date",
         "Type",
+        "Statut",
         "Montant vente",
         "Commission",
         "Campagne",
@@ -110,6 +118,7 @@ export async function GET(req: Request) {
       const rows = (events ?? []).map((e) => [
         new Date(e.created_at).toISOString(),
         e.type,
+        earningStatusLabel(e.status),
         e.sale_amount != null ? String(e.sale_amount) : "",
         e.commission_amount != null ? String(e.commission_amount) : "",
         linkCampaign.get(e.link_id) ?? "",

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyOnce } from "@/lib/notifications";
+import { notify } from "@/lib/notifications";
+import { limitByIp, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Pixel "client-side" pour le drop-in script (track.js).
 // Sécurité : on n'a pas de secret côté navigateur, donc on vérifie que le
@@ -12,14 +13,19 @@ const PIXEL = Buffer.from(
   "base64",
 );
 
-function pixelResponse(status = 200) {
+function pixelResponse(status = 200, extra?: Record<string, string>) {
   return new Response(new Uint8Array(PIXEL), {
     status,
     headers: {
       "Content-Type": "image/gif",
       "Cache-Control": "no-store, no-cache, must-revalidate",
+      ...extra,
     },
   });
+}
+
+function eur(n: number): string {
+  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 }
 
 function hostOf(input: string | null): string | null {
@@ -40,6 +46,15 @@ function refererAllowed(referer: string | null, website: string | null): boolean
 }
 
 export async function GET(request: Request) {
+  // Plafond par visiteur, avant toute lecture en base. Le corps reste le GIF :
+  // la page de la marque ne doit pas afficher d'image cassée parce qu'un autre
+  // onglet a trop tiré. Le statut 429 et `Retry-After` sont là pour les
+  // clients qui les lisent.
+  const verdict = await limitByIp(request, "track:pixel", RATE_POLICIES.pixel);
+  if (!verdict.allowed) {
+    return pixelResponse(429, { "Retry-After": String(verdict.retryAfter) });
+  }
+
   const url = new URL(request.url);
   const brandId = url.searchParams.get("brand");
   const ref = url.searchParams.get("ref");
@@ -89,25 +104,42 @@ export async function GET(request: Request) {
     else if (subs >= 10000) rate = c.commission_micro ?? 0;
     else rate = c.commission_nano ?? 0;
   }
-  const commission = Math.round((amount * rate) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round(amount * rate) / 100;
 
-  const insertRes = await admin.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: orderId,
-  });
+  const insertRes = await admin
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Le navigateur DÉCLARE une vente, il ne la prouve pas : le seul contrôle
+      // possible ici est le `Referer`, que n'importe qui falsifie en une ligne
+      // de commande. On enregistre donc sans rien réserver, et on demande à la
+      // marque de confirmer. Voir la migration 0042 pour le détail.
+      source: "pixel",
+      needs_review: true,
+      status: "unfunded",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: orderId,
+    })
+    .select("id")
+    .single();
   // En cas de doublon (même order_id), l'index unique renvoie une erreur
   // qu'on ignore — c'est exactement ce qu'on veut (succès idempotent).
 
-  if (!insertRes.error) {
-    notifyOnce({
-      userId: link.creator_id,
-      type: "first_affiliate_sale",
-      title: "🎉 Ta première vente affiliée !",
-      body: `Une vente de ${amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} vient d'être attribuée à ton lien. Commission : ${commission.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}. Bienvenue dans le revenu passif.`,
-      link: "/opportunities",
+  if (!insertRes.error && insertRes.data) {
+    // Pas de `settleSale` ici : aucun argent ne bouge avant confirmation.
+    // On prévient la marque, qui seule peut vérifier la commande chez elle.
+    // `notify` et non `notifyOnce` : chaque vente en attente est de l'argent
+    // dû à un créateur, elle mérite sa propre alerte.
+    notify({
+      // `brands.id` est aussi l'identifiant du profil propriétaire.
+      userId: brand.id,
+      type: "pixel_sale_to_review",
+      title: "Une vente à confirmer",
+      body: `Une vente de ${eur(amount)} a été déclarée depuis ta boutique. Confirme-la pour verser ${eur(commission)} de commission au créateur.`,
+      link: "/billing",
     }).catch(() => {});
   }
 

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/app/Sidebar";
+import RealtimeMessages from "@/components/app/RealtimeMessages";
 import { fetchSidebarData } from "@/lib/sidebar-data";
+import { isAdmin } from "@/lib/admin";
 
 export default async function AppLayout({
   children,
@@ -14,11 +16,12 @@ export default async function AppLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const data = await fetchSidebarData(user.id);
+  const [data, admin] = await Promise.all([fetchSidebarData(user.id), isAdmin()]);
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <Sidebar {...data} />
+      <Sidebar {...data} isAdmin={admin} />
+      <RealtimeMessages userId={user.id} />
       <div className="lg:pl-60">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
       </div>

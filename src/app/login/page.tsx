@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { login } from "@/app/auth/actions";
+import GoogleButton from "@/components/GoogleButton";
+import { googleActif } from "@/lib/google-auth";
 
 export default async function LoginPage({
   searchParams,
@@ -66,6 +68,18 @@ export default async function LoginPage({
             Se connecter
           </button>
         </form>
+
+        {googleActif() && (
+          <>
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-zinc-200" />
+            <span className="text-xs font-medium text-zinc-400">ou</span>
+            <span className="h-px flex-1 bg-zinc-200" />
+          </div>
+
+          <GoogleButton />
+          </>
+        )}
 
         <p className="mt-6 text-center text-sm text-zinc-500">
           Pas encore de compte ?{" "}

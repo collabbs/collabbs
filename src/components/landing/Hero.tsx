@@ -3,11 +3,24 @@ import { FEATURED_CREATORS } from "./creators";
 import CreatorCard from "./CreatorCard";
 import NetworkLinks from "./NetworkLinks";
 
+/**
+ * ⚠️ Rien ici ne doit être un chiffre d'activité.
+ *
+ * Cette bande annonçait « 1 200+ créateurs actifs », « 340+ marques » et
+ * « 48h de délai moyen de match ». Ces nombres n'ont jamais existé : ils
+ * décrivaient une plateforme qui n'a pas encore ouvert, à des visiteurs qui
+ * les lisaient comme des faits. Le premier créateur qui s'inscrit et trouve
+ * un annuaire vide comprend qu'on lui a menti — et c'est le seul dont on ne
+ * se remet pas.
+ *
+ * Ce qui reste sont des PROPRIÉTÉS du produit, vraies dès le premier jour et
+ * vérifiables à l'écran. Le jour où l'activité sera réelle, ces chiffres-là
+ * auront leur place — calculés depuis la base, pas écrits à la main.
+ */
 const STATS = [
-  { value: "1 200+", label: "Créateurs actifs" },
-  { value: "340+", label: "Marques" },
-  { value: "0%", label: "Commission créateurs" },
-  { value: "48h", label: "Délai moyen de match" },
+  { value: "0 %", label: "Prélevé au créateur" },
+  { value: "Séquestre", label: "Fonds bloqués jusqu'à validation" },
+  { value: "1 clic", label: "Pour activer l'affiliation" },
 ];
 
 export default function Hero() {
@@ -31,7 +44,7 @@ export default function Hero() {
         <div className="flex min-w-0 flex-col justify-center lg:h-[calc(100svh-4rem)]">
           <span className="animate-fade-up inline-flex w-fit items-center gap-2 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-brand-deep">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            2 480 deals signés · 0 impayé
+            Contrat signé · paiement séquestré · à chaque collaboration
           </span>
 
           <h1
@@ -88,7 +101,7 @@ export default function Hero() {
           >
             Vous êtes créateur ?{" "}
             <Link href="/signup" className="font-semibold text-brand hover:underline">
-              Rejoignez 1 200+ créateurs — c&apos;est gratuit →
+              Créez votre profil — c&apos;est gratuit, et ça le reste →
             </Link>
           </p>
 

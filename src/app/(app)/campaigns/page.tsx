@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -45,7 +46,7 @@ export default async function MyCampaignsPage() {
 
   const eventsRes = await supabase
     .from("affiliate_events")
-    .select("link_id, type, sale_amount, commission_amount")
+    .select("link_id, type, status, sale_amount, commission_amount")
     .in(
       "link_id",
       links.map((l) => l.id),
@@ -70,10 +71,13 @@ export default async function MyCampaignsPage() {
     const cid = linkToCampaign.get(e.link_id);
     if (!cid) continue;
     if (e.type === "click") add(clicks, cid, 1);
-    else if (e.type === "sale") {
-      add(sales, cid, 1);
-      add(ca, cid, e.sale_amount ?? 0);
-      add(commissions, cid, e.commission_amount ?? 0);
+    else if (countsAsEarning(e)) {
+      // Une vente annulée ne fait ni chiffre d'affaires ni commission.
+      if (e.type === "sale") {
+        add(sales, cid, 1);
+        add(ca, cid, Number(e.sale_amount ?? 0));
+      }
+      add(commissions, cid, Number(e.commission_amount ?? 0));
     }
   }
 

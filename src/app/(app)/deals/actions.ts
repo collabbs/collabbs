@@ -8,12 +8,100 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
+import { attemptDealPayout } from "@/lib/deal-payout";
+import { thresholdWith } from "@/lib/legal-threshold";
+import { eur } from "@/lib/campaign";
+import { reportError } from "@/lib/report-error";
+import { valider } from "@/lib/validation";
+import { termesDealSchema, DEAL_QUANTITE_MAX } from "@/lib/schemas/deals";
 
 type Result = { ok: boolean; error?: string };
 
 /** Référence de contrat lisible, style CLB-XXXXXX. */
 function contractRef(): string {
   return "CLB-" + crypto.randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
+}
+
+/**
+ * Crée la ligne de contrat d'une collaboration, en réessayant si la référence
+ * tirée au sort est déjà prise.
+ *
+ * `reference` est unique et vaut « CLB- » + 6 caractères hexadécimaux, soit
+ * 16,7 millions de possibilités : à quelques milliers de contrats, une
+ * collision finit par arriver. L'insertion échouait alors **en silence** —
+ * personne ne lisait son résultat — et la collaboration partait sans contrat.
+ * Plus tard, `acceptDeal` mettait à jour zéro ligne, tout aussi silencieusement :
+ * les deux parties se croyaient engagées par un contrat qui n'existait pas.
+ *
+ * `deal_id` est également unique : une erreur portant sur cette contrainte
+ * signifie que le contrat existe déjà, ce qui est le résultat recherché.
+ */
+async function ensureContractRow(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dealId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  for (let essai = 0; essai < 5; essai++) {
+    const { error } = await supabase
+      .from("contracts")
+      .insert({ deal_id: dealId, reference: contractRef(), status: "draft" });
+    if (!error) return { ok: true };
+    // Contrat déjà présent pour cette collaboration : rien à faire.
+    if (error.code === "23505" && error.message.includes("deal_id")) return { ok: true };
+    // Référence déjà prise : on retire au sort.
+    if (error.code === "23505") continue;
+    return { ok: false, error: error.message };
+  }
+  return { ok: false, error: "Impossible d'attribuer une référence de contrat." };
+}
+
+/**
+ * Garantit qu'une collaboration a ses livrables par défaut.
+ *
+ * Sans livrable, le créateur n'a **aucun moyen de livrer** : la page l'invite à
+ * marquer ses livrables « ci-dessus » alors qu'il n'y a rien au-dessus, et la
+ * collaboration reste bloquée pour toujours. Aucun écran ne permet d'en
+ * ajouter après coup.
+ *
+ * L'insertion n'était pas vérifiée — même défaut que la ligne de contrat, et
+ * même conséquence : un échec silencieux laissait une collaboration
+ * inutilisable. On la vérifie, et on la rattrape à l'acceptation.
+ */
+/**
+ * Un livrable = UN contenu que le créateur dépose. Rien d'autre.
+ *
+ * Deux erreurs de modèle vivaient ici :
+ *
+ *  - Une ligne « Validation finale de la marque » était créée comme livrable.
+ *    L'écran demandait donc au créateur de « déposer » la validation de la
+ *    marque, et la clôture — qui exige que TOUS les livrables soient validés —
+ *    restait bloquée dessus. La validation de la marque est déjà un geste à
+ *    part : le bouton « Valider », puis « Clôturer le deal ».
+ *  - La quantité était ignorée : une collaboration de 3 vidéos n'avait qu'une
+ *    seule ligne. Le créateur n'avait aucun endroit où déposer les deux
+ *    autres, et la marque aucun moyen d'en valider une sans valider tout.
+ */
+async function ensureDeliverables(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dealId: string,
+  quantity = 1,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data: existants } = await supabase
+    .from("deliverables")
+    .select("id")
+    .eq("deal_id", dealId)
+    .limit(1);
+  if (existants && existants.length > 0) return { ok: true };
+
+  const combien = Math.max(1, Math.min(quantity || 1, DEAL_QUANTITE_MAX));
+  const lignes = Array.from({ length: combien }, (_, i) => ({
+    deal_id: dealId,
+    label: combien > 1 ? `Contenu ${i + 1} / ${combien}` : "Contenu livré",
+    position: i + 1,
+  }));
+
+  const { error } = await supabase.from("deliverables").insert(lignes);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 /**
@@ -67,24 +155,37 @@ export async function createDealFromApplication(applicationId: string) {
     .single();
   if (error || !deal) redirect(`/campaigns/${app.campaign_id}`);
 
-  // Livrables par défaut.
-  await supabase.from("deliverables").insert([
-    { deal_id: deal.id, label: "Contenu livré", position: 1 },
-    { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
-  ]);
+  // Livrables par défaut. Sans eux, le créateur ne peut pas livrer.
+  // Quantité 1 à la création depuis une candidature : la marque l'ajuste
+  // ensuite dans les termes, et les livrables suivent.
+  const livrables = await ensureDeliverables(supabase, deal.id, 1);
+  if (!livrables.ok) {
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(livrables.error ?? "Livrables impossibles à créer.")}`);
+  }
 
   // Contrat (brouillon) — figé et signé à l'acceptation du créateur.
-  await supabase
-    .from("contracts")
-    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+  const contrat = await ensureContractRow(supabase, deal.id);
+  if (!contrat.ok) {
+    // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
+    // laisse pas exister à moitié.
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
+  }
 
-  await notify({
-    userId: app.creator_id,
-    type: "deal_proposed",
-    title: `Nouveau deal proposé — "${app.campaigns?.name ?? "campagne"}"`,
-    body: "La marque vient de te proposer une collaboration. Ouvre la page pour voir les termes et l'accepter.",
-    link: `/deals/${deal.id}`,
-  });
+  // On ne prévient le créateur que s'il y a un montant à lui montrer. Une
+  // campagne à la performance ou au CPA n'a pas de forfait : l'inviter à
+  // « voir les termes » d'un deal à 0 € ne lui offre qu'un cul-de-sac. La
+  // notification part quand la marque fixe le montant (`updateDealTerms`).
+  if (amount > 0) {
+    await notify({
+      userId: app.creator_id,
+      type: "deal_proposed",
+      title: `Nouveau deal proposé — "${app.campaigns?.name ?? "campagne"}"`,
+      body: "La marque vient de te proposer une collaboration. Ouvre la page pour voir les termes et l'accepter.",
+      link: `/deals/${deal.id}`,
+    });
+  }
 
   redirect(`/deals/${deal.id}`);
 }
@@ -135,22 +236,22 @@ export async function createDirectDeal(creatorId: string) {
     .single();
   if (error || !deal) redirect("/creators");
 
-  await supabase.from("deliverables").insert([
-    { deal_id: deal.id, label: "Contenu livré", position: 1 },
-    { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
-  ]);
+  const livrablesDirect = await ensureDeliverables(supabase, deal.id);
+  if (!livrablesDirect.ok) {
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/creators?error=${encodeURIComponent(livrablesDirect.error ?? "Livrables impossibles à créer.")}`);
+  }
 
-  await supabase
-    .from("contracts")
-    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+  const contrat = await ensureContractRow(supabase, deal.id);
+  if (!contrat.ok) {
+    // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
+    // laisse pas exister à moitié.
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
+  }
 
-  await notify({
-    userId: creatorId,
-    type: "deal_proposed",
-    title: "Nouveau deal proposé",
-    body: "Une marque vient de te proposer une collaboration directe. Ouvre la page pour voir les termes.",
-    link: `/deals/${deal.id}`,
-  });
+  // Pas de notification ici : un booking direct naît toujours à 0 €. Le
+  // créateur sera prévenu quand la marque aura fixé le montant.
 
   redirect(`/deals/${deal.id}`);
 }
@@ -168,23 +269,71 @@ export async function updateDealTerms(
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, status")
+    .select("brand_id, creator_id, title, status")
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
   if (deal.status !== "negotiation")
     return { ok: false, error: "Les termes ne sont modifiables qu'en négociation." };
 
+  // `Math.max(0, Math.round(...))` modifiait en silence ce que la marque avait
+  // saisi : 1 400,50 devenait 1 400, et un montant négatif devenait une
+  // collaboration gratuite. On refuse et on explique, plutôt que de corriger
+  // à sa place — il s'agit de son argent et de celui du créateur.
+  const controle = valider(termesDealSchema, {
+    amount: data.amount,
+    quantity: data.quantity,
+    deadline: data.deadline,
+    brandNotes: data.brandNotes,
+  });
+  if (!controle.ok) return { ok: false, error: controle.error };
+
   const { error } = await supabase
     .from("deals")
     .update({
-      amount: Math.max(0, Math.round(data.amount)),
-      quantity: Math.max(1, Math.round(data.quantity)),
-      deadline: data.deadline || null,
-      brand_notes: data.brandNotes?.trim() || null,
+      amount: controle.data.amount,
+      quantity: controle.data.quantity,
+      deadline: controle.data.deadline,
+      brand_notes: controle.data.brandNotes?.trim() || null,
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  // Les livrables suivent la quantité. On est en négociation : rien n'a encore
+  // été déposé, on peut donc les refaire proprement. Sans ça, une marque qui
+  // passe de 1 à 3 contenus laissait le créateur avec une seule ligne où
+  // déposer — et la collaboration se clôturait sur un tiers du travail.
+  const { data: dejaDeposes } = await supabase
+    .from("deliverables")
+    .select("id")
+    .eq("deal_id", dealId)
+    .or("done.eq.true,submission_url.not.is.null")
+    .limit(1);
+  if (!dejaDeposes || dejaDeposes.length === 0) {
+    await supabase.from("deliverables").delete().eq("deal_id", dealId);
+    const refaits = await ensureDeliverables(supabase, dealId, controle.data.quantity);
+    if (!refaits.ok) {
+      await reportError("deal/livrables-quantite", refaits.error ?? "inconnu", {
+        detail: `deal ${dealId}, quantité ${controle.data.quantity}`,
+      });
+      return {
+        ok: false,
+        error:
+          "Les termes n'ont pas pu être enregistrés entièrement (livrables). Réessaie.",
+      };
+    }
+  }
+
+  // Le créateur DOIT l'apprendre : ce sont les termes qu'il va signer. Rien ne
+  // le prévenait, et c'est ici que le montant d'un deal né à 0 € est fixé —
+  // sans cette notification, il n'avait aucune raison de revenir voir.
+  await notify({
+    userId: deal.creator_id,
+    type: "deal_terms_updated",
+    title: `Termes mis à jour — "${deal.title ?? "collaboration"}"`,
+    body: `La marque propose ${eur(controle.data.amount)} pour ${controle.data.quantity} contenu${controle.data.quantity > 1 ? "s" : ""}. Ouvre la collaboration pour accepter ou en discuter.`,
+    link: `/deals/${dealId}`,
+  });
 
   revalidatePath(`/deals/${dealId}`);
   return { ok: true };
@@ -209,10 +358,31 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   if (deal.status !== "negotiation")
     return { ok: false, error: "Ce deal n'est plus en négociation." };
 
-  // Avant d'accepter, on essaie de construire le snapshot du contrat. Si une
-  // partie n'a pas ses infos légales minimales, on bloque ici avec un
-  // message explicite — sinon on signerait un contrat à trous.
-  const build = await buildContractSnapshot(dealId);
+  // Un deal naît à 0 € : le booking direct part de zéro, et une candidature
+  // sur une campagne à la performance ou au CPA n'a pas de montant fixe à
+  // reprendre. Tant que la marque n'a rien fixé, accepter reviendrait à
+  // SIGNER UN CONTRAT À 0 € — et le séquestre refuse ensuite ce montant, donc
+  // la collaboration serait bloquée avec un contrat signé pour rien.
+  if (!deal.amount || deal.amount <= 0)
+    return {
+      ok: false,
+      error:
+        "La marque n'a pas encore fixé le montant de cette collaboration. Accepter maintenant reviendrait à signer un contrat à 0 € — demande-lui de le préciser avant.",
+    };
+
+  // Le contrat écrit détaillé n'est légalement obligatoire qu'au-delà de
+  // 1 000 € HT cumulés sur l'année civile entre ces deux mêmes parties
+  // (décret n° 2025-1137). En dessous, on n'exige pas les informations
+  // d'entreprise : un créateur qui fait sa première collab à 80 € n'a souvent
+  // pas encore de statut juridique, et le bloquer là le ferait fuir.
+  const threshold = await thresholdWith(deal.brand_id, deal.creator_id, deal.amount);
+
+  const build = await buildContractSnapshot(dealId, {
+    allowIncomplete: !threshold.required,
+  });
+  // `allowIncomplete` étant l'inverse de `required`, un échec ici signifie
+  // toujours qu'on doit s'arrêter : soit le deal est introuvable, soit le seuil
+  // légal est franchi et des mentions obligatoires manquent.
   if (!build.ok) {
     if (build.reason === "incomplete_legal_info" && build.missing) {
       const fields = build.missing.fields
@@ -220,16 +390,62 @@ export async function acceptDeal(dealId: string): Promise<Result> {
         .join(", ");
       const who =
         build.missing.who === "creator"
-          ? "Tu dois compléter tes infos légales avant de pouvoir accepter"
-          : "La marque doit d'abord compléter ses infos légales pour pouvoir signer";
+          ? "Cette collaboration porte le cumul annuel avec cette marque au-dessus de 1 000 €, seuil à partir duquel la loi impose un contrat écrit complet. Tu dois compléter tes infos légales avant d'accepter"
+          : "Cette collaboration dépasse le seuil légal de 1 000 € par an. La marque doit compléter ses infos légales pour que le contrat soit valable";
       return { ok: false, error: `${who} : ${fields}.` };
     }
     return { ok: false, error: "Impossible de générer le contrat." };
   }
 
-  // À l'acceptation : on enregistre accepted_at + on calcule escrow_due_at
-  // (SLA marque pour régler) à +7 jours. Si dépassé, un cron pourra annuler.
-  const acceptedAtIso = new Date().toISOString();
+  // ORDRE VOULU : le contrat est signé AVANT que la collaboration devienne
+  // active. L'inverse laissait, en cas d'échec de la signature, une
+  // collaboration active sans contrat — exactement ce que la loi interdit et
+  // ce que cette fonctionnalité existe pour empêcher.
+  const now = new Date().toISOString();
+  const signature = {
+    status: "signed" as const,
+    brand_signed_at: now,
+    creator_signed_at: now,
+    terms_snapshot: {
+      ...build.snapshot,
+      regime: threshold.required ? "complete" : "simplified",
+    },
+  };
+
+  // Le contrat est figé : copie complète des termes ET des coordonnées légales
+  // des deux parties, signée par les deux simultanément.
+  const { data: signes } = await supabase
+    .from("contracts")
+    .update(signature)
+    .eq("deal_id", dealId)
+    .select("id");
+
+  // Si la ligne de contrat manque — insertion perdue lors d'une collision de
+  // référence, collaboration créée hors de l'application — la mise à jour
+  // ci-dessus ne touche AUCUNE ligne, et sans erreur. On la rattrape.
+  if (!signes || signes.length === 0) {
+    const rattrapage = await ensureContractRow(supabase, dealId);
+    if (!rattrapage.ok) {
+      return { ok: false, error: "Le contrat n'a pas pu être établi. Réessaie." };
+    }
+    const { data: rejoue } = await supabase
+      .from("contracts")
+      .update(signature)
+      .eq("deal_id", dealId)
+      .select("id");
+    if (!rejoue || rejoue.length === 0) {
+      return { ok: false, error: "Le contrat n'a pas pu être signé. Réessaie." };
+    }
+  }
+
+  // Filet : une collaboration sans livrable est inutilisable — le créateur
+  // n'aurait littéralement rien à cocher. On rattrape avant de l'activer.
+  await ensureDeliverables(supabase, dealId);
+
+  // Contrat signé : la collaboration peut devenir active. `escrow_due_at` fixe
+  // le délai de 7 jours dont dispose la marque pour régler le séquestre ; un
+  // cron annule au-delà.
+  const acceptedAtIso = now;
   const escrowDueIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error } = await supabase
@@ -249,19 +465,6 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     body: "Tu peux maintenant régler le séquestre. Tu as 7 jours pour effectuer le paiement, sinon le deal sera annulé automatiquement.",
     link: `/deals/${dealId}`,
   });
-
-  // Le contrat est figé (snapshot complet des termes ET des coordonnées
-  // légales des 2 parties) et signé par les 2 parties simultanément.
-  const now = new Date().toISOString();
-  await supabase
-    .from("contracts")
-    .update({
-      status: "signed",
-      brand_signed_at: now,
-      creator_signed_at: now,
-      terms_snapshot: build.snapshot,
-    })
-    .eq("deal_id", dealId);
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
@@ -292,10 +495,15 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
-  await supabase
+  const { error: errContrat } = await supabase
     .from("contracts")
     .update({ status: "terminated", terminated_at: new Date().toISOString() })
     .eq("deal_id", dealId);
+  if (errContrat) {
+    // La collaboration est annulée mais son contrat se dit toujours en cours :
+    // il resterait affiché comme engagement actif des deux côtés.
+    await reportError("deal/contrat-resiliation", errContrat, { detail: `deal ${dealId}` });
+  }
 
   // Notifie l'autre partie de l'annulation.
   const recipientId = deal.brand_id === user.id ? deal.creator_id : deal.brand_id;
@@ -670,99 +878,33 @@ export async function completeDeal(dealId: string): Promise<Result> {
   // les fonds restent en séquestre et il pourra déclencher le versement ensuite).
   const payoutRes = await attemptDealPayout(dealId);
 
+  // La raison réelle était jetée : on annonçait au créateur « connecte ton
+  // compte de paiement » même lorsqu'il en avait déjà un et que l'échec venait
+  // d'ailleurs. Il aurait cherché en vain, et l'erreur n'apparaissait nulle
+  // part.
+  if (!payoutRes.released) {
+    await reportError("deals/payout", payoutRes.error ?? "versement impossible", {
+      detail: `collaboration ${dealId} · raison ${payoutRes.reason ?? "?"}`,
+    });
+  }
+
   await notify({
     userId: deal.creator_id,
     type: "deal_completed",
     title: "Collaboration terminée 🎉",
     body: payoutRes.released
       ? "La marque a clôturé le deal et ton paiement vient d'être versé sur ton compte."
-      : "La marque a clôturé le deal. Pour recevoir ta part, connecte ton compte de paiement.",
+      : payoutRes.reason === "no_account"
+        ? "La marque a clôturé le deal. Pour recevoir ta part, connecte ton compte de paiement."
+        : payoutRes.reason === "account_not_ready"
+          ? "La marque a clôturé le deal. Ton compte de paiement n'est pas encore validé par notre prestataire — termine les informations demandées pour recevoir ta part."
+          : "La marque a clôturé le deal. Ton versement n'a pas encore pu être effectué ; nous le relançons, tu n'as rien à faire.",
     link: payoutRes.released ? `/deals/${dealId}` : "/payouts",
   });
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
   return { ok: true };
-}
-
-/**
- * Verse au créateur sa part (net) du séquestre vers son compte connecté.
- * Utilise `source_transaction` (le paiement de la marque) pour autoriser le
- * transfert même si le solde disponible n'est pas encore consolidé.
- * Renvoie le détail pour pouvoir afficher l'erreur réelle au besoin.
- */
-async function attemptDealPayout(
-  dealId: string,
-): Promise<{ released: boolean; error?: string }> {
-  if (!stripeConfigured) return { released: false, error: "Stripe non configuré." };
-  const admin = createAdminClient();
-
-  const { data: deal } = await admin
-    .from("deals")
-    .select("creator_id, status")
-    .eq("id", dealId)
-    .single();
-  if (!deal || deal.status !== "completed")
-    return { released: false, error: "Le deal n'est pas terminé." };
-
-  const { data: tx } = await admin
-    .from("transactions")
-    .select("id, net_amount, status, reference")
-    .eq("deal_id", dealId)
-    .eq("type", "deal_payment")
-    .maybeSingle();
-  if (!tx) return { released: false, error: "Aucun paiement en séquestre." };
-  if (tx.status === "released" || tx.status === "paid") return { released: true };
-  if (tx.status !== "in_escrow")
-    return { released: false, error: "Ce paiement ne peut pas être versé." };
-
-  const { data: cr } = await admin
-    .from("creators")
-    .select("stripe_account_id")
-    .eq("id", deal.creator_id)
-    .single();
-  if (!cr?.stripe_account_id)
-    return { released: false, error: "Le créateur n'a pas encore connecté son compte." };
-
-  try {
-    const account = await stripe.accounts.retrieve(cr.stripe_account_id);
-    if (account.capabilities?.transfers !== "active")
-      return { released: false, error: "Le compte du créateur n'est pas encore prêt à recevoir." };
-
-    let sourceCharge: string | undefined;
-    if (tx.reference) {
-      const pi = await stripe.paymentIntents.retrieve(tx.reference);
-      sourceCharge =
-        typeof pi.latest_charge === "string"
-          ? pi.latest_charge
-          : (pi.latest_charge?.id ?? undefined);
-    }
-
-    await stripe.transfers.create({
-      amount: Math.round(Number(tx.net_amount) * 100),
-      currency: "eur",
-      destination: cr.stripe_account_id,
-      ...(sourceCharge ? { source_transaction: sourceCharge } : {}),
-      metadata: { deal_id: dealId },
-    });
-    await admin
-      .from("transactions")
-      .update({ status: "released", escrow_released_at: new Date().toISOString() })
-      .eq("id", tx.id);
-
-    // Notif "tu as reçu X€" au créateur.
-    await notify({
-      userId: deal.creator_id,
-      type: "payment_received_creator",
-      title: `Tu viens de recevoir ${Number(tx.net_amount).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} 💸`,
-      body: "Le versement a été transféré sur ton compte Stripe connecté. Selon ton calendrier de payout, il atterrira sur ton compte bancaire dans les prochains jours.",
-      link: "/payouts",
-    });
-
-    return { released: true };
-  } catch (e) {
-    return { released: false, error: e instanceof Error ? e.message : "Échec du versement." };
-  }
 }
 
 /** Déclenche/réessaie le versement de la part créateur (créateur ou marque). */
@@ -820,14 +962,30 @@ export async function startCreatorPayoutOnboarding() {
   try {
     let accountId = creator?.stripe_account_id ?? null;
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: user.email ?? undefined,
-        metadata: { creator_id: user.id },
-        capabilities: { transfers: { requested: true } },
-      });
+      const account = await stripe.accounts.create(
+        {
+          type: "express",
+          email: user.email ?? undefined,
+          metadata: { creator_id: user.id },
+          capabilities: { transfers: { requested: true } },
+        },
+        // Sans cette clé, un échec d'enregistrement ci-dessous ferait créer un
+        // NOUVEAU compte Stripe à chaque tentative : le créateur recommencerait
+        // son inscription bancaire indéfiniment, en laissant des comptes
+        // orphelins derrière lui.
+        { idempotencyKey: `creator-account-${user.id}` },
+      );
       accountId = account.id;
-      await supabase.from("creators").update({ stripe_account_id: accountId }).eq("id", user.id);
+      const { error: errCompte } = await supabase
+        .from("creators")
+        .update({ stripe_account_id: accountId })
+        .eq("id", user.id);
+      if (errCompte) {
+        await reportError("payouts/compte-stripe", errCompte, {
+          userId: user.id,
+          detail: `Compte Stripe ${accountId} créé mais non enregistré.`,
+        });
+      }
     }
     const link = await stripe.accountLinks.create({
       account: accountId,
@@ -873,11 +1031,29 @@ export async function refundDeal(dealId: string): Promise<Result> {
   if (!tx.reference) return { ok: false, error: "Référence de paiement introuvable." };
 
   try {
-    await stripe.refunds.create({ payment_intent: tx.reference });
+    await stripe.refunds.create(
+      { payment_intent: tx.reference },
+      // Le garde-fou d'entrée est `status = "in_escrow"` : si l'écriture qui
+      // suit échoue, un second clic rembourserait une deuxième fois.
+      { idempotencyKey: `deal-refund-${tx.id}` },
+    );
   } catch {
     return { ok: false, error: "Le remboursement Stripe a échoué." };
   }
-  await admin.from("transactions").update({ status: "refunded" }).eq("id", tx.id);
+  const { error: errRemb } = await admin
+    .from("transactions")
+    .update({ status: "refunded" })
+    .eq("id", tx.id);
+  if (errRemb) {
+    await reportError("deal/remboursement-statut", errRemb, {
+      detail: `Remboursement Stripe effectué pour le deal ${dealId} (transaction ${tx.id}) sans passage à "refunded".`,
+    });
+    return {
+      ok: false,
+      error:
+        "Le remboursement est parti mais son enregistrement a échoué. Ne relance pas : contacte le support.",
+    };
+  }
 
   // Notifie le créateur que le paiement a été remboursé (donc pas de versement).
   const { data: dealForNotif } = await supabase
@@ -1008,5 +1184,75 @@ export async function leaveReview(
   });
 
   revalidatePath(`/deals/${dealId}`);
+  return { ok: true };
+}
+
+/**
+ * Le créateur note la marque, une fois la collaboration terminée.
+ *
+ * Miroir exact de `leaveReview`, dans l'autre sens. La symétrie n'est pas
+ * cosmétique : sur une place de marché, le côté qu'on doit convaincre est
+ * celui qui a le moins d'informations. Un créateur qui ne sait pas à qui il a
+ * affaire prend un risque que la marque, elle, ne prend pas.
+ */
+export async function leaveBrandReview(
+  dealId: string,
+  rating: number,
+  comment: string,
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const r = Math.round(rating);
+  if (r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.creator_id !== user.id)
+    return { ok: false, error: "Action non autorisée." };
+  if (deal.status !== "completed")
+    return { ok: false, error: "Tu pourras laisser un avis une fois la collaboration terminée." };
+
+  const { data: existing } = await (supabase as never as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: unknown }> };
+      };
+    };
+  })
+    .from("brand_reviews")
+    .select("id")
+    .eq("deal_id", dealId)
+    .maybeSingle();
+  if (existing) return { ok: false, error: "Tu as déjà laissé un avis sur cette marque." };
+
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const { error } = await (supabase as any).from("brand_reviews").insert({
+    deal_id: dealId,
+    brand_id: deal.brand_id,
+    creator_id: user.id,
+    rating: r,
+    comment: comment.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.brand_id,
+    type: "brand_review_received",
+    title: `Un créateur vous a noté ${"⭐".repeat(r)}`,
+    body: comment.trim()
+      ? `« ${comment.trim().slice(0, 200)} »`
+      : "Un créateur vient de noter votre collaboration.",
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  revalidatePath(`/brands/${deal.brand_id}`);
   return { ok: true };
 }

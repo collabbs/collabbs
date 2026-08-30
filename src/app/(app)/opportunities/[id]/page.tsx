@@ -13,7 +13,10 @@ import {
 import ActionPanel from "./ActionPanel";
 import { openConversation } from "../../messages/actions";
 import EarningsCalculator from "./EarningsCalculator";
+import { pluralizeAction } from "@/lib/cpa";
 import FaqAccordion from "./FaqAccordion";
+import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
+import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
 
 export async function generateMetadata({
   params,
@@ -60,6 +63,10 @@ export default async function OpportunityDetailPage({
     .eq("id", id)
     .single();
   if (!c) notFound();
+  // Une campagne de marque fictive n'existe pas en production : sinon un lien
+  // direct continuerait de la servir, et c'est exactement ce qu'on fait quand
+  // on envoie une campagne à quelqu'un.
+  if (!demoVisible() && (await marqueDeDemo(supabase, c.brand_id))) notFound();
 
   const [nichesRes, platformsRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
@@ -123,15 +130,14 @@ export default async function OpportunityDetailPage({
   const { data: campaignEvents } = campaignLinkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("type, sale_amount, commission_amount")
+        .select("type, status, sale_amount, commission_amount")
         .in("link_id", campaignLinkIds)
     : { data: [] };
   const campaignEv = campaignEvents ?? [];
   const totalClicks = campaignEv.filter((e) => e.type === "click").length;
-  const totalSales = campaignEv.filter((e) => e.type === "sale").length;
-  const totalCommissionsPaid = campaignEv
-    .filter((e) => e.type === "sale")
-    .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
+  const totalSales = campaignEv.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
+  // Les actions (CPA) comptent, le rejeté et le remboursé non.
+  const totalCommissionsPaid = sumEarnings(campaignEv);
   const activeCreators = campaignLinkIds.length;
   const completedDeals = (campaignDealsRes.data ?? []).filter(
     (d) => d.status === "completed" || d.status === "active",
@@ -147,15 +153,15 @@ export default async function OpportunityDetailPage({
   if (linkRes.data) {
     const evRes = await supabase
       .from("affiliate_events")
-      .select("type, source, sale_amount, commission_amount")
+      .select("type, status, source, sale_amount, commission_amount")
       .eq("link_id", linkRes.data.id);
     for (const e of evRes.data ?? []) {
       if (e.type === "click") clicks += 1;
-      else if (e.type === "sale") {
-        gains += e.commission_amount ?? 0;
+      else if (countsAsEarning(e)) {
+        gains += Number(e.commission_amount ?? 0);
         if (e.source === "promo_code") {
           promoSalesCount += 1;
-          promoCommissionTotal += e.commission_amount ?? 0;
+          promoCommissionTotal += Number(e.commission_amount ?? 0);
         }
       }
     }
@@ -325,7 +331,7 @@ export default async function OpportunityDetailPage({
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-500">
                         À partir de <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
-                        {c.cpa_action_label || "actions"}
+                        {pluralizeAction(c.cpa_action_label || "action", t.min_actions)}
                       </p>
                       <p className="mt-1.5 font-display text-2xl font-black text-emerald-700">
                         {t.payout.toLocaleString("fr-FR")}€
@@ -570,6 +576,9 @@ export default async function OpportunityDetailPage({
                 mid: c.commission_mid,
                 macro: c.commission_macro,
               }}
+              cpaValuePerAction={c.cpa_value_per_action}
+              cpaActionLabel={c.cpa_action_label}
+              cpaTiers={c.campaign_cpa_tiers ?? []}
             />
           </div>
 
@@ -834,6 +843,11 @@ export default async function OpportunityDetailPage({
                   initialCode={linkRes.data?.code}
                   clicks={clicks}
                   gains={gains}
+                  rewardedFor={
+                    type === "cpa_flat" || type === "cpa_tiers"
+                      ? c.cpa_action_label || "action"
+                      : "vente"
+                  }
                 />
               ) : (
                 <p className="rounded-lg bg-zinc-50 p-3 text-center text-sm text-zinc-500">

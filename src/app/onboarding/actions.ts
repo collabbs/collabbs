@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { citySlug } from "@/lib/city";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OfferId } from "@/components/landing/creators";
 
@@ -74,6 +75,10 @@ export type OnboardingData = {
   bio: string;
   avatarUrl: string | null;
   customNiche: string;
+  /** Ville du créateur, saisie librement. Normalisée côté serveur. */
+  city: string;
+  /** Accepte de se déplacer hors de sa ville pour un tournage. */
+  travels: boolean;
   niches: number[];
   platforms: {
     platformId: number;
@@ -116,6 +121,11 @@ export async function saveCreatorOnboarding(
         handle: data.handle || null,
         bio: data.bio || null,
         custom_niche: data.customNiche || null,
+        city: data.city?.trim() || null,
+        // Le slug ne se saisit jamais : il se calcule, sinon le filtre par
+        // ville ne regrouperait rien.
+        city_slug: citySlug(data.city ?? ""),
+        travels: Boolean(data.travels),
       },
       { onConflict: "id" },
     );

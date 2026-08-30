@@ -10,6 +10,8 @@ import FilterChip from "@/components/FilterChip";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
+// Le taux affiché vient de la source qui l'applique réellement.
+import { PLATFORM_FEE_RATE } from "@/lib/deal";
 
 /** Mappe un nom d'affichage de plateforme vers le slug attendu par PlatformIcon. */
 function platformSlug(label: string): string {
@@ -27,6 +29,7 @@ type Params = {
   niche?: string;
   platform?: string;
   offre?: string;
+  ville?: string;
 };
 
 function buildHref(params: Params): string {
@@ -49,7 +52,7 @@ export default async function CreatorsPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { q, niche, platform, offre } = await searchParams;
+  const { q, niche, platform, offre, ville } = await searchParams;
 
   const query = (q ?? "").trim().toLowerCase();
   const all = await getMarketplaceCreators();
@@ -85,11 +88,26 @@ export default async function CreatorsPage({
     if (niche && !c.niches.includes(niche)) return false;
     if (platform && !c.platformLabels.includes(platform)) return false;
     if (offre && !c.offers.includes(offre as OfferId)) return false;
+    // Filtre par ville : on compare des slugs, jamais des saisies libres.
+    // Un créateur qui accepte de se déplacer remonte aussi dans les autres
+    // villes — c'est justement l'intérêt d'avoir posé la question.
+    if (ville && c.citySlug !== ville && !c.travels) return false;
     return true;
   });
 
   const activeCount =
-    (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0);
+    (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0) + (ville ? 1 : 0);
+
+  // Villes réellement représentées, les plus fournies d'abord. On ne propose
+  // que ce qui existe : un filtre qui renvoie zéro résultat est pire qu'absent.
+  const cityCounts = new Map<string, { slug: string; label: string; n: number }>();
+  for (const c of all) {
+    if (!c.citySlug || !c.city) continue;
+    const entry = cityCounts.get(c.citySlug) ?? { slug: c.citySlug, label: c.city, n: 0 };
+    entry.n++;
+    cityCounts.set(c.citySlug, entry);
+  }
+  const cities = [...cityCounts.values()].sort((a, b) => b.n - a.n).slice(0, 12);
 
   // Chips par groupe (réutilisées dans le drawer mobile ET les popovers desktop).
   const offerChips = (
@@ -99,7 +117,7 @@ export default async function CreatorsPage({
           key={o.id}
           label={`${o.emoji} ${o.short}`}
           active={offre === o.id}
-          href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id })}
+          href={buildHref({ q, niche, platform, offre: offre === o.id ? undefined : o.id, ville })}
         />
       ))}
     </div>
@@ -116,11 +134,31 @@ export default async function CreatorsPage({
             </span>
           }
           active={platform === p}
-          href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre })}
+          href={buildHref({ q, niche, platform: platform === p ? undefined : p, offre, ville })}
         />
       ))}
     </div>
   );
+  const cityChips =
+    cities.length > 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {cities.map((c) => (
+          <Chip
+            key={c.slug}
+            label={`${c.label} (${c.n})`}
+            active={ville === c.slug}
+            href={buildHref({
+              q,
+              niche,
+              platform,
+              offre,
+              ville: ville === c.slug ? undefined : c.slug,
+            })}
+          />
+        ))}
+      </div>
+    ) : null;
+
   const nicheChips = (
     <div className="flex flex-wrap gap-2">
       {NICHES.map((n) => (
@@ -128,7 +166,7 @@ export default async function CreatorsPage({
           key={n}
           label={n}
           active={niche === n}
-          href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre })}
+          href={buildHref({ q, niche: niche === n ? undefined : n, platform, offre, ville })}
         />
       ))}
     </div>
@@ -175,6 +213,12 @@ export default async function CreatorsPage({
     </div>
   );
 
+  // « Vérifié » ne se déclare pas, il se constate : c'est l'audience relevée
+  // auprès de l'API du réseau. La page annonçait « N créateurs vérifiés » quel
+  // que soit le nombre — alors qu'aucun ne l'est aujourd'hui. Une marque
+  // choisit un créateur sur cette promesse.
+  const verifiedCount = results.filter((c) => c.isVerified).length;
+
   return (
     <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -185,8 +229,16 @@ export default async function CreatorsPage({
           <p className="mt-3 max-w-2xl text-zinc-600">
             {results.length > 0 ? (
               <>
-                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span> vérifiés, prêts à collaborer. Filtre par niche, plateforme ou
-                offre — réserve en 1 clic.
+                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span>{" "}
+                {verifiedCount > 0 ? (
+                  <>
+                    dont <span className="font-semibold text-ink">{verifiedCount}</span> à
+                    l&apos;audience vérifiée
+                  </>
+                ) : (
+                  <>prêts à collaborer</>
+                )}
+                . Filtre par niche, plateforme ou offre — réserve en 1 clic.
               </>
             ) : (
               <>Parcours librement les profils. Paie à la vidéo ou lance une affiliation en 1 clic.</>
@@ -195,15 +247,21 @@ export default async function CreatorsPage({
         </div>
         <div className="hidden items-center gap-2 lg:flex">
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
-            <p className="font-display text-xl font-black text-ink">10%</p>
+            <p className="font-display text-xl font-black text-ink">
+              {Math.round(PLATFORM_FEE_RATE * 100)}%
+            </p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
               Commission seulement
             </p>
           </div>
+          {/* « 24h — réponse moyenne » figurait ici. Ce délai n'est mesuré
+              nulle part : c'était une statistique affichée sans donnée
+              derrière. Remplacé par un fait vérifiable, qui est en plus ce
+              qui distingue réellement le produit. */}
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
-            <p className="font-display text-xl font-black text-ink">24h</p>
+            <p className="font-display text-xl font-black text-ink">📄</p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-              Réponse moyenne
+              Contrat écrit inclus
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
@@ -243,6 +301,16 @@ export default async function CreatorsPage({
             <FilterPopover label="Plateforme" activeLabel={platform ?? null}>
               {platformChips}
             </FilterPopover>
+            {cityChips && (
+              <FilterPopover
+                label="Ville"
+                activeLabel={
+                  ville ? cities.find((c) => c.slug === ville)?.label ?? ville : null
+                }
+              >
+                {cityChips}
+              </FilterPopover>
+            )}
             <FilterPopover label="Niche" activeLabel={niche ?? null}>
               {nicheChips}
             </FilterPopover>

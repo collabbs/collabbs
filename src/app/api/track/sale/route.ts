@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { settleSale } from "@/lib/affiliate-billing";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback de VENTE attribuée à un lien d'affiliation.
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization: Bearer <secret>`,
@@ -52,7 +54,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
     )
     .eq("code", p.code)
     .maybeSingle();
@@ -80,15 +82,25 @@ async function handle(p: Payload) {
     else if (subs >= 10000) rate = c.commission_micro ?? 0;
     else rate = c.commission_nano ?? 0;
   }
-  const commission = Math.round((amount * rate) / 100);
+  // Au centime : on manipule désormais de l'argent réellement versé.
+  const commission = Math.round((amount * rate)) / 100;
 
-  const { error } = await supabase.from("affiliate_events").insert({
-    link_id: link.id,
-    type: "sale",
-    sale_amount: amount,
-    commission_amount: commission,
-    external_ref: p.externalRef,
-  });
+  const { data: inserted, error } = await supabase
+    .from("affiliate_events")
+    .insert({
+      link_id: link.id,
+      type: "sale",
+      // Authentifiée par le secret de la marque : ce chemin est digne de
+      // confiance, il règle automatiquement. Voir la migration 0042.
+      source: "postback",
+      // Non financée tant que la réservation sur la provision n'a pas abouti.
+      status: "unfunded",
+      sale_amount: amount,
+      commission_amount: commission,
+      external_ref: p.externalRef,
+    })
+    .select("id")
+    .single();
   if (error) {
     // Unique violation → vente déjà enregistrée pour ce order_id → succès idempotent.
     if ((error as { code?: string }).code === "23505") {
@@ -103,6 +115,16 @@ async function handle(p: Payload) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
+  // Réserve la commission + les frais Collabbs sur la provision de la marque.
+  // C'est ce qui transforme une ligne de statistique en argent réellement dû.
+  const settlement = await settleSale({
+    eventId: inserted.id,
+    brandId: link.campaigns!.brand_id,
+    creatorId: link.creator_id,
+    commission,
+    saleAmount: amount,
+  });
+
   // Notification 1ʳᵉ fois : première vente affiliée de toute la vie du créateur.
   notifyOnce({
     userId: link.creator_id,
@@ -112,12 +134,35 @@ async function handle(p: Payload) {
     link: "/opportunities",
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true, sale_amount: amount, rate, commission });
+  return NextResponse.json({
+    ok: true,
+    sale_amount: amount,
+    rate,
+    commission,
+    status: settlement,
+  });
+}
+
+/**
+ * Le plafond s'applique AVANT toute lecture en base : la vérification du secret
+ * est justement ce qu'on empêche d'essayer en boucle, il ne faut pas la payer
+ * en requêtes SQL à chaque tentative.
+ */
+async function limite(request: Request) {
+  const verdict = await limitByIp(request, "track:sale", RATE_POLICIES.postback);
+  return verdict.allowed ? null : tooManyRequests(verdict.retryAfter);
 }
 
 export async function GET(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const url = new URL(request.url);
-  const secret = extractSecret(request, url.searchParams.get("key"));
+  // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
+  // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
+  // journaux donnerait le pouvoir de fabriquer des ventes. L'en-tête
+  // `Authorization: Bearer <secret>` est la seule voie en GET.
+  const secret = extractSecret(request, null);
   return handle({
     code: url.searchParams.get("code"),
     amount: url.searchParams.get("amount"),
@@ -127,6 +172,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const secret = extractSecret(request, (body.key as string) ?? null);
   return handle({
