@@ -53,7 +53,8 @@ export type MarketplaceCreator = {
   engagement: string;
   priceFrom: number | null;
   offers: OfferId[];
-  rating: number;
+  /** `null` tant que le créateur n'a reçu aucun avis — jamais une note inventée. */
+  rating: number | null;
   photo: string;
   tint: string;
   niches: string[];
@@ -201,7 +202,12 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       continue;
 
     const main = plats[0];
-    const rating = c.rating ?? 5;
+    // NE PAS inventer de note. Le code écrivait `c.rating ?? 5` : un créateur
+    // sans le moindre avis s'affichait avec la note MAXIMALE. C'est la même
+    // faute que le badge « Vérifié » posé à la main sur tous les comptes de
+    // démonstration — fabriquer une preuve de confiance. Une marque choisit un
+    // créateur sur ces signaux.
+    const rating = c.rating ?? null;
     const dealsCount = c.deals_count ?? 0;
     const reviewsCount = c.reviews_count ?? 0;
     // « Vérifié » signifie désormais UNE seule chose : l'audience d'au moins un
@@ -212,7 +218,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
     const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
     const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
     // "Top" = vétéran avec excellente note. Au moins 5 deals OU 5 reviews + note ≥ 4.8.
-    const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+    const isTop = rating !== null && rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
 
     result.push({
       id: c.id,
@@ -247,7 +253,8 @@ export type CreatorProfileData = {
   name: string;
   handle: string;
   bio: string | null;
-  rating: number;
+  /** `null` tant qu'aucun avis n'a été reçu. */
+  rating: number | null;
   reviewsCount: number;
   dealsCount: number;
   engagement: string;
@@ -316,7 +323,8 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     .order("view_count", { ascending: false, nullsFirst: false })
     .order("position");
 
-  const rating = c.rating ?? 5;
+  // Même règle que sur la vitrine : pas d'avis, pas de note inventée.
+  const rating = c.rating ?? null;
   const dealsCount = c.deals_count ?? 0;
   const reviewsCount = c.reviews_count ?? 0;
   // Même règle sur la fiche publique : le badge suit la vérification réelle.
@@ -325,7 +333,7 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const NOW = Date.now();
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const isNew = createdMs > 0 && NOW - createdMs < THIRTY_DAYS_MS;
-  const isTop = rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
+  const isTop = rating !== null && rating >= 4.8 && (dealsCount >= 5 || reviewsCount >= 5);
 
   return {
     id: c.id,

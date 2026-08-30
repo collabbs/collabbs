@@ -211,6 +211,12 @@ export default async function CreatorsPage({
     </div>
   );
 
+  // « Vérifié » ne se déclare pas, il se constate : c'est l'audience relevée
+  // auprès de l'API du réseau. La page annonçait « N créateurs vérifiés » quel
+  // que soit le nombre — alors qu'aucun ne l'est aujourd'hui. Une marque
+  // choisit un créateur sur cette promesse.
+  const verifiedCount = results.filter((c) => c.isVerified).length;
+
   return (
     <AppOrLandingShell contentClassName="mx-auto max-w-[1600px] px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -221,8 +227,16 @@ export default async function CreatorsPage({
           <p className="mt-3 max-w-2xl text-zinc-600">
             {results.length > 0 ? (
               <>
-                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span> vérifiés, prêts à collaborer. Filtre par niche, plateforme ou
-                offre — réserve en 1 clic.
+                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span>{" "}
+                {verifiedCount > 0 ? (
+                  <>
+                    dont <span className="font-semibold text-ink">{verifiedCount}</span> à
+                    l&apos;audience vérifiée
+                  </>
+                ) : (
+                  <>prêts à collaborer</>
+                )}
+                . Filtre par niche, plateforme ou offre — réserve en 1 clic.
               </>
             ) : (
               <>Parcours librement les profils. Paie à la vidéo ou lance une affiliation en 1 clic.</>

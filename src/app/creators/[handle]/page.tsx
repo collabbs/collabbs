@@ -101,13 +101,20 @@ export default async function CreatorProfilePage({
               </div>
 
               {/* Note en haut à droite */}
-              <span className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
-                <span className="text-amber-300">★</span>
-                {c.rating.toFixed(1)}
-                {c.reviewsCount > 0 && (
-                  <span className="text-white/75">· {c.reviewsCount}</span>
-                )}
-              </span>
+              {c.rating !== null ? (
+                <span className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
+                  <span className="text-amber-300">★</span>
+                  {c.rating.toFixed(1)}
+                  {c.reviewsCount > 0 && (
+                    <span className="text-white/75">· {c.reviewsCount}</span>
+                  )}
+                </span>
+              ) : (
+                // Pas d'avis, pas de note : on le dit plutôt que d'en inventer une.
+                <span className="absolute right-3 top-3 z-10 rounded-full bg-black/40 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                  Pas encore d&apos;avis
+                </span>
+              )}
 
               {/* Nom + handle overlay sur la photo */}
               <div className="absolute inset-x-0 bottom-0 p-5">
@@ -371,7 +378,7 @@ export default async function CreatorProfilePage({
                   <span className="text-zinc-400">({reviews.length})</span>
                 )}
               </h2>
-              {reviews.length > 0 && (
+              {reviews.length > 0 && c.rating !== null && (
                 <span className="flex items-center gap-1 text-sm font-bold text-amber-500">
                   ★ {c.rating.toFixed(1)}
                 </span>

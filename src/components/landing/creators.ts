@@ -52,7 +52,8 @@ export type Creator = {
   /** Prix de départ d'un format payé au fixe, ou null si le créateur ne fait que perf/affiliation. */
   priceFrom: number | null;
   offers: OfferId[];
-  rating: number;
+  /** `null` tant qu'aucun avis n'a été reçu — jamais une note inventée. */
+  rating: number | null;
   photo: string;
   /** Dégradé affiché en secours si la photo ne charge pas. */
   tint: string;

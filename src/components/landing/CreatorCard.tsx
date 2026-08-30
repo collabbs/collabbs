@@ -71,10 +71,17 @@ export default function CreatorCard({
             <PlatformIcon slug={slug} className="h-3 w-3" />
             {creator.followers}
           </span>
-          <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
-            <span className="text-amber-300">★</span>
-            {creator.rating.toFixed(1)}
-          </span>
+          {creator.rating !== null ? (
+            <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+              <span className="text-amber-300">★</span>
+              {creator.rating.toFixed(1)}
+            </span>
+          ) : (
+            // Pas d'avis, pas de note. Mieux vaut le dire que d'inventer un 5,0.
+            <span className="rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+              Pas encore d&apos;avis
+            </span>
+          )}
         </div>
 
         {/* Hover overlay : CTA "Voir le profil" */}
