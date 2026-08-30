@@ -128,6 +128,18 @@ export async function createCampaign(
   })();
   if (remuneration) return { ok: false, error: remuneration };
 
+  // Le code promo est un chemin d'argent à part : les ventes qui passent par
+  // lui sont payées avec `promo_commission_pct`, pas avec la grille
+  // d'affiliation. À 0 %, le créateur diffuse un code et ne touche rien —
+  // sans que rien ne le lui dise.
+  if (data.withPromoCode && !(data.promoCommissionPct && data.promoCommissionPct > 0)) {
+    return {
+      ok: false,
+      error:
+        "Indique la commission versée sur les ventes passées par le code promo : à 0 %, le créateur diffuse ton code sans rien gagner.",
+    };
+  }
+
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
   // Si elle a explicitement saisi targetUrl, on respecte son choix.

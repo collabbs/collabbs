@@ -718,12 +718,17 @@ export default function CampaignForm({
                       : "border-zinc-200 bg-white hover:border-zinc-300"
                   }`}
                 >
+                  {/* Un code réellement partagé rendrait les ventes
+                      inattribuables : elles arrivent avec un code, et rien ne
+                      dirait qui l'a diffusé — donc qui payer. Le code de la
+                      marque sert de préfixe. */}
                   <p className="text-xs font-bold text-ink">
-                    🎟️ Code unique partagé
+                    🎟️ Ton préfixe de marque
                   </p>
                   <p className="text-[11px] text-zinc-500">
-                    Tu fournis un code (ex : ETE20). Tous les créateurs le
-                    diffusent — moins d&apos;attribution par créateur.
+                    Tu donnes une base (ex : ETE20) et chaque créateur reçoit sa
+                    déclinaison — ETE20-MARTIN-K7. Reconnaissable, et on sait
+                    qui payer.
                   </p>
                 </button>
                 <button
@@ -739,8 +744,8 @@ export default function CampaignForm({
                     ✨ Codes auto par créateur
                   </p>
                   <p className="text-[11px] text-zinc-500">
-                    Collabbs génère 1 code par créateur (ex : MARTIN20) —
-                    attribution propre.
+                    Collabbs génère le code à partir du nom du créateur (ex :
+                    MARTIN-K7). Rien à saisir.
                   </p>
                 </button>
               </div>
@@ -748,7 +753,7 @@ export default function CampaignForm({
               {!promoAutoGenerate && (
                 <div>
                   <label className="block text-xs font-medium text-ink">
-                    Code promo
+                    Préfixe du code
                   </label>
                   <input
                     value={promoCode}

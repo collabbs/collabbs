@@ -367,21 +367,12 @@ export default async function OpportunityDetailPage({
                 🎟️ Ton code promo à diffuser
               </h2>
               <div className="mt-4 flex flex-wrap items-end gap-4">
-                {c.promo_auto_generate ? (
-                  <div className="rounded-xl border-2 border-dashed border-purple-300 bg-white px-5 py-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
-                      Code unique
-                    </p>
-                    <p className="mt-0.5 font-mono text-lg font-black tracking-wider text-ink">
-                      TON@HANDLE-XX
-                    </p>
-                    <p className="mt-1 text-[11px] text-zinc-500">
-                      Généré quand la marque accepte ta candidature.
-                    </p>
-                  </div>
-                ) : linkRes.data?.promo_code ? (
-                  // Si le créateur a déjà activé sa participation, on lui
-                  // montre SON code unique (priorité sur le code partagé).
+                {/* Le code du créateur, ou rien. La page affichait auparavant
+                    un exemple inventé — « TON@HANDLE-XX » — présenté comme un
+                    code à venir : il n'arrivait jamais, et le code de la
+                    campagne était montré comme utilisable alors qu'aucune
+                    vente ne pouvait lui être attribuée. */}
+                {linkRes.data?.promo_code ? (
                   <div className="rounded-xl border-2 border-purple-400 bg-white px-5 py-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
                       Ton code
@@ -389,17 +380,21 @@ export default async function OpportunityDetailPage({
                     <p className="mt-0.5 font-mono text-2xl font-black tracking-wider text-ink">
                       {linkRes.data.promo_code}
                     </p>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Il n&apos;appartient qu&apos;à toi : c&apos;est lui qui te
+                      fait payer sur chaque vente.
+                    </p>
                   </div>
-                ) : c.promo_code ? (
-                  <div className="rounded-xl border-2 border-purple-300 bg-white px-5 py-4">
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-purple-300 bg-white px-5 py-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500">
-                      Code à utiliser
+                      Ton code
                     </p>
-                    <p className="mt-0.5 font-mono text-2xl font-black tracking-wider text-ink">
-                      {c.promo_code}
+                    <p className="mt-0.5 text-sm font-semibold text-zinc-500">
+                      Créé dès que tu rejoins la campagne
                     </p>
                   </div>
-                ) : null}
+                )}
                 <div className="space-y-1.5 text-sm">
                   {c.promo_discount_pct != null && (
                     <p>
