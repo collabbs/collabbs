@@ -12,6 +12,8 @@ import {
   settleSale,
 } from "@/lib/affiliate-billing";
 import { notify } from "@/lib/notifications";
+import { valider, nombreDuFormulaire } from "@/lib/validation";
+import { approvisionnementSchema, rechargeAutoSchema } from "@/lib/schemas/billing";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
@@ -44,7 +46,17 @@ async function origin() {
 /** Approvisionne la provision : ouvre le paiement Stripe et y renvoie la marque. */
 export async function startTopup(formData: FormData) {
   const brandId = await requireBrand();
-  const amount = Number(formData.get("amount"));
+
+  // `Number(formData.get(...))` laissait passer deux choses : un champ vidé
+  // (qui vaut 0, un montant parfaitement valide en apparence) et une saisie à
+  // la française — « 49,90 » devient NaN et partait jusqu'à Stripe.
+  const controle = valider(approvisionnementSchema, {
+    amount: nombreDuFormulaire(formData.get("amount")),
+  });
+  if (!controle.ok) {
+    redirect(`/billing?error=${encodeURIComponent(controle.error)}`);
+  }
+  const { amount } = controle.data;
 
   const res = await createTopupCheckout({
     brandId,
@@ -63,16 +75,23 @@ export async function saveAutoTopup(formData: FormData) {
   const brandId = await requireBrand();
 
   const enabled = formData.get("enabled") === "on";
-  const threshold = Number(formData.get("threshold"));
-  const amount = Number(formData.get("amount"));
+  let threshold = Number(formData.get("threshold"));
+  let amount = Number(formData.get("amount"));
 
+  // Le contrôle ne s'applique QUE si la recharge est activée : quand la case
+  // est décochée, le formulaire désactive les deux champs et ils n'arrivent
+  // pas jusqu'ici. Les exiger empêcherait simplement de désactiver la
+  // recharge automatique.
   if (enabled) {
-    if (!Number.isFinite(threshold) || threshold < 0) {
-      redirect("/billing?error=Seuil+invalide.");
+    const controle = valider(rechargeAutoSchema, {
+      threshold: nombreDuFormulaire(formData.get("threshold")),
+      amount: nombreDuFormulaire(formData.get("amount")),
+    });
+    if (!controle.ok) {
+      redirect(`/billing?error=${encodeURIComponent(controle.error)}`);
     }
-    if (!Number.isFinite(amount) || amount < 20) {
-      redirect("/billing?error=Le+montant+de+recharge+doit+faire+au+moins+20+€.");
-    }
+    threshold = controle.data.threshold;
+    amount = controle.data.amount;
   }
 
   const admin = createAdminClient();
