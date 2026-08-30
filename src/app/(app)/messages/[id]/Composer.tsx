@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { sendMessage } from "../actions";
 
-export default function Composer({ conversationId }: { conversationId: string }) {
-  const router = useRouter();
+/**
+ * Zone de saisie. Elle ne connaît ni Supabase ni la Server Action : c'est le
+ * fil (`Thread`) qui possède l'état des messages, donc lui seul peut afficher
+ * l'envoi en optimiste et le retirer si la base refuse. Le composant se
+ * contente de la saisie et de l'erreur à afficher.
+ */
+export default function Composer({
+  onSend,
+}: {
+  onSend: (text: string) => Promise<{ ok: boolean; error?: string }>;
+}) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,12 +22,15 @@ export default function Composer({ conversationId }: { conversationId: string })
     if (!text || busy) return;
     setBusy(true);
     setError(null);
-    const res = await sendMessage(conversationId, text);
+    // On vide la zone tout de suite : le message est déjà visible dans le fil.
+    setBody("");
+
+    const res = await onSend(text);
     setBusy(false);
-    if (res.ok) {
-      setBody("");
-      router.refresh();
-    } else {
+    if (!res.ok) {
+      // L'envoi a échoué : on rend son texte à l'utilisateur plutôt que de le
+      // laisser recopier un message qu'il croyait parti.
+      setBody(text);
       setError(res.error ?? "Erreur.");
     }
   }

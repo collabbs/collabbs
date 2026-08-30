@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/app/Sidebar";
+import RealtimeMessages from "@/components/app/RealtimeMessages";
 import { fetchSidebarData } from "@/lib/sidebar-data";
 import { isAdmin } from "@/lib/admin";
 
@@ -20,6 +21,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-zinc-50">
       <Sidebar {...data} isAdmin={admin} />
+      <RealtimeMessages userId={user.id} />
       <div className="lg:pl-60">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">{children}</div>
       </div>

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Nav from "@/components/landing/Nav";
 import Footer from "@/components/landing/Footer";
 import Sidebar from "@/components/app/Sidebar";
+import RealtimeMessages from "@/components/app/RealtimeMessages";
 import { fetchSidebarData } from "@/lib/sidebar-data";
 
 /**
@@ -43,6 +44,7 @@ export default async function AppOrLandingShell({
   return (
     <div className="min-h-screen bg-zinc-50">
       <Sidebar {...data} />
+      <RealtimeMessages userId={user.id} />
       <div className="lg:pl-60">
         <div className={contentClassName}>{children}</div>
       </div>
