@@ -83,7 +83,7 @@ export default async function AdminPage({
     untyped(admin)
       .from("affiliate_events")
       .select("id, sale_amount, commission_amount, platform_fee, status, occurred_at, external_ref")
-      .eq("type", "sale")
+      .in("type", ["sale", "action"])
       .in("status", ["unfunded", "pending"])
       .order("occurred_at", { ascending: false })
       .limit(20),

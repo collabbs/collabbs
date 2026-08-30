@@ -84,7 +84,11 @@ export async function thresholdFor(
   const fromDeals = (deals ?? []).reduce((s, d) => s + Number(d.amount ?? 0), 0);
 
   // Commissions d'affiliation : il faut passer par les liens du créateur sur
-  // les campagnes de cette marque.
+  // les campagnes de cette marque. Les ventes ET les actions (CPA) comptent —
+  // la loi vise la rémunération versée entre ces deux parties, quelle que
+  // soit la manière dont elle est calculée. Ne compter que les ventes
+  // laisserait un créateur payé 1 200 € à l'action passer sous le seuil sans
+  // contrat écrit.
   const { data: links } = await admin
     .from("affiliate_links")
     .select("id, campaigns!inner(brand_id)")
@@ -97,7 +101,7 @@ export async function thresholdFor(
     const { data: events } = await untyped(admin)
       .from("affiliate_events")
       .select("commission_amount, status, occurred_at")
-      .eq("type", "sale")
+      .in("type", ["sale", "action"])
       .in("link_id", linkIds)
       .in("status", ["validated", "paid"])
       .gte("occurred_at", from)

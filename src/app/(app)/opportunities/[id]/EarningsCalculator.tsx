@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
-
-type CampaignType = "affiliation" | "video" | "performance" | "hybrid";
+import type { CampaignType } from "@/lib/campaign";
+import { cpaTotalFor, cpaTierLabel, type CpaTier } from "@/lib/cpa";
 
 /**
- * Calculatrice de gains — UN composant pour les 4 types de campagne.
+ * Calculatrice de gains — UN composant pour tous les types de campagne.
  * Affiliation : tier-based commission % × ventes × panier
  * Performance : commission_value€ pour 1 000 vues
  * Hybrid : fixed_amount + tier-based commission
  * Video (fixed) : juste fixed_amount × quantité (peu utile en simulateur)
+ * CPA : montant par action, ou paliers
+ *
+ * Le calcul CPA passe par `cpaTotalFor`, la MÊME fonction que le moteur de
+ * paiement. Un simulateur qui promettrait autrement que ce qui sera versé
+ * serait pire que pas de simulateur du tout.
  */
 export default function EarningsCalculator({
   type,
@@ -17,12 +22,18 @@ export default function EarningsCalculator({
   commissionValue = null,
   tierPcts,
   avgBasket = 50,
+  cpaValuePerAction = null,
+  cpaActionLabel = null,
+  cpaTiers = [],
 }: {
   type: CampaignType;
   fixedAmount?: number | null;
   commissionValue?: number | null;
   tierPcts: { nano: number | null; micro: number | null; mid: number | null; macro: number | null };
   avgBasket?: number;
+  cpaValuePerAction?: number | null;
+  cpaActionLabel?: string | null;
+  cpaTiers?: CpaTier[];
 }) {
   // ===== Affiliation / Hybrid =====
   const [sales, setSales] = useState(10);
@@ -31,12 +42,86 @@ export default function EarningsCalculator({
   const [views, setViews] = useState(50000);
   // ===== Video fixed =====
   const [contentCount, setContentCount] = useState(1);
+  // ===== CPA =====
+  const [actions, setActions] = useState(100);
 
   const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")}€`;
 
   const ca = sales * basket;
 
   // ===== Render selon le type =====
+
+  if (type === "cpa_flat" || type === "cpa_tiers") {
+    const label = cpaActionLabel || "action";
+    const total = cpaTotalFor(
+      { type, cpa_value_per_action: cpaValuePerAction },
+      cpaTiers,
+      actions,
+    );
+    const palier = type === "cpa_tiers" ? cpaTierLabel(cpaTiers, actions) : null;
+    // Le palier suivant, pour montrer ce qui reste à atteindre.
+    const suivant =
+      type === "cpa_tiers"
+        ? cpaTiers
+            .filter((t) => t.min_actions > actions)
+            .sort((a, b) => a.min_actions - b.min_actions)[0]
+        : undefined;
+
+    return (
+      <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-teal-50/40 p-5 shadow-sm sm:p-6">
+        <h2 className="font-display text-lg font-black text-ink">
+          🎯 Combien tu peux gagner
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          {type === "cpa_flat"
+            ? `Payé pour chaque ${label} confirmée par la marque.`
+            : `Chaque palier atteint remplace le précédent.`}
+        </p>
+        <div className="mt-5">
+          <label className="flex justify-between text-xs font-semibold text-zinc-700">
+            <span>{label.charAt(0).toUpperCase() + label.slice(1)}s générées</span>
+            <span className="text-brand">{actions.toLocaleString("fr-FR")}</span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={2000}
+            step={10}
+            value={actions}
+            onChange={(e) => setActions(Number(e.target.value))}
+            className="mt-2 w-full accent-purple-600"
+          />
+        </div>
+        <div className="mt-5 rounded-2xl border border-emerald-200 bg-white p-5 text-center shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            Tu gagnes
+          </p>
+          <p className="mt-1 font-display text-4xl font-black tracking-tight text-emerald-700">
+            {eur(total)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {type === "cpa_flat"
+              ? `${actions.toLocaleString("fr-FR")} × ${cpaValuePerAction ?? 0}€`
+              : palier
+                ? `Palier « ${palier} » atteint`
+                : "Aucun palier atteint pour l'instant"}
+          </p>
+          {suivant && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Prochain palier à{" "}
+              <strong className="text-ink">
+                {suivant.min_actions.toLocaleString("fr-FR")}
+              </strong>{" "}
+              {label}s →{" "}
+              <strong className="text-emerald-700">
+                {suivant.payout.toLocaleString("fr-FR")}€
+              </strong>
+            </p>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   if (type === "video") {
     const total = (fixedAmount ?? 0) * contentCount;

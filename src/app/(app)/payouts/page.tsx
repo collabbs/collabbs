@@ -93,7 +93,7 @@ export default async function PayoutsPage({
     const { data: affEvents } = await (supabase as any)
       .from("affiliate_events")
       .select("status, commission_amount, needs_review")
-      .eq("type", "sale")
+      .in("type", ["sale", "action"])
       .in("link_id", myLinkIds);
     for (const e of (affEvents ?? []) as any[]) {
       const c = Number(e.commission_amount ?? 0);

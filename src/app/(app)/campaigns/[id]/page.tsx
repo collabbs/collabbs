@@ -15,6 +15,8 @@ import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
 import ExamplesManager from "./ExamplesManager";
 import PromoTrackingPanel from "./PromoTrackingPanel";
+import CpaTrackingPanel from "./CpaTrackingPanel";
+import { pluralizeAction } from "@/lib/cpa";
 import TrackingStatusCard from "./TrackingStatusCard";
 import ShareCampaignCard from "./ShareCampaignCard";
 
@@ -59,6 +61,7 @@ export default async function CampaignManagePage({
 
   const type = c.type as CampaignType;
   const isAffiliation = type === "affiliation" || type === "hybrid";
+  const isCpa = type === "cpa_flat" || type === "cpa_tiers";
 
   const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes, examplesRes] = await Promise.all([
     supabase.from("niches").select("id, label"),
@@ -109,7 +112,7 @@ export default async function CampaignManagePage({
           .select("link_id, sale_amount, commission_amount")
           .in("link_id", linkIds)
           .eq("source", "promo_code")
-          .eq("type", "sale"),
+          .in("type", ["sale", "action"]),
         supabase
           .from("profiles")
           .select("id, display_name")
@@ -399,7 +402,7 @@ export default async function CampaignManagePage({
                   </span>
                   <span>
                     Dès <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
-                    {c.cpa_action_label || "actions"} →{" "}
+                    {pluralizeAction(c.cpa_action_label || "action", t.min_actions)} →{" "}
                     <strong className="text-emerald-700">{t.payout.toLocaleString("fr-FR")}€</strong>
                   </span>
                 </div>
@@ -420,6 +423,15 @@ export default async function CampaignManagePage({
             déclarée.
           </p>
         </section>
+      )}
+
+      {/* Intégration du suivi des actions — seule la marque peut les constater. */}
+      {isCpa && (
+        <CpaTrackingPanel
+          origin={origin}
+          secret={brandRes.data?.postback_secret ?? null}
+          actionLabel={c.cpa_action_label || "action"}
+        />
       )}
 
       {/* Panneau tracking code promo (stats par créateur + saisie manuelle). */}

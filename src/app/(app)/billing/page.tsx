@@ -111,7 +111,7 @@ export default async function BillingPage({
         .select(
           "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
         )
-        .eq("type", "sale")
+        .in("type", ["sale", "action"])
         .in("link_id", linkIds)
         .order("occurred_at", { ascending: false })
         .limit(30);

@@ -13,6 +13,7 @@ import {
 import ActionPanel from "./ActionPanel";
 import { openConversation } from "../../messages/actions";
 import EarningsCalculator from "./EarningsCalculator";
+import { pluralizeAction } from "@/lib/cpa";
 import FaqAccordion from "./FaqAccordion";
 
 export async function generateMetadata({
@@ -325,7 +326,7 @@ export default async function OpportunityDetailPage({
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-500">
                         À partir de <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
-                        {c.cpa_action_label || "actions"}
+                        {pluralizeAction(c.cpa_action_label || "action", t.min_actions)}
                       </p>
                       <p className="mt-1.5 font-display text-2xl font-black text-emerald-700">
                         {t.payout.toLocaleString("fr-FR")}€
@@ -570,6 +571,9 @@ export default async function OpportunityDetailPage({
                 mid: c.commission_mid,
                 macro: c.commission_macro,
               }}
+              cpaValuePerAction={c.cpa_value_per_action}
+              cpaActionLabel={c.cpa_action_label}
+              cpaTiers={c.campaign_cpa_tiers ?? []}
             />
           </div>
 
@@ -834,6 +838,11 @@ export default async function OpportunityDetailPage({
                   initialCode={linkRes.data?.code}
                   clicks={clicks}
                   gains={gains}
+                  rewardedFor={
+                    type === "cpa_flat" || type === "cpa_tiers"
+                      ? c.cpa_action_label || "action"
+                      : "vente"
+                  }
                 />
               ) : (
                 <p className="rounded-lg bg-zinc-50 p-3 text-center text-sm text-zinc-500">
