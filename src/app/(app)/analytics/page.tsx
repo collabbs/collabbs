@@ -11,6 +11,7 @@ import {
 } from "./charts";
 import EmptyState from "@/components/EmptyState";
 import Link from "next/link";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 export const metadata = {
   title: "Analytics — Collabbs",
@@ -86,7 +87,7 @@ async function CreatorAnalytics({
   const { data: events } = linkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("created_at, type, commission_amount, sale_amount, link_id")
+        .select("created_at, type, status, commission_amount, sale_amount, link_id")
         .in("link_id", linkIds)
         .gte("created_at", previous.start.toISOString())
         .lte("created_at", current.end.toISOString())
@@ -98,11 +99,6 @@ async function CreatorAnalytics({
     ? await supabase.from("deals").select("id, brand_id").in("id", dealIds)
     : { data: [] };
   const dealToBrand = new Map((deals ?? []).map((d) => [d.id, d.brand_id]));
-  const brandIds = Array.from(new Set((deals ?? []).map((d) => d.brand_id)));
-  const { data: brands } = brandIds.length
-    ? await supabase.from("brands").select("id, name").in("id", brandIds)
-    : { data: [] };
-  const brandName = new Map((brands ?? []).map((b) => [b.id, b.name]));
 
   // 4. Campagnes (pour top liens affiliation)
   const campaignIds = Array.from(new Set((links ?? []).map((l) => l.campaign_id)));
@@ -114,6 +110,20 @@ async function CreatorAnalytics({
     : { data: [] };
   const campMap = new Map((campaigns ?? []).map((c) => [c.id, c]));
   const linkToCampaign = new Map((links ?? []).map((l) => [l.id, l.campaign_id]));
+
+  // Les noms de marques se chargent APRÈS les campagnes : une marque connue
+  // uniquement par l'affiliation n'apparaît dans aucune collaboration, et son
+  // nom manquait — le classement affichait « Marque ».
+  const brandIds = Array.from(
+    new Set([
+      ...(deals ?? []).map((d) => d.brand_id),
+      ...(campaigns ?? []).map((c) => c.brand_id),
+    ].filter(Boolean)),
+  );
+  const { data: brands } = brandIds.length
+    ? await supabase.from("brands").select("id, name").in("id", brandIds)
+    : { data: [] };
+  const brandName = new Map((brands ?? []).map((b) => [b.id, b.name]));
 
   // ===== Split current vs previous =====
   const inRange = (d: Date, r: { start: Date; end: Date }) =>
@@ -137,24 +147,24 @@ async function CreatorAnalytics({
   const dealGains = txCurrent.reduce((s, t) => s + Number(t.net_amount), 0);
   const dealGainsPrev = txPrev.reduce((s, t) => s + Number(t.net_amount), 0);
   const affilGains = evCurrent
-    .filter((e) => e.type === "sale")
+    .filter(countsAsEarning)
     .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
   const affilGainsPrev = evPrev
-    .filter((e) => e.type === "sale")
+    .filter(countsAsEarning)
     .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
   const totalCurrent = dealGains + affilGains;
   const totalPrev = dealGainsPrev + affilGainsPrev;
 
   const clicksCurrent = evCurrent.filter((e) => e.type === "click").length;
   const clicksPrev = evPrev.filter((e) => e.type === "click").length;
-  const salesCurrent = evCurrent.filter((e) => e.type === "sale").length;
-  const salesPrev = evPrev.filter((e) => e.type === "sale").length;
+  const salesCurrent = evCurrent.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
+  const salesPrev = evPrev.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
 
   // ===== Time series : revenu total par bucket =====
   const revEvents = [
     ...txCurrent.map((t) => ({ date: new Date(t.created_at), value: Number(t.net_amount) })),
     ...evCurrent
-      .filter((e) => e.type === "sale")
+      .filter(countsAsEarning)
       .map((e) => ({
         date: new Date(e.created_at),
         value: Number(e.commission_amount ?? 0),
@@ -171,12 +181,23 @@ async function CreatorAnalytics({
   );
 
   // ===== Top marques =====
+  // « Celles qui te rapportent le plus » doit compter TOUT ce qu'une marque
+  // rapporte. Ce classement ne regardait que les collaborations : un créateur
+  // gagnant 400 € d'affiliation avec une marque ne la voyait pas apparaître,
+  // et l'encart affichait « pas encore assez de données ».
   const byBrand = new Map<string, number>();
   for (const t of txCurrent) {
     if (!t.deal_id) continue;
     const bId = dealToBrand.get(t.deal_id);
     if (!bId) continue;
     byBrand.set(bId, (byBrand.get(bId) ?? 0) + Number(t.net_amount));
+  }
+  for (const e of evCurrent) {
+    if (!countsAsEarning(e)) continue;
+    const campId = linkToCampaign.get(e.link_id);
+    const bId = campId ? campMap.get(campId)?.brand_id : null;
+    if (!bId) continue;
+    byBrand.set(bId, (byBrand.get(bId) ?? 0) + Number(e.commission_amount ?? 0));
   }
   const topBrands = Array.from(byBrand.entries())
     .sort((a, b) => b[1] - a[1])
@@ -191,8 +212,8 @@ async function CreatorAnalytics({
   for (const e of evCurrent) {
     const cur = byLink.get(e.link_id) ?? { sales: 0, gains: 0, clicks: 0 };
     if (e.type === "click") cur.clicks++;
-    else if (e.type === "sale") {
-      cur.sales++;
+    else if (countsAsEarning(e)) {
+      if (e.type === "sale") cur.sales++;
       cur.gains += Number(e.commission_amount ?? 0);
     }
     byLink.set(e.link_id, cur);
@@ -220,7 +241,7 @@ async function CreatorAnalytics({
 
   // ===== Funnel affiliation =====
   const totalSalesAmount = evCurrent
-    .filter((e) => e.type === "sale")
+    .filter((e) => e.type === "sale" && countsAsEarning(e))
     .reduce((s, e) => s + Number(e.sale_amount ?? 0), 0);
   const funnel = [
     { label: "Clics", value: clicksCurrent, format: "int" as const },
@@ -376,7 +397,7 @@ async function BrandAnalytics({
   const { data: events } = linkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("created_at, type, sale_amount, commission_amount, link_id")
+        .select("created_at, type, status, sale_amount, commission_amount, link_id")
         .in("link_id", linkIds)
         .gte("created_at", previous.start.toISOString())
         .lte("created_at", current.end.toISOString())
@@ -424,20 +445,20 @@ async function BrandAnalytics({
   const investedCurrent = txCurrent.reduce((s, t) => s + Number(t.gross_amount), 0);
   const investedPrev = txPrev.reduce((s, t) => s + Number(t.gross_amount), 0);
   const caCurrent = evCurrent
-    .filter((e) => e.type === "sale")
+    .filter((e) => e.type === "sale" && countsAsEarning(e))
     .reduce((s, e) => s + Number(e.sale_amount ?? 0), 0);
   const caPrev = evPrev
-    .filter((e) => e.type === "sale")
+    .filter((e) => e.type === "sale" && countsAsEarning(e))
     .reduce((s, e) => s + Number(e.sale_amount ?? 0), 0);
   const commissionsCurrent = evCurrent
-    .filter((e) => e.type === "sale")
+    .filter(countsAsEarning)
     .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
   const commissionsPrev = evPrev
-    .filter((e) => e.type === "sale")
+    .filter(countsAsEarning)
     .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
   const clicksCurrent = evCurrent.filter((e) => e.type === "click").length;
   const clicksPrev = evPrev.filter((e) => e.type === "click").length;
-  const salesCurrent = evCurrent.filter((e) => e.type === "sale").length;
+  const salesCurrent = evCurrent.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
 
   // ===== Time series CA affiliation =====
   const caSeries = bucketize(

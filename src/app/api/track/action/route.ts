@@ -128,7 +128,7 @@ async function handle(p: Payload) {
   const [{ data: evenements }, { data: tiers }] = await Promise.all([
     supabase
       .from("affiliate_events")
-      .select("action_count, commission_amount")
+      .select("action_count")
       .eq("link_id", link.id)
       .eq("type", "action"),
     supabase

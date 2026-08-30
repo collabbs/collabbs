@@ -15,6 +15,7 @@ import { openConversation } from "../../messages/actions";
 import EarningsCalculator from "./EarningsCalculator";
 import { pluralizeAction } from "@/lib/cpa";
 import FaqAccordion from "./FaqAccordion";
+import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 
 export async function generateMetadata({
   params,
@@ -124,15 +125,14 @@ export default async function OpportunityDetailPage({
   const { data: campaignEvents } = campaignLinkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("type, sale_amount, commission_amount")
+        .select("type, status, sale_amount, commission_amount")
         .in("link_id", campaignLinkIds)
     : { data: [] };
   const campaignEv = campaignEvents ?? [];
   const totalClicks = campaignEv.filter((e) => e.type === "click").length;
-  const totalSales = campaignEv.filter((e) => e.type === "sale").length;
-  const totalCommissionsPaid = campaignEv
-    .filter((e) => e.type === "sale")
-    .reduce((s, e) => s + Number(e.commission_amount ?? 0), 0);
+  const totalSales = campaignEv.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
+  // Les actions (CPA) comptent, le rejeté et le remboursé non.
+  const totalCommissionsPaid = sumEarnings(campaignEv);
   const activeCreators = campaignLinkIds.length;
   const completedDeals = (campaignDealsRes.data ?? []).filter(
     (d) => d.status === "completed" || d.status === "active",
@@ -148,15 +148,15 @@ export default async function OpportunityDetailPage({
   if (linkRes.data) {
     const evRes = await supabase
       .from("affiliate_events")
-      .select("type, source, sale_amount, commission_amount")
+      .select("type, status, source, sale_amount, commission_amount")
       .eq("link_id", linkRes.data.id);
     for (const e of evRes.data ?? []) {
       if (e.type === "click") clicks += 1;
-      else if (e.type === "sale") {
-        gains += e.commission_amount ?? 0;
+      else if (countsAsEarning(e)) {
+        gains += Number(e.commission_amount ?? 0);
         if (e.source === "promo_code") {
           promoSalesCount += 1;
-          promoCommissionTotal += e.commission_amount ?? 0;
+          promoCommissionTotal += Number(e.commission_amount ?? 0);
         }
       }
     }

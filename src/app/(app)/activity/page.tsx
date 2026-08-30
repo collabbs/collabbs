@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 export const metadata = { title: "Mon activité — Collabbs" };
 
@@ -51,7 +52,7 @@ export default async function ActivityPage() {
   const { data: events } = linkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("link_id, type, commission_amount, sale_amount")
+        .select("link_id, type, status, commission_amount, sale_amount")
         .in("link_id", linkIds)
     : { data: [] };
   const perfByLink = new Map<
@@ -61,7 +62,10 @@ export default async function ActivityPage() {
   for (const e of events ?? []) {
     const cur = perfByLink.get(e.link_id) ?? { clicks: 0, sales: 0, gains: 0 };
     if (e.type === "click") cur.clicks++;
-    else if (e.type === "sale") {
+    else if (countsAsEarning(e)) {
+      // Les actions (CPA) rapportent au même titre que les ventes ; le rejeté
+      // et le remboursé ne rapportent rien. Règle partagée, voir
+      // `lib/affiliate-earnings`.
       cur.sales++;
       cur.gains += Number(e.commission_amount ?? 0);
     }

@@ -7,6 +7,7 @@ import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
+import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -72,7 +73,7 @@ export default async function OpportunitiesPage({
   // Clics par campagne (le créateur peut lire les events de ses propres liens)
   const myEventsRes = await supabase
     .from("affiliate_events")
-    .select("link_id, type, commission_amount")
+    .select("link_id, type, status, commission_amount")
     .in(
       "link_id",
       linkRows.map((l) => l.id),
@@ -85,7 +86,7 @@ export default async function OpportunitiesPage({
     if (!cid) continue;
     if (e.type === "click")
       clicksByCampaign.set(cid, (clicksByCampaign.get(cid) ?? 0) + 1);
-    else if (e.type === "sale")
+    else if (countsAsEarning(e))
       gainsByCampaign.set(cid, (gainsByCampaign.get(cid) ?? 0) + (e.commission_amount ?? 0));
   }
 
