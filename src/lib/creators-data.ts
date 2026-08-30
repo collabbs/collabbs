@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
+import { demoCreatorsVisibles } from "./demo-data";
 
 // Source de vérité = Supabase. Les démos seedées (is_demo) et les vrais
 // inscrits qui ont complété leur profil apparaissent ici, sans distinction.
@@ -175,12 +176,19 @@ async function loadRelations(ids: string[]) {
 /** Carte marketplace : créateurs « complets » (photo, réseau, niche, offre). */
 export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   const supabase = await createClient();
-  const { data: creators } = await supabase
+  const requete = supabase
     .from("creators")
     .select(
-      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels",
+      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels, is_demo",
     )
     .order("rating", { ascending: false });
+  // Les profils de démonstration peuplent l'annuaire pendant qu'on construit,
+  // et deviennent un mensonge dès qu'un vrai visiteur arrive : rien ne les
+  // distingue d'un créateur réel, une marque peut leur écrire. Voir
+  // `demoCreatorsVisibles` — visibles en développement, cachés en production.
+  const { data: creators } = demoCreatorsVisibles()
+    ? await requete
+    : await requete.neq("is_demo", true);
   const rows = (creators ?? []) as CreatorRow[];
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
@@ -299,11 +307,15 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   const { data: c } = await supabase
     .from("creators")
     .select(
-      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack, verified, created_at",
+      "id, handle, bio, rating, reviews_count, deals_count, engagement, rate_video, rate_mention, rate_pack, verified, created_at, is_demo",
     )
     .eq("handle", handle)
     .maybeSingle();
   if (!c) return null;
+  // Même règle que l'annuaire : en production, une fiche de démonstration
+  // n'existe pas. Sans ça, elle resterait atteignable par lien direct — et
+  // c'est justement ce que fait quelqu'un à qui on a envoyé le profil.
+  if (c.is_demo && !demoCreatorsVisibles()) return null;
 
   const { profMap, platsBy, nichesBy, offersBy, offerPriceBy } =
     await loadRelations([c.id]);
