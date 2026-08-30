@@ -65,9 +65,18 @@ export async function POST(request: Request) {
         // évènement non géré → 200 quand même, on accuse réception
         break;
     }
-  } catch {
-    // Erreur applicative : on logue (à brancher plus tard) mais on renvoie 200
-    // pour ne pas que Stripe retente en boucle. Idempotence garantit le rattrapage.
+  } catch (err) {
+    // On renvoie 200 quoi qu'il arrive, pour que Stripe ne retente pas en
+    // boucle. Le rattrapage existe : `/api/stripe/return` rappelle la même
+    // fonction, idempotente, quand la marque revient du paiement.
+    //
+    // Mais l'erreur DOIT être visible. Le commentaire disait « on logue (à
+    // brancher plus tard) » et le bloc était vide : un séquestre perdu des
+    // deux côtés n'aurait laissé aucune trace, alors que la marque a payé.
+    console.error(
+      `[stripe-webhook] échec du traitement de ${event.type} (${event.id})`,
+      err,
+    );
   }
 
   return NextResponse.json({ ok: true });

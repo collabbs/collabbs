@@ -51,6 +51,37 @@ async function ensureContractRow(
 }
 
 /**
+ * Garantit qu'une collaboration a ses livrables par défaut.
+ *
+ * Sans livrable, le créateur n'a **aucun moyen de livrer** : la page l'invite à
+ * marquer ses livrables « ci-dessus » alors qu'il n'y a rien au-dessus, et la
+ * collaboration reste bloquée pour toujours. Aucun écran ne permet d'en
+ * ajouter après coup.
+ *
+ * L'insertion n'était pas vérifiée — même défaut que la ligne de contrat, et
+ * même conséquence : un échec silencieux laissait une collaboration
+ * inutilisable. On la vérifie, et on la rattrape à l'acceptation.
+ */
+async function ensureDeliverables(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dealId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data: existants } = await supabase
+    .from("deliverables")
+    .select("id")
+    .eq("deal_id", dealId)
+    .limit(1);
+  if (existants && existants.length > 0) return { ok: true };
+
+  const { error } = await supabase.from("deliverables").insert([
+    { deal_id: dealId, label: "Contenu livré", position: 1 },
+    { deal_id: dealId, label: "Validation finale de la marque", position: 2 },
+  ]);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
  * La marque crée un deal à partir d'une candidature acceptée.
  * Pré-rempli depuis la campagne, statut "negotiation", livrables seedés.
  */
@@ -101,11 +132,12 @@ export async function createDealFromApplication(applicationId: string) {
     .single();
   if (error || !deal) redirect(`/campaigns/${app.campaign_id}`);
 
-  // Livrables par défaut.
-  await supabase.from("deliverables").insert([
-    { deal_id: deal.id, label: "Contenu livré", position: 1 },
-    { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
-  ]);
+  // Livrables par défaut. Sans eux, le créateur ne peut pas livrer.
+  const livrables = await ensureDeliverables(supabase, deal.id);
+  if (!livrables.ok) {
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(livrables.error ?? "Livrables impossibles à créer.")}`);
+  }
 
   // Contrat (brouillon) — figé et signé à l'acceptation du créateur.
   const contrat = await ensureContractRow(supabase, deal.id);
@@ -173,10 +205,11 @@ export async function createDirectDeal(creatorId: string) {
     .single();
   if (error || !deal) redirect("/creators");
 
-  await supabase.from("deliverables").insert([
-    { deal_id: deal.id, label: "Contenu livré", position: 1 },
-    { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
-  ]);
+  const livrablesDirect = await ensureDeliverables(supabase, deal.id);
+  if (!livrablesDirect.ok) {
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/creators?error=${encodeURIComponent(livrablesDirect.error ?? "Livrables impossibles à créer.")}`);
+  }
 
   const contrat = await ensureContractRow(supabase, deal.id);
   if (!contrat.ok) {
@@ -318,6 +351,10 @@ export async function acceptDeal(dealId: string): Promise<Result> {
       return { ok: false, error: "Le contrat n'a pas pu être signé. Réessaie." };
     }
   }
+
+  // Filet : une collaboration sans livrable est inutilisable — le créateur
+  // n'aurait littéralement rien à cocher. On rattrape avant de l'activer.
+  await ensureDeliverables(supabase, dealId);
 
   // Contrat signé : la collaboration peut devenir active. `escrow_due_at` fixe
   // le délai de 7 jours dont dispose la marque pour régler le séquestre ; un

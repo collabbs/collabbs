@@ -232,8 +232,12 @@ export default function DealControls({ dealId, role, status, deliverables, terms
           )}
 
           {role === "creator" && status === "active" && (
+            // Ne renvoyer « ci-dessus » que s'il y a effectivement quelque
+            // chose au-dessus. Sans livrable, cette phrase désignait le vide.
             <span className="text-sm text-zinc-500">
-              Marque tes livrables comme livrés ci-dessus — la marque valide puis clôture.
+              {deliverables.length > 0
+                ? "Marque tes livrables comme livrés ci-dessus — la marque valide puis clôture."
+                : "Aucun livrable n'est encore défini pour cette collaboration. Écris à la marque pour qu'elle précise ce qui est attendu."}
             </span>
           )}
         </div>
