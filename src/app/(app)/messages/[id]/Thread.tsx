@@ -71,9 +71,18 @@ export default function Thread({
   // effet, React peint d'abord l'ancienne liste puis la remplace, ce qui
   // provoque un scintillement et un rendu de plus. C'est aussi ce que la
   // règle `react-hooks/set-state-in-effect` demande.
-  const [vusEnDernier, setVusEnDernier] = useState(initialMessages);
-  if (initialMessages !== vusEnDernier) {
-    setVusEnDernier(initialMessages);
+  // ⚠️ La comparaison porte sur une SIGNATURE, pas sur la référence du
+  // tableau. Le rendu serveur renvoie un tableau neuf à chaque passage : une
+  // comparaison par référence est toujours vraie, ce qui déclenche un
+  // `setState` à chaque rendu, donc un rendu de plus, indéfiniment. React
+  // abandonne alors l'hydratation et la page devient inerte — le champ de
+  // saisie ne répond plus.
+  //
+  // La signature ne change que quand la liste change vraiment.
+  const signature = `${initialMessages.length}:${initialMessages[initialMessages.length - 1]?.id ?? ""}`;
+  const [signatureVue, setSignatureVue] = useState(signature);
+  if (signature !== signatureVue) {
+    setSignatureVue(signature);
     setMessages((prev) => mergeMessages(prev, initialMessages));
   }
 
@@ -103,10 +112,25 @@ export default function Thread({
             }
           },
         )
-        .subscribe();
-    } catch {
+        .subscribe((status, err) => {
+          // Sans ce retour, un abonnement refusé était indiscernable d'un
+          // abonnement silencieux : la page semblait fonctionner et ne
+          // recevait jamais rien. C'est exactement la panne muette que la
+          // migration 0050 cherche à éviter — encore fallait-il pouvoir la
+          // constater.
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error(
+              `[messages] abonnement temps réel indisponible (${status})`,
+              err ?? "",
+            );
+          }
+        });
+    } catch (e) {
       // Variables d'environnement manquantes ou websocket refusé : on retombe
       // sur le comportement d'avant (rechargement), sans casser la page.
+      // Mais on le DIT : un échec muet ici se serait traduit par une
+      // messagerie qui paraît temps réel et ne l'est pas.
+      console.error("[messages] abonnement temps réel impossible", e);
     }
 
     return () => {
