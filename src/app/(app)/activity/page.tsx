@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
+import { pluralizeAction } from "@/lib/cpa";
 
 export const metadata = { title: "Mon activité — Collabbs" };
 
@@ -52,21 +53,27 @@ export default async function ActivityPage() {
   const { data: events } = linkIds.length
     ? await supabase
         .from("affiliate_events")
-        .select("link_id, type, status, commission_amount, sale_amount")
+        .select("link_id, type, status, commission_amount, sale_amount, action_count")
         .in("link_id", linkIds)
     : { data: [] };
   const perfByLink = new Map<
     string,
-    { clicks: number; sales: number; gains: number }
+    { clicks: number; sales: number; actions: number; gains: number }
   >();
   for (const e of events ?? []) {
-    const cur = perfByLink.get(e.link_id) ?? { clicks: 0, sales: 0, gains: 0 };
+    const cur =
+      perfByLink.get(e.link_id) ?? { clicks: 0, sales: 0, actions: 0, gains: 0 };
     if (e.type === "click") cur.clicks++;
     else if (countsAsEarning(e)) {
-      // Les actions (CPA) rapportent au même titre que les ventes ; le rejeté
-      // et le remboursé ne rapportent rien. Règle partagée, voir
+      // Le rejeté et le remboursé ne rapportent rien. Règle partagée, voir
       // `lib/affiliate-earnings`.
-      cur.sales++;
+      //
+      // Ventes et actions sont comptées SÉPARÉMENT : une campagne au CPA
+      // affichait « 6 ventes » là où le créateur avait généré 507
+      // inscriptions — ni le bon mot, ni le bon nombre. Une déclaration peut
+      // porter plusieurs actions, d'où le cumul de `action_count`.
+      if (e.type === "action") cur.actions += Number(e.action_count ?? 1);
+      else cur.sales++;
       cur.gains += Number(e.commission_amount ?? 0);
     }
     perfByLink.set(e.link_id, cur);
@@ -99,7 +106,7 @@ export default async function ActivityPage() {
   const { data: campaignsData } = campaignIds.length
     ? await supabase
         .from("campaigns")
-        .select("id, name, type, status, brand_id, brands(name, logo_url)")
+        .select("id, name, type, status, brand_id, cpa_action_label, brands(name, logo_url)")
         .in("id", campaignIds)
     : { data: [] };
   const campaignMap = new Map((campaignsData ?? []).map((c) => [c.id, c]));
@@ -212,8 +219,16 @@ export default async function ActivityPage() {
               const perf = perfByLink.get(l.id) ?? {
                 clicks: 0,
                 sales: 0,
+                actions: 0,
                 gains: 0,
               };
+              // Une campagne au CPA se compte en actions, pas en ventes, et
+              // porte son propre mot — « inscription », « devis », « essai ».
+              const auCpa = c?.type === "cpa_flat" || c?.type === "cpa_tiers";
+              const uniteLabel = auCpa
+                ? pluralizeAction(c?.cpa_action_label || "action", perf.actions)
+                : "Ventes";
+              const uniteValeur = auCpa ? perf.actions : perf.sales;
               const band =
                 CAMPAIGN_TYPE_BAND[c?.type ?? "affiliation"] ??
                 CAMPAIGN_TYPE_BAND.affiliation;
@@ -273,10 +288,10 @@ export default async function ActivityPage() {
                       </div>
                       <div className="border-x border-zinc-100">
                         <p className="font-display text-base font-black text-ink">
-                          {perf.sales}
+                          {uniteValeur.toLocaleString("fr-FR")}
                         </p>
                         <p className="text-[10px] uppercase tracking-wide text-zinc-500">
-                          Ventes
+                          {uniteLabel}
                         </p>
                       </div>
                       <div>
