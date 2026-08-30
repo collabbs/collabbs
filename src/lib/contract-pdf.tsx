@@ -84,6 +84,59 @@ const styles = StyleSheet.create({
   },
 });
 
+/**
+ * Rend un texte sûr pour les polices standard du PDF.
+ *
+ * Le document est composé en Helvetica non embarquée, avec l'encodage WinAnsi.
+ * Cet encodage ne couvre pas toute la typographie française : un caractère
+ * absent n'est pas signalé, il est dessiné avec le mauvais glyphe.
+ *
+ * Cas constaté le 30 août 2026 — l'espace fine insécable (U+202F), que
+ * `toLocaleString("fr-FR")` place en séparateur de milliers, sortait en
+ * **barre oblique**. Le contrat affichait « la somme de 1/400,00 € » au lieu
+ * de « 1 400,00 € ». Le défaut ne touchait que les montants à partir de
+ * 1 000 € — c'est-à-dire exactement les collaborations pour lesquelles la loi
+ * impose un contrat écrit complet.
+ *
+ * On remplace donc les espaces typographiques par l'espace insécable ordinaire,
+ * qui appartient à WinAnsi. Le filet de sécurité final écarte tout caractère
+ * hors encodage plutôt que de laisser le PDF inventer un glyphe : un contrat
+ * doit dire ce qu'il dit.
+ */
+const ESPACES_TYPOGRAPHIQUES = /[\u202F\u2009\u2007\u2060\u200A\u2005\u2006]/g;
+
+export function winAnsiSafe(text: string): string {
+  return text
+    .replace(ESPACES_TYPOGRAPHIQUES, "\u00A0")
+    .replace(/\u2011/g, "-") // trait d'union insécable
+    .replace(/[\u2028\u2029]/g, " ")
+    // Dernier filet : tout ce qui reste hors WinAnsi devient une espace, pour
+    // qu'un caractère inattendu laisse un blanc visible et non un faux glyphe.
+    .replace(/[^\u0000-\u007E\u00A0-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]/g, " ");
+}
+
+/** Applique `winAnsiSafe` à toutes les chaînes du document, sans exception. */
+function sanitizeDocument(doc: ContractDocument): ContractDocument {
+  const party = (x: ContractDocument["parties"]["brand"]) =>
+    Object.fromEntries(
+      Object.entries(x).map(([k, v]) => [k, typeof v === "string" ? winAnsiSafe(v) : v]),
+    ) as ContractDocument["parties"]["brand"];
+
+  return {
+    ...doc,
+    reference: winAnsiSafe(doc.reference),
+    // L'en-tête et le bloc de signatures dessinent les identités : elles
+    // passent par le même filtre que le corps du contrat.
+    parties: { brand: party(doc.parties.brand), creator: party(doc.parties.creator) },
+    clauses: doc.clauses.map((c) => ({
+      ...c,
+      title: winAnsiSafe(c.title),
+      paragraphs: c.paragraphs.map(winAnsiSafe),
+    })),
+    footer: doc.footer.map(winAnsiSafe),
+  };
+}
+
 /** Restitue le gras `**...**` du modèle en segments stylés. */
 function Rich({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -218,5 +271,7 @@ export async function renderContractPdf(params: {
   creatorSignedAt: string | null;
   terminatedAt: string | null;
 }): Promise<Buffer> {
-  return renderToBuffer(<ContractPdf {...params} />);
+  // Assaini une seule fois, en amont : aucun texte ne doit atteindre la mise
+  // en page sans être passé par là.
+  return renderToBuffer(<ContractPdf {...params} doc={sanitizeDocument(params.doc)} />);
 }

@@ -112,4 +112,76 @@ describe("contrat de collaboration", () => {
       doc.clauses.map((_, i) => String(i + 1)),
     );
   });
+
+  /**
+   * « Le grand test » du 30 août 2026 : jusqu'ici, aucun compte n'ayant jamais
+   * eu d'informations légales, le contrat n'avait **jamais été rendu une seule
+   * fois**. Ce test le rend avec un dossier complet des deux côtés et vérifie
+   * qu'aucun article n'est vide et qu'aucun trou de gabarit n'atteint le texte
+   * lu par les Parties.
+   */
+  it("avec un dossier complet, chaque article porte un texte réel", () => {
+    const doc = buildContractDocument({
+      reference: "CT-2026-0001",
+      regime: "complete",
+      snapshot: {
+        ...snapshot({
+          title: "Vidéo test du vélo urbain",
+          amount: 1400,
+          format: "video",
+          deadline: "2026-09-30",
+          brand_notes: "Tournage en extérieur.",
+          exclusivity: true,
+          exclusivity_days: 60,
+          usage_rights_months: 12,
+        }),
+        brand: { ...party("MAISON VELO SAS"), rep_name: "Camille Roussel", vat: "FR40912345678" },
+      },
+    });
+
+    // 11 articles au maximum : le gabarit compte 13 appels, dont deux paires
+    // « si/sinon » (transparence publicitaire, exclusivité).
+    expect(doc.clauses).toHaveLength(11);
+
+    for (const c of doc.clauses) {
+      expect(c.title.trim(), `article ${c.number} sans titre`).not.toBe("");
+      expect(c.paragraphs.length, `article ${c.number} sans paragraphe`).toBeGreaterThan(0);
+      expect(
+        c.paragraphs.join(" ").length,
+        `article ${c.number} (${c.title}) quasi vide`,
+      ).toBeGreaterThan(40);
+    }
+
+    // On n'inspecte que le TEXTE lu par les Parties — pas le JSON, où un
+    // `null` de métadonnée est légitime.
+    const lu = [
+      ...doc.clauses.flatMap((c) => [c.title, ...c.paragraphs]),
+      ...doc.footer,
+    ].join("\n");
+    for (const trou of ["undefined", "[object Object]", "NaN", "À COMPLÉTER", "TODO", "null"]) {
+      expect(lu, `le texte du contrat contient « ${trou} »`).not.toContain(trou);
+    }
+  });
+
+  it("un dossier incomplet ne laisse pas de trou dans le texte", () => {
+    // Le régime simplifié tolère des champs manquants : ils ne doivent pas
+    // ressortir en « undefined » au milieu d'une phrase.
+    const creuse: PartySnapshot = {
+      ...party("Sans Papiers"),
+      legal_status_label: null,
+      rep_name: null,
+      siret: null,
+      vat: null,
+      contact_email: null,
+    };
+    const doc = buildContractDocument({
+      reference: "CT-2026-0002",
+      regime: "simplified",
+      snapshot: { ...snapshot(), creator: creuse },
+    });
+    const lu = doc.clauses.flatMap((c) => c.paragraphs).join("\n");
+    for (const trou of ["undefined", "null", "[object Object]", ", ,", " ."]) {
+      expect(lu, `trou de gabarit « ${trou} »`).not.toContain(trou);
+    }
+  });
 });
