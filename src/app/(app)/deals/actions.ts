@@ -19,6 +19,38 @@ function contractRef(): string {
 }
 
 /**
+ * Crée la ligne de contrat d'une collaboration, en réessayant si la référence
+ * tirée au sort est déjà prise.
+ *
+ * `reference` est unique et vaut « CLB- » + 6 caractères hexadécimaux, soit
+ * 16,7 millions de possibilités : à quelques milliers de contrats, une
+ * collision finit par arriver. L'insertion échouait alors **en silence** —
+ * personne ne lisait son résultat — et la collaboration partait sans contrat.
+ * Plus tard, `acceptDeal` mettait à jour zéro ligne, tout aussi silencieusement :
+ * les deux parties se croyaient engagées par un contrat qui n'existait pas.
+ *
+ * `deal_id` est également unique : une erreur portant sur cette contrainte
+ * signifie que le contrat existe déjà, ce qui est le résultat recherché.
+ */
+async function ensureContractRow(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dealId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  for (let essai = 0; essai < 5; essai++) {
+    const { error } = await supabase
+      .from("contracts")
+      .insert({ deal_id: dealId, reference: contractRef(), status: "draft" });
+    if (!error) return { ok: true };
+    // Contrat déjà présent pour cette collaboration : rien à faire.
+    if (error.code === "23505" && error.message.includes("deal_id")) return { ok: true };
+    // Référence déjà prise : on retire au sort.
+    if (error.code === "23505") continue;
+    return { ok: false, error: error.message };
+  }
+  return { ok: false, error: "Impossible d'attribuer une référence de contrat." };
+}
+
+/**
  * La marque crée un deal à partir d'une candidature acceptée.
  * Pré-rempli depuis la campagne, statut "negotiation", livrables seedés.
  */
@@ -76,9 +108,13 @@ export async function createDealFromApplication(applicationId: string) {
   ]);
 
   // Contrat (brouillon) — figé et signé à l'acceptation du créateur.
-  await supabase
-    .from("contracts")
-    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+  const contrat = await ensureContractRow(supabase, deal.id);
+  if (!contrat.ok) {
+    // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
+    // laisse pas exister à moitié.
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
+  }
 
   await notify({
     userId: app.creator_id,
@@ -142,9 +178,13 @@ export async function createDirectDeal(creatorId: string) {
     { deal_id: deal.id, label: "Validation finale de la marque", position: 2 },
   ]);
 
-  await supabase
-    .from("contracts")
-    .insert({ deal_id: deal.id, reference: contractRef(), status: "draft" });
+  const contrat = await ensureContractRow(supabase, deal.id);
+  if (!contrat.ok) {
+    // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
+    // laisse pas exister à moitié.
+    await supabase.from("deals").delete().eq("id", deal.id);
+    redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
+  }
 
   await notify({
     userId: creatorId,
@@ -238,9 +278,51 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     return { ok: false, error: "Impossible de générer le contrat." };
   }
 
-  // À l'acceptation : on enregistre accepted_at + on calcule escrow_due_at
-  // (SLA marque pour régler) à +7 jours. Si dépassé, un cron pourra annuler.
-  const acceptedAtIso = new Date().toISOString();
+  // ORDRE VOULU : le contrat est signé AVANT que la collaboration devienne
+  // active. L'inverse laissait, en cas d'échec de la signature, une
+  // collaboration active sans contrat — exactement ce que la loi interdit et
+  // ce que cette fonctionnalité existe pour empêcher.
+  const now = new Date().toISOString();
+  const signature = {
+    status: "signed" as const,
+    brand_signed_at: now,
+    creator_signed_at: now,
+    terms_snapshot: {
+      ...build.snapshot,
+      regime: threshold.required ? "complete" : "simplified",
+    },
+  };
+
+  // Le contrat est figé : copie complète des termes ET des coordonnées légales
+  // des deux parties, signée par les deux simultanément.
+  const { data: signes } = await supabase
+    .from("contracts")
+    .update(signature)
+    .eq("deal_id", dealId)
+    .select("id");
+
+  // Si la ligne de contrat manque — insertion perdue lors d'une collision de
+  // référence, collaboration créée hors de l'application — la mise à jour
+  // ci-dessus ne touche AUCUNE ligne, et sans erreur. On la rattrape.
+  if (!signes || signes.length === 0) {
+    const rattrapage = await ensureContractRow(supabase, dealId);
+    if (!rattrapage.ok) {
+      return { ok: false, error: "Le contrat n'a pas pu être établi. Réessaie." };
+    }
+    const { data: rejoue } = await supabase
+      .from("contracts")
+      .update(signature)
+      .eq("deal_id", dealId)
+      .select("id");
+    if (!rejoue || rejoue.length === 0) {
+      return { ok: false, error: "Le contrat n'a pas pu être signé. Réessaie." };
+    }
+  }
+
+  // Contrat signé : la collaboration peut devenir active. `escrow_due_at` fixe
+  // le délai de 7 jours dont dispose la marque pour régler le séquestre ; un
+  // cron annule au-delà.
+  const acceptedAtIso = now;
   const escrowDueIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error } = await supabase
@@ -260,22 +342,6 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     body: "Tu peux maintenant régler le séquestre. Tu as 7 jours pour effectuer le paiement, sinon le deal sera annulé automatiquement.",
     link: `/deals/${dealId}`,
   });
-
-  // Le contrat est figé (snapshot complet des termes ET des coordonnées
-  // légales des 2 parties) et signé par les 2 parties simultanément.
-  const now = new Date().toISOString();
-  await supabase
-    .from("contracts")
-    .update({
-      status: "signed",
-      brand_signed_at: now,
-      creator_signed_at: now,
-      terms_snapshot: {
-        ...build.snapshot,
-        regime: threshold.required ? "complete" : "simplified",
-      },
-    })
-    .eq("deal_id", dealId);
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
