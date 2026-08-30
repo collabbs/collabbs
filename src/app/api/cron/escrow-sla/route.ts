@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { notify } from "@/lib/notifications";
 import { eur } from "@/lib/deal";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Application des délais du séquestre.
@@ -96,10 +97,18 @@ export async function GET(request: Request) {
     }
 
     const validatedAt = new Date().toISOString();
-    await untyped(admin)
+    const { error: errCloture } = await untyped(admin)
       .from("deals")
       .update({ status: "completed", brand_validated_at: validatedAt })
       .eq("id", deal.id);
+    if (errCloture) {
+      // `attemptDealPayout` exige un deal « terminé » : sans cette écriture, il
+      // refuserait de verser et la collaboration resterait bloquée sans que
+      // personne ne l'apprenne.
+      await reportError("cron/escrow-sla-cloture", errCloture, { detail: `deal ${deal.id}` });
+      result.failed++;
+      continue;
+    }
     await untyped(admin)
       .from("deliverables")
       .update({ approved: true })

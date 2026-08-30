@@ -449,10 +449,15 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
-  await supabase
+  const { error: errContrat } = await supabase
     .from("contracts")
     .update({ status: "terminated", terminated_at: new Date().toISOString() })
     .eq("deal_id", dealId);
+  if (errContrat) {
+    // La collaboration est annulée mais son contrat se dit toujours en cours :
+    // il resterait affiché comme engagement actif des deux côtés.
+    await reportError("deal/contrat-resiliation", errContrat, { detail: `deal ${dealId}` });
+  }
 
   // Notifie l'autre partie de l'annulation.
   const recipientId = deal.brand_id === user.id ? deal.creator_id : deal.brand_id;
@@ -911,14 +916,30 @@ export async function startCreatorPayoutOnboarding() {
   try {
     let accountId = creator?.stripe_account_id ?? null;
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: user.email ?? undefined,
-        metadata: { creator_id: user.id },
-        capabilities: { transfers: { requested: true } },
-      });
+      const account = await stripe.accounts.create(
+        {
+          type: "express",
+          email: user.email ?? undefined,
+          metadata: { creator_id: user.id },
+          capabilities: { transfers: { requested: true } },
+        },
+        // Sans cette clé, un échec d'enregistrement ci-dessous ferait créer un
+        // NOUVEAU compte Stripe à chaque tentative : le créateur recommencerait
+        // son inscription bancaire indéfiniment, en laissant des comptes
+        // orphelins derrière lui.
+        { idempotencyKey: `creator-account-${user.id}` },
+      );
       accountId = account.id;
-      await supabase.from("creators").update({ stripe_account_id: accountId }).eq("id", user.id);
+      const { error: errCompte } = await supabase
+        .from("creators")
+        .update({ stripe_account_id: accountId })
+        .eq("id", user.id);
+      if (errCompte) {
+        await reportError("payouts/compte-stripe", errCompte, {
+          userId: user.id,
+          detail: `Compte Stripe ${accountId} créé mais non enregistré.`,
+        });
+      }
     }
     const link = await stripe.accountLinks.create({
       account: accountId,
@@ -964,11 +985,29 @@ export async function refundDeal(dealId: string): Promise<Result> {
   if (!tx.reference) return { ok: false, error: "Référence de paiement introuvable." };
 
   try {
-    await stripe.refunds.create({ payment_intent: tx.reference });
+    await stripe.refunds.create(
+      { payment_intent: tx.reference },
+      // Le garde-fou d'entrée est `status = "in_escrow"` : si l'écriture qui
+      // suit échoue, un second clic rembourserait une deuxième fois.
+      { idempotencyKey: `deal-refund-${tx.id}` },
+    );
   } catch {
     return { ok: false, error: "Le remboursement Stripe a échoué." };
   }
-  await admin.from("transactions").update({ status: "refunded" }).eq("id", tx.id);
+  const { error: errRemb } = await admin
+    .from("transactions")
+    .update({ status: "refunded" })
+    .eq("id", tx.id);
+  if (errRemb) {
+    await reportError("deal/remboursement-statut", errRemb, {
+      detail: `Remboursement Stripe effectué pour le deal ${dealId} (transaction ${tx.id}) sans passage à "refunded".`,
+    });
+    return {
+      ok: false,
+      error:
+        "Le remboursement est parti mais son enregistrement a échoué. Ne relance pas : contacte le support.",
+    };
+  }
 
   // Notifie le créateur que le paiement a été remboursé (donc pas de versement).
   const { data: dealForNotif } = await supabase

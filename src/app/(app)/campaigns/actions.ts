@@ -6,6 +6,7 @@ import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
 import { valider } from "@/lib/validation";
 import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
+import { reportError } from "@/lib/report-error";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -62,7 +63,7 @@ export type CampaignData = {
 
 export async function createCampaign(
   data: CampaignData,
-): Promise<{ ok: boolean; error?: string; id?: string }> {
+): Promise<{ ok: boolean; error?: string; id?: string; warning?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -98,6 +99,34 @@ export async function createCampaign(
     const grille = valider(grilleCommissionSchema, data.commission);
     if (!grille.ok) return { ok: false, error: grille.error };
   }
+
+  // Une campagne doit annoncer ce qu'elle paie. Sans ce contrôle, on pouvait
+  // publier une campagne « Paiement fixe » à 0 € : elle s'affichait « 0€ par
+  // contenu » dans le fil des créateurs, et la candidature acceptée créait une
+  // collaboration à 0 €. La rémunération n'est pas un détail de formulaire,
+  // c'est la seule raison qu'a un créateur de répondre.
+  const remuneration = ((): string | null => {
+    if (withFixed && !(data.fixedAmount && data.fixedAmount > 0))
+      return "Indique le montant que tu paies par contenu : une campagne à 0 € n'attirera personne.";
+    if (isPerformance && !(data.perfRate && data.perfRate > 0))
+      return "Indique ce que tu paies pour 1 000 vues.";
+    if (isCpaFlat && !(data.cpaValuePerAction && data.cpaValuePerAction > 0))
+      return "Indique le montant versé par action réalisée.";
+    if (isCpaTiers && !data.cpaTiers.some((t) => t.minActions > 0 && t.payout > 0))
+      return "Renseigne au moins un palier : un nombre d'actions et le montant correspondant.";
+    if (
+      withAffiliation &&
+      !(
+        data.commission.nano > 0 ||
+        data.commission.micro > 0 ||
+        data.commission.mid > 0 ||
+        data.commission.macro > 0
+      )
+    )
+      return "Renseigne au moins une commission : à 0 %, le créateur ne gagne rien sur les ventes qu'il apporte.";
+    return null;
+  })();
+  if (remuneration) return { ok: false, error: remuneration };
 
   // Si la marque n'a renseigné que product_url, on le réutilise comme cible
   // d'affiliation par défaut (cas le plus courant : promotion d'1 produit).
@@ -171,21 +200,54 @@ export async function createCampaign(
         position: i,
       }));
     if (tiersToInsert.length > 0) {
-      await supabase.from("campaign_cpa_tiers").insert(tiersToInsert);
+      const { error: errPaliers } = await supabase
+        .from("campaign_cpa_tiers")
+        .insert(tiersToInsert);
+      // Une campagne à paliers sans palier n'annonce aucune rémunération.
+      if (errPaliers) {
+        await reportError("campagne/paliers", errPaliers, {
+          userId: user.id,
+          detail: `campagne ${inserted.id}`,
+        });
+      }
     }
   }
 
+  // Niches et réseaux ne sont pas décoratifs : le fil des créateurs FILTRE
+  // dessus. Une campagne dont l'insertion échoue ici existe, se paie, et
+  // n'est proposée à personne — le pire des états, parce qu'il ne ressemble
+  // pas à une panne.
   if (data.niches.length > 0) {
-    await supabase
+    const { error: errNiches } = await supabase
       .from("campaign_niches")
       .insert(data.niches.map((niche_id) => ({ campaign_id: inserted.id, niche_id })));
+    if (errNiches) {
+      await reportError("campagne/niches", errNiches, {
+        userId: user.id,
+        detail: `campagne ${inserted.id}`,
+      });
+    }
   }
   if (data.platforms.length > 0) {
-    await supabase
+    const { error: errReseaux } = await supabase
       .from("campaign_platforms")
       .insert(
         data.platforms.map((platform_id) => ({ campaign_id: inserted.id, platform_id })),
       );
+    if (errReseaux) {
+      await reportError("campagne/reseaux", errReseaux, {
+        userId: user.id,
+        detail: `campagne ${inserted.id}`,
+      });
+      // La campagne existe : la recréer ferait un doublon. On la rend visible
+      // et on dit quoi faire.
+      return {
+        ok: true,
+        id: inserted.id,
+        warning:
+          "Ta campagne est créée, mais les réseaux n'ont pas pu être enregistrés — sans eux, les créateurs ne la verront pas dans leur fil. Ouvre-la et enregistre-les à nouveau.",
+      };
+    }
   }
 
   revalidatePath("/dashboard");
