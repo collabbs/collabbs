@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
-import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
+import { limitByIp, tooManyRequests, RATE_POLICIES, clientIp } from "@/lib/rate-limit";
 
 /**
  * Empreinte non réversible d'un visiteur, propre à un lien.
@@ -15,10 +15,11 @@ import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 function visitorHash(request: Request, linkId: string): string | null {
   const secret = process.env.COLLABBS_POSTBACK_SECRET;
   if (!secret) return null; // pas de secret → pas d'empreinte, on compte tout
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "";
+  // Même règle que pour la limitation de débit : on ne lit jamais l'adresse
+  // que l'appelant DÉCLARE. Prendre le premier élément de `x-forwarded-for`
+  // rendait la déduplication des clics contournable — il suffisait de changer
+  // l'en-tête à chaque appel pour gonfler le compteur d'un créateur.
+  const ip = clientIp(request.headers) ?? "";
   const ua = request.headers.get("user-agent") ?? "";
   if (!ip && !ua) return null;
   return createHmac("sha256", secret).update(`${linkId}|${ip}|${ua}`).digest("hex");

@@ -129,17 +129,45 @@ export function retryAfterSeconds(tokens: number, policy: RatePolicy): number {
 }
 
 /**
- * Adresse du client telle que Vercel la transmet.
+ * Adresse du client, telle que la plateforme la constate — jamais telle que le
+ * client la déclare.
  *
- * `x-forwarded-for` peut contenir une chaîne de mandataires ; le client réel
- * est en tête. Renvoie `null` quand on ne sait pas qui appelle (développement
- * local, appel interne) : sans identité, mettre tout le monde dans le même
- * seau reviendrait à laisser un seul client bloquer tous les autres.
+ * ⚠️ Ce détail décide si la limitation sert à quelque chose. `x-forwarded-for`
+ * est un en-tête que N'IMPORTE QUI peut envoyer : il suffit de poser
+ * `X-Forwarded-For: 1.2.3.4` dans sa requête. La plateforme n'efface pas cette
+ * valeur, elle AJOUTE la vraie adresse derrière — l'en-tête devient
+ * « 1.2.3.4, <vraie ip> ».
+ *
+ * Prendre le PREMIER élément revenait donc à lire la valeur choisie par
+ * l'appelant : il lui suffisait d'en changer à chaque requête pour repartir
+ * avec un seau vide et contourner toute la limitation. C'est exactement le
+ * piège du `Referer` corrigé le 30 août sur le pixel de vente — un en-tête
+ * fourni par le client n'est pas une preuve.
+ *
+ * On lit donc, dans l'ordre :
+ *  1. `x-vercel-forwarded-for`, posé par la plateforme et non transmissible
+ *     depuis l'extérieur ;
+ *  2. `x-real-ip`, posé par elle aussi ;
+ *  3. en dernier recours, le DERNIER élément de `x-forwarded-for` — celui
+ *     qu'a ajouté le mandataire le plus proche de nous, donc le seul que
+ *     l'appelant ne contrôle pas.
+ *
+ * Renvoie `null` quand on ne sait pas qui appelle (développement local, appel
+ * interne) : sans identité, mettre tout le monde dans le même seau
+ * reviendrait à laisser un seul client bloquer tous les autres.
  */
 export function clientIp(headers: { get(name: string): string | null }): string | null {
-  const tete = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (tete) return tete;
-  return headers.get("x-real-ip")?.trim() || null;
+  const vercel = headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+  if (vercel) return vercel;
+
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
+
+  const chaine = headers.get("x-forwarded-for");
+  if (!chaine) return null;
+  const maillons = chaine.split(",").map((x) => x.trim()).filter(Boolean);
+  // Le dernier, pas le premier : voir ci-dessus.
+  return maillons.length > 0 ? maillons[maillons.length - 1] : null;
 }
 
 /**

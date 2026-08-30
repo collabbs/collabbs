@@ -147,9 +147,12 @@ describe("délai avant nouvelle tentative", () => {
 });
 
 describe("identification du client", () => {
-  it("prend le premier maillon de x-forwarded-for : le client réel", () => {
+  it("prend le DERNIER maillon de x-forwarded-for, pas le premier", () => {
+    // Ce test affirmait l'inverse et figeait ainsi le comportement
+    // vulnérable : les maillons de tête sont fournis par l'appelant, seul le
+    // dernier est ajouté par un mandataire de confiance.
     const h = new Headers({ "x-forwarded-for": "1.2.3.4, 10.0.0.1, 10.0.0.2" });
-    expect(clientIp(h)).toBe("1.2.3.4");
+    expect(clientIp(h)).toBe("10.0.0.2");
   });
 
   it("retombe sur x-real-ip", () => {
@@ -194,5 +197,56 @@ describe("plafonds retenus", () => {
     // celui-ci, une IP plafonne à 120 essais par minute.
     const { verdicts } = rafale(10_000, RATE_POLICIES.postback);
     expect(verdicts.filter(Boolean)).toHaveLength(RATE_POLICIES.postback.limit);
+  });
+});
+
+/**
+ * Le point qui décide si toute la limitation sert à quelque chose.
+ *
+ * `x-forwarded-for` est envoyé par le client. La plateforme n'efface pas la
+ * valeur reçue, elle ajoute la vraie adresse DERRIÈRE. Lire le premier élément
+ * revenait donc à lire ce que l'appelant a choisi : il lui suffisait d'en
+ * changer à chaque requête pour repartir avec un seau vide.
+ *
+ * Même piège que le `Referer` du pixel de vente, corrigé le 30 août.
+ */
+describe("identification de l'appelant", () => {
+  const h = (map: Record<string, string>) => ({
+    get: (n: string) => map[n.toLowerCase()] ?? null,
+  });
+
+  it("ne se laisse pas duper par une adresse déclarée par l'appelant", () => {
+    // L'attaquant pose « 1.2.3.4 » ; la plateforme ajoute sa vraie adresse.
+    const ip = clientIp(h({ "x-forwarded-for": "1.2.3.4, 203.0.113.9" }));
+    expect(ip, "on doit lire l'adresse ajoutée par la plateforme").toBe("203.0.113.9");
+    expect(ip).not.toBe("1.2.3.4");
+  });
+
+  it("change d'en-tête déclaré ne change pas de seau", () => {
+    const a = clientIp(h({ "x-forwarded-for": "9.9.9.9, 203.0.113.9" }));
+    const b = clientIp(h({ "x-forwarded-for": "8.8.8.8, 203.0.113.9" }));
+    // Deux tentatives d'évasion, un seul et même seau.
+    expect(a).toBe(b);
+  });
+
+  it("préfère l'en-tête que la plateforme est seule à poser", () => {
+    expect(
+      clientIp(
+        h({
+          "x-vercel-forwarded-for": "203.0.113.9",
+          "x-forwarded-for": "1.2.3.4, 5.6.7.8",
+        }),
+      ),
+    ).toBe("203.0.113.9");
+  });
+
+  it("accepte une chaîne à un seul maillon", () => {
+    expect(clientIp(h({ "x-forwarded-for": "203.0.113.9" }))).toBe("203.0.113.9");
+  });
+
+  it("renvoie null quand l'appelant est inconnu, plutôt qu'un seau commun", () => {
+    // Un seau partagé laisserait un seul client bloquer tous les autres.
+    expect(clientIp(h({}))).toBe(null);
+    expect(clientIp(h({ "x-forwarded-for": "  ,  " }))).toBe(null);
   });
 });
