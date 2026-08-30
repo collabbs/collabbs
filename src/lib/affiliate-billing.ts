@@ -122,6 +122,20 @@ export async function settleSale(params: {
     await onProvisionExhausted(brandId, creatorId, brandTotal);
   }
 
+  // Le cumul annuel de ce couple vient peut-être de franchir le seuil légal.
+  // Import différé : `affiliate-contract` importe ce module pour ses
+  // constantes, un import statique créerait un cycle.
+  //
+  // La commission est réglée quoi qu'il arrive : un échec ici ne doit pas
+  // empêcher un créateur d'être payé. Le contrat est un devoir des Parties,
+  // pas une condition du versement.
+  try {
+    const { ensureAffiliateFrameworkContract } = await import("@/lib/affiliate-contract");
+    await ensureAffiliateFrameworkContract(brandId, creatorId);
+  } catch (e) {
+    console.error("[affiliate-billing] contrat-cadre : vérification impossible", e);
+  }
+
   return status;
 }
 

@@ -2,9 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eurExact } from "@/lib/deal";
-import { LEGAL_THRESHOLD } from "@/lib/legal-threshold";
+import { LEGAL_THRESHOLD, thresholdFor } from "@/lib/legal-threshold";
 import EmptyState from "@/components/EmptyState";
 import { declareInKind, cancelInKind, disputeInKind } from "./actions";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Colonnes du contrat-cadre (migration 0046), pas encore dans database.types.ts.
 
 export const metadata = { title: "Contrats — Collabbs" };
 
@@ -63,9 +66,50 @@ export default async function ContractsPage({
 
   const rows = (deals ?? []).filter((d) => d.contracts);
 
+  // Les contrats-cadres d'affiliation n'ont pas de collaboration : ils se
+  // chargent à part, sinon ils resteraient invisibles — et un contrat qu'on ne
+  // trouve pas ne se signe jamais.
+  const { data: cadres } = await (supabase as any)
+    .from("contracts")
+    .select(
+      "id, reference, status, period_year, brand_id, creator_id, brand_signed_at, creator_signed_at, created_at",
+    )
+    .eq("kind", "affiliate")
+    .or(`brand_id.eq.${user.id},creator_id.eq.${user.id}`)
+    .order("period_year", { ascending: false });
+
+  const cadreRows = (cadres ?? []) as any[];
+
+  // Contreparties liées uniquement par de l'affiliation : elles n'apparaissent
+  // dans aucune collaboration, et c'est précisément le cas qu'on ratait.
+  const affiliatePartnerIds: string[] = [];
+  if (role === "creator") {
+    const { data: mesLiens } = await (supabase as any)
+      .from("affiliate_links")
+      .select("campaigns(brand_id)")
+      .eq("creator_id", user.id);
+    for (const l of (mesLiens ?? []) as any[]) {
+      if (l.campaigns?.brand_id) affiliatePartnerIds.push(l.campaigns.brand_id);
+    }
+  } else {
+    const { data: mesCampagnes } = await (supabase as any)
+      .from("campaigns")
+      .select("affiliate_links(creator_id)")
+      .eq("brand_id", user.id);
+    for (const c of (mesCampagnes ?? []) as any[]) {
+      for (const l of (c.affiliate_links ?? []) as any[]) {
+        if (l.creator_id) affiliatePartnerIds.push(l.creator_id);
+      }
+    }
+  }
+
   // Noms des contreparties.
   const otherIds = [
-    ...new Set(rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id))),
+    ...new Set([
+      ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
+      ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
+      ...affiliatePartnerIds,
+    ]),
   ];
   const [brandsRes, creatorsRes] = await Promise.all([
     otherIds.length
@@ -94,22 +138,37 @@ export default async function ContractsPage({
   const inKind = (inKindRaw ?? []) as any[];
 
   // Cumul par contrepartie sur l'année civile en cours — la maille du seuil légal.
+  //
+  // Ce cumul passe par `thresholdFor`, la MÊME fonction que celle qui décide
+  // du régime d'un contrat et de l'établissement d'un contrat-cadre. Cette
+  // page recalculait auparavant le seuil de son côté, à partir des seules
+  // collaborations et des cadeaux : elle ignorait les commissions
+  // d'affiliation et de CPA. Un créateur en affiliation pure y voyait 0 € et
+  // se croyait loin du seuil alors qu'il l'avait franchi.
   const year = new Date().getFullYear();
-  const cumul = new Map<string, number>();
-  for (const d of rows) {
-    if (new Date(d.created_at).getFullYear() !== year) continue;
-    if (d.status !== "active" && d.status !== "completed") continue;
-    const other = d.brand_id === user.id ? d.creator_id : d.brand_id;
-    cumul.set(other, (cumul.get(other) ?? 0) + Number(d.amount ?? 0));
-  }
-  for (const g of inKind) {
-    if (g.status !== "declared") continue;
-    if (new Date(g.sent_at).getFullYear() !== year) continue;
-    const other = g.brand_id === user.id ? g.creator_id : g.brand_id;
-    cumul.set(other, (cumul.get(other) ?? 0) + Number(g.value ?? 0));
-  }
-  const partners = [...cumul.entries()]
-    .map(([id, total]) => ({ id, total, name: nameOf.get(id) ?? "Partenaire" }))
+
+  // Toutes les contreparties connues, quel que soit le canal — y compris
+  // celles avec qui il n'y a QUE de l'affiliation.
+  const partenaires = new Set<string>([
+    ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
+    ...inKind.map((g) => (g.brand_id === user.id ? g.creator_id : g.brand_id)),
+    ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
+    ...affiliatePartnerIds,
+  ]);
+
+  const partners = (
+    await Promise.all(
+      [...partenaires].map(async (id) => {
+        const etat = await thresholdFor(
+          role === "brand" ? user.id : id,
+          role === "brand" ? id : user.id,
+          year,
+        );
+        return { id, total: etat.total, name: nameOf.get(id) ?? "Partenaire" };
+      }),
+    )
+  )
+    .filter((p) => p.total > 0)
     .sort((a, b) => b.total - a.total);
 
   return (
@@ -343,7 +402,7 @@ export default async function ContractsPage({
           {rows.length} contrat{rows.length > 1 ? "s" : ""}
         </h2>
 
-        {rows.length === 0 ? (
+        {rows.length === 0 && cadreRows.length === 0 ? (
           <div className="mt-3">
             <EmptyState
               variant="card"
@@ -410,6 +469,66 @@ export default async function ContractsPage({
               );
             })}
           </ul>
+        )}
+
+        {cadreRows.length > 0 && (
+          <>
+            <h2 className="mt-8 font-display text-lg font-black text-ink">
+              Contrats-cadres d&apos;affiliation
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Établis automatiquement dès que les rémunérations versées avec un
+              partenaire dépassent 1 000 € sur l&apos;année : la loi impose alors un
+              contrat écrit, même sans collaboration ponctuelle.
+            </p>
+            <ul className="mt-3 divide-y divide-zinc-100">
+              {cadreRows.map((c) => {
+                const other = c.brand_id === user.id ? c.creator_id : c.brand_id;
+                const complet = Boolean(c.brand_signed_at && c.creator_signed_at);
+                const maSignature =
+                  c.brand_id === user.id ? c.brand_signed_at : c.creator_signed_at;
+                return (
+                  <li key={c.id} className="py-3">
+                    <Link
+                      href={`/contracts/affiliation/${c.id}`}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-1 transition hover:bg-zinc-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">
+                          Affiliation {c.period_year}
+                          <span className="font-normal text-zinc-500">
+                            {" "}
+                            · {nameOf.get(other) ?? "Partenaire"}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 font-mono text-xs text-zinc-400">
+                          {c.reference} ·{" "}
+                          {complet
+                            ? `signé le ${dateFr(c.creator_signed_at ?? c.brand_signed_at)}`
+                            : `établi le ${dateFr(c.created_at)}`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {complet ? (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                            Signé
+                          </span>
+                        ) : maSignature ? (
+                          <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                            En attente de l&apos;autre partie
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                            À signer
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
     </>

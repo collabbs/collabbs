@@ -263,3 +263,131 @@ export function buildContractDocument(params: {
     footer,
   };
 }
+
+/**
+ * Instantané d'un contrat-cadre d'affiliation.
+ *
+ * Il ne fige PAS les taux de commission : une relation d'affiliation dure, les
+ * campagnes s'ajoutent, les barèmes changent. Un contrat signé en mars ne peut
+ * pas décrire une campagne rejointe en juillet. Il fige donc la RELATION — les
+ * parties, les obligations, la durée — et renvoie, pour les montants, aux
+ * conditions de chaque campagne telles qu'affichées au moment où le créateur
+ * active son lien. C'est ainsi que fonctionnent les contrats-cadres réels.
+ */
+export type AffiliateContractSnapshot = {
+  version: 1;
+  kind: "affiliate";
+  generated_at: string;
+  period_year: number;
+  brand: PartySnapshot;
+  creator: PartySnapshot;
+  /** Commissions déjà acquises au moment de l'établissement, à titre indicatif. */
+  earned_to_date: number;
+  /** Frais de plateforme à la charge de l'annonceur, en pourcentage. */
+  platform_fee_pct: number;
+  /** Délai de validation d'une commission, en jours. */
+  validation_days: number;
+  /** Seuil de déclenchement d'un versement, en euros. */
+  min_payout: number;
+};
+
+/**
+ * Assemble le contrat-cadre d'affiliation.
+ *
+ * Établi dès que le cumul annuel entre les deux parties franchit le seuil légal
+ * de 1 000 €, quel que soit le canal — l'affiliation compte au même titre que
+ * les collaborations, et n'avait jusqu'ici aucun contrat.
+ */
+export function buildAffiliateContractDocument(params: {
+  reference: string;
+  snapshot: AffiliateContractSnapshot;
+}): ContractDocument {
+  const { reference, snapshot } = params;
+  const { brand, creator } = snapshot;
+  if (!brand || !creator) {
+    throw new Error(
+      `Contrat ${reference} : instantané incomplet, impossible de générer le document.`,
+    );
+  }
+
+  const clauses: Clause[] = [];
+  let n = 0;
+  const add = (title: string, paragraphs: string[]) =>
+    clauses.push({ number: String(++n), title, paragraphs });
+
+  add("Parties au contrat", [
+    `**L'annonceur** — ${partyIdentity(brand, "annonceur")}`,
+    `**Le créateur** — ${partyIdentity(creator, "créateur")}`,
+    "Ci-après désignés ensemble « les Parties ».",
+  ]);
+
+  add("Objet du contrat", [
+    `Le présent contrat-cadre définit les conditions dans lesquelles le créateur promeut les produits ou services de l'annonceur au moyen de liens de suivi, de codes promotionnels ou d'actions rémunérées, mis à disposition par la plateforme Collabbs.`,
+    "Il régit une relation continue et ne porte sur aucune prestation déterminée : chaque campagne à laquelle le créateur choisit d'adhérer fixe ses propres conditions de rémunération, portées à sa connaissance avant toute adhésion.",
+    `Il est établi pour l'année civile ${snapshot.period_year} et couvre l'ensemble des rémunérations d'affiliation versées entre les Parties au cours de cette période.`,
+  ]);
+
+  add("Rémunération", [
+    "Le créateur perçoit, pour chaque vente, action ou événement rémunéré qui lui est attribué, la commission prévue par la campagne concernée, telle qu'affichée sur la plateforme au moment où il active son lien de suivi.",
+    `La commission est acquise au créateur à l'issue d'un délai de validation de **${snapshot.validation_days} jours** courant à compter de l'événement, destiné à couvrir les annulations et remboursements. Elle est versée dès lors que le total acquis atteint **${eur(snapshot.min_payout)}**.`,
+    `Les frais de la plateforme, égaux à **${snapshot.platform_fee_pct} %** de la commission, sont supportés par l'annonceur **en sus** de celle-ci. La commission annoncée au créateur n'en est jamais diminuée.`,
+    snapshot.earned_to_date > 0
+      ? `À la date d'établissement du présent contrat, les commissions acquises au créateur au titre de la relation s'élèvent à **${eur(snapshot.earned_to_date)}**.`
+      : "Aucune commission n'était acquise à la date d'établissement du présent contrat.",
+  ]);
+
+  add("Transparence publicitaire", [
+    "Conformément à la loi n° 2023-451 du 9 juin 2023 encadrant l'influence commerciale, le créateur s'engage à indiquer de manière **explicite, claire et lisible, tout au long de la diffusion**, le caractère commercial de toute publication réalisée au titre du présent contrat, au moyen de la mention « Publicité » ou « Collaboration commerciale ».",
+    "Cette obligation s'applique à toute publication comportant un lien de suivi ou un code promotionnel, y compris lorsque la rémunération dépend du résultat.",
+    "Le créateur s'engage en outre à signaler toute image retouchée ainsi que tout contenu généré ou modifié par intelligence artificielle représentant une personne, dans les conditions prévues par la loi.",
+  ]);
+
+  add("Obligations du créateur", [
+    "Le créateur promeut les produits ou services de l'annonceur de bonne foi et s'interdit toute pratique destinée à générer artificiellement des clics, des ventes ou des actions, notamment l'achat de trafic, l'usage de robots, l'auto-attribution de commissions sur ses propres achats, ou la diffusion de son lien par courrier électronique non sollicité.",
+    "Toute rémunération obtenue par de tels moyens est indue et peut être annulée par l'annonceur, y compris après versement.",
+    "Le créateur conserve la maîtrise éditoriale de ses contenus, dans le respect de la réglementation applicable et des attentes portées à sa connaissance par la campagne.",
+  ]);
+
+  add("Droits d'utilisation des contenus", [
+    "Sauf accord distinct, l'annonceur ne dispose d'aucun droit d'exploitation des contenus publiés par le créateur au titre du présent contrat.",
+    "Toute reprise de ces contenus par l'annonceur, notamment à des fins publicitaires payantes, requiert un accord exprès et, le cas échéant, une rémunération complémentaire.",
+    "Le créateur garantit être titulaire des droits sur les contenus qu'il publie et avoir obtenu les autorisations nécessaires des personnes y figurant.",
+  ]);
+
+  add("Responsabilité des Parties et droit de la consommation", [
+    "L'annonceur est responsable de l'exactitude des informations qu'il communique sur ses produits ou services, de leur conformité à la réglementation applicable, ainsi que de l'exécution des commandes qui en résultent.",
+    "Le créateur est responsable du respect des obligations de transparence publicitaire mentionnées ci-dessus et s'interdit toute pratique commerciale trompeuse au sens des articles L. 121-1 et suivants du code de la consommation.",
+    "Les Parties s'interdisent la promotion des biens et services dont la publicité est interdite ou restreinte par la loi n° 2023-451, notamment en matière de chirurgie esthétique, de produits financiers à haut risque, de jeux d'argent auprès des mineurs, et d'abstention thérapeutique.",
+    "La plateforme Collabbs intervient en qualité d'intermédiaire technique et de tiers de confiance pour la formalisation du contrat, le suivi des attributions et la sécurisation des versements. Elle n'est pas partie au contrat et ne répond pas de l'exécution des obligations des Parties.",
+  ]);
+
+  add("Données personnelles", [
+    "Chaque Partie traite les données personnelles auxquelles elle accède dans le cadre du présent contrat conformément au règlement (UE) 2016/679 (RGPD) et à la loi Informatique et Libertés.",
+    "Les liens de suivi reposent sur des identifiants déposés sur les terminaux des visiteurs de l'annonceur. Il appartient à ce dernier d'en informer ses visiteurs et de recueillir, le cas échéant, leur consentement.",
+  ]);
+
+  add("Durée, modification et résiliation", [
+    `Le présent contrat couvre l'année civile ${snapshot.period_year}. Il se poursuit tant que la relation d'affiliation demeure active et fait l'objet d'un nouvel établissement à chaque année civile.`,
+    "Chaque Partie peut y mettre fin à tout moment, sans motif ni préavis, en désactivant les liens de suivi concernés. Les commissions déjà acquises restent dues.",
+    "Toute modification requiert l'accord des deux Parties, formalisé sur la plateforme Collabbs. Une évolution des conditions d'une campagne ne s'applique qu'aux événements postérieurs à sa publication.",
+  ]);
+
+  add("Droit applicable et règlement des différends", [
+    "Le présent contrat est soumis au droit français.",
+    "En cas de différend, les Parties s'engagent à rechercher une solution amiable, le cas échéant par l'intermédiaire de la plateforme Collabbs. À défaut d'accord, le litige relève de la compétence des juridictions françaises.",
+    "Lorsque le créateur agit en qualité de consommateur, les règles de compétence protectrices prévues par le droit de la consommation demeurent applicables.",
+  ]);
+
+  return {
+    reference,
+    regime: "complete",
+    generatedAt: snapshot.generated_at,
+    parties: { brand, creator },
+    clauses,
+    footer: [
+      `Contrat-cadre référencé **${reference}**, établi le ${dateFr(snapshot.generated_at)} et signé électroniquement par les deux Parties via la plateforme Collabbs.`,
+      "La signature électronique est horodatée et conservée par la plateforme. Conformément à l'article 1367 du code civil, elle présente la même valeur probante qu'une signature manuscrite dès lors que le procédé permet d'identifier son auteur et de garantir l'intégrité de l'acte.",
+      "Chaque Partie reconnaît avoir pris connaissance de l'intégralité du présent contrat avant de le signer et en conserver un exemplaire.",
+    ],
+  };
+}

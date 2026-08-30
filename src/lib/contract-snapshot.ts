@@ -99,6 +99,64 @@ function statusLabel(id: string | null): string | null {
 }
 
 /**
+ * Construit l'identité gelée d'une partie, indépendamment de toute
+ * collaboration.
+ *
+ * Extraite pour le contrat-cadre d'affiliation, qui n'a pas de deal d'où
+ * déduire les parties. Une seule définition de « qui est cette partie » —
+ * la dupliquer dans du code juridique serait l'assurance qu'elles divergent.
+ */
+export async function partySnapshotFor(
+  userId: string,
+  role: "brand" | "creator",
+): Promise<{ party: PartySnapshot; missing: string[] }> {
+  const admin = createAdminClient();
+
+  const [legal, profile, row] = await Promise.all([
+    admin
+      .from("legal_info")
+      .select(
+        "status, legal_name, rep_name, address, city, zip, country, siret, vat, contact_email",
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
+    role === "brand"
+      ? admin.from("brands").select("name").eq("id", userId).maybeSingle()
+      : admin.from("creators").select("handle").eq("id", userId).maybeSingle(),
+  ]);
+
+  const l = legal.data;
+  const nom =
+    role === "brand"
+      ? ((row.data as { name?: string } | null)?.name ??
+        profile.data?.display_name ??
+        "Marque")
+      : (profile.data?.display_name ??
+        ((row.data as { handle?: string } | null)?.handle
+          ? `@${(row.data as { handle?: string }).handle}`
+          : "Créateur"));
+
+  return {
+    party: {
+      user_id: userId,
+      display_name: nom,
+      legal_status_label: statusLabel(l?.status ?? null),
+      legal_name: l?.legal_name ?? null,
+      rep_name: l?.rep_name ?? null,
+      address: l?.address ?? null,
+      city: l?.city ?? null,
+      zip: l?.zip ?? null,
+      country: l?.country ?? null,
+      siret: l?.siret ?? null,
+      vat: l?.vat ?? null,
+      contact_email: l?.contact_email ?? null,
+    },
+    missing: missingFields(l ?? null),
+  };
+}
+
+/**
  * Construit le snapshot complet d'un deal en lisant via admin client.
  * Bypass RLS volontairement : c'est un appel server-side au moment de la
  * signature, on a besoin des coordonnées légales des 2 parties qui ne se

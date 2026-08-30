@@ -58,10 +58,12 @@ function round2(n: number): number {
  *
  * On additionne :
  *  - les deals engagés ou terminés (`amount` = ce que perçoit le créateur) ;
- *  - les commissions d'affiliation qui lui sont acquises ou déjà versées.
+ *  - les commissions d'affiliation et d'action qui lui sont DUES, qu'elles
+ *    soient déjà versées, acquises, réservées, ou en attente de provision.
  *
- * Les deals annulés et les commissions écartées ou remboursées ne comptent pas :
- * aucune rémunération n'a été due.
+ * Les deals annulés et les commissions remboursées ou écartées ne comptent pas :
+ * aucune rémunération n'a été due. Tout le reste compte, car la loi vise la
+ * rémunération de l'année, pas la trésorerie.
  */
 export async function thresholdFor(
   brandId: string,
@@ -103,7 +105,12 @@ export async function thresholdFor(
       .select("commission_amount, status, occurred_at")
       .in("type", ["sale", "action"])
       .in("link_id", linkIds)
-      .in("status", ["validated", "paid"])
+      // Ce que la loi regarde, c'est la rémunération DUE sur l'année, pas
+      // seulement celle déjà encaissée. Une commission réservée ou en attente
+      // de provision est due au créateur : la compter plus tard retarderait
+      // d'un mois le contrat écrit, alors que le seuil est déjà franchi.
+      // Seules les commissions annulées ne comptent pas — rien n'est dû.
+      .not("status", "in", "(refunded,rejected)")
       .gte("occurred_at", from)
       .lt("occurred_at", to);
     fromAffiliate = (events ?? []).reduce(
