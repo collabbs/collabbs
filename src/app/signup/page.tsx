@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { signup } from "@/app/auth/actions";
+import GoogleButton from "@/components/GoogleButton";
+import { googleActif } from "@/lib/google-auth";
 
 export default async function SignupPage({
   searchParams,
@@ -144,6 +146,20 @@ export default async function SignupPage({
             Créer mon compte
           </button>
         </form>
+
+        {googleActif() && (
+          <>
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-zinc-200" />
+            <span className="text-xs font-medium text-zinc-400">ou</span>
+            <span className="h-px flex-1 bg-zinc-200" />
+          </div>
+
+          {/* Pas de rôle transmis ici : Google n'en porte pas. La question est
+              posée juste après, sur /onboarding/role. */}
+          <GoogleButton label="S'inscrire avec Google" next={nextPath || undefined} />
+          </>
+        )}
 
         <p className="mt-6 text-center text-sm text-zinc-500">
           Déjà un compte ?{" "}
