@@ -11,6 +11,8 @@ import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapsh
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { thresholdWith } from "@/lib/legal-threshold";
 import { reportError } from "@/lib/report-error";
+import { valider } from "@/lib/validation";
+import { termesDealSchema } from "@/lib/schemas/deals";
 
 type Result = { ok: boolean; error?: string };
 
@@ -251,13 +253,25 @@ export async function updateDealTerms(
   if (deal.status !== "negotiation")
     return { ok: false, error: "Les termes ne sont modifiables qu'en négociation." };
 
+  // `Math.max(0, Math.round(...))` modifiait en silence ce que la marque avait
+  // saisi : 1 400,50 devenait 1 400, et un montant négatif devenait une
+  // collaboration gratuite. On refuse et on explique, plutôt que de corriger
+  // à sa place — il s'agit de son argent et de celui du créateur.
+  const controle = valider(termesDealSchema, {
+    amount: data.amount,
+    quantity: data.quantity,
+    deadline: data.deadline,
+    brandNotes: data.brandNotes,
+  });
+  if (!controle.ok) return { ok: false, error: controle.error };
+
   const { error } = await supabase
     .from("deals")
     .update({
-      amount: Math.max(0, Math.round(data.amount)),
-      quantity: Math.max(1, Math.round(data.quantity)),
-      deadline: data.deadline || null,
-      brand_notes: data.brandNotes?.trim() || null,
+      amount: controle.data.amount,
+      quantity: controle.data.quantity,
+      deadline: controle.data.deadline,
+      brand_notes: controle.data.brandNotes?.trim() || null,
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
