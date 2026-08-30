@@ -113,7 +113,8 @@ export default async function DealDetailPage({
   const role: "brand" | "creator" = deal.brand_id === user.id ? "brand" : "creator";
   const otherId = role === "brand" ? deal.creator_id : deal.brand_id;
 
-  const [otherRes, delsRes, platRes, reviewRes, contractRes, txRes, myLegalRes] = await Promise.all([
+  const [otherRes, delsRes, platRes, reviewRes, creatorPayoutRes, contractRes, txRes, myLegalRes] =
+    await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url, role").eq("id", otherId).single(),
     supabase
       .from("deliverables")
@@ -126,6 +127,12 @@ export default async function DealDetailPage({
       ? supabase.from("platforms").select("label").eq("id", deal.platform_id).single()
       : Promise.resolve({ data: null }),
     supabase.from("reviews").select("rating, comment").eq("deal_id", id).maybeSingle(),
+    // Sert uniquement à dire la vérité sur un versement en attente.
+    supabase
+      .from("creators")
+      .select("stripe_account_id")
+      .eq("id", deal.creator_id)
+      .maybeSingle(),
     supabase
       .from("contracts")
       .select(
@@ -148,6 +155,13 @@ export default async function DealDetailPage({
       .maybeSingle(),
   ]);
   const other = otherRes.data;
+  // Vrai si le créateur a un compte de paiement connecté. Sert à ne pas
+  // l'accuser à tort quand un versement n'aboutit pas.
+  const creatorHasPayoutAccount = Boolean(
+    (creatorPayoutRes.data as { stripe_account_id?: string | null } | null)
+      ?.stripe_account_id,
+  );
+
   const deliverables = delsRes.data ?? [];
   const existingReview = reviewRes.data ?? null;
   // Avis laissé par le créateur SUR la marque. La table arrive avec la
@@ -495,7 +509,14 @@ export default async function DealDetailPage({
               </div>
               <div className="flex justify-between border-t border-zinc-100 pt-2">
                 <dt className="font-semibold text-ink">
-                  {role === "brand" ? "À régler" : "Tu reçois"}
+                  {/* « À régler » se contredisait avec l'encart « Réglé — en
+                      séquestre » juste en dessous. Une fois le séquestre payé,
+                      il n'y a plus rien à régler. */}
+                  {role === "brand"
+                    ? payment && payment.status !== "refunded"
+                      ? "Réglé"
+                      : "À régler"
+                    : "Tu reçois"}
                 </dt>
                 <dd className="font-display text-lg font-black text-ink">
                   {role === "brand" ? eur(b.gross) : eur(b.net)}
@@ -515,11 +536,19 @@ export default async function DealDetailPage({
               <div className="mt-4 space-y-2">
                 <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
                   🔒 Réglé — <strong>{eur(payment.gross_amount)}</strong> en séquestre.
-                  {status === "completed"
-                    ? role === "creator"
-                      ? " Connecte ton compte pour recevoir ta part."
-                      : " Versement au créateur en attente (il doit connecter son compte)."
-                    : " Les fonds seront versés au créateur à la clôture."}
+                  {/* Le motif était écrit en dur : la page annonçait « il doit
+                      connecter son compte » même quand le créateur en avait un
+                      et que le blocage venait d'ailleurs. La marque relançait
+                      le créateur pour rien. */}
+                  {status !== "completed"
+                    ? " Les fonds seront versés au créateur à la clôture."
+                    : creatorHasPayoutAccount
+                      ? role === "creator"
+                        ? " Ton versement n'a pas encore abouti. Vérifie que ton compte de paiement est complet ; nous relançons automatiquement."
+                        : " Versement au créateur en attente. Rien à faire de ton côté : les fonds lui reviennent."
+                      : role === "creator"
+                        ? " Connecte ton compte pour recevoir ta part."
+                        : " Versement en attente : le créateur n'a pas encore connecté son compte de paiement."}
                 </div>
                 {status === "completed" && role === "creator" && (
                   <ReceiveButton dealId={deal.id} amountLabel={eur(payment.net_amount)} />

@@ -17,10 +17,18 @@ import { notify } from "@/lib/notifications";
  * transfert même si le solde disponible n'est pas encore consolidé.
  * Renvoie le détail pour pouvoir afficher l'erreur réelle au besoin.
  */
+export type PayoutReason =
+  /** Le créateur n'a pas encore de compte de paiement. */
+  | "no_account"
+  /** Il en a un, mais Stripe ne l'autorise pas encore à recevoir. */
+  | "account_not_ready"
+  /** Tout autre échec : Stripe, provision, état incohérent. */
+  | "other";
+
 export async function attemptDealPayout(
   dealId: string,
-): Promise<{ released: boolean; error?: string }> {
-  if (!stripeConfigured) return { released: false, error: "Stripe non configuré." };
+): Promise<{ released: boolean; error?: string; reason?: PayoutReason }> {
+  if (!stripeConfigured) return { released: false, reason: "other", error: "Stripe non configuré." };
   const admin = createAdminClient();
 
   const { data: deal } = await admin
@@ -29,7 +37,7 @@ export async function attemptDealPayout(
     .eq("id", dealId)
     .single();
   if (!deal || deal.status !== "completed")
-    return { released: false, error: "Le deal n'est pas terminé." };
+    return { released: false, reason: "other", error: "Le deal n'est pas terminé." };
 
   const { data: tx } = await admin
     .from("transactions")
@@ -37,10 +45,10 @@ export async function attemptDealPayout(
     .eq("deal_id", dealId)
     .eq("type", "deal_payment")
     .maybeSingle();
-  if (!tx) return { released: false, error: "Aucun paiement en séquestre." };
+  if (!tx) return { released: false, reason: "other", error: "Aucun paiement en séquestre." };
   if (tx.status === "released" || tx.status === "paid") return { released: true };
   if (tx.status !== "in_escrow")
-    return { released: false, error: "Ce paiement ne peut pas être versé." };
+    return { released: false, reason: "other", error: "Ce paiement ne peut pas être versé." };
 
   const { data: cr } = await admin
     .from("creators")
@@ -48,12 +56,20 @@ export async function attemptDealPayout(
     .eq("id", deal.creator_id)
     .single();
   if (!cr?.stripe_account_id)
-    return { released: false, error: "Le créateur n'a pas encore connecté son compte." };
+    return {
+      released: false,
+      reason: "no_account",
+      error: "Le créateur n'a pas encore connecté son compte.",
+    };
 
   try {
     const account = await stripe.accounts.retrieve(cr.stripe_account_id);
     if (account.capabilities?.transfers !== "active")
-      return { released: false, error: "Le compte du créateur n'est pas encore prêt à recevoir." };
+      return {
+        released: false,
+        reason: "account_not_ready",
+        error: "Le compte du créateur n'est pas encore prêt à recevoir.",
+      };
 
     let sourceCharge: string | undefined;
     if (tx.reference) {
@@ -87,7 +103,11 @@ export async function attemptDealPayout(
 
     return { released: true };
   } catch (e) {
-    return { released: false, error: e instanceof Error ? e.message : "Échec du versement." };
+    return {
+      released: false,
+      reason: "other",
+      error: e instanceof Error ? e.message : "Échec du versement.",
+    };
   }
 }
 

@@ -787,13 +787,27 @@ export async function completeDeal(dealId: string): Promise<Result> {
   // les fonds restent en séquestre et il pourra déclencher le versement ensuite).
   const payoutRes = await attemptDealPayout(dealId);
 
+  // La raison réelle était jetée : on annonçait au créateur « connecte ton
+  // compte de paiement » même lorsqu'il en avait déjà un et que l'échec venait
+  // d'ailleurs. Il aurait cherché en vain, et l'erreur n'apparaissait nulle
+  // part.
+  if (!payoutRes.released) {
+    console.error(
+      `[deals] versement impossible sur ${dealId} (${payoutRes.reason ?? "?"}) : ${payoutRes.error}`,
+    );
+  }
+
   await notify({
     userId: deal.creator_id,
     type: "deal_completed",
     title: "Collaboration terminée 🎉",
     body: payoutRes.released
       ? "La marque a clôturé le deal et ton paiement vient d'être versé sur ton compte."
-      : "La marque a clôturé le deal. Pour recevoir ta part, connecte ton compte de paiement.",
+      : payoutRes.reason === "no_account"
+        ? "La marque a clôturé le deal. Pour recevoir ta part, connecte ton compte de paiement."
+        : payoutRes.reason === "account_not_ready"
+          ? "La marque a clôturé le deal. Ton compte de paiement n'est pas encore validé par notre prestataire — termine les informations demandées pour recevoir ta part."
+          : "La marque a clôturé le deal. Ton versement n'a pas encore pu être effectué ; nous le relançons, tu n'as rien à faire.",
     link: payoutRes.released ? `/deals/${dealId}` : "/payouts",
   });
 
