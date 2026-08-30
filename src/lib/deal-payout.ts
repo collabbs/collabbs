@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Versement de la part créateur d'un séquestre.
@@ -80,17 +81,42 @@ export async function attemptDealPayout(
           : (pi.latest_charge?.id ?? undefined);
     }
 
-    await stripe.transfers.create({
-      amount: Math.round(Number(tx.net_amount) * 100),
-      currency: "eur",
-      destination: cr.stripe_account_id,
-      ...(sourceCharge ? { source_transaction: sourceCharge } : {}),
-      metadata: { deal_id: dealId },
-    });
-    await admin
+    // Clé d'idempotence : c'est le seul rempart contre un VERSEMENT EN DOUBLE.
+    // Le garde-fou d'entrée repose sur `status = "in_escrow"` ; si l'écriture
+    // qui suit le transfert échoue, le statut reste "in_escrow" et la prochaine
+    // tentative — l'automate de délais tourne tous les jours — repasserait ici
+    // et transférerait une seconde fois de l'argent réel. Avec cette clé,
+    // Stripe renvoie le transfert déjà créé au lieu d'en créer un autre.
+    await stripe.transfers.create(
+      {
+        amount: Math.round(Number(tx.net_amount) * 100),
+        currency: "eur",
+        destination: cr.stripe_account_id,
+        ...(sourceCharge ? { source_transaction: sourceCharge } : {}),
+        metadata: { deal_id: dealId },
+      },
+      { idempotencyKey: `deal-payout-${tx.id}` },
+    );
+
+    const { error: errStatut } = await admin
       .from("transactions")
       .update({ status: "released", escrow_released_at: new Date().toISOString() })
       .eq("id", tx.id);
+    if (errStatut) {
+      // L'argent est PARTI et notre trace dit encore « en séquestre ». Le
+      // transfert ne se refera pas (clé d'idempotence ci-dessus), mais il faut
+      // que quelqu'un le sache : sans ça, le créateur est payé et le produit
+      // l'ignore.
+      await reportError("deal/payout-statut", errStatut, {
+        detail: `Transfert Stripe effectué pour le deal ${dealId} (transaction ${tx.id}), mais le statut n'a pas pu passer à "released".`,
+      });
+      return {
+        released: false,
+        reason: "other",
+        error:
+          "Le virement est parti, mais son enregistrement a échoué. Ne relance pas : contacte le support avec la référence du deal.",
+      };
+    }
 
     // Notif "tu as reçu X€" au créateur.
     await notify({

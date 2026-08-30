@@ -422,8 +422,11 @@ export default async function BillingPage({
             immédiatement réservés sur ta provision.
           </li>
           <li>
-            <strong className="text-ink">2.</strong> Pendant {VALIDATION_DAYS} jours, la
-            vente peut encore être remboursée — dans ce cas la réservation t&apos;est
+            {/* L'espace est écrite explicitement : celle qui suivait
+                l'accolade disparaissait à la compilation et la page affichait
+                « Pendant 30jours ». */}
+            <strong className="text-ink">2.</strong> Pendant {VALIDATION_DAYS}
+            {" "}jours, la vente peut encore être remboursée — dans ce cas la réservation t&apos;est
             rendue intégralement.
           </li>
           <li>

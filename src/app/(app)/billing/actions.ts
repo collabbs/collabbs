@@ -14,6 +14,7 @@ import {
 import { notify } from "@/lib/notifications";
 import { valider, nombreDuFormulaire } from "@/lib/validation";
 import { approvisionnementSchema, rechargeAutoSchema } from "@/lib/schemas/billing";
+import { reportError } from "@/lib/report-error";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
@@ -95,7 +96,7 @@ export async function saveAutoTopup(formData: FormData) {
   }
 
   const admin = createAdminClient();
-  await untyped(admin)
+  const { error } = await untyped(admin)
     .from("brands")
     .update({
       autotopup_enabled: enabled,
@@ -103,6 +104,13 @@ export async function saveAutoTopup(formData: FormData) {
       autotopup_amount: Number.isFinite(amount) ? amount : 200,
     })
     .eq("id", brandId);
+  // Sans ce contrôle, la page annonçait « enregistré » quoi qu'il arrive. La
+  // marque repartait en croyant sa recharge automatique active, et découvrait
+  // le contraire le jour où sa provision tombait à sec en pleine campagne.
+  if (error) {
+    await reportError("billing/auto-topup", error, { userId: brandId });
+    redirect("/billing?error=La+recharge+automatique+n%27a+pas+pu+%C3%AAtre+enregistr%C3%A9e.");
+  }
 
   revalidatePath("/billing");
   redirect("/billing?saved=1");
@@ -167,10 +175,16 @@ export async function refundSale(formData: FormData) {
 export async function forgetCard() {
   const brandId = await requireBrand();
   const admin = createAdminClient();
-  await untyped(admin)
+  const { error } = await untyped(admin)
     .from("brands")
     .update({ payment_method_id: null, autotopup_enabled: false })
     .eq("id", brandId);
+  // Dire « c'est oublié » quand la carte est toujours enregistrée serait le
+  // pire mensonge de cette page.
+  if (error) {
+    await reportError("billing/forget-card", error, { userId: brandId });
+    redirect("/billing?error=La+carte+n%27a+pas+pu+%C3%AAtre+oubli%C3%A9e.+R%C3%A9essaie.");
+  }
 
   revalidatePath("/billing");
   redirect("/billing?saved=1");
@@ -255,7 +269,7 @@ export async function rejectPixelSale(formData: FormData) {
   const ev = await requireReviewableSale(brandId, eventId);
 
   const admin = createAdminClient();
-  await untyped(admin)
+  const { data: ecartee, error } = await untyped(admin)
     .from("affiliate_events")
     .update({
       needs_review: false,
@@ -264,7 +278,14 @@ export async function rejectPixelSale(formData: FormData) {
       reject_reason: "Aucune commande correspondante chez la marque",
     })
     .eq("id", eventId)
-    .eq("needs_review", true);
+    .eq("needs_review", true)
+    .select("id");
+  // Le créateur est prévenu juste en dessous qu'on a écarté sa vente : il ne
+  // faut pas le lui annoncer si elle est en réalité toujours en attente.
+  if (error || !ecartee || ecartee.length === 0) {
+    if (error) await reportError("billing/reject-sale", error, { userId: brandId });
+    redirect("/billing?error=La+vente+n%27a+pas+pu+%C3%AAtre+%C3%A9cart%C3%A9e.+R%C3%A9essaie.");
+  }
 
   // Le créateur doit savoir, et pouvoir contester : une vente légitime peut
   // être refusée par erreur.

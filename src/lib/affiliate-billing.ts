@@ -117,7 +117,19 @@ export async function settleSale(params: {
   }
 
   const status: SettlementStatus = reserved ? "pending" : "unfunded";
-  await untyped(admin).from("affiliate_events").update({ status }).eq("id", eventId);
+  const { error: errStatut } = await untyped(admin)
+    .from("affiliate_events")
+    .update({ status })
+    .eq("id", eventId);
+  if (errStatut && reserved) {
+    // La provision de la marque est débitée et la vente ne le dit pas : le
+    // créateur ne verrait pas sa commission, et la marque aurait payé pour
+    // rien. On ne peut pas le corriger d'ici, mais ça ne doit pas rester
+    // invisible.
+    void reportError("affiliate/settle-statut", errStatut, {
+      detail: `événement ${eventId} : ${brandTotal} € réservés sur la marque ${brandId}, statut "pending" non enregistré.`,
+    });
+  }
 
   if (!reserved) {
     await onProvisionExhausted(brandId, creatorId, brandTotal);
@@ -228,6 +240,33 @@ export async function releaseReservation(params: {
   const brandId = brandOf;
   const total = round2(Number(ev.commission_amount ?? 0) + Number(ev.platform_fee ?? 0));
 
+  // ORDRE VOULU : on change le statut D'ABORD, et seulement si personne ne
+  // l'a déjà changé (`.eq("status", ev.status)`).
+  //
+  // L'inverse — rendre l'argent puis marquer — était un remboursement en
+  // double en puissance : si l'écriture du statut échouait, la vente restait
+  // « pending », et le prochain passage recréditait la marque une seconde
+  // fois. Ici, une seule exécution peut franchir cette porte ; les suivantes
+  // ne touchent aucune ligne et s'arrêtent.
+  const { data: pris, error: errStatut } = await untyped(admin)
+    .from("affiliate_events")
+    .update({
+      status,
+      refunded_at: status === "refunded" ? new Date().toISOString() : null,
+      reject_reason: reason ?? null,
+    })
+    .eq("id", eventId)
+    .eq("status", ev.status)
+    .select("id");
+  if (errStatut) {
+    void reportError("affiliate/release-statut", errStatut, { detail: `événement ${eventId}` });
+    return { ok: false, message: "La vente n'a pas pu être mise à jour. Réessaie." };
+  }
+  if (!pris || pris.length === 0) {
+    // Quelqu'un d'autre est passé entre-temps : rien à rendre ici.
+    return { ok: true, message: "Déjà traitée." };
+  }
+
   // Seule une vente réservée a consommé de la provision. Une vente "unfunded"
   // n'a rien pris : il n'y a rien à rendre.
   if (brandId && ev.status === "pending" && total > 0) {
@@ -240,19 +279,19 @@ export async function releaseReservation(params: {
       p_label: reason ?? (status === "refunded" ? "Vente remboursée" : "Vente écartée"),
     });
     if (error) {
-      console.error("[affiliate-billing] credit_balance a échoué", error);
+      // Le crédit a échoué : on remet la vente dans son état d'origine, sinon
+      // la marque perdrait sa réservation pour de bon — la prochaine tentative
+      // trouverait « déjà traitée » et ne rendrait jamais rien.
+      await untyped(admin)
+        .from("affiliate_events")
+        .update({ status: ev.status, refunded_at: null, reject_reason: null })
+        .eq("id", eventId);
+      void reportError("affiliate/release-credit", error, {
+        detail: `événement ${eventId}, ${total} € à rendre à la marque ${brandId}`,
+      });
       return { ok: false, message: "La provision n'a pas pu être recréditée." };
     }
   }
-
-  await untyped(admin)
-    .from("affiliate_events")
-    .update({
-      status,
-      refunded_at: status === "refunded" ? new Date().toISOString() : null,
-      reject_reason: reason ?? null,
-    })
-    .eq("id", eventId);
 
   return { ok: true };
 }
@@ -570,7 +609,10 @@ export async function runAffiliateValidation(): Promise<{ validated: number }> {
     .select("id");
 
   if (error) {
-    console.error("[affiliate-billing] validation échouée", error);
+    // Sans signalement, une validation qui échoue tous les jours ne se voit
+    // nulle part : les commissions resteraient « mises de côté » sans que
+    // personne comprenne pourquoi elles ne sont jamais versées.
+    void reportError("affiliate/validation", error);
     return { validated: 0 };
   }
   return { validated: (data ?? []).length };
@@ -594,10 +636,22 @@ export async function runAffiliatePayouts(): Promise<{
   const admin = createAdminClient();
   const result = { paid: 0, skipped: 0, failed: 0 };
 
-  const { data: events } = await untyped(admin)
+  // `payout_id is null` : une vente déjà rattachée à un versement ne doit
+  // JAMAIS revenir dans un lot. C'est cette colonne qui sert de réservation
+  // (voir la prise de lot plus bas) — sans elle, un échec d'écriture après un
+  // virement réussi ferait repayer les mêmes ventes au passage suivant.
+  const { data: events, error: errLecture } = await untyped(admin)
     .from("affiliate_events")
     .select("id, commission_amount, platform_fee, affiliate_links(creator_id)")
-    .eq("status", "validated");
+    .eq("status", "validated")
+    .is("payout_id", null);
+  if (errLecture) {
+    // Un versement mensuel qui ne trouve rien à verser et un versement dont la
+    // requête a échoué se ressemblent parfaitement dans les compteurs. Il faut
+    // pouvoir les distinguer.
+    void reportError("affiliate/payouts-lecture", errLecture);
+    return result;
+  }
 
   // Regroupement par créateur : un versement peut couvrir plusieurs marques.
   const byCreator = new Map<
@@ -683,16 +737,50 @@ export async function runAffiliatePayouts(): Promise<{
       continue;
     }
 
-    try {
-      const transfer = await stripe.transfers.create({
-        amount: Math.round(net * 100),
-        currency: "eur",
-        destination: creator.stripe_account_id as string,
-        description: "Commissions d'affiliation Collabbs",
-        metadata: { creator_id: creatorId, transaction_id: tx.id },
-      });
+    // PRISE DU LOT, avant tout mouvement d'argent : on rattache les ventes à
+    // cette transaction, et seulement celles que personne n'a déjà prises.
+    // Si on faisait le virement d'abord, une écriture ratée juste après
+    // laisserait les ventes « validées » et le passage suivant les paierait
+    // une seconde fois — de l'argent réel, deux fois.
+    const { data: prises, error: errPrise } = await untyped(admin)
+      .from("affiliate_events")
+      .update({ payout_id: tx.id })
+      .in("id", bucket.ids)
+      .eq("status", "validated")
+      .is("payout_id", null)
+      .select("id");
 
+    if (errPrise || !prises || prises.length !== bucket.ids.length) {
+      // Lot incomplet : une autre exécution est passée en même temps, ou
+      // l'écriture a échoué. On rend ce qu'on avait pris et on laisse le
+      // prochain passage refaire le compte proprement — rien n'est perdu.
       await untyped(admin)
+        .from("affiliate_events")
+        .update({ payout_id: null })
+        .eq("payout_id", tx.id);
+      await untyped(admin).from("transactions").update({ status: "cancelled" }).eq("id", tx.id);
+      void reportError("affiliate/payout-prise", errPrise ?? "lot incomplet", {
+        detail: `créateur ${creatorId} · ${prises?.length ?? 0}/${bucket.ids.length} ventes prises`,
+      });
+      result.failed++;
+      continue;
+    }
+
+    try {
+      const transfer = await stripe.transfers.create(
+        {
+          amount: Math.round(net * 100),
+          currency: "eur",
+          destination: creator.stripe_account_id as string,
+          description: "Commissions d'affiliation Collabbs",
+          metadata: { creator_id: creatorId, transaction_id: tx.id },
+        },
+        // Second rempart : même relancée, cette transaction ne peut donner
+        // lieu qu'à un seul virement.
+        { idempotencyKey: `affiliate-payout-${tx.id}` },
+      );
+
+      const { error: errTx } = await untyped(admin)
         .from("transactions")
         .update({
           status: "paid",
@@ -700,11 +788,24 @@ export async function runAffiliatePayouts(): Promise<{
           paid_at: new Date().toISOString(),
         })
         .eq("id", tx.id);
+      if (errTx) {
+        void reportError("affiliate/payout-transaction", errTx, {
+          detail: `Virement ${transfer.id} parti (${net} € au créateur ${creatorId}) mais la transaction ${tx.id} n'a pas pu passer à "paid".`,
+        });
+      }
 
-      await untyped(admin)
+      const { error: errVentes } = await untyped(admin)
         .from("affiliate_events")
         .update({ status: "paid", paid_at: new Date().toISOString(), payout_id: tx.id })
         .in("id", bucket.ids);
+      if (errVentes) {
+        // Les ventes restent rattachées à cette transaction (`payout_id`), donc
+        // elles ne repartiront pas dans un autre lot. Il reste à corriger leur
+        // statut à la main : on le signale.
+        void reportError("affiliate/payout-ventes", errVentes, {
+          detail: `Virement ${transfer.id} parti pour le créateur ${creatorId} ; ${bucket.ids.length} ventes non passées à "paid".`,
+        });
+      }
 
       // La dette est soldée seulement maintenant : si le virement avait échoué,
       // elle serait restée ouverte pour le mois suivant.
@@ -734,6 +835,13 @@ export async function runAffiliatePayouts(): Promise<{
       void reportError("affiliate/transfer", err, {
         detail: `créateur ${creatorId} · ${net} €`,
       });
+      // On relâche le lot : les ventes redeviennent disponibles pour le
+      // prochain passage. Sans ça, elles resteraient réservées à une
+      // transaction annulée et ne seraient plus jamais versées.
+      await untyped(admin)
+        .from("affiliate_events")
+        .update({ payout_id: null })
+        .eq("payout_id", tx.id);
       await untyped(admin)
         .from("transactions")
         .update({ status: "cancelled" })

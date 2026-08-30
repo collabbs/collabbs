@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dealBreakdown, eur } from "@/lib/deal";
 import { notify } from "@/lib/notifications";
+import { reportError } from "@/lib/report-error";
 
 // Client Stripe côté serveur uniquement (compte Collabbs, mode test pour l'instant).
 // La clé secrète ne doit JAMAIS être exposée au navigateur.
@@ -65,7 +66,7 @@ export async function ensureCheckoutSessionRecorded(
   if (!deal) return { ok: false };
 
   const b = dealBreakdown(deal.amount);
-  await admin.from("transactions").insert({
+  const { error: errTx } = await admin.from("transactions").insert({
     type: "deal_payment",
     deal_id: dealId,
     brand_id: deal.brand_id,
@@ -79,6 +80,17 @@ export async function ensureCheckoutSessionRecorded(
     reference:
       typeof session.payment_intent === "string" ? session.payment_intent : null,
   });
+  if (errTx) {
+    // La marque a PAYÉ chez Stripe et nous n'en gardons aucune trace : le
+    // séquestre serait invisible, le deal bloqué, et le versement au créateur
+    // impossible puisqu'il part de cette ligne. Sans ce contrôle, le webhook
+    // répondait « ok » et l'argent disparaissait de notre côté.
+    await reportError("stripe/checkout-transaction", errTx, {
+      detail: `Paiement encaissé pour le deal ${dealId} (référence ${typeof session.payment_intent === "string" ? session.payment_intent : "inconnue"}) mais la transaction n'a pas pu être enregistrée.`,
+    });
+    // On renvoie un échec : Stripe rejouera le webhook.
+    return { ok: false };
+  }
 
   // Reçu de paiement pour la marque.
   await notify({
@@ -113,6 +125,18 @@ export async function handleChargeRefunded(
   if (!tx) return { ok: false };
   if (tx.status !== "in_escrow") return { ok: true, updated: false };
 
-  await admin.from("transactions").update({ status: "refunded" }).eq("id", tx.id);
+  const { error } = await admin
+    .from("transactions")
+    .update({ status: "refunded" })
+    .eq("id", tx.id);
+  if (error) {
+    // Sans ce passage à "refunded", la transaction reste « en séquestre » alors
+    // que la marque a été remboursée : le versement au créateur resterait
+    // possible sur de l'argent déjà rendu.
+    await reportError("stripe/refund-statut", error, {
+      detail: `Remboursement Stripe reçu (${pi}) mais la transaction ${tx.id} n'a pas pu passer à "refunded".`,
+    });
+    return { ok: false };
+  }
   return { ok: true, updated: true };
 }

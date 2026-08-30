@@ -8,6 +8,7 @@ import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { releaseReservation } from "@/lib/affiliate-billing";
 import { eur } from "@/lib/deal";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Actions d'arbitrage.
@@ -58,16 +59,21 @@ export async function adminReleaseEscrow(formData: FormData) {
   }
 
   try {
-    const transfer = await stripe.transfers.create({
-      amount: Math.round(Number(tx.net_amount) * 100),
-      currency: "eur",
-      destination: creator.stripe_account_id as string,
-      description: `Arbitrage Collabbs — deal ${dealId}`,
-      metadata: { deal_id: dealId, kind: "admin_release" },
-      ...(tx.reference ? { source_transaction: tx.reference } : {}),
-    });
+    const transfer = await stripe.transfers.create(
+      {
+        amount: Math.round(Number(tx.net_amount) * 100),
+        currency: "eur",
+        destination: creator.stripe_account_id as string,
+        description: `Arbitrage Collabbs — deal ${dealId}`,
+        metadata: { deal_id: dealId, kind: "admin_release" },
+        ...(tx.reference ? { source_transaction: tx.reference } : {}),
+      },
+      // Le garde-fou d'entrée est `status = "in_escrow"` : si l'écriture qui
+      // suit échoue, un second clic transférerait l'argent une deuxième fois.
+      { idempotencyKey: `admin-release-${tx.id}` },
+    );
 
-    await untyped(admin)
+    const { error: errTx } = await untyped(admin)
       .from("transactions")
       .update({
         status: "paid",
@@ -75,6 +81,12 @@ export async function adminReleaseEscrow(formData: FormData) {
         paid_at: new Date().toISOString(),
       })
       .eq("id", tx.id);
+    if (errTx) {
+      await reportError("admin/release-statut", errTx, {
+        detail: `Virement d'arbitrage ${transfer.id} parti pour le deal ${dealId}, transaction ${tx.id} restée « en séquestre ».`,
+      });
+      back("Le virement est parti mais son enregistrement a échoué. Ne relance pas.", "error");
+    }
 
     await notify({
       userId: tx.creator_id,
@@ -121,19 +133,30 @@ export async function adminRefundEscrow(formData: FormData) {
   if (!tx.reference) back("Référence de paiement Stripe manquante.", "error");
 
   try {
-    await stripe.refunds.create({
-      payment_intent: tx.reference as string,
-      metadata: { deal_id: dealId, kind: "admin_refund" },
-    });
+    await stripe.refunds.create(
+      {
+        payment_intent: tx.reference as string,
+        metadata: { deal_id: dealId, kind: "admin_refund" },
+      },
+      { idempotencyKey: `admin-refund-${tx.id}` },
+    );
 
-    await untyped(admin)
+    const { error: errRemb } = await untyped(admin)
       .from("transactions")
       .update({ status: "refunded" })
       .eq("id", tx.id);
-    await untyped(admin)
+    const { error: errDeal } = await untyped(admin)
       .from("deals")
       .update({ status: "cancelled" })
       .eq("id", dealId);
+    if (errRemb || errDeal) {
+      // Le remboursement est parti chez Stripe. Si nos lignes ne le disent
+      // pas, le paiement passe encore pour un séquestre versable.
+      await reportError("admin/refund-statut", errRemb ?? errDeal, {
+        detail: `Remboursement effectué pour le deal ${dealId} (transaction ${tx.id}) mais nos statuts n'ont pas suivi.`,
+      });
+      back("Le remboursement est parti mais son enregistrement a échoué. Ne relance pas.", "error");
+    }
 
     await notify({
       userId: tx.brand_id,
