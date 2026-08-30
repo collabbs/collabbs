@@ -8,6 +8,7 @@ import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
+import { demoVisible } from "@/lib/demo-data";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -47,13 +48,29 @@ export default async function OpportunitiesPage({
   const [profileRes, campaignsRes, nichesRes, platformsRes, linksRes, appsRes] =
     await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).single(),
-      supabase
-        .from("campaigns")
-        .select(
-          "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, cpa_action_label, cpa_value_per_action, with_promo_code, promo_discount_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, brands(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(payout)",
-        )
-        .eq("status", "active")
-        .order("created_at", { ascending: false }),
+      // `brands!inner(...)` : la jointure devient filtrante, ce qui permet
+      // d'écarter les campagnes des marques de démonstration en production.
+      // Sans ça, un vrai créateur pouvait candidater à « Sephora » et attendre
+      // une réponse qui ne viendrait jamais.
+      (() => {
+        const requete = supabase
+          .from("campaigns")
+          .select(
+            "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, cpa_action_label, cpa_value_per_action, with_promo_code, promo_discount_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, brands!inner(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(payout)",
+          )
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+        // `is_demo` n'est pas dans le select : les types engendrés depuis la
+        // base ne la connaissent pas encore (migration 0053). Le filtre, lui,
+        // fonctionne — PostgREST accepte de filtrer sur une colonne de la
+        // jointure sans la renvoyer.
+        return demoVisible()
+          ? requete
+          : (requete as unknown as { neq: (c: string, v: boolean) => typeof requete }).neq(
+              "brands.is_demo",
+              true,
+            );
+      })(),
       supabase.from("niches").select("id, label").order("label"),
       supabase.from("platforms").select("id, label, slug").order("id"),
       supabase.from("affiliate_links").select("id, campaign_id, code").eq("creator_id", user.id),

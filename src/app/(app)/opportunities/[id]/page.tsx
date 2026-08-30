@@ -16,6 +16,7 @@ import EarningsCalculator from "./EarningsCalculator";
 import { pluralizeAction } from "@/lib/cpa";
 import FaqAccordion from "./FaqAccordion";
 import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
+import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
 
 export async function generateMetadata({
   params,
@@ -62,6 +63,10 @@ export default async function OpportunityDetailPage({
     .eq("id", id)
     .single();
   if (!c) notFound();
+  // Une campagne de marque fictive n'existe pas en production : sinon un lien
+  // direct continuerait de la servir, et c'est exactement ce qu'on fait quand
+  // on envoie une campagne à quelqu'un.
+  if (!demoVisible() && (await marqueDeDemo(supabase, c.brand_id))) notFound();
 
   const [nichesRes, platformsRes] = await Promise.all([
     supabase.from("niches").select("id, label"),

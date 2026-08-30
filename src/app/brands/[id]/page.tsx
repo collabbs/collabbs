@@ -6,6 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import { createClient } from "@/lib/supabase/server";
 import { openConversation } from "@/app/(app)/messages/actions";
 import { brandReliability, reliabilityHighlights } from "@/lib/brand-reliability";
+import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
 
 export async function generateMetadata({
   params,
@@ -88,6 +89,9 @@ export default async function BrandPublicPage({
     .eq("id", id)
     .maybeSingle();
   if (!brand) notFound();
+  // Même règle que les créateurs de démonstration : en production, une marque
+  // fictive n'a pas de fiche publique.
+  if (!demoVisible() && (await marqueDeDemo(supabase, brand.id))) notFound();
 
   // Visiteur connecté ?
   const {

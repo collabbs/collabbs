@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
-import { demoCreatorsVisibles } from "./demo-data";
+import { demoVisible } from "./demo-data";
 
 // Source de vérité = Supabase. Les démos seedées (is_demo) et les vrais
 // inscrits qui ont complété leur profil apparaissent ici, sans distinction.
@@ -185,8 +185,8 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   // Les profils de démonstration peuplent l'annuaire pendant qu'on construit,
   // et deviennent un mensonge dès qu'un vrai visiteur arrive : rien ne les
   // distingue d'un créateur réel, une marque peut leur écrire. Voir
-  // `demoCreatorsVisibles` — visibles en développement, cachés en production.
-  const { data: creators } = demoCreatorsVisibles()
+  // `demoVisible` — visibles en développement, cachés en production.
+  const { data: creators } = demoVisible()
     ? await requete
     : await requete.neq("is_demo", true);
   const rows = (creators ?? []) as CreatorRow[];
@@ -315,7 +315,7 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
   // Même règle que l'annuaire : en production, une fiche de démonstration
   // n'existe pas. Sans ça, elle resterait atteignable par lien direct — et
   // c'est justement ce que fait quelqu'un à qui on a envoyé le profil.
-  if (c.is_demo && !demoCreatorsVisibles()) return null;
+  if (c.is_demo && !demoVisible()) return null;
 
   const { profMap, platsBy, nichesBy, offersBy, offerPriceBy } =
     await loadRelations([c.id]);

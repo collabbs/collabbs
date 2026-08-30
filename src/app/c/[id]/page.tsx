@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { TIER_LABELS } from "@/lib/campaign";
 import { joinAffiliationFromPublic } from "./actions";
+import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
 
 export async function generateMetadata({
   params,
@@ -57,6 +58,10 @@ export default async function PublicCampaignPage({
     .eq("id", id)
     .maybeSingle();
   if (!c) notFound();
+  // Une campagne de marque fictive n'existe pas en production : sinon un lien
+  // direct continuerait de la servir, et c'est exactement ce qu'on fait quand
+  // on envoie une campagne à quelqu'un.
+  if (!demoVisible() && (await marqueDeDemo(admin, c.brand_id))) notFound();
   if (c.type !== "affiliation" && c.type !== "hybrid") notFound();
 
   const [{ data: niches }, { data: platforms }] = await Promise.all([
