@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback de VENTE attribuée à un CODE PROMO.
 // Sémantiquement proche de /api/track/sale mais résout par code promo
@@ -132,7 +133,22 @@ async function handle(p: Payload) {
   return NextResponse.json({ ok: true, sale_amount: amount, rate: pct, commission });
 }
 
+/**
+ * Plafond appliqué avant toute lecture en base : c'est l'essai du secret qu'on
+ * veut rendre coûteux, pas la requête SQL qui suit.
+ *
+ * Seau distinct de `/api/track/sale` : un pic de ventes ne doit pas fermer la
+ * porte aux codes promo, et inversement.
+ */
+async function limite(request: Request) {
+  const verdict = await limitByIp(request, "track:promo", RATE_POLICIES.postback);
+  return verdict.allowed ? null : tooManyRequests(verdict.retryAfter);
+}
+
 export async function GET(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const url = new URL(request.url);
   // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
   // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
@@ -148,6 +164,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const secret = extractSecret(request, (body.key as string) ?? null);
   return handle({

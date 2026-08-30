@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback de VENTE attribuée à un lien d'affiliation.
 // Sécurité : la marque s'authentifie avec son secret (en-tête `Authorization: Bearer <secret>`,
@@ -142,7 +143,20 @@ async function handle(p: Payload) {
   });
 }
 
+/**
+ * Le plafond s'applique AVANT toute lecture en base : la vérification du secret
+ * est justement ce qu'on empêche d'essayer en boucle, il ne faut pas la payer
+ * en requêtes SQL à chaque tentative.
+ */
+async function limite(request: Request) {
+  const verdict = await limitByIp(request, "track:sale", RATE_POLICIES.postback);
+  return verdict.allowed ? null : tooManyRequests(verdict.retryAfter);
+}
+
 export async function GET(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const url = new URL(request.url);
   // Pas de repli `?key=` ici : un secret en paramètre d'URL est écrit dans les
   // journaux d'accès de Vercel, des CDN et de tout intermédiaire. Une fuite de
@@ -158,6 +172,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const secret = extractSecret(request, (body.key as string) ?? null);
   return handle({

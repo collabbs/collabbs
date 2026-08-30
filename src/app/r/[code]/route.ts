@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 /**
  * Empreinte non réversible d'un visiteur, propre à un lien.
@@ -29,6 +30,12 @@ export async function GET(
   request: Request,
   ctx: { params: Promise<{ code: string }> },
 ) {
+  // Un humain qui clique ne dépasse jamais ce plafond. Ce qu'on arrête, c'est
+  // la boucle qui gonfle le compteur de clics d'un créateur — et, accessoirement,
+  // la lecture en base que chaque appel déclenche.
+  const verdict = await limitByIp(request, "redirect", RATE_POLICIES.redirect);
+  if (!verdict.allowed) return tooManyRequests(verdict.retryAfter);
+
   const { code } = await ctx.params;
   const origin = new URL(request.url).origin;
   const supabase = createAdminClient();

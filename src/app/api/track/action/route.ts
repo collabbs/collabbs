@@ -5,6 +5,7 @@ import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
 import { cpaTotalFor, cpaTierLabel, type CpaTier } from "@/lib/cpa";
 import { reportError } from "@/lib/report-error";
+import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback d'ACTION attribuée à un lien d'affiliation (campagnes au CPA).
 //
@@ -198,7 +199,19 @@ async function handle(p: Payload) {
   });
 }
 
+/**
+ * Plafond appliqué avant toute lecture en base : l'essai du secret doit coûter
+ * cher à l'attaquant, pas à nous.
+ */
+async function limite(request: Request) {
+  const verdict = await limitByIp(request, "track:action", RATE_POLICIES.postback);
+  return verdict.allowed ? null : tooManyRequests(verdict.retryAfter);
+}
+
 export async function GET(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const url = new URL(request.url);
   // Pas de repli `?key=` : un secret en paramètre d'URL est écrit dans les
   // journaux d'accès. L'en-tête `Authorization` est la seule voie en GET.
@@ -211,6 +224,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refus = await limite(request);
+  if (refus) return refus;
+
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   return handle({
     code: (body.code as string) ?? null,
