@@ -10,6 +10,8 @@ import FilterChip from "@/components/FilterChip";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
+// Le taux affiché vient de la source qui l'applique réellement.
+import { PLATFORM_FEE_RATE } from "@/lib/deal";
 
 /** Mappe un nom d'affichage de plateforme vers le slug attendu par PlatformIcon. */
 function platformSlug(label: string): string {
@@ -245,15 +247,21 @@ export default async function CreatorsPage({
         </div>
         <div className="hidden items-center gap-2 lg:flex">
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
-            <p className="font-display text-xl font-black text-ink">10%</p>
+            <p className="font-display text-xl font-black text-ink">
+              {Math.round(PLATFORM_FEE_RATE * 100)}%
+            </p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
               Commission seulement
             </p>
           </div>
+          {/* « 24h — réponse moyenne » figurait ici. Ce délai n'est mesuré
+              nulle part : c'était une statistique affichée sans donnée
+              derrière. Remplacé par un fait vérifiable, qui est en plus ce
+              qui distingue réellement le produit. */}
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
-            <p className="font-display text-xl font-black text-ink">24h</p>
+            <p className="font-display text-xl font-black text-ink">📄</p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-              Réponse moyenne
+              Contrat écrit inclus
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
