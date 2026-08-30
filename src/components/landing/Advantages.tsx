@@ -35,7 +35,7 @@ const ADVANTAGES: Advantage[] = [
   {
     Icon: LuShieldCheck,
     title: "Paiement sécurisé (escrow)",
-    desc: "L'argent est bloqué à la commande et libéré seulement à la livraison. 0 impayé, des deux côtés.",
+    desc: "L'argent est bloqué à la commande et libéré seulement à la livraison. Le créateur sait qu'il est là avant de tourner ; la marque ne le libère qu'une fois satisfaite.",
   },
   {
     Icon: LuFileCheck,
