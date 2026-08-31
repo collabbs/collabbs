@@ -7,6 +7,7 @@ import {
   adminRefundEscrow,
   adminResolveInKind,
   adminRejectSale,
+  adminAdjustProvision,
   resolveError,
 } from "./actions";
 
@@ -243,6 +244,44 @@ export default async function AdminPage({
           </ul>
         </section>
       )}
+
+      <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
+        <h2 className="font-semibold text-ink">Régulariser une provision</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Le registre prévoyait cette catégorie depuis toujours et la page de facturation savait
+          l&apos;afficher — mais rien ne pouvait en écrire une. Montant <strong>signé</strong> :
+          négatif pour reprendre, positif pour offrir. Le motif est lu par la marque.
+        </p>
+        <form action={adminAdjustProvision} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_2fr_auto]">
+          <input
+            name="brand_id"
+            required
+            placeholder="Identifiant de la marque"
+            className="min-w-0 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
+          />
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            required
+            placeholder="-100"
+            className="w-28 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
+          />
+          <input
+            name="label"
+            required
+            minLength={5}
+            placeholder="Motif — la marque le lira"
+            className="min-w-0 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white"
+          >
+            Régulariser
+          </button>
+        </form>
+      </section>
 
       <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
         <h2 className="font-semibold text-ink">Séquestres en cours</h2>

@@ -241,3 +241,56 @@ export async function resolveError(formData: FormData) {
   revalidatePath("/admin");
   back("Erreur marquée traitée.");
 }
+
+/**
+ * Régularise la provision d'affiliation d'une marque.
+ *
+ * Le registre prévoyait la catégorie « adjustment » depuis toujours, et la page
+ * de facturation savait l'afficher — mais aucune fonction ne pouvait en écrire
+ * une : `credit_balance` refuse les montants négatifs, et toucher
+ * `brands.balance` à la main casse la seule règle qui protège le registre.
+ *
+ * Le montant est SIGNÉ : négatif pour reprendre, positif pour offrir. Le motif
+ * est obligatoire — un mouvement d'argent sans raison écrite est indéfendable
+ * trois mois plus tard, devant la marque comme devant nous.
+ */
+export async function adminAdjustProvision(formData: FormData) {
+  await requireAdmin();
+  const brandId = String(formData.get("brand_id") ?? "").trim();
+  const montant = Number(formData.get("amount"));
+  const motif = String(formData.get("label") ?? "").trim();
+
+  if (!brandId) back("Marque manquante.", "error");
+  if (!Number.isFinite(montant) || montant === 0)
+    back("Indique un montant non nul (négatif pour reprendre).", "error");
+  if (!motif) back("Le motif est obligatoire : il sera lisible par la marque.", "error");
+
+  const admin = createAdminClient();
+  const { data, error } = await untyped(admin).rpc("adjust_balance", {
+    p_brand: brandId,
+    p_amount: montant,
+    p_label: motif,
+  });
+  if (error) {
+    await reportError("admin/ajustement-provision", error, {
+      detail: `marque ${brandId}, montant ${montant}`,
+    });
+    back(error.message, "error");
+  }
+
+  // La marque doit l'apprendre autrement qu'en voyant son solde bouger.
+  await notify({
+    userId: brandId,
+    type: "payment_received_brand",
+    title:
+      montant > 0
+        ? `Régularisation : ${eur(montant)} crédités sur ta provision`
+        : `Régularisation : ${eur(Math.abs(montant))} repris sur ta provision`,
+    body: motif,
+    link: "/billing",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/billing");
+  back(`Provision régularisée — nouveau solde ${eur(Number(data ?? 0))}.`);
+}
