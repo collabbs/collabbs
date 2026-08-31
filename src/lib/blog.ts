@@ -78,7 +78,19 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Le seuil s'apprécie **par couple marque × créateur** et **par année civile**. Deux collaborations à 600 € avec le même créateur dans la même année déclenchent l'obligation, même si aucune ne l'atteint seule.",
+          "Le seuil s'apprécie **par couple marque × créateur** et **sur l'année**. Deux collaborations à 600 € avec le même créateur dans la même année déclenchent l'obligation, même si aucune ne l'atteint seule.",
+      },
+      {
+        type: "p",
+        texte:
+          "Voici le texte exact, parce qu'il vaut mieux le lire une fois que le paraphraser dix. L'article 1er du décret impose le contrat écrit lorsque « la somme des rémunérations versées et de la valeur des avantages en nature accordés à un influenceur par un annonceur au cours de la même année en contrepartie d'une prestation ou d'un ensemble de prestations d'influence commerciale par voie électronique **poursuivant un même objectif promotionnel** est supérieure ou égale à un montant de 1 000 euros hors taxes ».",
+      },
+      {
+        type: "encadre",
+        ton: "info",
+        titre: "« Un même objectif promotionnel » : la condition que presque personne ne cite",
+        texte:
+          "Le cumul ne mélange pas tout ce qu'une marque verse à un créateur : il additionne les prestations qui poursuivent **le même but promotionnel**. Deux campagnes réellement distinctes — un lancement de produit en mars, une opération de fin d'année sans rapport — s'apprécient séparément. En revanche, une série de collaborations qui servent la même promotion se cumulent, quel que soit leur nombre. La frontière n'a pas encore été tranchée par un juge : dans le doute, la prudence est de cumuler.",
       },
       {
         type: "encadre",
@@ -131,8 +143,8 @@ export const ARTICLES: Article[] = [
             "Ce n'est ni par collaboration, ni par marque : deux petites collabs suffisent",
           ],
           [
-            "L'année civile",
-            "Le compteur repart à zéro le 1er janvier, pas à la date anniversaire",
+            "L'année, et non la collaboration",
+            "Le décret dit « au cours de la même année ». Collabbs remet le compteur à zéro le 1er janvier",
           ],
           [
             "Les avantages en nature",
@@ -156,7 +168,7 @@ export const ARTICLES: Article[] = [
       {
         type: "liste",
         items: [
-          "Contrat écrit obligatoire dès **1 000 € HT cumulés** sur l'année civile, par couple marque × créateur.",
+          "Contrat écrit obligatoire dès **1 000 € HT cumulés** sur l'année, par couple marque × créateur, pour un même objectif promotionnel.",
           "Les **avantages en nature** entrent dans le calcul.",
           "**Marque, agence et créateur** sont solidairement responsables.",
           "Le contrat doit exister **avant** la prestation, pas après.",
@@ -296,7 +308,7 @@ export const ARTICLES: Article[] = [
         ton: "alerte",
         titre: "La valeur des avantages en nature entre dans le calcul",
         texte:
-          "Le seuil de 1 000 € HT qui déclenche l'obligation de contrat écrit s'apprécie sur la rémunération ET la valeur des avantages en nature, cumulées sur l'année civile pour un même couple marque × créateur. Un produit à 400 € offert rapproche du seuil exactement autant que 400 € virés.",
+          "Le seuil de 1 000 € HT qui déclenche l'obligation de contrat écrit s'apprécie sur la rémunération ET la valeur des avantages en nature, cumulées sur l'année pour un même couple marque × créateur, dès lors que les prestations poursuivent le même objectif promotionnel. Un produit à 400 € offert rapproche du seuil exactement autant que 400 € virés.",
       },
       { type: "h2", texte: "Un exemple qui n'a rien d'extrême" },
       {
@@ -481,7 +493,7 @@ export const ARTICLES: Article[] = [
         ton: "info",
         titre: "Depuis janvier 2026, ce n'est plus à vous de le demander",
         texte:
-          "Un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année civile avec une même marque — avantages en nature compris. Et la marque n'est pas seule concernée : créateur, marque et agence sont solidairement responsables. Demander un contrat n'est plus une exigence inconfortable, c'est la loi.",
+          "Un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année avec une même marque — avantages en nature compris. Et la marque n'est pas seule concernée : créateur, marque et agence sont solidairement responsables. Demander un contrat n'est plus une exigence inconfortable, c'est la loi.",
       },
       { type: "h3", texte: "3. Le nombre de retouches, écrit à l'avance" },
       {
@@ -582,7 +594,18 @@ export const ARTICLES: Article[] = [
         texte:
           "Un créateur qui veut toucher 200 € net sur une plateforme à 20 % ne facture pas 200 €, il facture 250 €. La gratuité côté marque est donc en partie une gratuité de façade : elle est intégrée dans les tarifs affichés par les créateurs. Ce qui ne veut pas dire que le modèle est mauvais — mais il faut comparer des prix nets, pas des pourcentages.",
       },
-      { type: "h3", texte: "3. Prix fixe par vidéo — Moggo" },
+      { type: "h3", texte: "3. Commission des deux côtés — Takema" },
+      {
+        type: "p",
+        texte:
+          "Takema est le seul concurrent français à écrire noir sur blanc le mot « séquestre », et le seul à prélever **des deux côtés à la fois**. Sa page tarifs affiche **10 % du montant HT à la marque, plus 2,5 % de frais de transaction**, et **5 % au créateur — ramenés à 0 % avec un abonnement Pro à 19 € par mois**. Publier une annonce est gratuit. La plateforme annonce plus de 7 000 créateurs.",
+      },
+      {
+        type: "p",
+        texte:
+          "**Le modèle est bon si** vous voulez la sécurité du séquestre sans abonnement côté marque. **Il est à regarder de près si** vous êtes créateur : sur 250 € facturés, il reste 237,50 € — ou 250 € si vous payez 228 € d'abonnement dans l'année, ce qui n'est rentable qu'au-delà d'environ 4 560 € de collaborations annuelles.",
+      },
+      { type: "h3", texte: "4. Prix fixe par vidéo — Moggo" },
       {
         type: "p",
         texte:
@@ -593,7 +616,7 @@ export const ARTICLES: Article[] = [
         texte:
           "**Le modèle est bon si** vous voulez du contenu sans gérer de relation créateur : vous commandez, vous recevez. **Il est limité si** vous cherchez une relation durable avec des créateurs identifiés, une campagne d'affiliation, ou un créateur qui parle à sa propre audience — ici vous achetez un fichier vidéo, pas une prise de parole.",
       },
-      { type: "h3", texte: "4. Suite entreprise sur devis — Skeepers" },
+      { type: "h3", texte: "5. Suite entreprise sur devis — Skeepers" },
       {
         type: "p",
         texte:
@@ -611,6 +634,7 @@ export const ARTICLES: Article[] = [
         lignes: [
           ["**Youdji**", "0 € / mois, 0 % de commission", "0 € / mois, **20 % de commission**", "Marketplace financée par les créateurs"],
           ["**Influee**", "199 à 849 € / mois **+ 10 %** sur les paiements créateurs", "Non affiché sur la page tarifs marques", "Abonnement + commission"],
+          ["**Takema**", "10 % + 2,5 % de frais, sans abonnement", "**5 %** — ou 0 % avec un abonnement à 19 €/mois", "Commission des deux côtés, séquestre"],
           ["**Moggo**", "99 € HT par vidéo de 15 s", "Non affiché", "Vente à l'unité, sans abonnement"],
           ["**Skeepers**", "Sur devis, démo obligatoire", "Non affiché", "Suite entreprise"],
           ["**Collabbs**", "0 € / mois + 10 %, ou 99 € / mois + 8 %, ou 299 € / mois + 5 %", "**0 %** — le créateur touche le montant annoncé", "Commission ajoutée au prix, à la charge de la marque"],
@@ -645,7 +669,7 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Depuis le **1er janvier 2026**, un contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année civile entre une même marque et un même créateur** — avantages en nature compris. Marque, agence et créateur sont **solidairement responsables**.",
+          "Depuis le **1er janvier 2026**, un contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une même marque et un même créateur** — avantages en nature compris. Marque, agence et créateur sont **solidairement responsables**.",
       },
       {
         type: "p",
@@ -664,9 +688,10 @@ export const ARTICLES: Article[] = [
     sources: [
       { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
       { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
+      { titre: "Takema — page plateforme et tarifs (relevée le 31/08/2026)", url: "https://www.takema-studio.com/plateforme" },
       { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
       { titre: "Skeepers — page d'accueil (relevée le 31/08/2026)", url: "https://skeepers.io/fr/" },
-      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000052950561" },
     ],
   },
   {
@@ -765,7 +790,7 @@ export const ARTICLES: Article[] = [
       { titre: "Youdji — page créateurs (relevée le 31/08/2026)", url: "https://youdji.com/fr/creators" },
       { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
       { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
-      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000052950561" },
     ],
   },
   {
@@ -828,7 +853,7 @@ export const ARTICLES: Article[] = [
         ton: "alerte",
         titre: "Être une petite structure n'exonère de rien",
         texte:
-          "Depuis le 1er janvier 2026, le contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année civile entre une marque et un créateur**, avantages en nature inclus, et la responsabilité est **solidaire**. Le seuil ne dépend ni de votre chiffre d'affaires ni de votre effectif. Trois collaborations à 400 € dans l'année avec le même créateur suffisent.",
+          "Depuis le 1er janvier 2026, le contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une marque et un créateur**, avantages en nature inclus, et la responsabilité est **solidaire**. Le seuil ne dépend ni de votre chiffre d'affaires ni de votre effectif. Trois collaborations à 400 € dans l'année avec le même créateur suffisent.",
       },
       { type: "h2", texte: "Comment trancher en une question" },
       {
@@ -850,7 +875,7 @@ export const ARTICLES: Article[] = [
       { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
       { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
       { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
-      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000052950561" },
     ],
   },
   {
@@ -875,6 +900,7 @@ export const ARTICLES: Article[] = [
         lignes: [
           ["**Youdji**", "20 % de commission, aucun abonnement", "**200 €**"],
           ["**Collabbs**", "0 % — la commission est payée par la marque, en plus du prix", "**250 €**"],
+          ["**Takema**", "5 % de commission, ou 0 % avec un abonnement à 19 €/mois", "**237,50 €** (ou 250 € si vous payez l'abonnement)"],
           ["**Influee**", "Non affiché sur la page tarifs destinée aux marques", "À vérifier auprès d'eux"],
           ["**Moggo**", "Non affiché — la plateforme vend la vidéo à prix fixe et rémunère ses créateurs séparément", "À vérifier auprès d'eux"],
         ],
@@ -933,7 +959,7 @@ export const ARTICLES: Article[] = [
       { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
       { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
       { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
-      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000052950561" },
     ],
   },
 ];
