@@ -117,11 +117,38 @@ export async function enregistrerAbonnement(session: {
  * que la marque continue de régler — elle paierait 99 € pour retomber au
  * tarif gratuit.
  */
+/**
+ * Retrouve l'abonnement d'une facture, quelle que soit la forme de l'objet.
+ *
+ * ⚠️ `invoice.subscription` A DISPARU du premier niveau dans l'API Stripe
+ * actuelle : l'identifiant vit désormais dans
+ * `parent.subscription_details.subscription`. Le code ne lisait que l'ancien
+ * champ, donc `invoice.paid` ne trouvait plus rien et sortait en silence — le
+ * webhook répondait 200, et l'échéance ne reculait jamais. La marque payait
+ * 99 € par mois pour retomber au tarif gratuit dès le deuxième, exactement ce
+ * que le commentaire au-dessus prétendait empêcher.
+ *
+ * On lit donc les DEUX formes : l'ancienne pour les comptes encore sur une
+ * version d'API antérieure, la nouvelle pour tous les autres.
+ */
+export function identifiantAbonnement(invoice: {
+  subscription?: unknown;
+  parent?: { subscription_details?: { subscription?: unknown } | null } | null;
+}): string | null {
+  const candidats = [
+    invoice.subscription,
+    invoice.parent?.subscription_details?.subscription,
+  ];
+  for (const c of candidats) {
+    if (typeof c === "string" && c) return c;
+    if (c && typeof c === "object" && typeof (c as { id?: unknown }).id === "string")
+      return (c as { id: string }).id;
+  }
+  return null;
+}
+
 export async function prolongerAbonnement(invoice: any): Promise<{ ok: boolean }> {
-  const subscriptionId =
-    typeof invoice.subscription === "string"
-      ? invoice.subscription
-      : (invoice.subscription?.id ?? null);
+  const subscriptionId = identifiantAbonnement(invoice);
   if (!subscriptionId) return { ok: false };
 
   let sub: any;
@@ -132,12 +159,30 @@ export async function prolongerAbonnement(invoice: any): Promise<{ ok: boolean }
     return { ok: false };
   }
 
-  const brandId = sub.metadata?.brand_id;
-  const plan = planValide(sub.metadata?.plan);
+  const admin: any = createAdminClient();
+
+  // Les métadonnées de l'abonnement sont la source normale — le Checkout les
+  // pose. Mais un abonnement créé depuis le tableau de bord Stripe, repris
+  // d'une migration ou touché à la main n'en a pas, et la marque deviendrait
+  // alors introuvable pour toujours. Notre propre colonne sait répondre.
+  let brandId: string | undefined = sub.metadata?.brand_id;
+  let plan = planValide(sub.metadata?.plan);
+  if (!brandId) {
+    const { data: marque } = await admin
+      .from("brands")
+      .select("id, plan")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    if (marque) {
+      brandId = marque.id;
+      // Sans métadonnée de plan, on reconduit celui déjà en place : c'est ce
+      // que la marque paie, et on ne le devine pas à la hausse.
+      plan = planValide(marque.plan);
+    }
+  }
   if (!brandId || plan === "free") return { ok: false };
 
   const fin = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
-  const admin: any = createAdminClient();
   const { error } = await admin
     .from("brands")
     .update({
@@ -160,9 +205,22 @@ export async function prolongerAbonnement(invoice: any): Promise<{ ok: boolean }
  * évènement qu'au terme de la période réglée.
  */
 export async function cloturerAbonnement(sub: any): Promise<{ ok: boolean }> {
-  const brandId = sub.metadata?.brand_id;
-  if (!brandId) return { ok: false };
   const admin: any = createAdminClient();
+
+  // Même repli qu'à la prolongation, et il compte davantage ici : sans lui,
+  // une résiliation dont l'abonnement n'a pas de métadonnée laisserait la
+  // marque sur un plan payant pour toujours — nous lui offririons un tarif
+  // qu'elle ne règle plus.
+  let brandId: string | undefined = sub.metadata?.brand_id;
+  if (!brandId && sub.id) {
+    const { data: marque } = await admin
+      .from("brands")
+      .select("id")
+      .eq("stripe_subscription_id", sub.id)
+      .maybeSingle();
+    brandId = marque?.id;
+  }
+  if (!brandId) return { ok: false };
   const { error } = await admin
     .from("brands")
     .update({ plan: "free", stripe_subscription_id: null, plan_expires_at: null })

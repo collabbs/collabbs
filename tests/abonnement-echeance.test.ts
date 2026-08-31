@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { planValide, tauxCollab, TARIFS } from "@/lib/tarifs";
+import { identifiantAbonnement } from "@/lib/abonnement-stripe";
 
 /**
  * La règle qui décide du taux appliqué. On la teste sur la partie pure —
@@ -34,5 +35,32 @@ describe("plan appliqué à une marque", () => {
     for (const p of [null, "", "premium", "GROWTH"]) {
       expect(planEffectif(p, null)).toBe("free");
     }
+  });
+});
+
+describe("identifiantAbonnement", () => {
+  // `invoice.subscription` a disparu du premier niveau dans l'API Stripe
+  // actuelle. Le code ne lisait que l'ancien champ : `invoice.paid` ne trouvait
+  // plus rien et sortait en silence, le webhook répondait 200, et l'échéance ne
+  // reculait jamais. La marque payait 99 € par mois pour retomber au tarif
+  // gratuit dès le deuxième.
+  it("lit la forme ACTUELLE de Stripe", () => {
+    expect(
+      identifiantAbonnement({
+        parent: { subscription_details: { subscription: "sub_123" } },
+      }),
+    ).toBe("sub_123");
+  });
+
+  it("lit encore l'ancienne forme", () => {
+    expect(identifiantAbonnement({ subscription: "sub_456" })).toBe("sub_456");
+    expect(identifiantAbonnement({ subscription: { id: "sub_789" } })).toBe("sub_789");
+  });
+
+  it("rend null quand il n'y a vraiment rien", () => {
+    expect(identifiantAbonnement({})).toBeNull();
+    expect(identifiantAbonnement({ subscription: null, parent: null })).toBeNull();
+    // Une chaîne vide n'est pas un identifiant.
+    expect(identifiantAbonnement({ subscription: "" })).toBeNull();
   });
 });
