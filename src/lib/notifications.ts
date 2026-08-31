@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { resend, RESEND_FROM } from "./resend";
+import { reportError } from "./report-error";
 import { createAdminClient } from "./supabase/admin";
 
 /**
@@ -69,14 +70,32 @@ export async function notify(args: {
     }
     const fullLink = args.link ? `${origin}${args.link}` : origin;
 
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: RESEND_FROM,
       to,
       subject: args.title,
       html: renderEmail({ title: args.title, body: args.body, link: fullLink }),
     });
-  } catch {
-    /* noop — l'email peut échouer (quota Resend, etc.) sans bloquer */
+    // Resend ne LÈVE PAS sur un refus : il renvoie une erreur dans la réponse.
+    // Le `catch` ci-dessous ne la voyait donc jamais.
+    if (error) throw new Error(error.message ?? "Resend a refusé l'envoi");
+  } catch (e) {
+    // Ne JAMAIS bloquer : la notification dans l'app est déjà créée, et un
+    // e-mail raté ne doit pas faire échouer l'action de l'utilisateur.
+    //
+    // Mais ne plus se taire non plus. Ce `catch` était un noop complet : le
+    // jour où la clé Resend expire, plus aucun e-mail ne part — ni relance de
+    // deadline, ni « tu as reçu 270 € », ni « une marque te propose une
+    // collaboration » — et personne ne l'apprend. Les deux côtés attendent un
+    // message qui n'existe pas.
+    //
+    // Le registre d'erreurs groupe par contexte et compte les occurrences :
+    // une clé morte y apparaîtra comme une seule ligne à 4 000 fois, ce qui se
+    // remarque immédiatement.
+    await reportError("notifications/email", e, {
+      userId: args.userId,
+      detail: `Envoi échoué pour « ${args.title} ».`,
+    });
   }
 }
 

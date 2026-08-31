@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
   const allLinkIds = (links ?? []).map((l) => l.id);
   if (allLinkIds.length === 0) {
-    return NextResponse.json({ ok: true, creators: 0, sent: 0 });
+    return NextResponse.json({ ok: true, creators: 0, digests: 0 });
   }
 
   const { data: events } = await admin
@@ -37,7 +37,10 @@ export async function GET(request: Request) {
     .in("link_id", allLinkIds)
     .gte("occurred_at", since);
 
-  let sent = 0;
+  // Compte les digests PRODUITS, pas les e-mails délivrés : `notify` crée
+  // toujours la notification dans l'app, et l'e-mail peut échouer derrière.
+  // Le nommer « sent » laissait croire à un envoi réussi.
+  let digests = 0;
   for (const [creatorId, linkIds] of byCreator) {
     const linkSet = new Set(linkIds);
     const myEvents = (events ?? []).filter((e) => linkSet.has(e.link_id));
@@ -66,8 +69,8 @@ export async function GET(request: Request) {
       body: `Sur les 7 derniers jours : ${clicks} clic${clicks > 1 ? "s" : ""} sur tes liens, ${sales} vente${sales > 1 ? "s" : ""}, ${eurFmt(gains)} de commissions. Continue !`,
       link: "/opportunities",
     });
-    sent += 1;
+    digests += 1;
   }
 
-  return NextResponse.json({ ok: true, creators: byCreator.size, sent });
+  return NextResponse.json({ ok: true, creators: byCreator.size, digests });
 }
