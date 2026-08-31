@@ -739,7 +739,19 @@ export async function runAffiliatePayouts(): Promise<{
         // Un TAUX (0,25), pas un pourcentage : c'est la convention de
         // `deal_payment` (0,1) et celle que lit la facture. Écrit en
         // pourcentage ici, il s'affichait « Commission Collabbs (2500 %) ».
-        platform_fee_rate: AFFILIATE_FEE_RATE,
+        //
+        // ⚠️ Le taux est CALCULÉ, pas repris d'une constante. Il valait
+        // `AFFILIATE_FEE_RATE` — celui du plan gratuit, 20 % — pendant que le
+        // montant, lui, venait des commissions réservées vente par vente au
+        // taux du plan de chaque marque. La facture annonçait donc 20 % à côté
+        // d'un prélèvement qui n'en était pas 20.
+        //
+        // Et ici aucun taux unique n'existe : un versement agrège plusieurs
+        // marques (`brand_id: null`), qui peuvent être sur des plans
+        // différents. Le seul chiffre vrai est le taux EFFECTIF du versement —
+        // ce que la commission représente réellement du montant brut.
+        platform_fee_rate:
+          net + fee > 0 ? Math.round((fee / (net + fee)) * 10000) / 10000 : 0,
         platform_fee: fee,
         net_amount: net,
         currency: "eur",

@@ -36,6 +36,7 @@ const snapshot = (over: Partial<ContractSnapshot["deal"]> = {}): ContractSnapsho
     usage_rights_months: null,
     usage_rights_scope: null,
     usage_rights_fee: null,
+    platform_fee_rate: null,
     ...over,
   },
 });
@@ -311,5 +312,35 @@ describe("droits d'usage : le périmètre cédé", () => {
       buildContractDocument({ reference: "CLB-TEST", snapshot: snapshot(), regime: "complete" }),
     );
     expect(texte).toContain("à l'exclusion de toute réutilisation ultérieure");
+  });
+});
+
+describe("le taux de commission écrit au contrat", () => {
+  // Le contrat annonçait le taux du plan GRATUIT à toute marque : une marque
+  // Scale signait « 10 %, soit 30 € » alors qu'elle en paierait 15. Un document
+  // signé ne se corrige pas — le taux doit donc être figé au bon moment.
+  it("écrit le taux figé dans l'instantané, pas une constante", () => {
+    const texte = JSON.stringify(
+      buildContractDocument({
+        reference: "CLB-TEST",
+        snapshot: snapshot({ amount: 300, platform_fee_rate: 0.05 }),
+        regime: "complete",
+      }),
+    );
+    expect(texte).toContain("5 %");
+    expect(texte).toContain("15");
+    // Et surtout : plus aucune trace du taux gratuit sur une marque abonnée.
+    expect(texte).not.toContain("10 %");
+  });
+
+  it("retombe sur le taux historique pour un contrat signé avant la correction", () => {
+    const texte = JSON.stringify(
+      buildContractDocument({
+        reference: "CLB-TEST",
+        snapshot: snapshot({ amount: 300, platform_fee_rate: null }),
+        regime: "complete",
+      }),
+    );
+    expect(texte).toContain("10 %");
   });
 });

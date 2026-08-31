@@ -31,7 +31,7 @@ const snapshot = (amount: number): ContractSnapshot => ({
     platform_id: 1, quantity: 2, deadline: "2026-09-30",
     brand_notes: "Tournage en extérieur.",
     exclusivity: true, exclusivity_days: 60, usage_rights_months: 12,
-    usage_rights_scope: null, usage_rights_fee: null,
+    usage_rights_scope: null, usage_rights_fee: null, platform_fee_rate: null,
   },
 });
 

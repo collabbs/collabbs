@@ -12,6 +12,8 @@ import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
 // Le taux affiché vient de la source qui l'applique réellement.
 import { PLATFORM_FEE_RATE } from "@/lib/deal";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxCollab } from "@/lib/tarifs";
 
 /** Mappe un nom d'affichage de plateforme vers le slug attendu par PlatformIcon. */
 function platformSlug(label: string): string {
@@ -64,6 +66,12 @@ export default async function CreatorsPage({
     data: { user },
   } = await supabase.auth.getUser();
   let isBrandViewer = false;
+  // Le chiffre mis en avant en haut de l'annuaire annonçait le taux du plan
+  // GRATUIT à tout le monde. Une marque abonnée lisait donc « 10 % » alors
+  // qu'on lui en prélève 8 ou 5 — un argument de vente retourné contre
+  // l'abonnement qu'elle vient de payer. Pour un visiteur non connecté, le
+  // taux public reste le bon : c'est celui qu'il obtiendra en s'inscrivant.
+  let tauxCollabAffiche = PLATFORM_FEE_RATE;
   const savedIds = new Set<string>();
   if (user) {
     const { data: viewer } = await supabase
@@ -78,6 +86,7 @@ export default async function CreatorsPage({
         .select("creator_id")
         .eq("brand_id", user.id);
       for (const s of saves ?? []) savedIds.add(s.creator_id);
+      tauxCollabAffiche = tauxCollab(await planDeLaMarque(user.id));
     }
   }
   const results = all.filter((c) => {
@@ -248,7 +257,7 @@ export default async function CreatorsPage({
         <div className="hidden items-center gap-2 lg:flex">
           <div className="rounded-2xl border border-zinc-100 bg-white px-4 py-2.5 text-center shadow-sm">
             <p className="font-display text-xl font-black text-ink">
-              {Math.round(PLATFORM_FEE_RATE * 100)}%
+              {Math.round(tauxCollabAffiche * 100)}%
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
               Commission, côté marque

@@ -1,7 +1,7 @@
 import "server-only";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 // Taux unique, celui qu'applique réellement le calcul du versement.
-import { PLATFORM_FEE_RATE, dealBreakdown } from "@/lib/deal";
+import { PLATFORM_FEE_RATE } from "@/lib/deal";
 
 /**
  * Corps du contrat de collaboration commerciale.
@@ -184,11 +184,17 @@ export function buildContractDocument(params: {
   // La rédaction précédente disait « la plateforme prélève 10 %, le net
   // revenant au créateur s'élève à… » — c'était exact tant que la commission
   // était déduite de sa part. Elle ne l'est plus.
-  const { fee: dealFee, gross: dealTotal } = dealBreakdown(deal.amount);
+  // Le taux vient de l'INSTANTANÉ, pas d'une constante : c'est celui qui
+  // s'appliquait quand les deux parties ont signé. Les contrats antérieurs à
+  // cette correction n'en portent pas — ils retombent sur le taux historique,
+  // parce qu'on ne réécrit pas un document signé.
+  const tauxContrat = deal.platform_fee_rate ?? PLATFORM_FEE_RATE;
+  const dealFee = Math.round(deal.amount * tauxContrat);
+  const dealTotal = deal.amount + dealFee;
 
   add("Rémunération et avantages en nature", [
     `En contrepartie de la prestation, le créateur perçoit la somme de **${eur(deal.amount)}**, sans aucune retenue de la part de la plateforme.`,
-    `La commission de la plateforme Collabbs, égale à **${Math.round(PLATFORM_FEE_RATE * 100)} %** de cette somme soit ${eur(dealFee)}, est facturée à l'annonceur en supplément. Le montant total déboursé par l'annonceur s'élève ainsi à **${eur(dealTotal)}**.`,
+    `La commission de la plateforme Collabbs, égale à **${Math.round(tauxContrat * 100)} %** de cette somme soit ${eur(dealFee)}, est facturée à l'annonceur en supplément. Le montant total déboursé par l'annonceur s'élève ainsi à **${eur(dealTotal)}**.`,
     "Le paiement est effectué par l'intermédiaire de la plateforme Collabbs, qui séquestre les fonds dès l'acceptation du contrat et les libère au bénéfice du créateur après validation de la livraison par l'annonceur.",
     "Les Parties déclarent que la rémunération ci-dessus est exhaustive. Tout avantage en nature complémentaire (produit, dotation, service offert) doit être déclaré sur la plateforme et sa valeur ajoutée au cumul annuel, conformément à la réglementation.",
   ]);

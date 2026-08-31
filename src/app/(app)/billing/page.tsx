@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eurExact as eur } from "@/lib/deal";
 import { stripeConfigured } from "@/lib/stripe";
-import { AFFILIATE_FEE_RATE, VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxAffiliation } from "@/lib/tarifs";
 import {
   startTopup,
   saveAutoTopup,
@@ -65,7 +67,13 @@ export default async function BillingPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) redirect("/login");
+
+  // Le taux affiché doit être CELUI DE CETTE MARQUE. La page expliquait le
+  // fonctionnement de la provision avec le taux du plan gratuit — une marque
+  // abonnée lisait donc 20 % là où on lui en prélève 18 ou 15.
+  const planCourant = await planDeLaMarque(user.id);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -444,7 +452,7 @@ export default async function BillingPage({
           <li>
             <strong className="text-ink">1.</strong> Un créateur génère une vente. La
             commission qui lui revient, plus les frais Collabbs (
-            {Math.round(AFFILIATE_FEE_RATE * 100)} % de cette commission), sont
+            {Math.round(tauxAffiliation(planCourant) * 100)} % de cette commission), sont
             immédiatement réservés sur ta provision.
           </li>
           <li>

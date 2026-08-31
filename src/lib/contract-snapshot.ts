@@ -1,5 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxCollab } from "@/lib/tarifs";
 import { LEGAL_STATUSES } from "@/app/(app)/profile/legal-utils";
 
 /**
@@ -34,6 +36,20 @@ export type ContractSnapshot = {
     usage_rights_months: number | null;
     usage_rights_scope: "organic" | "paid" | null;
     usage_rights_fee: number | null;
+    /**
+     * Taux de commission applicable, FIGÉ à la signature.
+     *
+     * Le contrat le calculait au taux du plan gratuit : une marque abonnée
+     * signait un document annonçant « 10 %, soit 30 € » alors qu'elle en
+     * paierait 15. Un contrat signé ne se corrige pas — il fallait donc figer
+     * le bon taux au moment où il se fige, comme la transaction fige le sien
+     * au paiement.
+     *
+     * `null` sur les contrats signés AVANT cette correction : le rendu retombe
+     * alors sur le taux historique, parce qu'on ne réécrit pas un document que
+     * deux parties ont signé.
+     */
+    platform_fee_rate: number | null;
   };
 };
 
@@ -287,6 +303,7 @@ export async function buildContractSnapshot(
         usage_rights_months: deal.usage_rights_months ?? null,
         usage_rights_scope: deal.usage_rights_scope ?? null,
         usage_rights_fee: deal.usage_rights_fee ?? null,
+        platform_fee_rate: tauxCollab(await planDeLaMarque(deal.brand_id)),
       },
     },
     ...(incomplete.length > 0 ? { incomplete } : {}),
