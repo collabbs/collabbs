@@ -1215,6 +1215,8 @@ export type Database = {
       }
       deals: {
         Row: {
+          engagement_id: string | null
+          engagement_month: number | null
           usage_rights_scope: Database["public"]["Enums"]["usage_rights_scope"] | null
           usage_rights_fee: number | null
           shipping_required: boolean
@@ -1254,6 +1256,8 @@ export type Database = {
           usage_rights_months: number | null
         }
         Insert: {
+          engagement_id?: string | null
+          engagement_month?: number | null
           usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
           usage_rights_fee?: number | null
           shipping_required?: boolean
@@ -1293,6 +1297,8 @@ export type Database = {
           usage_rights_months?: number | null
         }
         Update: {
+          engagement_id?: string | null
+          engagement_month?: number | null
           usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
           usage_rights_fee?: number | null
           shipping_required?: boolean
@@ -1361,6 +1367,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      engagements: {
+        Row: {
+          id: string
+          brand_id: string
+          creator_id: string
+          monthly_amount: number
+          contents_per_month: number
+          months_total: number
+          months_created: number
+          format: Database["public"]["Enums"]["deal_format"]
+          platform_id: number | null
+          source_deal_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["engagement_status"]
+          ended_at: string | null
+          ended_by: string | null
+          notice_days: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          creator_id: string
+          monthly_amount: number
+          contents_per_month?: number
+          months_total: number
+          months_created?: number
+          format?: Database["public"]["Enums"]["deal_format"]
+          platform_id?: number | null
+          source_deal_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          ended_at?: string | null
+          ended_by?: string | null
+          notice_days?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          brand_id?: string
+          creator_id?: string
+          monthly_amount?: number
+          contents_per_month?: number
+          months_total?: number
+          months_created?: number
+          format?: Database["public"]["Enums"]["deal_format"]
+          platform_id?: number | null
+          source_deal_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          ended_at?: string | null
+          ended_by?: string | null
+          notice_days?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       deliverables: {
         Row: {
@@ -1945,6 +2011,7 @@ export type Database = {
       }
     }
     Enums: {
+      engagement_status: "active" | "ended"
       usage_rights_scope: "organic" | "paid"
       affiliate_event_status:
         | "unfunded"

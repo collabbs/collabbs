@@ -21,6 +21,7 @@ import RefundButton from "./RefundButton";
 import ReceiveButton from "./ReceiveButton";
 import PerformancePanel from "./PerformancePanel";
 import ExpeditionPanel from "./ExpeditionPanel";
+import EngagementPanel from "./EngagementPanel";
 import { montantAuxVues } from "@/lib/performance";
 import DealTimeline from "./DealTimeline";
 
@@ -110,7 +111,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number, engagement_id, engagement_month",
     )
     .eq("id", id)
     .single();
@@ -217,6 +218,30 @@ export default async function DealDetailPage({
   // « Ta rémunération : 400 € » ferait au créateur une promesse que le produit
   // ne tiendra pas s'il fait 6 000 vues — et laisserait croire à la marque
   // qu'elle doit 400 € quand elle en devra 48.
+  // Le partenariat récurrent dont cette collaboration est un mois, s'il y en
+  // a un. Lu à part plutôt qu'en jointure : la très grande majorité des
+  // collaborations n'en dépendent pas, et on ne fait pas payer une jointure à
+  // tout le monde pour une minorité.
+  //
+  // Deux façons pour une collaboration d'être liée à un partenariat, et il faut
+  // les deux : elle peut EN ÊTRE un mois (`engagement_id`), ou l'avoir FAIT
+  // NAÎTRE (`source_deal_id`). Sans le second cas, la collaboration d'origine
+  // continuait d'afficher « en faire un ambassadeur » après l'avoir fait — et
+  // recliquer renvoyait « tu as déjà un partenariat avec ce créateur ». L'action
+  // réussissait, l'écran l'ignorait.
+  const colonne = deal.engagement_id ? "id" : "source_deal_id";
+  const valeur = deal.engagement_id ?? deal.id;
+  const engagementRes = await supabase
+    .from("engagements")
+    .select(
+      "id, monthly_amount, contents_per_month, months_total, months_created, starts_at, status",
+    )
+    .eq(colonne, valeur)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const engagement = engagementRes.data ?? null;
+
   const auxVuesEnAttente = deal.perf_rate != null && !deal.perf_validated_at;
 
   // Le reliquat exact, au taux FIGÉ dans la transaction. Sans séquestre il
@@ -444,6 +469,19 @@ export default async function DealDetailPage({
               validatedAt={deal.perf_validated_at}
               enSequestre={paymentPaid}
               reliquat={reliquatAuxVues}
+            />
+          )}
+
+          {/* Partenariat récurrent. Proposable seulement sur une collaboration
+              qui a abouti : on ne nomme pas ambassadeur quelqu'un avec qui on
+              n'a jamais travaillé. */}
+          {(engagement || (role === "brand" && (status === "active" || status === "completed"))) && (
+            <EngagementPanel
+              dealId={deal.id}
+              role={role}
+              engagement={engagement}
+              montantSuggere={deal.amount}
+              quantiteSuggeree={deal.quantity}
             />
           )}
 
