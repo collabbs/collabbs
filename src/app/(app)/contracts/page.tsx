@@ -6,8 +6,6 @@ import { LEGAL_THRESHOLD, thresholdFor } from "@/lib/legal-threshold";
 import EmptyState from "@/components/EmptyState";
 import { declareInKind, cancelInKind, disputeInKind } from "./actions";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Colonnes du contrat-cadre (migration 0046), pas encore dans database.types.ts.
 
 export const metadata = { title: "Contrats — Collabbs" };
 
@@ -69,7 +67,7 @@ export default async function ContractsPage({
   // Les contrats-cadres d'affiliation n'ont pas de collaboration : ils se
   // chargent à part, sinon ils resteraient invisibles — et un contrat qu'on ne
   // trouve pas ne se signe jamais.
-  const { data: cadres } = await (supabase as any)
+  const { data: cadres } = await supabase
     .from("contracts")
     .select(
       "id, reference, status, period_year, brand_id, creator_id, brand_signed_at, creator_signed_at, created_at",
@@ -78,38 +76,46 @@ export default async function ContractsPage({
     .or(`brand_id.eq.${user.id},creator_id.eq.${user.id}`)
     .order("period_year", { ascending: false });
 
-  const cadreRows = (cadres ?? []) as any[];
+  const cadreRows = cadres ?? [];
 
   // Contreparties liées uniquement par de l'affiliation : elles n'apparaissent
   // dans aucune collaboration, et c'est précisément le cas qu'on ratait.
   const affiliatePartnerIds: string[] = [];
   if (role === "creator") {
-    const { data: mesLiens } = await (supabase as any)
+    const { data: mesLiens } = await supabase
       .from("affiliate_links")
       .select("campaigns(brand_id)")
       .eq("creator_id", user.id);
-    for (const l of (mesLiens ?? []) as any[]) {
+    for (const l of mesLiens ?? []) {
       if (l.campaigns?.brand_id) affiliatePartnerIds.push(l.campaigns.brand_id);
     }
   } else {
-    const { data: mesCampagnes } = await (supabase as any)
+    const { data: mesCampagnes } = await supabase
       .from("campaigns")
       .select("affiliate_links(creator_id)")
       .eq("brand_id", user.id);
-    for (const c of (mesCampagnes ?? []) as any[]) {
-      for (const l of (c.affiliate_links ?? []) as any[]) {
+    for (const c of mesCampagnes ?? []) {
+      for (const l of c.affiliate_links ?? []) {
         if (l.creator_id) affiliatePartnerIds.push(l.creator_id);
       }
     }
   }
 
   // Noms des contreparties.
+  //
+  // Le filtre sur les identifiants nuls n'est pas de la précaution : sur
+  // `contracts`, `brand_id` et `creator_id` sont nullables au niveau des
+  // colonnes, et seule une contrainte CHECK les impose pour les contrats-cadres
+  // d'affiliation. Un `null` glissé dans un `.in("id", …)` ne lèverait aucune
+  // erreur — il ferait silencieusement disparaître TOUS les noms de la page.
   const otherIds = [
-    ...new Set([
-      ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
-      ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
-      ...affiliatePartnerIds,
-    ]),
+    ...new Set(
+      [
+        ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
+        ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
+        ...affiliatePartnerIds,
+      ].filter((id): id is string => Boolean(id)),
+    ),
   ];
   const [brandsRes, creatorsRes] = await Promise.all([
     otherIds.length
@@ -127,7 +133,7 @@ export default async function ContractsPage({
   // requête échoue proprement et la section reste masquée plutôt que de casser
   // toute la page.
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data: inKindRaw, error: inKindErr } = await (supabase as any)
+  const { data: inKindRaw, error: inKindErr } = await supabase
     .from("in_kind_benefits")
     .select("id, brand_id, creator_id, label, value, sent_at, note, status, dispute_reason")
     .or(`brand_id.eq.${user.id},creator_id.eq.${user.id}`)
@@ -135,7 +141,7 @@ export default async function ContractsPage({
     .order("sent_at", { ascending: false })
     .limit(50);
   const inKindReady = !inKindErr;
-  const inKind = (inKindRaw ?? []) as any[];
+  const inKind = inKindRaw ?? [];
 
   // Cumul par contrepartie sur l'année civile en cours — la maille du seuil légal.
   //
@@ -149,12 +155,18 @@ export default async function ContractsPage({
 
   // Toutes les contreparties connues, quel que soit le canal — y compris
   // celles avec qui il n'y a QUE de l'affiliation.
-  const partenaires = new Set<string>([
-    ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
-    ...inKind.map((g) => (g.brand_id === user.id ? g.creator_id : g.brand_id)),
-    ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
-    ...affiliatePartnerIds,
-  ]);
+  // Ici le filtre sur les nuls compte plus qu'ailleurs : cette liste alimente
+  // `thresholdFor`, donc le suivi du seuil légal de 1 000 €. Un identifiant nul
+  // produirait une ligne « partenaire inconnu » avec un cumul faux — sur
+  // l'écran dont le seul rôle est de dire à qui un contrat écrit est dû.
+  const partenaires = new Set<string>(
+    [
+      ...rows.map((d) => (d.brand_id === user.id ? d.creator_id : d.brand_id)),
+      ...inKind.map((g) => (g.brand_id === user.id ? g.creator_id : g.brand_id)),
+      ...cadreRows.map((c) => (c.brand_id === user.id ? c.creator_id : c.brand_id)),
+      ...affiliatePartnerIds,
+    ].filter((id): id is string => Boolean(id)),
+  );
 
   const partners = (
     await Promise.all(
@@ -498,7 +510,7 @@ export default async function ContractsPage({
                           Affiliation {c.period_year}
                           <span className="font-normal text-zinc-500">
                             {" "}
-                            · {nameOf.get(other) ?? "Partenaire"}
+                            · {(other && nameOf.get(other)) || "Partenaire"}
                           </span>
                         </p>
                         <p className="mt-0.5 font-mono text-xs text-zinc-400">

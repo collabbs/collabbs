@@ -22,9 +22,6 @@ import { ilYA, estEchu } from "@/lib/temps";
 
 export const metadata = { title: "Provision — Collabbs" };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
-const untyped = (c: unknown) => c as any;
 
 const SALE_STATUS_META: Record<string, { label: string; tone: string }> = {
   unfunded: { label: "Non financée", tone: "bg-red-50 text-red-700" },
@@ -82,7 +79,7 @@ export default async function BillingPage({
     .single();
   if (profile?.role !== "brand") redirect("/dashboard");
 
-  const { data: brand } = await untyped(supabase)
+  const { data: brand } = await supabase
     .from("brands")
     .select(
       "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at, plan, plan_expires_at",
@@ -97,7 +94,7 @@ export default async function BillingPage({
   // Ce que la marque a réellement versé en collaborations sur 30 jours. C'est
   // ce chiffre qui vend l'abonnement : elle lit les siens, pas une promesse.
   const depuis = ilYA(30);
-  const { data: txMois } = await untyped(supabase)
+  const { data: txMois } = await supabase
     .from("transactions")
     .select("net_amount")
     .eq("brand_id", user.id)
@@ -138,7 +135,7 @@ export default async function BillingPage({
     const linkIds = (links ?? []).map((l) => l.id);
 
     if (linkIds.length > 0) {
-      const { data: events } = await untyped(supabase)
+      const { data: events } = await supabase
         .from("affiliate_events")
         .select(
           "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
@@ -148,7 +145,7 @@ export default async function BillingPage({
         .order("occurred_at", { ascending: false })
         .limit(30);
 
-      const all = (events ?? []) as any[];
+      const all = events ?? [];
       // Les ventes en attente de confirmation ne sont pas encore de l'argent :
       // elles ont leur propre section et ne comptent dans aucun total.
       toReview = all.filter((e) => e.needs_review);
@@ -162,13 +159,13 @@ export default async function BillingPage({
     }
   }
 
-  const { data: ledger } = await untyped(supabase)
+  const { data: ledger } = await supabase
     .from("brand_ledger")
     .select("id, kind, amount, balance_after, label, created_at")
     .eq("brand_id", user.id)
     .order("created_at", { ascending: false })
     .limit(25);
-  const movements = (ledger ?? []) as any[];
+  const movements = ledger ?? [];
 
   const low = hasCard ? balance < threshold : balance < 50;
 

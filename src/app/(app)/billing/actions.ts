@@ -18,9 +18,6 @@ import { reportError } from "@/lib/report-error";
 import { ouvrirAbonnement } from "@/lib/abonnement-stripe";
 import { planValide } from "@/lib/tarifs";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
-const untyped = (c: unknown) => c as any;
 
 async function requireBrand() {
   const supabase = await createClient();
@@ -98,7 +95,7 @@ export async function saveAutoTopup(formData: FormData) {
   }
 
   const admin = createAdminClient();
-  const { error } = await untyped(admin)
+  const { error } = await admin
     .from("brands")
     .update({
       autotopup_enabled: enabled,
@@ -148,7 +145,7 @@ export async function refundSale(formData: FormData) {
   if (!eventId) redirect("/billing?error=Vente+introuvable.");
 
   const admin = createAdminClient();
-  const { data: ev } = await untyped(admin)
+  const { data: ev } = await admin
     .from("affiliate_events")
     .select("id, affiliate_links(campaigns(brand_id))")
     .eq("id", eventId)
@@ -177,7 +174,7 @@ export async function refundSale(formData: FormData) {
 export async function forgetCard() {
   const brandId = await requireBrand();
   const admin = createAdminClient();
-  const { error } = await untyped(admin)
+  const { error } = await admin
     .from("brands")
     .update({ payment_method_id: null, autotopup_enabled: false })
     .eq("id", brandId);
@@ -200,7 +197,7 @@ async function requireReviewableSale(brandId: string, eventId: string) {
   if (!eventId) redirect("/billing?error=Vente+introuvable.");
 
   const admin = createAdminClient();
-  const { data: ev } = await untyped(admin)
+  const { data: ev } = await admin
     .from("affiliate_events")
     .select(
       "id, needs_review, commission_amount, sale_amount, affiliate_links(creator_id, campaigns(brand_id))",
@@ -234,7 +231,7 @@ export async function confirmPixelSale(formData: FormData) {
   // On lève le drapeau AVANT de réserver, en le conditionnant à son état
   // actuel : si deux confirmations partent en même temps, une seule passe et
   // la commission n'est réservée qu'une fois.
-  const { data: claimed } = await untyped(admin)
+  const { data: claimed } = await admin
     .from("affiliate_events")
     .update({ needs_review: false, reviewed_at: new Date().toISOString() })
     .eq("id", eventId)
@@ -271,7 +268,7 @@ export async function rejectPixelSale(formData: FormData) {
   const ev = await requireReviewableSale(brandId, eventId);
 
   const admin = createAdminClient();
-  const { data: ecartee, error } = await untyped(admin)
+  const { data: ecartee, error } = await admin
     .from("affiliate_events")
     .update({
       needs_review: false,
