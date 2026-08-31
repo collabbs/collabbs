@@ -16,7 +16,18 @@ export async function generateMetadata({
 }) {
   const { handle } = await params;
   const c = await getCreatorByHandle(handle);
-  return { title: c ? `${c.name} (@${c.handle}) — Collabbs` : "Créateur — Collabbs" };
+  if (c) return { title: `${c.name} (@${c.handle}) — Collabbs` };
+
+  // Un pseudo inexistant affiche bien la page 404, mais avec un statut HTTP
+  // 200 : le `loading.tsx` de ce segment ouvre une frontière Suspense, et
+  // l'enveloppe de la réponse est déjà partie quand `notFound()` s'exécute.
+  //
+  // Le visiteur ne voit aucune différence. Un moteur de recherche, si : sans
+  // cette directive, il indexerait `/creators/n-importe-quoi` comme une page
+  // valable, autant de fois qu'on lui en donne l'occasion. Le suivi est
+  // aujourd'hui fermé par robots.txt, donc rien n'est indexé — mais cette
+  // ligne doit exister AVANT qu'il s'ouvre, pas après.
+  return { title: "Créateur introuvable — Collabbs", robots: { index: false, follow: false } };
 }
 
 export default async function CreatorProfilePage({

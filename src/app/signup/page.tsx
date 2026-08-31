@@ -3,6 +3,12 @@ import { signup } from "@/app/auth/actions";
 import GoogleButton from "@/components/GoogleButton";
 import { googleActif } from "@/lib/google-auth";
 
+export const metadata = {
+  title: "Créer un compte — Collabbs",
+  description:
+    "Rejoins Collabbs : créateurs et marques, collaborations sous contrat écrit et paiement séquestré. Gratuit pour les créateurs.",
+};
+
 export default async function SignupPage({
   searchParams,
 }: {

@@ -3,6 +3,12 @@ import { login } from "@/app/auth/actions";
 import GoogleButton from "@/components/GoogleButton";
 import { googleActif } from "@/lib/google-auth";
 
+export const metadata = {
+  title: "Se connecter — Collabbs",
+  description:
+    "Connecte-toi à ton espace Collabbs.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {
