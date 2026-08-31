@@ -13,8 +13,14 @@ import { thresholdWith } from "@/lib/legal-threshold";
 import { eur } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
 import { valider } from "@/lib/validation";
-import { termesDealSchema, DEAL_QUANTITE_MAX } from "@/lib/schemas/deals";
+import {
+  termesDealSchema,
+  declarationVuesSchema,
+  DEAL_QUANTITE_MAX,
+} from "@/lib/schemas/deals";
 import { dealBreakdown, PLATFORM_FEE_RATE } from "@/lib/deal";
+import { montantAuxVues } from "@/lib/performance";
+import { reglerCollaborationAuxVues } from "@/lib/performance-reglement";
 
 type Result = { ok: boolean; error?: string };
 
@@ -119,7 +125,7 @@ export async function createDealFromApplication(applicationId: string) {
   const { data: app } = await supabase
     .from("applications")
     .select(
-      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, fixed_amount, campaign_platforms(platform_id))",
+      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, fixed_amount, commission_value, campaign_platforms(platform_id))",
     )
     .eq("id", applicationId)
     .single();
@@ -139,6 +145,14 @@ export async function createDealFromApplication(applicationId: string) {
   const platformId = app.campaigns?.campaign_platforms?.[0]?.platform_id ?? null;
   const amount = app.campaigns?.fixed_amount ?? 0;
 
+  // Le tarif aux vues est RECOPIÉ ici, pas lu à la volée depuis la campagne.
+  // Une marque qui révise sa campagne le mois suivant ne doit pas changer le
+  // prix d'un contrat déjà signé. `amount` reste à 0 : c'est le PLAFOND, et
+  // c'est à la marque de le fixer dans les termes — on ne l'invente pas à sa
+  // place sur de l'argent qu'elle va séquestrer.
+  const perfRate =
+    app.campaigns?.type === "performance" ? (app.campaigns?.commission_value ?? null) : null;
+
   const { data: deal, error } = await supabase
     .from("deals")
     .insert({
@@ -147,6 +161,7 @@ export async function createDealFromApplication(applicationId: string) {
       campaign_id: app.campaign_id,
       title: app.campaigns?.name ?? "Collaboration",
       amount,
+      perf_rate: perfRate,
       format: "video_post",
       platform_id: platformId,
       quantity: 1,
@@ -1286,5 +1301,124 @@ export async function leaveBrandReview(
 
   revalidatePath(`/deals/${dealId}`);
   revalidatePath(`/brands/${deal.brand_id}`);
+  return { ok: true };
+}
+
+/**
+ * Le créateur déclare les vues de son contenu.
+ *
+ * Tant que la marque n'a pas validé, il peut corriger sa déclaration : une
+ * vidéo continue de tourner, et le chiffre saisi lundi n'est plus le bon
+ * mercredi. Après validation, plus rien ne bouge — le montant est réglé.
+ */
+export async function declarerVues(
+  dealId: string,
+  data: { views: number; proofUrl: string },
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("creator_id, brand_id, title, amount, perf_rate, perf_validated_at, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.creator_id !== user.id) return { ok: false, error: "Action non autorisée." };
+  if (deal.perf_rate == null)
+    return { ok: false, error: "Cette collaboration n'est pas payée aux vues." };
+  if (deal.perf_validated_at)
+    return {
+      ok: false,
+      error: "Les vues ont déjà été validées par la marque : le montant est réglé.",
+    };
+  if (deal.status === "cancelled")
+    return { ok: false, error: "Cette collaboration est annulée." };
+
+  const controle = valider(declarationVuesSchema, data);
+  if (!controle.ok) return { ok: false, error: controle.error };
+
+  const { error } = await supabase
+    .from("deals")
+    .update({
+      perf_views: controle.data.views,
+      perf_proof_url: controle.data.proofUrl,
+      perf_declared_at: new Date().toISOString(),
+    })
+    .eq("id", dealId);
+  if (error) return { ok: false, error: error.message };
+
+  const du = montantAuxVues(controle.data.views, Number(deal.perf_rate), Number(deal.amount));
+  await notify({
+    userId: deal.brand_id,
+    type: "deal_delivered",
+    title: `Vues déclarées — « ${deal.title ?? "collaboration"} »`,
+    body: `Le créateur déclare ${controle.data.views.toLocaleString("fr-FR")} vues, soit ${eur(du)}. Vérifie la publication puis valide pour déclencher le versement.`,
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  return { ok: true };
+}
+
+/**
+ * La marque valide les vues déclarées — et c'est ce geste qui fixe le montant.
+ *
+ * Le règlement ramène le séquestre au réel AVANT que la validation soit
+ * inscrite : si le remboursement du reliquat échoue, on ne pose pas une
+ * validation qui autoriserait le versement du plafond entier.
+ */
+export async function validerVues(dealId: string): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id, title, perf_rate, perf_declared_at, perf_validated_at")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
+  if (deal.perf_rate == null)
+    return { ok: false, error: "Cette collaboration n'est pas payée aux vues." };
+  if (!deal.perf_declared_at)
+    return { ok: false, error: "Le créateur n'a pas encore déclaré ses vues." };
+  if (deal.perf_validated_at) return { ok: true };
+
+  const reglement = await reglerCollaborationAuxVues(dealId);
+  if (!reglement.ok)
+    return { ok: false, error: reglement.error ?? "Le règlement de la collaboration a échoué." };
+
+  const { error } = await supabase
+    .from("deals")
+    .update({ perf_validated_at: new Date().toISOString() })
+    .eq("id", dealId);
+  if (error) {
+    // Le reliquat est parti chez la marque et la transaction dit le vrai
+    // montant, mais la validation n'est pas inscrite : le versement restera
+    // bloqué. Personne ne perd d'argent, mais le créateur attend pour rien.
+    await reportError("performance/validation", error, {
+      detail: `Règlement effectué pour le deal ${dealId} (dû ${reglement.du} €, remboursé ${reglement.rembourse} €) mais la validation n'a pas pu être inscrite.`,
+    });
+    return {
+      ok: false,
+      error:
+        "Le montant a été ajusté mais la validation n'a pas pu être enregistrée. Réessaie ; si l'erreur persiste, contacte le support.",
+    };
+  }
+
+  await notify({
+    userId: deal.creator_id,
+    type: "deal_validated",
+    title: `Tes vues sont validées — ${eur(reglement.du ?? 0)}`,
+    body: `La marque a validé les vues déclarées sur « ${deal.title ?? "la collaboration"} ». Le versement part à la clôture de la collaboration.`,
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
   return { ok: true };
 }

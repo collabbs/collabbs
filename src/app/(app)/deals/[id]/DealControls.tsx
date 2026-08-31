@@ -27,9 +27,19 @@ type Props = {
   };
   /** Compteur retouches du deal (passé par la page parent). */
   revisions?: { used: number; max: number };
+  /**
+   * Tarif aux vues (€ / 1000), quand la collaboration en a un.
+   *
+   * Il ne change rien au calcul — le champ écrit toujours `amount` — mais il
+   * change ce que le champ VEUT DIRE. Sur une campagne aux vues, ce montant
+   * n'est pas ce que touchera le créateur : c'est le maximum qu'il pourra
+   * toucher, et ce que la marque va séquestrer. Le libeller « Montant »
+   * laisserait la marque croire qu'elle fixe un forfait.
+   */
+  perfRate?: number | null;
 };
 
-export default function DealControls({ dealId, role, status, deliverables, terms, revisions }: Props) {
+export default function DealControls({ dealId, role, status, deliverables, terms, revisions, perfRate }: Props) {
   const revRemaining = revisions ? Math.max(0, revisions.max - revisions.used) : 0;
   const revMax = revisions?.max ?? 0;
   const router = useRouter();
@@ -114,7 +124,9 @@ export default function DealControls({ dealId, role, status, deliverables, terms
           <h2 className="font-display text-lg font-black text-ink">Ajuster les termes</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
-              <span className="text-xs font-semibold text-zinc-500">Montant (€)</span>
+              <span className="text-xs font-semibold text-zinc-500">
+                {perfRate ? "Plafond (€)" : "Montant (€)"}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -122,6 +134,15 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                 onChange={(e) => setAmount(Number(e.target.value))}
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
               />
+              {perfRate ? (
+                <span className="mt-1 block text-xs text-zinc-500">
+                  Payé {perfRate} € / 1000 vues, dans la limite de ce plafond
+                  {amount > 0 && (
+                    <> — soit le maximum atteint à {Math.ceil((amount / perfRate) * 1000).toLocaleString("fr-FR")} vues</>
+                  )}
+                  . C&apos;est ce montant que tu séquestres ; le reliquat te revient.
+                </span>
+              ) : null}
             </label>
             <label className="text-sm">
               <span className="text-xs font-semibold text-zinc-500">Quantité de contenus</span>

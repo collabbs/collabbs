@@ -114,12 +114,21 @@ export async function ensureCheckoutSessionRecorded(
  * Synchronise un remboursement Stripe avec notre table `transactions`.
  * Si la transaction est encore en séquestre → marque "refunded". Si elle a
  * déjà été versée (released/paid), on ne touche pas (clawback hors MVP).
+ *
+ * ⚠️ **Seul un remboursement TOTAL solde le séquestre.** Les collaborations
+ * payées aux vues remboursent volontairement une partie du plafond — le
+ * reliquat entre le maximum séquestré et les vues réellement faites. Traiter
+ * ce remboursement partiel comme un solde ferait passer la transaction à
+ * "refunded" et le créateur ne serait JAMAIS payé, alors que l'argent qui lui
+ * revient est toujours là. `charge.refunded` ne vaut `true` que lorsque la
+ * totalité a été rendue : c'est exactement la question qu'on pose ici.
  */
 export async function handleChargeRefunded(
   charge: Stripe.Charge,
 ): Promise<{ ok: boolean; updated?: boolean }> {
   const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
   if (!pi) return { ok: false };
+  if (!charge.refunded) return { ok: true, updated: false };
 
   const admin = createAdminClient();
   const { data: tx } = await admin

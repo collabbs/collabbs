@@ -19,6 +19,7 @@ import DealControls from "./DealControls";
 import ReviewBox from "./ReviewBox";
 import RefundButton from "./RefundButton";
 import ReceiveButton from "./ReceiveButton";
+import PerformancePanel from "./PerformancePanel";
 import DealTimeline from "./DealTimeline";
 
 export async function generateMetadata({
@@ -107,7 +108,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at",
     )
     .eq("id", id)
     .single();
@@ -208,6 +209,13 @@ export default async function DealDetailPage({
       payment.status === "released" ||
       payment.status === "paid");
   const paymentPaidAt = paymentPaid ? payment?.created_at ?? null : null;
+
+  // Sur une collaboration aux vues, tant que la marque n'a pas validé, le
+  // montant affiché n'est PAS une rémunération : c'est un plafond. L'écrire
+  // « Ta rémunération : 400 € » ferait au créateur une promesse que le produit
+  // ne tiendra pas s'il fait 6 000 vues — et laisserait croire à la marque
+  // qu'elle doit 400 € quand elle en devra 48.
+  const auxVuesEnAttente = deal.perf_rate != null && !deal.perf_validated_at;
   const paymentReleased =
     payment !== null &&
     (payment.status === "released" || payment.status === "paid");
@@ -364,6 +372,23 @@ export default async function DealDetailPage({
             )}
           </div>
 
+          {/* Vues — uniquement sur les collaborations payées à la performance.
+              Placé AVANT le contrat : c'est l'action du moment, le contrat se
+              consulte. */}
+          {deal.perf_rate != null && deal.amount > 0 && (
+            <PerformancePanel
+              dealId={deal.id}
+              role={role}
+              rate={Number(deal.perf_rate)}
+              cap={Number(deal.amount)}
+              views={deal.perf_views}
+              proofUrl={deal.perf_proof_url}
+              declaredAt={deal.perf_declared_at}
+              validatedAt={deal.perf_validated_at}
+              enSequestre={paymentPaid}
+            />
+          )}
+
           {/* Contrat */}
           {contract && (
             <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
@@ -486,6 +511,7 @@ export default async function DealDetailPage({
             dealId={deal.id}
             role={role}
             status={status}
+            perfRate={deal.perf_rate != null ? Number(deal.perf_rate) : null}
             deliverables={await Promise.all(
               deliverables.map(async (dv) => {
                 const rawFiles = Array.isArray(dv.submission_files)
@@ -552,7 +578,13 @@ export default async function DealDetailPage({
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-zinc-500">
-                  {role === "brand" ? "Pour le créateur" : "Ta rémunération"}
+                  {auxVuesEnAttente
+                    ? role === "brand"
+                      ? "Plafond pour le créateur"
+                      : "Ta rémunération maximum"
+                    : role === "brand"
+                      ? "Pour le créateur"
+                      : "Ta rémunération"}
                 </dt>
                 <dd className="font-semibold text-ink">{eur(b.net)}</dd>
               </div>
@@ -571,15 +603,26 @@ export default async function DealDetailPage({
                       il n'y a plus rien à régler. */}
                   {role === "brand"
                     ? payment && payment.status !== "refunded"
-                      ? "Réglé"
+                      ? auxVuesEnAttente
+                        ? "Séquestré"
+                        : "Réglé"
                       : "À régler"
-                    : "Tu reçois"}
+                    : auxVuesEnAttente
+                      ? "Tu reçois au maximum"
+                      : "Tu reçois"}
                 </dt>
                 <dd className="font-display text-lg font-black text-ink">
                   {role === "brand" ? eur(b.gross) : eur(b.net)}
                 </dd>
               </div>
             </dl>
+
+            {auxVuesEnAttente && (
+              <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
+                Montant fixé aux vues réelles, une fois déclarées par le créateur et validées par la
+                marque. Ce qui n&apos;est pas dû sur le plafond est remboursé.
+              </p>
+            )}
 
             {payment && (payment.status === "released" || payment.status === "paid") ? (
               <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
@@ -639,8 +682,12 @@ export default async function DealDetailPage({
                     montant, plutôt que de laisser le bouton échouer. */}
                 {status === "negotiation" && deal.amount <= 0
                   ? role === "brand"
-                    ? "✏️ Montant à fixer. Cette collaboration est à 0 € : utilise « Modifier les termes » pour indiquer ce que tu proposes. Le créateur ne peut pas accepter avant."
-                    : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
+                    ? deal.perf_rate != null
+                      ? `✏️ Plafond à fixer. Cette campagne paie ${deal.perf_rate} € / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`
+                      : "✏️ Montant à fixer. Cette collaboration est à 0 € : utilise « Modifier les termes » pour indiquer ce que tu proposes. Le créateur ne peut pas accepter avant."
+                    : deal.perf_rate != null
+                      ? `✏️ La marque n'a pas encore fixé le plafond de cette collaboration aux vues (${deal.perf_rate} € / 1000 vues). Tu seras prévenu·e dès qu'elle l'aura indiqué.`
+                      : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
                   : status === "negotiation"
                     ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."
                     : status === "active"

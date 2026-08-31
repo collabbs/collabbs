@@ -1215,6 +1215,11 @@ export type Database = {
       }
       deals: {
         Row: {
+          perf_rate: number | null
+          perf_views: number | null
+          perf_proof_url: string | null
+          perf_declared_at: string | null
+          perf_validated_at: string | null
           accepted_at: string | null
           amount: number
           brand_id: string
@@ -1245,6 +1250,11 @@ export type Database = {
           usage_rights_months: number | null
         }
         Insert: {
+          perf_rate?: number | null
+          perf_views?: number | null
+          perf_proof_url?: string | null
+          perf_declared_at?: string | null
+          perf_validated_at?: string | null
           accepted_at?: string | null
           amount: number
           brand_id: string
@@ -1275,6 +1285,11 @@ export type Database = {
           usage_rights_months?: number | null
         }
         Update: {
+          perf_rate?: number | null
+          perf_views?: number | null
+          perf_proof_url?: string | null
+          perf_declared_at?: string | null
+          perf_validated_at?: string | null
           accepted_at?: string | null
           amount?: number
           brand_id?: string

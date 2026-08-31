@@ -34,11 +34,25 @@ export async function attemptDealPayout(
 
   const { data: deal } = await admin
     .from("deals")
-    .select("creator_id, status")
+    .select("creator_id, status, perf_rate, perf_validated_at")
     .eq("id", dealId)
     .single();
   if (!deal || deal.status !== "completed")
     return { released: false, reason: "other", error: "Le deal n'est pas terminé." };
+
+  // Point de passage OBLIGÉ des versements — le bouton de la marque comme
+  // l'automate de délais entrent par ici. C'est donc le seul endroit où placer
+  // ce garde-fou : sur une collaboration payée aux vues, le séquestre vaut le
+  // PLAFOND. Le verser sans validation reviendrait à payer le maximum pour un
+  // contenu qui n'a peut-être fait que le dixième des vues, et la marque
+  // n'aurait aucun recours : l'argent serait parti.
+  if (deal.perf_rate != null && !deal.perf_validated_at)
+    return {
+      released: false,
+      reason: "other",
+      error:
+        "Les vues n'ont pas encore été validées. Tant qu'elles ne le sont pas, le montant dû n'est pas fixé et le séquestre vaut le plafond.",
+    };
 
   const { data: tx } = await admin
     .from("transactions")
@@ -48,6 +62,10 @@ export async function attemptDealPayout(
     .maybeSingle();
   if (!tx) return { released: false, reason: "other", error: "Aucun paiement en séquestre." };
   if (tx.status === "released" || tx.status === "paid") return { released: true };
+  // Zéro vue validée : tout le plafond est déjà reparti chez la marque et la
+  // transaction a été soldée. Il n'y a rien à verser — et surtout pas d'erreur
+  // à afficher, la collaboration s'est déroulée normalement.
+  if (tx.status === "refunded" && Number(tx.net_amount) === 0) return { released: true };
   if (tx.status !== "in_escrow")
     return { released: false, reason: "other", error: "Ce paiement ne peut pas être versé." };
 

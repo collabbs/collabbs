@@ -34,6 +34,38 @@ export const DEAL_MONTANT_MAX = 200_000;
 /** Nombre maximum de contenus pour une même collaboration. */
 export const DEAL_QUANTITE_MAX = 100;
 
+/**
+ * Plafond de vues déclarables : 5 milliards, soit davantage que la vidéo la
+ * plus vue de l'histoire. Ce n'est pas une limite commerciale — le plafond du
+ * séquestre borne déjà la dépense — mais un garde-fou contre la touche restée
+ * enfoncée, sur un champ qui se transforme en euros.
+ */
+export const VUES_MAX = 5_000_000_000;
+
+/**
+ * Déclaration de vues par le créateur.
+ *
+ * Le lien du contenu est EXIGÉ, et c'est délibéré : les vues ne sont pas
+ * vérifiables automatiquement (il faudrait les comptes développeurs TikTok et
+ * Instagram, qu'on n'a pas). La marque valide donc à la main, et elle ne peut
+ * le faire que si elle peut aller voir. Une déclaration sans lien lui
+ * demanderait de signer un chèque les yeux fermés.
+ */
+export const declarationVuesSchema = z.object({
+  views: nombreEntier({
+    quoi: "Le nombre de vues",
+    min: 0,
+    max: VUES_MAX,
+  }),
+  proofUrl: z
+    .string()
+    .trim()
+    .min(1, { error: "Ajoute le lien de ton contenu publié : c'est ce que la marque va vérifier." })
+    .refine((v) => /^https?:\/\/.+\..+/.test(v), {
+      error: "Ce lien ne ressemble pas à une adresse valide. Copie-colle l'URL de ta publication.",
+    }),
+});
+
 export const termesDealSchema = z.object({
   /**
    * En euros ENTIERS : la colonne l'est. On refuse la virgule au lieu de
