@@ -482,6 +482,11 @@ export default async function DealDetailPage({
               engagement={engagement}
               montantSuggere={deal.amount}
               quantiteSuggeree={deal.quantity}
+              // Cumul annuel DÉJÀ acquis avec cette contrepartie, hors cette
+              // collaboration : le panneau y ajoute le coût du partenariat pour
+              // dire si le seuil légal sera franchi. Sans ça, l'avertissement
+              // arriverait au mois où ça bloque, pas au moment de s'engager.
+              cumulAnnuel={Math.max(0, thresholdState.total - deal.amount)}
             />
           )}
 

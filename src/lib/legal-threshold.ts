@@ -21,8 +21,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * donc un plancher, jamais un quitus.
  */
 
-/** Seuil légal, en euros hors taxes, par couple marque × créateur et par année civile. */
-export const LEGAL_THRESHOLD = 1000;
+/**
+ * Seuil légal, en euros hors taxes, par couple marque × créateur et par année civile.
+ * Défini dans `legal-threshold-const` pour rester lisible côté navigateur, et
+ * réexporté ici pour que les appelants serveur n'aient pas à savoir où il vit.
+ */
+export { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
+import { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
 
 /** À partir de quelle part du seuil on prévient qu'on s'en approche. */
 const WARN_RATIO = 0.7;

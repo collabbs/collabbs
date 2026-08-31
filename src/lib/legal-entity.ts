@@ -29,11 +29,21 @@ export const LEGAL_ENTITY = {
   country: "France",
   siret: "947 466 918 00010",
   /**
-   * ⚠️ À CONFIRMER — déduit du SIREN et du greffe compétent (Tours), non lu
-   * dans un document officiel. Vérifier l'immatriculation exacte sur
-   * annuaire-entreprises.data.gouv.fr avant l'ouverture au public.
+   * Immatriculation, vérifiée le 31/08/2026 sur le registre public
+   * (`recherche-entreprises.api.gouv.fr`, SIREN 947466918).
+   *
+   * Le champ s'appelait « RCS » et portait un numéro DÉDUIT du greffe de Tours,
+   * jamais lu dans un document officiel. Or le registre public ne publie aucun
+   * numéro RCS pour cette entreprise, et c'est normal : depuis le 1er janvier
+   * 2023, le registre du commerce et le répertoire des métiers ont fusionné
+   * dans le **Registre National des Entreprises** pour les entrepreneurs
+   * individuels. La mention exacte est donc le RNE, avec le SIREN — et le
+   * registre confirme l'inscription (dernière mise à jour RNE : 15/07/2026).
+   *
+   * Inventer un « RCS Tours 947 466 918 » aurait produit une mention légale
+   * fausse, ce que ces pages sont précisément censées empêcher.
    */
-  rcs: TODO,
+  registration: "Immatriculée au Registre National des Entreprises (RNE) — SIREN 947 466 918",
   vat: "FR66947466918",
   publicationDirector: "Julien Dreneau",
   contactEmail: "contact@collabbs.com",

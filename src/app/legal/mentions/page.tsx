@@ -40,7 +40,7 @@ export default function MentionsPage() {
               ["Capital social", E.capital],
               ["Siège social", `${E.address}, ${E.zip} ${E.city}, ${E.country}`],
               ["SIRET", E.siret],
-              ["RCS", E.rcs],
+              ["Immatriculation", E.registration],
               ["TVA intracommunautaire", E.vat],
               ["Directeur de la publication", E.publicationDirector],
               ["Contact", E.contactEmail],

@@ -11,6 +11,7 @@ import {
   prochaineEcheance,
 } from "@/lib/ambassadeur";
 import { eur } from "@/lib/deal";
+import { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
 
 export type EngagementVu = {
   id: string;
@@ -37,12 +38,15 @@ export default function EngagementPanel({
   engagement,
   montantSuggere,
   quantiteSuggeree,
+  cumulAnnuel,
 }: {
   dealId: string;
   role: "brand" | "creator";
   engagement: EngagementVu | null;
   montantSuggere: number;
   quantiteSuggeree: number;
+  /** Ce que ce couple marque × créateur a déjà cumulé cette année civile. */
+  cumulAnnuel: number;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -214,6 +218,23 @@ export default function EngagementPanel({
               Tu peux y mettre fin à tout moment : les mois non ouverts ne sont pas dus.
             </span>
           </p>
+
+          {/* Un partenariat récurrent franchit le seuil légal PAR CONSTRUCTION :
+              300 €/mois sur 6 mois font 1 800 €. Au mois où le cumul dépasse
+              1 000 €, `acceptDeal` exige les coordonnées légales complètes des
+              deux parties — et sans elles, le créateur ne peut plus rien
+              accepter. L'automate continuerait d'ouvrir des mois qu'il
+              refuserait sans comprendre. On le dit AVANT de s'engager, pas au
+              mois où ça bloque. */}
+          {cumulAnnuel + coutTotal(montant, mois) >= LEGAL_THRESHOLD && (
+            <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+              ⚖️ Ce partenariat porte le cumul annuel avec ce créateur à{" "}
+              <strong>{eur(cumulAnnuel + coutTotal(montant, mois))}</strong>, au-delà du seuil légal
+              de {eur(LEGAL_THRESHOLD)}. Le contrat écrit complet devient obligatoire : vous devrez
+              tous les deux avoir renseigné vos coordonnées légales (SIRET, adresse) avant que le
+              créateur puisse accepter les mois concernés.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <button
