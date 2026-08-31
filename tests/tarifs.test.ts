@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { TARIFS, planValide, tauxCollab, tauxAffiliation } from "@/lib/tarifs";
+import { TARIFS, planValide, tauxCollab, tauxAffiliation, limiteCampagnesActives } from "@/lib/tarifs";
+import { messageCapaciteAtteinte } from "@/lib/limites";
 
 describe("grille tarifaire", () => {
   it("un plan inconnu vaut gratuit, jamais un tarif avantageux", () => {
@@ -24,5 +25,49 @@ describe("grille tarifaire", () => {
     // il est rentable à partir de 4 950 € de collaborations par mois.
     const economie = TARIFS.free.tauxCollab - TARIFS.growth.tauxCollab;
     expect(Math.round(TARIFS.growth.prix / economie)).toBe(4950);
+  });
+});
+
+describe("limiteCampagnesActives", () => {
+  it("donne la capacité de chaque plan", () => {
+    expect(limiteCampagnesActives("free")).toBe(1);
+    expect(limiteCampagnesActives("growth")).toBe(5);
+    // Scale : sans limite.
+    expect(limiteCampagnesActives("scale")).toBeNull();
+  });
+
+  it("retombe sur le plan gratuit pour une valeur inconnue", () => {
+    // Jamais l'inverse : on n'offre pas la capacité d'un plan non souscrit.
+    expect(limiteCampagnesActives(null)).toBe(1);
+    expect(limiteCampagnesActives("entreprise")).toBe(1);
+  });
+});
+
+describe("messageCapaciteAtteinte", () => {
+  it("dit le plan, le compte, et les DEUX façons d'avancer", () => {
+    const m = messageCapaciteAtteinte({
+      plan: "free",
+      libellePlan: "Gratuit",
+      actives: 1,
+      limite: 1,
+      disponible: false,
+    });
+    expect(m).toContain("Gratuit");
+    expect(m).toContain("une seule campagne active");
+    // La sortie gratuite est proposée avant la sortie payante.
+    expect(m.indexOf("pause")).toBeLessThan(m.indexOf("plan supérieur"));
+    // Et on rassure sur ce qui n'est PAS bloqué.
+    expect(m).toContain("collaborations en cours");
+  });
+
+  it("accorde le pluriel sur un plan à plusieurs campagnes", () => {
+    const m = messageCapaciteAtteinte({
+      plan: "growth",
+      libellePlan: "Growth",
+      actives: 5,
+      limite: 5,
+      disponible: false,
+    });
+    expect(m).toContain("5 campagnes actives");
   });
 });

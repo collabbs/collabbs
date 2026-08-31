@@ -21,11 +21,22 @@
  *   pourcentage de la commission versée au créateur — soit environ 2 % du
  *   chiffre d'affaires généré, ce qui est la bonne façon de l'annoncer.
  *
- * ─── L'abonnement n'ouvre pas de portes, il achète un taux ───
- * C'est ce que font Collabstr (10 % → 5 %) et Insense (20 % → 7 %), et c'est
- * ce qui rend l'abonnement calculable par la marque : « ce mois-ci, tu aurais
- * économisé X € ». Un plan gratuit amputé ferait fuir au moment exact où la
- * marque découvre le produit.
+ * ─── L'abonnement achète d'abord un taux, et une capacité ───
+ * Le taux d'abord, parce que c'est ce qui rend l'abonnement calculable par la
+ * marque : « ce mois-ci, tu aurais économisé X € ». C'est ce que font
+ * Collabstr (10 % → 5 %) et Insense (20 % → 7 %).
+ *
+ * Et une capacité : le nombre de campagnes ouvertes EN MÊME TEMPS. La règle
+ * qui décide de ce qu'on limite tient en une phrase : **on limite la vitrine,
+ * jamais la caisse.** Ouvrir une deuxième campagne est un geste de croissance,
+ * on peut demander à le payer. Encaisser une collaboration, verser un
+ * créateur, honorer un contrat signé : jamais. Bloquer ça reviendrait à
+ * bloquer le chiffre d'affaires de la marque — et le nôtre avec.
+ *
+ * Corollaire, écrit ici parce qu'il est facile à oublier : la fin d'un
+ * abonnement NE FERME PAS les campagnes déjà ouvertes. Elle empêche d'en
+ * ouvrir de nouvelles. Fermer d'un coup quatre campagnes actives laisserait
+ * des créateurs en plan au milieu de collaborations en cours.
  */
 
 /** Les plans, dans l'ordre croissant. */
@@ -40,12 +51,21 @@ type Tarif = {
   tauxCollab: number;
   /** Part prélevée sur une commission d'affiliation (provision). */
   tauxAffiliation: number;
+  /**
+   * Campagnes ouvertes simultanément. `null` = sans limite.
+   *
+   * Ne compte QUE les campagnes actives : un brouillon ne coûte rien à
+   * personne, et une campagne terminée non plus. La marque reste donc libre
+   * de préparer autant de campagnes qu'elle veut et de les faire tourner
+   * l'une après l'autre — c'est la simultanéité qui se paie.
+   */
+  campagnesActives: number | null;
 };
 
 export const TARIFS: Record<Plan, Tarif> = {
-  free: { libelle: "Gratuit", prix: 0, tauxCollab: 0.1, tauxAffiliation: 0.2 },
-  growth: { libelle: "Growth", prix: 99, tauxCollab: 0.08, tauxAffiliation: 0.18 },
-  scale: { libelle: "Scale", prix: 299, tauxCollab: 0.05, tauxAffiliation: 0.15 },
+  free: { libelle: "Gratuit", prix: 0, tauxCollab: 0.1, tauxAffiliation: 0.2, campagnesActives: 1 },
+  growth: { libelle: "Growth", prix: 99, tauxCollab: 0.08, tauxAffiliation: 0.18, campagnesActives: 5 },
+  scale: { libelle: "Scale", prix: 299, tauxCollab: 0.05, tauxAffiliation: 0.15, campagnesActives: null },
 };
 
 /**
@@ -64,4 +84,9 @@ export function tauxCollab(plan?: string | null): number {
 
 export function tauxAffiliation(plan?: string | null): number {
   return TARIFS[planValide(plan)].tauxAffiliation;
+}
+
+/** Combien de campagnes ce plan autorise à faire tourner en même temps. */
+export function limiteCampagnesActives(plan?: string | null): number | null {
+  return TARIFS[planValide(plan)].campagnesActives;
 }

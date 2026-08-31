@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
 
+import { capaciteCampagnes } from "@/lib/limites";
+
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -36,6 +38,7 @@ export default async function MyCampaignsPage() {
     .eq("brand_id", user.id)
     .order("created_at", { ascending: false });
   const campaigns = campaignsRes.data ?? [];
+  const capacite = await capaciteCampagnes(user.id);
   const campaignIds = campaigns.map((c) => c.id);
 
   const [linksRes, appsRes] = await Promise.all([
@@ -114,15 +117,47 @@ export default async function MyCampaignsPage() {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-3xl font-black tracking-tight text-ink">
-            Mes campagnes
-          </h1>
-          <Link
-            href="/campaigns/new"
-            className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            Créer une campagne
-          </Link>
+          <div>
+            <h1 className="font-display text-3xl font-black tracking-tight text-ink">
+              Mes campagnes
+            </h1>
+            {/* Le compteur est affiché AVANT que la marque bute dessus. Une
+                limite qu'on découvre au moment d'être refusé est vécue comme
+                un piège ; annoncée d'avance, c'est une règle. */}
+            {capacite.limite !== null && (
+              <p className="mt-1 text-sm text-zinc-500">
+                {capacite.actives} / {capacite.limite} campagne
+                {capacite.limite > 1 ? "s" : ""} active{capacite.limite > 1 ? "s" : ""} · plan{" "}
+                {capacite.libellePlan}
+                {!capacite.disponible && (
+                  <>
+                    {" — "}
+                    <Link href="/billing" className="font-semibold text-purple-700 underline">
+                      passe au plan supérieur
+                    </Link>{" "}
+                    ou mets-en une en pause pour en ouvrir une autre.
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+          {capacite.disponible ? (
+            <Link
+              href="/campaigns/new"
+              className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Créer une campagne
+            </Link>
+          ) : (
+            // Le bouton reste visible mais inactif : le masquer laisserait la
+            // marque chercher une fonction qu'elle a déjà utilisée hier.
+            <span
+              title="Plafond de ton plan atteint"
+              className="cursor-not-allowed rounded-full bg-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-500"
+            >
+              Créer une campagne
+            </span>
+          )}
         </div>
 
         {campaigns.length === 0 ? (

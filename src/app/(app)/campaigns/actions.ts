@@ -7,6 +7,7 @@ import { settleSale } from "@/lib/affiliate-billing";
 import { valider } from "@/lib/validation";
 import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
 import { reportError } from "@/lib/report-error";
+import { capaciteCampagnes, messageCapaciteAtteinte } from "@/lib/limites";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -154,6 +155,14 @@ export async function createCampaign(
   // Si elle a explicitement saisi targetUrl, on respecte son choix.
   const targetUrl =
     data.targetUrl.trim() || (withAffiliation ? data.productUrl.trim() : "");
+
+  // Capacité du plan. Contrôlée ICI, juste avant l'insertion : la marque a
+  // rempli tout son formulaire, on ne lui fait pas perdre sa saisie plus tôt
+  // qu'il ne faut, et on ne la laisse pas non plus découvrir le plafond après
+  // coup. Le comptage vient de la base, pas de l'écran : une limite affichée
+  // se contournerait en rechargeant la page.
+  const capacite = await capaciteCampagnes(user.id);
+  if (!capacite.disponible) return { ok: false, error: messageCapaciteAtteinte(capacite) };
 
   const { data: inserted, error } = await supabase
     .from("campaigns")
@@ -431,6 +440,17 @@ export async function setCampaignStatus(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  // Rouvrir une campagne mise en pause, c'est ouvrir une campagne. Sans ce
+  // second contrôle, la limite se contournait en trois clics : créer, mettre
+  // en pause, créer, tout réactiver.
+  //
+  // La mise en pause, elle, n'est JAMAIS bloquée — c'est précisément le geste
+  // qui libère de la place.
+  if (status === "active") {
+    const capacite = await capaciteCampagnes(user.id);
+    if (!capacite.disponible) return { ok: false, error: messageCapaciteAtteinte(capacite) };
+  }
 
   const { error } = await supabase
     .from("campaigns")

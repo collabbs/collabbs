@@ -20,6 +20,14 @@ type Plan = {
  *
  * Ce que l'abonnement change est plus simple, et vrai : le TAUX. C'est le
  * modèle de Collabstr (10 % → 5 %) et d'Insense (20 % → 7 %).
+ *
+ * S'y ajoute UNE limite, et elle est réellement appliquée (voir `lib/limites`)
+ * : le nombre de campagnes ouvertes en même temps. Elle respecte la règle —
+ * on limite la vitrine, jamais la caisse. Le plan gratuit peut encaisser
+ * autant de collaborations qu'il veut sur sa campagne ; c'est la simultanéité
+ * qui se paie. Chaque ligne ci-dessous doit rester vérifiable dans le code :
+ * une promesse tarifaire que le produit n'applique pas est un mensonge, et
+ * une limite appliquée mais tue en est un autre.
  */
 const PLANS: Plan[] = [
   {
@@ -27,6 +35,7 @@ const PLANS: Plan[] = [
     price: "0",
     desc: "Tout le produit, sans engagement",
     features: [
+      "1 campagne active à la fois",
       "Collaborations et liens d'affiliation illimités",
       "Contrat écrit conforme et paiement séquestré",
       "Code promo, CPA, concours",
@@ -43,6 +52,7 @@ const PLANS: Plan[] = [
     desc: "Rentable dès 4 950 € de collabs / mois",
     features: [
       "Tout le plan gratuit",
+      "5 campagnes actives en même temps",
       "Support prioritaire 12h",
       "Templates de brief",
       "8 % sur les collaborations · 18 % sur l'affiliation",
@@ -57,6 +67,7 @@ const PLANS: Plan[] = [
     desc: "Rentable dès 5 980 € de collabs / mois",
     features: [
       "Tout le plan Growth",
+      "Campagnes actives illimitées",
       "Plusieurs utilisateurs",
       "Account manager dédié",
       "5 % sur les collaborations · 15 % sur l'affiliation",
