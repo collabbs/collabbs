@@ -49,8 +49,6 @@ function constantTimeEqual(a: string, b: string): boolean {
 const eur = (n: number) =>
   n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 async function handle(p: Payload) {
   if (!p.code || !p.actionId) {
     return NextResponse.json(
@@ -68,7 +66,7 @@ async function handle(p: Payload) {
     return NextResponse.json({ ok: false, error: "secret manquant" }, { status: 401 });
   }
 
-  const supabase: any = createAdminClient();
+  const supabase = createAdminClient();
 
   const { data: link } = await supabase
     .from("affiliate_links")

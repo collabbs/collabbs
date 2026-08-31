@@ -210,8 +210,6 @@ export function tooManyRequests(retryAfter: number): Response {
   );
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Consomme un jeton en base pour cette clé.
  *
@@ -225,7 +223,7 @@ export async function checkRateLimit(
   if (!key) return { allowed: true };
 
   try {
-    const admin: any = createAdminClient();
+    const admin = createAdminClient();
     const { data, error } = await admin.rpc("consume_rate_limit", {
       p_key: key,
       p_limit: policy.limit,
@@ -266,7 +264,7 @@ export async function checkRateLimit(
  */
 export async function purgeRateLimitBuckets(): Promise<number> {
   try {
-    const admin: any = createAdminClient();
+    const admin = createAdminClient();
     const { data, error } = await admin.rpc("purge_rate_limit_buckets");
     if (error) {
       await reportError("rate-limit/purge", error);

@@ -1,8 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Signale une erreur de production.
  *
@@ -43,14 +41,17 @@ export async function reportError(
     .join("\n\n");
 
   try {
-    const admin: any = createAdminClient();
+    const admin = createAdminClient();
     await admin.rpc("report_error", {
       p_context: context,
       // Le message sert de clé de regroupement : on retire les identifiants
       // pour qu'une même panne ne crée pas mille lignes distinctes.
       p_message: normalizeMessage(message),
-      p_detail: detail || null,
-      p_user: meta?.userId ?? null,
+      // `undefined` et non `null` : ces deux paramètres SQL sont en
+      // `default null`. Omettre la clé revient exactement au même côté
+      // Postgres, et c'est ce que le type exige.
+      p_detail: detail || undefined,
+      p_user: meta?.userId ?? undefined,
     });
   } catch {
     // Signaler une erreur ne doit jamais en provoquer une autre. Si la base

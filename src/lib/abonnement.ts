@@ -2,8 +2,6 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { planValide, type Plan } from "@/lib/tarifs";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Le plan d'une marque, tel qu'il doit être appliqué MAINTENANT.
  *
@@ -18,7 +16,7 @@ import { planValide, type Plan } from "@/lib/tarifs";
  */
 export async function planDeLaMarque(brandId: string | null | undefined): Promise<Plan> {
   if (!brandId) return "free";
-  const admin: any = createAdminClient();
+  const admin = createAdminClient();
   const { data } = await admin
     .from("brands")
     .select("plan, plan_expires_at")
@@ -35,7 +33,7 @@ export async function planDeLaMarque(brandId: string | null | undefined): Promis
  * Passe par le deal : c'est elle qui paie la commission, pas le créateur.
  */
 export async function planPourDeal(dealId: string): Promise<Plan> {
-  const admin: any = createAdminClient();
+  const admin = createAdminClient();
   const { data } = await admin
     .from("deals")
     .select("brand_id")

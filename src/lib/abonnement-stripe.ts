@@ -5,7 +5,37 @@ import { ensureBrandCustomer } from "@/lib/affiliate-billing";
 import { reportError } from "@/lib/report-error";
 import { TARIFS, planValide, type Plan } from "@/lib/tarifs";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * ─── Pourquoi des formes structurelles plutôt que les types Stripe ───
+ * Ce fichier lisait ses objets Stripe en `any`, et c'est très exactement ce
+ * qui a coûté un mois d'abonnement : `invoice.subscription` a changé de place
+ * dans l'API, personne n'a été prévenu, et le renouvellement sortait en
+ * silence.
+ *
+ * Les types du SDK ne protègent pas mieux — ils décrivent UNE version d'API,
+ * et le compte peut en servir une autre. On déclare donc ici ce qu'on LIT
+ * réellement, en tolérant l'absence de chaque champ. C'est plus honnête : le
+ * type dit « ce champ peut ne pas être là », ce qui est la vérité, au lieu de
+ * `any` qui ne dit rien, ou du type Stripe qui affirme une certitude fausse.
+ */
+
+/** Ce qu'on lit d'un abonnement Stripe, et rien de plus. */
+type AbonnementStripe = {
+  id?: string;
+  /**
+   * A migré vers `items.data[].current_period_end` dans l'API récente. On lit
+   * les deux : c'est la même leçon que `identifiantAbonnement` plus bas.
+   */
+  current_period_end?: number | null;
+  items?: { data?: { current_period_end?: number | null }[] } | null;
+  metadata?: { brand_id?: string; plan?: string } | null;
+};
+
+/** Ce qu'on lit d'une facture Stripe. */
+type FactureStripe = {
+  subscription?: unknown;
+  parent?: { subscription_details?: { subscription?: unknown } | null } | null;
+};
 
 /**
  * Souscription et gestion d'un abonnement de marque.
@@ -83,7 +113,11 @@ export async function enregistrerAbonnement(session: {
   let expiresAt: string | null = null;
   if (subscriptionId) {
     try {
-      const sub: any = await stripe.subscriptions.retrieve(subscriptionId);
+      // Le seul transtypage du fichier, et il est à la frontière : le SDK
+      // décrit une version d'API, le compte peut en servir une autre.
+      const sub = (await stripe.subscriptions.retrieve(
+        subscriptionId,
+      )) as unknown as AbonnementStripe;
       const fin = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
       if (fin) expiresAt = new Date(fin * 1000).toISOString();
     } catch (e) {
@@ -93,7 +127,7 @@ export async function enregistrerAbonnement(session: {
     }
   }
 
-  const admin: any = createAdminClient();
+  const admin = createAdminClient();
   const { error } = await admin
     .from("brands")
     .update({ plan, stripe_subscription_id: subscriptionId, plan_expires_at: expiresAt })
@@ -147,19 +181,21 @@ export function identifiantAbonnement(invoice: {
   return null;
 }
 
-export async function prolongerAbonnement(invoice: any): Promise<{ ok: boolean }> {
+export async function prolongerAbonnement(invoice: FactureStripe): Promise<{ ok: boolean }> {
   const subscriptionId = identifiantAbonnement(invoice);
   if (!subscriptionId) return { ok: false };
 
-  let sub: any;
+  let sub: AbonnementStripe;
   try {
-    sub = await stripe.subscriptions.retrieve(subscriptionId);
+    sub = (await stripe.subscriptions.retrieve(
+      subscriptionId,
+    )) as unknown as AbonnementStripe;
   } catch (e) {
     await reportError("abonnement/prolongation", e, { detail: subscriptionId });
     return { ok: false };
   }
 
-  const admin: any = createAdminClient();
+  const admin = createAdminClient();
 
   // Les métadonnées de l'abonnement sont la source normale — le Checkout les
   // pose. Mais un abonnement créé depuis le tableau de bord Stripe, repris
@@ -204,8 +240,8 @@ export async function prolongerAbonnement(invoice: any): Promise<{ ok: boolean }
  * On ne rétrograde pas au-delà de ce qui est déjà payé — Stripe n'envoie cet
  * évènement qu'au terme de la période réglée.
  */
-export async function cloturerAbonnement(sub: any): Promise<{ ok: boolean }> {
-  const admin: any = createAdminClient();
+export async function cloturerAbonnement(sub: AbonnementStripe): Promise<{ ok: boolean }> {
+  const admin = createAdminClient();
 
   // Même repli qu'à la prolongation, et il compte davantage ici : sans lui,
   // une résiliation dont l'abonnement n'a pas de métadonnée laisserait la
@@ -240,7 +276,7 @@ export async function cloturerAbonnement(sub: any): Promise<{ ok: boolean }> {
  * d'administration et les statistiques disent la même chose que le calcul.
  */
 export async function expirerAbonnementsEchus(): Promise<number> {
-  const admin: any = createAdminClient();
+  const admin = createAdminClient();
   const { data, error } = await admin.rpc("expire_brand_plans");
   if (error) {
     await reportError("abonnement/expiration", error);
