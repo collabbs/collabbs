@@ -13,17 +13,19 @@ const COLUMNS = [
   {
     title: "Entreprise",
     links: [
-      { label: "À propos", href: "#" },
+      // « À propos » pointait sur `#` : un lien qui ne mène nulle part. On le
+      // remettra le jour où la page existera — annoncer une rubrique absente
+      // apprend au visiteur que les liens de ce site ne sont pas fiables, et
+      // il cessera de cliquer sur les autres.
       { label: "Contact", href: "mailto:contact@collabbs.com" },
     ],
   },
-  {
-    title: "Légal",
-    links: [
-      { label: "Conditions d'utilisation", href: "#" },
-      { label: "Confidentialité", href: "#" },
-    ],
-  },
+  // La colonne « Légal » dupliquait « Conditions d'utilisation » et
+  // « Confidentialité » vers `#`, alors que la barre du bas porte les VRAIS
+  // liens. Le pied de page affichait donc chacun deux fois : une version qui
+  // marche et une version morte, sans rien pour les distinguer. Sur des pages
+  // légales, c'est exactement ce que la LCEN interdit — elles doivent être
+  // accessibles « de manière directe et permanente ».
 ];
 
 export default function Footer() {
