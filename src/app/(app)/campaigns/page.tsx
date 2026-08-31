@@ -117,30 +117,9 @@ export default async function MyCampaignsPage() {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl font-black tracking-tight text-ink">
-              Mes campagnes
-            </h1>
-            {/* Le compteur est affiché AVANT que la marque bute dessus. Une
-                limite qu'on découvre au moment d'être refusé est vécue comme
-                un piège ; annoncée d'avance, c'est une règle. */}
-            {capacite.limite !== null && (
-              <p className="mt-1 text-sm text-zinc-500">
-                {capacite.actives} / {capacite.limite} campagne
-                {capacite.limite > 1 ? "s" : ""} active{capacite.limite > 1 ? "s" : ""} · plan{" "}
-                {capacite.libellePlan}
-                {!capacite.disponible && (
-                  <>
-                    {" — "}
-                    <Link href="/billing" className="font-semibold text-purple-700 underline">
-                      passe au plan supérieur
-                    </Link>{" "}
-                    ou mets-en une en pause pour en ouvrir une autre.
-                  </>
-                )}
-              </p>
-            )}
-          </div>
+          <h1 className="font-display text-3xl font-black tracking-tight text-ink">
+            Mes campagnes
+          </h1>
           {capacite.disponible ? (
             <Link
               href="/campaigns/new"
@@ -159,6 +138,24 @@ export default async function MyCampaignsPage() {
             </span>
           )}
         </div>
+
+        {/* Le compteur est affiché AVANT que la marque bute dessus. Une limite
+            qu'on découvre au moment d'être refusé est vécue comme un piège ;
+            annoncée d'avance, c'est une règle. */}
+        {capacite.limite !== null && (
+          <p className="mt-2 text-sm text-zinc-500">
+            {capacite.actives} / {capacite.limite} campagnes actives · plan {capacite.libellePlan}
+            {!capacite.disponible && (
+              <>
+                {" — "}
+                <Link href="/billing" className="font-semibold text-purple-700 underline">
+                  passe au plan supérieur
+                </Link>{" "}
+                ou mets-en une en pause pour en ouvrir une autre.
+              </>
+            )}
+          </p>
+        )}
 
         {campaigns.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center">

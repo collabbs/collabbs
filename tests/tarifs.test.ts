@@ -30,7 +30,7 @@ describe("grille tarifaire", () => {
 
 describe("limiteCampagnesActives", () => {
   it("donne la capacité de chaque plan", () => {
-    expect(limiteCampagnesActives("free")).toBe(1);
+    expect(limiteCampagnesActives("free")).toBe(2);
     expect(limiteCampagnesActives("growth")).toBe(5);
     // Scale : sans limite.
     expect(limiteCampagnesActives("scale")).toBeNull();
@@ -38,8 +38,8 @@ describe("limiteCampagnesActives", () => {
 
   it("retombe sur le plan gratuit pour une valeur inconnue", () => {
     // Jamais l'inverse : on n'offre pas la capacité d'un plan non souscrit.
-    expect(limiteCampagnesActives(null)).toBe(1);
-    expect(limiteCampagnesActives("entreprise")).toBe(1);
+    expect(limiteCampagnesActives(null)).toBe(2);
+    expect(limiteCampagnesActives("entreprise")).toBe(2);
   });
 });
 

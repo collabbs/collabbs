@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { decideApplication, setCampaignStatus } from "../actions";
+import Link from "next/link";
 
 export function ApplicationDecision({
   applicationId,
@@ -79,26 +80,44 @@ export function StatusToggle({
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
+  // L'erreur était purement et simplement JETÉE : `if (res.ok)` sans branche
+  // d'échec. La marque cliquait, rien ne bougeait, rien ne s'affichait — le
+  // bouton passait pour cassé. C'était déjà vrai de n'importe quel échec ;
+  // le plafond de campagnes actives rend simplement le cas fréquent.
+  const [error, setError] = useState<string | null>(null);
 
   async function toggle() {
     const next = status === "active" ? "ended" : "active";
     setBusy(true);
+    setError(null);
     const res = await setCampaignStatus(campaignId, next);
     setBusy(false);
     if (res.ok) {
       setStatus(next);
       router.refresh();
+    } else {
+      setError(res.error ?? "Impossible de changer l'état de cette campagne.");
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={busy}
-      className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-50"
-    >
-      {busy ? "…" : status === "active" ? "Mettre en pause" : "Réactiver"}
-    </button>
+    <div className="text-right">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={busy}
+        className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-50"
+      >
+        {busy ? "…" : status === "active" ? "Mettre en pause" : "Réactiver"}
+      </button>
+      {error && (
+        <p className="mt-2 max-w-xs text-left text-xs text-red-600">
+          {error}{" "}
+          <Link href="/billing" className="font-semibold underline">
+            Voir les plans
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }

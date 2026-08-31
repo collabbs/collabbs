@@ -35,7 +35,7 @@ const PLANS: Plan[] = [
     price: "0",
     desc: "Tout le produit, sans engagement",
     features: [
-      "1 campagne active à la fois",
+      "2 campagnes actives en même temps",
       "Collaborations et liens d'affiliation illimités",
       "Contrat écrit conforme et paiement séquestré",
       "Code promo, CPA, concours",

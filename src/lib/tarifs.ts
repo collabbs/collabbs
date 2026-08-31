@@ -63,7 +63,7 @@ type Tarif = {
 };
 
 export const TARIFS: Record<Plan, Tarif> = {
-  free: { libelle: "Gratuit", prix: 0, tauxCollab: 0.1, tauxAffiliation: 0.2, campagnesActives: 1 },
+  free: { libelle: "Gratuit", prix: 0, tauxCollab: 0.1, tauxAffiliation: 0.2, campagnesActives: 2 },
   growth: { libelle: "Growth", prix: 99, tauxCollab: 0.08, tauxAffiliation: 0.18, campagnesActives: 5 },
   scale: { libelle: "Scale", prix: 299, tauxCollab: 0.05, tauxAffiliation: 0.15, campagnesActives: null },
 };
