@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import { fabriquerCodePromo } from "@/lib/promo-code";
+import { peutDecider } from "@/lib/invitations";
 
 export async function activateAffiliateLink(
   campaignId: string,
@@ -102,5 +103,82 @@ export async function applyToCampaign(
 
   revalidatePath("/opportunities");
   revalidatePath(`/opportunities/${campaignId}`);
+  return { ok: true };
+}
+
+/**
+ * Le créateur répond à l'invitation d'une marque.
+ *
+ * Le pendant exact de `decideApplication` côté marque, et il fallait bien
+ * qu'il existe : une ligne d'`applications` créée par la marque ne peut pas
+ * se trancher par la marque elle-même, sinon inviter reviendrait à s'engager
+ * tout seul à deux.
+ *
+ * `peutDecider` porte cette règle pour les deux actions — plutôt que de la
+ * réécrire ici en miroir, où elle finirait par diverger.
+ */
+export async function repondreInvitation(
+  campaignId: string,
+  reponse: "accepted" | "rejected",
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: invitation } = await supabase
+    .from("applications")
+    .select("id, status, initiated_by, campaigns(name, brand_id)")
+    .eq("campaign_id", campaignId)
+    .eq("creator_id", user.id)
+    .maybeSingle();
+
+  if (!invitation) return { ok: false, error: "Invitation introuvable." };
+  if (!peutDecider("creator", invitation.initiated_by, invitation.status)) {
+    // Couvre trois cas d'un coup : c'est une candidature (donc à la marque de
+    // trancher), elle est déjà tranchée, ou les deux.
+    return { ok: false, error: "Cette invitation n'est plus en attente." };
+  }
+
+  // `.eq("status", "pending")` ferme la porte au double clic : la deuxième
+  // exécution ne touche aucune ligne et ne renotifie personne.
+  const { data: majs, error } = await supabase
+    .from("applications")
+    .update({ status: reponse })
+    .eq("id", invitation.id)
+    .eq("status", "pending")
+    .select("id");
+  if (error) return { ok: false, error: "La réponse n'a pas pu être enregistrée." };
+  if (!majs || majs.length === 0) return { ok: true };
+
+  const brandId = invitation.campaigns?.brand_id;
+  const nomCampagne = invitation.campaigns?.name ?? "ta campagne";
+  const { data: moi } = await supabase
+    .from("creators")
+    .select("handle")
+    .eq("id", user.id)
+    .maybeSingle();
+  const pseudo = moi?.handle ? `@${moi.handle}` : "Un créateur";
+
+  if (brandId) {
+    await notify({
+      userId: brandId,
+      type: reponse === "accepted" ? "invitation_accepted" : "invitation_declined",
+      title:
+        reponse === "accepted"
+          ? `${pseudo} accepte ton invitation sur « ${nomCampagne} »`
+          : `${pseudo} décline ton invitation sur « ${nomCampagne} »`,
+      body:
+        reponse === "accepted"
+          ? "Tu peux maintenant lui proposer une collaboration depuis la campagne."
+          : "Ce créateur n'est pas disponible pour cette campagne. Tu peux en inviter d'autres depuis ta shortlist.",
+      link: `/campaigns/${campaignId}`,
+    });
+  }
+
+  revalidatePath("/opportunities");
+  revalidatePath(`/opportunities/${campaignId}`);
+  revalidatePath(`/campaigns/${campaignId}`);
   return { ok: true };
 }

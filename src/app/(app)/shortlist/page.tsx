@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import CreatorCard from "@/components/landing/CreatorCard";
 import SaveCreatorButton from "@/components/landing/SaveCreatorButton";
 import { getMarketplaceCreators } from "@/lib/creators-data";
+import InviterPanel from "./InviterPanel";
 
 export const metadata = { title: "Ma shortlist — Collabbs" };
 
@@ -31,6 +32,16 @@ export default async function ShortlistPage() {
   // Pour ne pas dupliquer la logique d'assemblage des cartes, on récupère TOUS
   // les créateurs marketplace puis on filtre par les ids sauvés. Petit overhead
   // assumé sur des volumes < 1000 créateurs.
+  // Les campagnes ouvertes : ce sont les seules qu'on peut proposer à
+  // quelqu'un. Un brouillon ou une campagne close mènerait le créateur vers
+  // une page qui ne lui offre rien.
+  const { data: campagnes } = await supabase
+    .from("campaigns")
+    .select("id, name")
+    .eq("brand_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+
   const all = await getMarketplaceCreators();
   const savedSet = new Set(savedIds);
   const indexed = new Map(savedIds.map((id, i) => [id, i]));
@@ -58,6 +69,18 @@ export default async function ShortlistPage() {
           Trouver des créateurs
         </Link>
       </div>
+
+      {list.length > 0 && (
+        <InviterPanel
+          createurs={list.map((c) => ({
+            id: c.id,
+            name: c.name,
+            handle: c.handle,
+            photo: c.photo,
+          }))}
+          campagnes={campagnes ?? []}
+        />
+      )}
 
       {list.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center">

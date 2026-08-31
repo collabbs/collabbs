@@ -189,7 +189,7 @@ export default function OpportunityCard({
   gains = 0,
 }: {
   opportunity: Opportunity;
-  initialStatus: "none" | "linked" | "applied";
+  initialStatus: "none" | "linked" | "applied" | "invited";
   initialCode?: string;
   clicks?: number;
   gains?: number;
@@ -395,6 +395,26 @@ export default function OpportunityCard({
                 className="mt-2 inline-block text-[11px] font-semibold text-emerald-700 hover:underline"
               >
                 Voir les détails →
+              </Link>
+            </div>
+          ) : status === "invited" ? (
+            /* Une invitation reçue est la seule carte où la marque a fait le
+               premier pas. Elle mérite d'être la plus visible de la grille :
+               c'est du travail qui attend une réponse, pas une candidature de
+               plus en attente. */
+            <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-purple-700">
+                <span>✨</span>
+                Cette marque t&apos;invite
+              </p>
+              <p className="mt-1 text-[11px] text-purple-700">
+                Elle a repéré ton profil et te propose sa campagne.
+              </p>
+              <Link
+                href={`/opportunities/${o.id}`}
+                className="mt-2 block rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-center text-xs font-bold text-white transition hover:opacity-90"
+              >
+                Voir et répondre →
               </Link>
             </div>
           ) : status === "applied" ? (

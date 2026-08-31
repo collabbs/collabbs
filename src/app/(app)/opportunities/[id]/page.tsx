@@ -102,7 +102,7 @@ export default async function OpportunityDetailPage({
       .maybeSingle(),
     supabase
       .from("applications")
-      .select("id")
+      .select("id, initiated_by, status")
       .eq("creator_id", user.id)
       .eq("campaign_id", id)
       .maybeSingle(),
@@ -184,11 +184,19 @@ export default async function OpportunityDetailPage({
     promoCommissionTotal = Math.round(promoCommissionTotal * 100) / 100;
   }
 
-  const status: "none" | "linked" | "applied" = linkRes.data
-    ? "linked"
-    : appRes.data
-      ? "applied"
-      : "none";
+  // Une invitation en attente prime sur tout le reste : c'est la seule
+  // situation où quelqu'un attend une réponse DE CE CRÉATEUR. L'afficher
+  // comme une candidature envoyée, ou la masquer derrière un lien
+  // d'affiliation déjà actif, revenait à ne jamais la lui montrer.
+  const invitationEnAttente =
+    appRes.data?.initiated_by === "brand" && appRes.data.status === "pending";
+  const status: "none" | "linked" | "applied" | "invited" = invitationEnAttente
+    ? "invited"
+    : linkRes.data
+      ? "linked"
+      : appRes.data
+        ? "applied"
+        : "none";
 
   const fmtDate = (d: string | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;

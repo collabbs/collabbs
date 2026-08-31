@@ -69,7 +69,7 @@ export default async function CampaignManagePage({
     supabase.from("platforms").select("id, label, slug"),
     supabase
       .from("applications")
-      .select("id, creator_id, status, message, created_at")
+      .select("id, creator_id, status, message, created_at, initiated_by")
       .eq("campaign_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -170,12 +170,21 @@ export default async function CampaignManagePage({
     .map((x) => platMap.get(x.platform_id))
     .filter((v): v is { label: string; slug: string } => Boolean(v));
 
-  const apps = appsRes.data ?? [];
+  // Deux listes, parce que ce sont deux gestes opposés : une candidature
+  // attend une décision DE LA MARQUE, une invitation attend une réponse DU
+  // CRÉATEUR. Les afficher ensemble donnerait à la marque des boutons
+  // « Accepter / Refuser » sur des lignes où elle n'a rien à trancher.
+  const toutesLesLignes = appsRes.data ?? [];
+  const apps = toutesLesLignes.filter((a) => a.initiated_by === "creator");
+  const invitations = toutesLesLignes.filter((a) => a.initiated_by === "brand");
   const links = linksRes.data ?? [];
 
   // Profils + audiences des créateurs concernés (candidats + affiliés).
   const creatorIds = [
-    ...new Set([...apps.map((a) => a.creator_id), ...links.map((l) => l.creator_id)]),
+    ...new Set([
+      ...toutesLesLignes.map((a) => a.creator_id),
+      ...links.map((l) => l.creator_id),
+    ]),
   ];
   const [profRes, cpRes] = await Promise.all([
     creatorIds.length
@@ -671,6 +680,74 @@ export default async function CampaignManagePage({
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Invitations envoyées — le pendant des candidatures, à l'envers. */}
+      {avecCandidatures && invitations.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-display text-lg font-black text-ink">
+            Invitations envoyées <span className="text-zinc-400">({invitations.length})</span>
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Tu as fait le premier pas. C&apos;est au créateur de répondre — tu seras
+            prévenu·e dans les deux cas.
+          </p>
+          <div className="mt-3 space-y-3">
+            {invitations.map((a) => (
+              <div
+                key={a.id}
+                className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CreatorCell creatorId={a.creator_id} />
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        a.status === "accepted"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : a.status === "rejected"
+                            ? "bg-zinc-100 text-zinc-500"
+                            : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {a.status === "accepted"
+                        ? "Acceptée"
+                        : a.status === "rejected"
+                          ? "Déclinée"
+                          : "En attente de réponse"}
+                    </span>
+                    <form action={openConversation.bind(null, a.creator_id)}>
+                      <button
+                        type="submit"
+                        className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
+                      >
+                        💬 Contacter
+                      </button>
+                    </form>
+                    {a.status === "accepted" &&
+                      (dealByCreator.has(a.creator_id) ? (
+                        <Link
+                          href={`/deals/${dealByCreator.get(a.creator_id)}`}
+                          className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                        >
+                          🤝 Voir le deal
+                        </Link>
+                      ) : (
+                        <form action={createDealFromApplication.bind(null, a.id)}>
+                          <button
+                            type="submit"
+                            className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                          >
+                            🤝 Créer le deal
+                          </button>
+                        </form>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

@@ -49,7 +49,9 @@ export const fetchSidebarData = cache(
         .from("affiliate_links")
         .select("*", { count: "exact", head: true })
         .eq("creator_id", userId),
-      // Candidatures en attente DU CRÉATEUR (pour le badge "Mon activité")
+      // Ce que le créateur a en attente : ses candidatures ET les invitations
+      // reçues. Les deux appellent le même badge parce qu'elles disent la même
+      // chose de son point de vue — quelque chose bouge, va voir.
       supabase
         .from("applications")
         .select("*", { count: "exact", head: true })
@@ -78,11 +80,16 @@ export const fetchSidebarData = cache(
             .neq("sender_id", userId)
             .is("read_at", null)
         : Promise.resolve({ count: 0 }),
+      // Côté marque, le badge annonce « des candidatures à traiter ». Sans le
+      // filtre sur `initiated_by`, ses propres invitations en attente s'y
+      // ajouteraient : elle verrait un compteur monter en invitant des gens,
+      // et cliquerait pour trouver un écran où il n'y a rien à décider.
       role === "brand" && campIds.length > 0
         ? supabase
             .from("applications")
             .select("*", { count: "exact", head: true })
             .in("campaign_id", campIds)
+            .eq("initiated_by", "creator")
             .eq("status", "pending")
         : Promise.resolve({ count: 0 }),
       role === "brand" && hasAffiliation

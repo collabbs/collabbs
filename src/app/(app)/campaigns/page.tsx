@@ -43,7 +43,10 @@ export default async function MyCampaignsPage() {
 
   const [linksRes, appsRes] = await Promise.all([
     supabase.from("affiliate_links").select("id, campaign_id").in("campaign_id", campaignIds),
-    supabase.from("applications").select("campaign_id").in("campaign_id", campaignIds),
+    supabase
+      .from("applications")
+      .select("campaign_id, initiated_by")
+      .in("campaign_id", campaignIds),
   ]);
   const links = linksRes.data ?? [];
 
@@ -69,7 +72,11 @@ export default async function MyCampaignsPage() {
   const applications = new Map<string, number>();
 
   for (const l of links) add(activations, l.campaign_id, 1);
-  for (const a of appsRes.data ?? []) add(applications, a.campaign_id, 1);
+  // Le compteur s'appelle « Candidatures » : il ne doit compter que ce que des
+  // créateurs ont envoyé. Y mêler les invitations de la marque lui ferait lire
+  // sa propre activité comme de la demande entrante.
+  for (const a of appsRes.data ?? [])
+    if (a.initiated_by === "creator") add(applications, a.campaign_id, 1);
   for (const e of events) {
     const cid = linkToCampaign.get(e.link_id);
     if (!cid) continue;

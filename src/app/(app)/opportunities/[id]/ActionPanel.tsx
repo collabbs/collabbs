@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { activateAffiliateLink, applyToCampaign } from "../actions";
+import {
+  activateAffiliateLink,
+  applyToCampaign,
+  repondreInvitation,
+} from "../actions";
 
 export default function ActionPanel({
   campaignId,
@@ -18,7 +22,7 @@ export default function ActionPanel({
   besoinLien: boolean;
   /** Une collaboration doit naître : forfait, performance, hybride. */
   besoinCandidature: boolean;
-  initialStatus: "none" | "linked" | "applied";
+  initialStatus: "none" | "linked" | "applied" | "invited";
   initialCode?: string;
   clicks?: number;
   gains?: number;
@@ -37,6 +41,11 @@ export default function ActionPanel({
   const [candidatureEnvoyee, setCandidatureEnvoyee] = useState(
     initialStatus === "applied",
   );
+  // `null` = pas d'invitation, ou déjà répondu dans cet onglet.
+  const [invitation, setInvitation] = useState<"pending" | null>(
+    initialStatus === "invited" ? "pending" : null,
+  );
+  const [reponse, setReponse] = useState<"accepted" | "rejected" | null>(null);
   const [code, setCode] = useState(initialCode ?? "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,6 +70,22 @@ export default function ActionPanel({
     setBusy(false);
     if (res.ok) setCandidatureEnvoyee(true);
     else setError(res.error ?? "Erreur.");
+  }
+
+  async function onRepondre(valeur: "accepted" | "rejected") {
+    setBusy(true);
+    setError(null);
+    const res = await repondreInvitation(campaignId, valeur);
+    setBusy(false);
+    if (res.ok) {
+      setInvitation(null);
+      setReponse(valeur);
+      // Accepter une invitation, c'est exactement l'état où mène une
+      // candidature acceptée : la marque prend la main pour proposer la
+      // collaboration. Autant le dire avec les mêmes mots.
+      if (valeur === "accepted") setCandidatureEnvoyee(true);
+
+    } else setError(res.error ?? "Erreur.");
   }
 
   function copyLink() {
@@ -108,6 +133,60 @@ export default function ActionPanel({
         </div>
       </div>
   ) : null;
+
+  const blocInvitation = invitation ? (
+    <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-5">
+      <p className="font-display text-base font-black text-purple-800">
+        ✨ Cette marque t&apos;invite
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-purple-800/80">
+        Elle a repéré ton profil et te propose de participer à cette campagne.
+        Accepter ne t&apos;engage à rien de plus : la marque te fera ensuite une
+        proposition chiffrée, que tu resteras libre de refuser.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onRepondre("accepted")}
+          disabled={busy}
+          className="flex-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "…" : "Accepter l'invitation"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onRepondre("rejected")}
+          disabled={busy}
+          className="rounded-full px-5 py-3 text-sm font-semibold text-purple-800 ring-1 ring-inset ring-purple-200 transition hover:bg-white/60 disabled:opacity-50"
+        >
+          Décliner
+        </button>
+      </div>
+      {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+    </div>
+  ) : null;
+
+  const blocInvitationTranchee =
+    reponse === "rejected" ? (
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+        <p className="text-sm font-bold text-zinc-700">Invitation déclinée</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          La marque en a été informée. Rien d&apos;autre à faire de ton côté.
+        </p>
+      </div>
+    ) : reponse === "accepted" ? (
+      /* Volontairement pas le même texte que « Candidature envoyée » : ici la
+         marque a déjà choisi ce créateur. Lui dire qu'elle « va étudier son
+         profil » lui ferait attendre une décision qui est déjà prise. */
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <p className="text-sm font-bold text-emerald-700">✓ Invitation acceptée</p>
+        <p className="mt-1 text-xs text-emerald-600">
+          La marque est prévenue. C&apos;est à elle de te faire une proposition
+          chiffrée — tu la recevras dans tes collaborations, et tu resteras
+          libre de la refuser.
+        </p>
+      </div>
+    ) : null;
 
   const blocCandidatureEnvoyee = candidatureEnvoyee ? (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
@@ -163,10 +242,22 @@ export default function ActionPanel({
   // Sur une campagne hybride, les deux blocs s'affichent l'un sous l'autre :
   // le créateur active son lien pour la commission, et candidate pour le
   // forfait. C'est exactement ce que la campagne lui promet.
+  // Tant qu'une invitation attend une réponse, elle occupe seule le panneau :
+  // proposer « Candidater » à quelqu'un qu'on vient d'inviter n'a aucun sens,
+  // et lui montrer le bouton d'activation de lien le ferait passer à côté.
+  if (invitation) {
+    return <div className="space-y-4">{blocInvitation}</div>;
+  }
+
+  // Quand on vient de répondre à une invitation, son compte rendu remplace le
+  // bloc candidature : les deux diraient la même chose, avec des mots
+  // différents et l'un des deux serait faux.
   return (
     <div className="space-y-4">
+      {blocInvitationTranchee}
       {besoinLien && (lienActif ? blocLien : blocActiverLien)}
       {besoinCandidature &&
+        reponse === null &&
         (candidatureEnvoyee ? blocCandidatureEnvoyee : blocCandidater)}
     </div>
   );

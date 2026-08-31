@@ -65,7 +65,10 @@ export default async function OpportunitiesPage({
       supabase.from("niches").select("id, label").order("label"),
       supabase.from("platforms").select("id, label, slug").order("id"),
       supabase.from("affiliate_links").select("id, campaign_id, code").eq("creator_id", user.id),
-      supabase.from("applications").select("campaign_id").eq("creator_id", user.id),
+      supabase
+        .from("applications")
+        .select("campaign_id, initiated_by, status")
+        .eq("creator_id", user.id),
     ]);
 
   if (profileRes.data?.role !== "creator") redirect("/dashboard");
@@ -76,7 +79,23 @@ export default async function OpportunitiesPage({
   const platMap = new Map(platforms.map((p) => [p.id, { label: p.label, slug: p.slug }]));
   const linkRows = linksRes.data ?? [];
   const linkMap = new Map(linkRows.map((l) => [l.campaign_id, l.code]));
-  const appliedSet = new Set((appsRes.data ?? []).map((a) => a.campaign_id));
+  // Deux ensembles, et surtout pas un seul.
+  //
+  // Une invitation et une candidature sont toutes deux des lignes
+  // d'`applications`, mais elles ne disent pas la même chose au créateur :
+  // « tu as postulé, attends » d'un côté, « une marque te veut, réponds » de
+  // l'autre. Les confondre ferait passer une invitation en attente pour une
+  // candidature envoyée — la campagne se grisait, et l'invitation devenait
+  // invisible pour son destinataire.
+  const rowsApps = appsRes.data ?? [];
+  const appliedSet = new Set(
+    rowsApps.filter((a) => a.initiated_by === "creator").map((a) => a.campaign_id),
+  );
+  const invitedSet = new Set(
+    rowsApps
+      .filter((a) => a.initiated_by === "brand" && a.status === "pending")
+      .map((a) => a.campaign_id),
+  );
 
   // Clics par campagne (le créateur peut lire les events de ses propres liens)
   const myEventsRes = await supabase
@@ -431,11 +450,16 @@ export default async function OpportunitiesPage({
                 giveawayPrizeValue: c.giveaway_prize_value,
               };
               const code = linkMap.get(c.id);
-              const status: "none" | "linked" | "applied" = code
-                ? "linked"
-                : appliedSet.has(c.id)
-                  ? "applied"
-                  : "none";
+              // L'invitation passe AVANT le lien : un créateur déjà affilié
+              // qu'une marque invite sur un forfait doit voir l'invitation,
+              // pas ses statistiques de clics.
+              const status: "none" | "linked" | "applied" | "invited" = invitedSet.has(c.id)
+                ? "invited"
+                : code
+                  ? "linked"
+                  : appliedSet.has(c.id)
+                    ? "applied"
+                    : "none";
               return (
                 <OpportunityCard
                   key={c.id}

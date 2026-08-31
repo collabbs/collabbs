@@ -8,6 +8,7 @@ import { valider } from "@/lib/validation";
 import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
 import { reportError } from "@/lib/report-error";
 import { capaciteCampagnes, messageCapaciteAtteinte } from "@/lib/limites";
+import { peutDecider } from "@/lib/invitations";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -393,12 +394,24 @@ export async function decideApplication(
   // On vérifie que la candidature porte bien sur une campagne de cette marque.
   const { data: app } = await supabase
     .from("applications")
-    .select("id, campaign_id, creator_id, campaigns(brand_id, name)")
+    .select("id, campaign_id, creator_id, status, initiated_by, campaigns(brand_id, name)")
     .eq("id", applicationId)
     .single();
   if (!app) return { ok: false, error: "Candidature introuvable." };
   if (app.campaigns?.brand_id !== user.id)
     return { ok: false, error: "Action non autorisée." };
+  // Une invitation que la marque a elle-même envoyée ne se tranche pas par
+  // elle : ce serait s'engager tout seul à deux, et la politique RLS —
+  // écrite pour l'accès, pas pour ce sens-là — laisserait passer l'écriture.
+  if (!peutDecider("brand", app.initiated_by, app.status)) {
+    return {
+      ok: false,
+      error:
+        app.initiated_by === "brand"
+          ? "C'est une invitation que tu as envoyée : c'est au créateur d'y répondre."
+          : "Cette candidature a déjà été traitée.",
+    };
+  }
 
   const { error } = await supabase
     .from("applications")
