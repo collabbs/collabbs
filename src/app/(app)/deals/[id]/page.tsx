@@ -107,7 +107,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days",
     )
     .eq("id", id)
     .single();
@@ -523,6 +523,9 @@ export default async function DealDetailPage({
               quantity: deal.quantity,
               deadline: deal.deadline,
               brandNotes: deal.brand_notes,
+              usageRightsMonths: deal.usage_rights_months ?? null,
+              exclusivity: deal.exclusivity ?? false,
+              exclusivityDays: deal.exclusivity_days ?? null,
             }}
             revisions={{
               used: deal.revision_rounds_used,

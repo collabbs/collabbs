@@ -260,7 +260,15 @@ export async function createDirectDeal(creatorId: string) {
 /** La marque ajuste les termes pendant la négociation. */
 export async function updateDealTerms(
   dealId: string,
-  data: { amount: number; quantity: number; deadline: string | null; brandNotes: string | null },
+  data: {
+    amount: number;
+    quantity: number;
+    deadline: string | null;
+    brandNotes: string | null;
+    usageRightsMonths?: number | null;
+    exclusivity?: boolean;
+    exclusivityDays?: number | null;
+  },
 ): Promise<Result> {
   const supabase = await createClient();
   const {
@@ -286,6 +294,9 @@ export async function updateDealTerms(
     quantity: data.quantity,
     deadline: data.deadline,
     brandNotes: data.brandNotes,
+    usageRightsMonths: data.usageRightsMonths ?? null,
+    exclusivity: data.exclusivity ?? false,
+    exclusivityDays: data.exclusivityDays ?? null,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
 
@@ -296,6 +307,11 @@ export async function updateDealTerms(
       quantity: controle.data.quantity,
       deadline: controle.data.deadline,
       brand_notes: controle.data.brandNotes?.trim() || null,
+      usage_rights_months: controle.data.usageRightsMonths,
+      exclusivity: controle.data.exclusivity,
+      // Une exclusivité sans durée ne veut rien dire : on ne garde le nombre
+      // de jours que si la case est cochée.
+      exclusivity_days: controle.data.exclusivity ? controle.data.exclusivityDays : null,
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };

@@ -216,7 +216,12 @@ export function buildContractDocument(params: {
   add("Droits d'utilisation du contenu", [
     deal.usage_rights_months
       ? `L'annonceur bénéficie d'un droit d'utilisation du contenu produit pour une durée de **${deal.usage_rights_months} mois** à compter de la livraison, sur ses propres supports de communication.`
-      : "L'annonceur bénéficie d'un droit d'utilisation du contenu produit sur ses propres supports de communication, dans les limites convenues entre les Parties sur la plateforme.",
+      // La formulation précédente renvoyait « aux limites convenues entre les
+      // Parties sur la plateforme » — alors qu'aucun écran ne permettait d'en
+      // convenir. Une clause qui renvoie à un accord inexistant ne protège
+      // personne. À défaut de durée fixée, on énonce la règle protectrice :
+      // pas de réutilisation au-delà de la publication convenue.
+      : "À défaut de durée convenue entre les Parties, le droit d'utilisation de l'annonceur est limité à la publication réalisée par le créateur dans le cadre de la présente collaboration, à l'exclusion de toute réutilisation ultérieure sur ses propres supports.",
     "Toute utilisation excédant ce périmètre, notamment une exploitation publicitaire payante, doit faire l'objet d'un accord distinct et, le cas échéant, d'une rémunération complémentaire.",
     "Le créateur garantit être titulaire des droits sur le contenu livré et avoir obtenu les autorisations nécessaires des personnes y figurant.",
   ]);

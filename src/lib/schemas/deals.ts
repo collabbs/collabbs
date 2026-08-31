@@ -56,4 +56,28 @@ export const termesDealSchema = z.object({
     quoi: "Le brief",
     max: TEXTE_LONG_MAX,
   }).nullable(),
+
+  /**
+   * Durée pendant laquelle l'annonceur peut réutiliser le contenu sur ses
+   * propres supports, en mois.
+   *
+   * Ces deux champs existaient en base et étaient lus par le générateur de
+   * contrat — mais AUCUN écran ne permettait de les renseigner. Chaque contrat
+   * signé disait donc « dans les limites convenues entre les Parties sur la
+   * plateforme », alors que la plateforme n'offrait aucun endroit pour en
+   * convenir. Une clause qui tournait à vide.
+   */
+  usageRightsMonths: nombreEntier({
+    quoi: "La durée des droits d'utilisation",
+    min: 1,
+    max: 120,
+  }).nullable(),
+
+  /** Exclusivité : le créateur s'interdit les marques concurrentes. */
+  exclusivity: z.boolean(),
+  exclusivityDays: nombreEntier({
+    quoi: "La durée d'exclusivité",
+    min: 1,
+    max: 365,
+  }).nullable(),
 });

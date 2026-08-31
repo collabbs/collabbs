@@ -16,7 +16,15 @@ type Props = {
   role: "brand" | "creator";
   status: "negotiation" | "active" | "completed" | "cancelled";
   deliverables: Deliverable[];
-  terms: { amount: number; quantity: number; deadline: string | null; brandNotes: string | null };
+  terms: {
+    amount: number;
+    quantity: number;
+    deadline: string | null;
+    brandNotes: string | null;
+    usageRightsMonths: number | null;
+    exclusivity: boolean;
+    exclusivityDays: number | null;
+  };
   /** Compteur retouches du deal (passé par la page parent). */
   revisions?: { used: number; max: number };
 };
@@ -32,6 +40,12 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   const [quantity, setQuantity] = useState(terms.quantity);
   const [deadline, setDeadline] = useState(terms.deadline ?? "");
   const [notes, setNotes] = useState(terms.brandNotes ?? "");
+  // Ces deux termes étaient écrits dans le contrat sans que personne ne puisse
+  // les fixer. Ils décident de ce que la marque a le droit de faire du contenu
+  // après la livraison — c'est tout sauf un détail.
+  const [droits, setDroits] = useState(terms.usageRightsMonths ?? "");
+  const [exclu, setExclu] = useState(terms.exclusivity);
+  const [excluJours, setExcluJours] = useState(terms.exclusivityDays ?? "");
 
   async function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -128,6 +142,50 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
               />
             </label>
+            <label className="text-sm">
+              <span className="text-xs font-semibold text-zinc-500">
+                Droits d&apos;utilisation (mois)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={droits}
+                onChange={(e) =>
+                  setDroits(e.target.value === "" ? "" : Number(e.target.value))
+                }
+                placeholder="12"
+                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+              />
+              <span className="mt-1 block text-[11px] text-zinc-400">
+                Durée pendant laquelle tu pourras réutiliser le contenu sur tes
+                supports. Vide = aucune réutilisation au-delà de la publication.
+              </span>
+            </label>
+            <label className="text-sm">
+              <span className="text-xs font-semibold text-zinc-500">Exclusivité</span>
+              <span className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={exclu}
+                  onChange={(e) => setExclu(e.target.checked)}
+                />
+                <span className="text-sm text-zinc-600">Pas de marque concurrente</span>
+              </span>
+              {exclu && (
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={excluJours}
+                  onChange={(e) =>
+                    setExcluJours(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="30 jours"
+                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                />
+              )}
+            </label>
             <label className="text-sm sm:col-span-2">
               <span className="text-xs font-semibold text-zinc-500">Brief / notes</span>
               <textarea
@@ -149,6 +207,9 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                     quantity,
                     deadline: deadline || null,
                     brandNotes: notes,
+                    usageRightsMonths: droits === "" ? null : Number(droits),
+                    exclusivity: exclu,
+                    exclusivityDays: excluJours === "" ? null : Number(excluJours),
                   });
                   if (res.ok) setEditing(false);
                   return res;
