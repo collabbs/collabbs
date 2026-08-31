@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import PlatformIcon from "@/components/PlatformIcon";
-import { CAMPAIGN_TYPE_LABEL, TONE_LABEL, campaignReward, eur, type CampaignType, besoinCandidature, besoinLienDeSuivi } from "@/lib/campaign";
+import { CAMPAIGN_TYPE_LABEL, TONE_LABEL, campaignReward, eur, typeDeCampagne, besoinCandidature, besoinLienDeSuivi } from "@/lib/campaign";
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
@@ -54,7 +54,7 @@ export default async function CampaignManagePage({
     .single();
   if (!c || c.brand_id !== user.id) notFound();
 
-  const type = c.type as CampaignType;
+  const type = typeDeCampagne(c.type);
   // La marque voit ce que sa campagne produit réellement : des candidatures
   // quand une collaboration doit naître, des affiliés quand un lien est en jeu.
   // Avec le booléen unique, une campagne hybride cachait ses candidatures et

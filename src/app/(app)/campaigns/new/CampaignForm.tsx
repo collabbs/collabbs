@@ -13,6 +13,7 @@ import {
 } from "../actions";
 import ReperesTarifaires from "@/components/app/ReperesTarifaires";
 import type { Reperes } from "@/lib/benchmark";
+import { FENETRE_PAR_DEFAUT } from "@/lib/attribution";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -63,6 +64,7 @@ export default function CampaignForm({
   const [fixedAmount, setFixedAmount] = useState("");
   const [perfRate, setPerfRate] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
+  const [attributionDays, setAttributionDays] = useState(String(FENETRE_PAR_DEFAUT));
   // Produit ciblé — la marque dit ce qu'elle veut promouvoir.
   const [productName, setProductName] = useState("");
   const [productUrl, setProductUrl] = useState("");
@@ -139,6 +141,7 @@ export default function CampaignForm({
       fixedAmount: fixedAmount ? Number(fixedAmount) : null,
       perfRate: perfRate ? Number(perfRate) : null,
       targetUrl: targetUrl.trim(),
+      attributionDays: attributionDays ? Number(attributionDays) : null,
       minSubscribers: minSubs ? Number(minSubs) : null,
       spots: spots ? Number(spots) : null,
       commission: {
@@ -646,6 +649,30 @@ export default function CampaignForm({
             placeholder="https://ta-marque.com/produit"
             className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
           />
+
+          <label className="mt-6 block text-sm font-medium text-ink" htmlFor="attribution">
+            Fenêtre d&apos;attribution
+          </label>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            Combien de temps un clic reste attribuable à une vente. Trente jours
+            est le standard ; allonge-la si ton cycle d&apos;achat est long, et une
+            vente survenue au-delà te sera présentée pour confirmation au lieu
+            d&apos;être réglée automatiquement.
+          </p>
+          <div className="mt-1.5 flex w-48 items-center rounded-lg border border-zinc-300 px-3">
+            <input
+              id="attribution"
+              value={attributionDays}
+              onChange={(e) =>
+                setAttributionDays(e.target.value.replace(/[^0-9]/g, ""))
+              }
+              inputMode="numeric"
+              placeholder={String(FENETRE_PAR_DEFAUT)}
+              className="w-full py-2.5 text-sm outline-none"
+            />
+            <span className="whitespace-nowrap text-sm text-zinc-400">jours</span>
+          </div>
+
           <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
             Commission d&apos;affiliation
           </h2>

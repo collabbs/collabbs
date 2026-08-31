@@ -17,6 +17,37 @@ export type CampaignType =
   | "cpa_flat"
   | "cpa_tiers";
 
+/**
+ * Ramène n'importe quelle valeur venue de la base à un type connu.
+ *
+ * L'énumération PostgreSQL `campaign_type` contient une valeur de plus que
+ * cette liste — `giveaway` — qu'aucun formulaire ne crée. Les deux écrans qui
+ * lisent le type font `c.type as CampaignType` : un transtypage qui affirme
+ * quelque chose que la base ne garantit pas. Une seule ligne avec cette
+ * valeur, créée à la main ou par une migration future, et
+ * `CAMPAIGN_TYPE_LABEL[type]` renvoie `undefined` : la campagne s'affiche
+ * sans intitulé et sans rémunération.
+ *
+ * C'est exactement le bug documenté en haut de ce fichier, celui des deux
+ * types CPA absents. Il avait échappé au compilateur pour la même raison. On
+ * le referme ici plutôt que d'attendre qu'il se reproduise.
+ */
+export function typeDeCampagne(valeur: string | null | undefined): CampaignType {
+  return (CAMPAIGN_TYPES as readonly string[]).includes(valeur ?? "")
+    ? (valeur as CampaignType)
+    : "video";
+}
+
+/** Les types connus, à l'exécution — le type TypeScript seul ne s'exporte pas en liste. */
+export const CAMPAIGN_TYPES = [
+  "affiliation",
+  "video",
+  "performance",
+  "hybrid",
+  "cpa_flat",
+  "cpa_tiers",
+] as const satisfies readonly CampaignType[];
+
 export const CAMPAIGN_TYPE_LABEL: Record<CampaignType, string> = {
   affiliation: "Affiliation",
   video: "Paiement fixe",

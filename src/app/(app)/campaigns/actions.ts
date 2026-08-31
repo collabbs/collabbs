@@ -9,6 +9,7 @@ import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/cam
 import { reportError } from "@/lib/report-error";
 import { capaciteCampagnes, messageCapaciteAtteinte } from "@/lib/limites";
 import { peutDecider } from "@/lib/invitations";
+import { fenetreValide } from "@/lib/attribution";
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés
@@ -32,6 +33,11 @@ export type CampaignData = {
   fixedAmount: number | null;
   perfRate: number | null;
   targetUrl: string;
+  /**
+   * Fenêtre d'attribution en jours. `null` = la valeur par défaut du secteur.
+   * Ne concerne que les campagnes suivies par lien.
+   */
+  attributionDays: number | null;
   minSubscribers: number | null;
   spots: number | null;
   commission: { nano: number; micro: number; mid: number; macro: number };
@@ -175,6 +181,11 @@ export async function createCampaign(
       type: data.type,
       status: "active",
       target_url: targetUrl || null,
+      // `fenetreValide` plutôt que la valeur brute : la contrainte CHECK en
+      // base rejetterait une saisie hors bornes, et l'insertion entière
+      // échouerait pour un champ secondaire. Ici une valeur aberrante retombe
+      // simplement sur le standard du secteur.
+      attribution_days: fenetreValide(data.attributionDays),
       product_name: data.productName.trim() || null,
       product_url: data.productUrl.trim() || null,
       product_image_url: data.productImageUrl.trim() || null,

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyOnce } from "@/lib/notifications";
+import { notify, notifyOnce } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
+import { horsFenetre, motifHorsFenetre, fenetreValide } from "@/lib/attribution";
 import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 
 // Postback de VENTE attribuée à un lien d'affiliation.
@@ -14,12 +15,22 @@ import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 // Appel attendu côté boutique de la marque, depuis le SERVEUR (pas le navigateur) :
 //   POST /api/track/sale
 //   Authorization: Bearer <postback_secret de la marque>
-//   { "code": "<ref capté par votre cookie>", "amount": 49.99, "order_id": "ORD-12345" }
+//   { "code": "<ref capté par votre cookie>", "amount": 49.99, "order_id": "ORD-12345",
+//     "clicked_at": "2026-08-01T10:00:00Z" }   ← facultatif
+//
+// `clicked_at` est la date du clic qui a posé votre cookie. Elle est
+// FACULTATIVE, et son absence ne coûte jamais rien au créateur : sans elle, la
+// vente est réglée comme avant. Quand elle est fournie et que l'écart dépasse
+// la fenêtre d'attribution de la campagne, la vente n'est pas refusée — elle
+// passe en revue chez vous, comme une vente déclarée par pixel. Notre script
+// `track.js` la renseigne automatiquement.
 
 type Payload = {
   code: string | null;
   amount: string | null;
   externalRef: string | null;
+  /** Date du clic à l'origine de la vente. Facultative — voir l'en-tête. */
+  clickedAt: string | null;
   secret: string;
 };
 
@@ -54,7 +65,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(brand_id, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, attribution_days, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
     )
     .eq("code", p.code)
     .maybeSingle();
@@ -85,9 +96,24 @@ async function handle(p: Payload) {
   // Au centime : on manipule désormais de l'argent réellement versé.
   const commission = Math.round((amount * rate)) / 100;
 
+  // La fenêtre d'attribution, enfin appliquée. La colonne existait depuis la
+  // migration 0040 avec sa valeur par défaut et sa contrainte ; rien ne la
+  // lisait. Une vente survenue bien après le clic se réglait donc
+  // automatiquement, et la marque payait une commission sur un achat que le
+  // créateur n'avait plus provoqué.
+  //
+  // Hors fenêtre, on n'annule pas : on bascule vers la revue de la marque,
+  // le mécanisme déjà en place pour les ventes déclarées par pixel. Aucun
+  // argent ne bouge, la vente reste visible, et c'est la marque — qui a la
+  // commande sous les yeux — qui tranche.
+  const survenueLe = new Date().toISOString();
+  const fenetre = fenetreValide(link.campaigns?.attribution_days);
+  const aRevoir = horsFenetre(p.clickedAt, survenueLe, fenetre);
+
   const { data: inserted, error } = await supabase
     .from("affiliate_events")
     .insert({
+      needs_review: aRevoir,
       link_id: link.id,
       type: "sale",
       // Authentifiée par le secret de la marque : ce chemin est digne de
@@ -113,6 +139,29 @@ async function handle(p: Payload) {
       });
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  if (aRevoir) {
+    // On prévient la marque : une vente en attente de sa décision est de
+    // l'argent dû à un créateur qui dort tant que personne ne la regarde.
+    // `notify` et non `notifyOnce`, comme sur le chemin pixel : chaque vente
+    // en attente est de l'argent qui dort, elle mérite sa propre alerte.
+    notify({
+      userId: link.campaigns!.brand_id,
+      type: "pixel_sale_to_review",
+      title: "Une vente attend ta confirmation",
+      body: `${motifHorsFenetre(p.clickedAt!, survenueLe, fenetre)} Confirme-la ou écarte-la depuis ta provision.`,
+      link: "/billing",
+    }).catch(() => {});
+
+    return NextResponse.json({
+      ok: true,
+      needs_review: true,
+      reason: motifHorsFenetre(p.clickedAt!, survenueLe, fenetre),
+      sale_amount: amount,
+      rate,
+      commission,
+    });
   }
 
   // Réserve la commission + les frais Collabbs sur la provision de la marque.
@@ -167,6 +216,7 @@ export async function GET(request: Request) {
     code: url.searchParams.get("code"),
     amount: url.searchParams.get("amount"),
     externalRef: url.searchParams.get("order_id"),
+    clickedAt: url.searchParams.get("clicked_at"),
     secret,
   });
 }
@@ -181,6 +231,7 @@ export async function POST(request: Request) {
     code: (body.code as string) ?? null,
     amount: body.amount != null ? String(body.amount) : null,
     externalRef: (body.order_id as string) ?? null,
+    clickedAt: (body.clicked_at as string) ?? null,
     secret,
   });
 }

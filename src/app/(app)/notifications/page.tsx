@@ -9,6 +9,7 @@ const ICONS: Record<string, string> = {
   application_accepted: "✅",
   application_rejected: "📭",
   campaign_invitation: "✨",
+  pixel_sale_to_review: "🔎",
   invitation_accepted: "🙌",
   invitation_declined: "📭",
   deal_proposed: "🤝",

@@ -8,7 +8,7 @@ import {
   TONE_LABEL,
   TIER_LABELS,
   campaignReward,
-  type CampaignType,
+  typeDeCampagne,
 } from "@/lib/campaign";
 import ActionPanel from "./ActionPanel";
 import { openConversation } from "../../messages/actions";
@@ -84,7 +84,7 @@ export default async function OpportunityDetailPage({
     .map((x) => platMap.get(x.platform_id))
     .filter((v): v is { label: string; slug: string } => Boolean(v));
 
-  const type = c.type as CampaignType;
+  const type = typeDeCampagne(c.type);
   // Deux besoins, pas un seul : une campagne hybride réclame le lien ET la
   // candidature, une campagne au CPA réclame le lien seul. Le booléen unique
   // « est-ce de l'affiliation ? » se trompait sur les deux.
