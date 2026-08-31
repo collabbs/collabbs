@@ -90,3 +90,72 @@ export function tauxAffiliation(plan?: string | null): number {
 export function limiteCampagnesActives(plan?: string | null): number | null {
   return TARIFS[planValide(plan)].campagnesActives;
 }
+
+/**
+ * ─── Le point d'indifférence entre deux plans ───
+ *
+ * À quelle dépense mensuelle en créateurs les deux plans coûtent-ils
+ * exactement la même chose à la marque ? En dessous, le moins cher est celui
+ * qui a le plus petit abonnement ; au-dessus, celui qui a le plus petit taux.
+ *
+ * Pourquoi ce calcul vit dans le code plutôt que dans un tableur : une grille
+ * tarifaire peut être arithmétiquement absurde sans que personne s'en aperçoive
+ * à l'œil. C'est le cas de la grille actuelle, et le constat mérite d'être
+ * vérifiable à tout moment plutôt que redécouvert.
+ *
+ * Renvoie `null` quand les deux plans ont le même taux : il n'y a alors pas de
+ * croisement, le moins cher l'est partout.
+ */
+export function depenseDIndifference(a: Plan, b: Plan): number | null {
+  const A = TARIFS[a];
+  const B = TARIFS[b];
+  const ecartTaux = A.tauxCollab - B.tauxCollab;
+  if (ecartTaux === 0) return null;
+  const depense = (B.prix - A.prix) / ecartTaux;
+  return depense > 0 ? Math.round(depense) : null;
+}
+
+/**
+ * Le plan qui coûte le moins cher à une marque, pour une dépense donnée.
+ *
+ * Ne tient compte QUE du prix : ni du plafond de campagnes, ni des
+ * fonctionnalités. C'est volontaire — c'est la question que se pose une marque
+ * qui compare, et la réponse doit être calculée, pas plaidée.
+ */
+export function planLePlusEconomique(depenseMensuelle: number): Plan {
+  return [...PLANS].sort(
+    (x, y) =>
+      TARIFS[x].prix + TARIFS[x].tauxCollab * depenseMensuelle -
+      (TARIFS[y].prix + TARIFS[y].tauxCollab * depenseMensuelle),
+  )[0];
+}
+
+/**
+ * La fenêtre de dépense sur laquelle un plan est le moins cher de tous.
+ *
+ * ─── Pourquoi cette fonction existe ───
+ * Un plan payant dont la fenêtre est vide, ou si étroite qu'aucun client réel
+ * ne s'y trouve, ne se vendra jamais pour de bonnes raisons : il ne se vendra
+ * que parce qu'on a plafonné quelque chose ailleurs. C'est un péage, pas une
+ * offre, et un péage se paie une fois puis se résilie.
+ *
+ * Sur la grille au 31 août 2026, `growth` n'est le moins cher qu'entre 4 950 €
+ * et 6 667 € de dépense mensuelle — une fenêtre de 1 717 €, soit 14 à 19
+ * collaborations par mois à 350 €. Aucune marque du marché visé ne s'y trouve.
+ *
+ * `fin: null` signifie que le plan reste le moins cher indéfiniment au-delà.
+ */
+export function fenetreDOptimalite(plan: Plan): { debut: number; fin: number | null } | null {
+  const PAS = 25;
+  const MAX = 40_000;
+  let debut: number | null = null;
+  let fin: number | null = null;
+  for (let d = 0; d <= MAX; d += PAS) {
+    if (planLePlusEconomique(d) === plan) {
+      if (debut === null) debut = d;
+      fin = d;
+    }
+  }
+  if (debut === null) return null;
+  return { debut, fin: fin !== null && fin >= MAX ? null : fin };
+}
