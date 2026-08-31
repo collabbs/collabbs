@@ -488,11 +488,14 @@ export type Database = {
           logo_url: string | null
           name: string
           payment_method_id: string | null
+          plan: Database["public"]["Enums"]["brand_plan"]
+          plan_expires_at: string | null
           postback_secret: string
           rating: number | null
           reviews_count: number
           sector: string | null
           stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           topup_failed_at: string | null
           tracking_verified_at: string | null
           updated_at: string
@@ -514,11 +517,14 @@ export type Database = {
           logo_url?: string | null
           name: string
           payment_method_id?: string | null
+          plan?: Database["public"]["Enums"]["brand_plan"]
+          plan_expires_at?: string | null
           postback_secret?: string
           rating?: number | null
           reviews_count?: number
           sector?: string | null
           stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           topup_failed_at?: string | null
           tracking_verified_at?: string | null
           updated_at?: string
@@ -540,11 +546,14 @@ export type Database = {
           logo_url?: string | null
           name?: string
           payment_method_id?: string | null
+          plan?: Database["public"]["Enums"]["brand_plan"]
+          plan_expires_at?: string | null
           postback_secret?: string
           rating?: number | null
           reviews_count?: number
           sector?: string | null
           stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           topup_failed_at?: string | null
           tracking_verified_at?: string | null
           updated_at?: string
@@ -1215,17 +1224,6 @@ export type Database = {
       }
       deals: {
         Row: {
-          engagement_id: string | null
-          engagement_month: number | null
-          usage_rights_scope: Database["public"]["Enums"]["usage_rights_scope"] | null
-          usage_rights_fee: number | null
-          shipping_required: boolean
-          received_at: string | null
-          perf_rate: number | null
-          perf_views: number | null
-          perf_proof_url: string | null
-          perf_declared_at: string | null
-          perf_validated_at: string | null
           accepted_at: string | null
           amount: number
           brand_id: string
@@ -1237,36 +1235,38 @@ export type Database = {
           creator_id: string
           deadline: string | null
           delivered_at: string | null
+          engagement_id: string | null
+          engagement_month: number | null
           escrow_due_at: string | null
           exclusivity: boolean
           exclusivity_days: number | null
           format: Database["public"]["Enums"]["deal_format"]
           id: string
+          perf_declared_at: string | null
+          perf_proof_url: string | null
+          perf_rate: number | null
+          perf_validated_at: string | null
+          perf_views: number | null
           platform_id: number | null
           quantity: number
+          received_at: string | null
           revision_rounds_max: number
           revision_rounds_used: number
           shipped_at: string | null
           shipping_address: Json | null
           shipping_carrier: string | null
+          shipping_required: boolean
           status: Database["public"]["Enums"]["deal_status"]
           title: string | null
           tracking_number: string | null
           updated_at: string
+          usage_rights_fee: number | null
           usage_rights_months: number | null
+          usage_rights_scope:
+            | Database["public"]["Enums"]["usage_rights_scope"]
+            | null
         }
         Insert: {
-          engagement_id?: string | null
-          engagement_month?: number | null
-          usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
-          usage_rights_fee?: number | null
-          shipping_required?: boolean
-          received_at?: string | null
-          perf_rate?: number | null
-          perf_views?: number | null
-          perf_proof_url?: string | null
-          perf_declared_at?: string | null
-          perf_validated_at?: string | null
           accepted_at?: string | null
           amount: number
           brand_id: string
@@ -1278,36 +1278,38 @@ export type Database = {
           creator_id: string
           deadline?: string | null
           delivered_at?: string | null
+          engagement_id?: string | null
+          engagement_month?: number | null
           escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
           format: Database["public"]["Enums"]["deal_format"]
           id?: string
+          perf_declared_at?: string | null
+          perf_proof_url?: string | null
+          perf_rate?: number | null
+          perf_validated_at?: string | null
+          perf_views?: number | null
           platform_id?: number | null
           quantity?: number
+          received_at?: string | null
           revision_rounds_max?: number
           revision_rounds_used?: number
           shipped_at?: string | null
           shipping_address?: Json | null
           shipping_carrier?: string | null
+          shipping_required?: boolean
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
           tracking_number?: string | null
           updated_at?: string
+          usage_rights_fee?: number | null
           usage_rights_months?: number | null
+          usage_rights_scope?:
+            | Database["public"]["Enums"]["usage_rights_scope"]
+            | null
         }
         Update: {
-          engagement_id?: string | null
-          engagement_month?: number | null
-          usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
-          usage_rights_fee?: number | null
-          shipping_required?: boolean
-          received_at?: string | null
-          perf_rate?: number | null
-          perf_views?: number | null
-          perf_proof_url?: string | null
-          perf_declared_at?: string | null
-          perf_validated_at?: string | null
           accepted_at?: string | null
           amount?: number
           brand_id?: string
@@ -1319,23 +1321,36 @@ export type Database = {
           creator_id?: string
           deadline?: string | null
           delivered_at?: string | null
+          engagement_id?: string | null
+          engagement_month?: number | null
           escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
           format?: Database["public"]["Enums"]["deal_format"]
           id?: string
+          perf_declared_at?: string | null
+          perf_proof_url?: string | null
+          perf_rate?: number | null
+          perf_validated_at?: string | null
+          perf_views?: number | null
           platform_id?: number | null
           quantity?: number
+          received_at?: string | null
           revision_rounds_max?: number
           revision_rounds_used?: number
           shipped_at?: string | null
           shipping_address?: Json | null
           shipping_carrier?: string | null
+          shipping_required?: boolean
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
           tracking_number?: string | null
           updated_at?: string
+          usage_rights_fee?: number | null
           usage_rights_months?: number | null
+          usage_rights_scope?:
+            | Database["public"]["Enums"]["usage_rights_scope"]
+            | null
         }
         Relationships: [
           {
@@ -1360,6 +1375,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deals_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deals_platform_id_fkey"
             columns: ["platform_id"]
             isOneToOne: false
@@ -1367,66 +1389,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      engagements: {
-        Row: {
-          id: string
-          brand_id: string
-          creator_id: string
-          monthly_amount: number
-          contents_per_month: number
-          months_total: number
-          months_created: number
-          format: Database["public"]["Enums"]["deal_format"]
-          platform_id: number | null
-          source_deal_id: string | null
-          starts_at: string
-          status: Database["public"]["Enums"]["engagement_status"]
-          ended_at: string | null
-          ended_by: string | null
-          notice_days: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          brand_id: string
-          creator_id: string
-          monthly_amount: number
-          contents_per_month?: number
-          months_total: number
-          months_created?: number
-          format?: Database["public"]["Enums"]["deal_format"]
-          platform_id?: number | null
-          source_deal_id?: string | null
-          starts_at?: string
-          status?: Database["public"]["Enums"]["engagement_status"]
-          ended_at?: string | null
-          ended_by?: string | null
-          notice_days?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          brand_id?: string
-          creator_id?: string
-          monthly_amount?: number
-          contents_per_month?: number
-          months_total?: number
-          months_created?: number
-          format?: Database["public"]["Enums"]["deal_format"]
-          platform_id?: number | null
-          source_deal_id?: string | null
-          starts_at?: string
-          status?: Database["public"]["Enums"]["engagement_status"]
-          ended_at?: string | null
-          ended_by?: string | null
-          notice_days?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       deliverables: {
         Row: {
@@ -1481,6 +1443,95 @@ export type Database = {
           {
             foreignKeyName: "deliverables_deal_id_fkey"
             columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engagements: {
+        Row: {
+          brand_id: string
+          contents_per_month: number
+          created_at: string
+          creator_id: string
+          ended_at: string | null
+          ended_by: string | null
+          format: Database["public"]["Enums"]["deal_format"]
+          id: string
+          monthly_amount: number
+          months_created: number
+          months_total: number
+          notice_days: number
+          platform_id: number | null
+          source_deal_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["engagement_status"]
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          contents_per_month?: number
+          created_at?: string
+          creator_id: string
+          ended_at?: string | null
+          ended_by?: string | null
+          format?: Database["public"]["Enums"]["deal_format"]
+          id?: string
+          monthly_amount: number
+          months_created?: number
+          months_total: number
+          notice_days?: number
+          platform_id?: number | null
+          source_deal_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          contents_per_month?: number
+          created_at?: string
+          creator_id?: string
+          ended_at?: string | null
+          ended_by?: string | null
+          format?: Database["public"]["Enums"]["deal_format"]
+          id?: string
+          monthly_amount?: number
+          months_created?: number
+          months_total?: number
+          notice_days?: number
+          platform_id?: number | null
+          source_deal_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["engagement_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagements_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_source_deal_id_fkey"
+            columns: ["source_deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
@@ -1960,6 +2011,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_balance: {
+        Args: { p_amount: number; p_brand: string; p_label: string }
+        Returns: number
+      }
       confirm_user_role: {
         Args: { p_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
@@ -1990,6 +2045,7 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
+      expire_brand_plans: { Args: never; Returns: number }
       purge_rate_limit_buckets: { Args: never; Returns: number }
       report_error: {
         Args: {
@@ -2011,8 +2067,6 @@ export type Database = {
       }
     }
     Enums: {
-      engagement_status: "active" | "ended"
-      usage_rights_scope: "organic" | "paid"
       affiliate_event_status:
         | "unfunded"
         | "pending"
@@ -2023,6 +2077,7 @@ export type Database = {
       affiliate_event_type: "click" | "sale" | "action"
       application_initiator: "creator" | "brand"
       application_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      brand_plan: "free" | "growth" | "scale"
       campaign_status: "draft" | "active" | "ended"
       campaign_type:
         | "affiliation"
@@ -2038,6 +2093,7 @@ export type Database = {
       contract_status: "draft" | "pending_signature" | "signed" | "terminated"
       deal_format: "video_post" | "ugc" | "story" | "reel" | "live"
       deal_status: "negotiation" | "active" | "completed" | "cancelled"
+      engagement_status: "active" | "ended"
       in_kind_status: "declared" | "disputed" | "cancelled"
       ledger_kind:
         | "topup"
@@ -2055,6 +2111,7 @@ export type Database = {
         | "refunded"
         | "cancelled"
       transaction_type: "deal_payment" | "affiliate_payout"
+      usage_rights_scope: "organic" | "paid"
       user_role: "creator" | "brand"
     }
     CompositeTypes: {
@@ -2194,6 +2251,7 @@ export const Constants = {
       affiliate_event_type: ["click", "sale", "action"],
       application_initiator: ["creator", "brand"],
       application_status: ["pending", "accepted", "rejected", "withdrawn"],
+      brand_plan: ["free", "growth", "scale"],
       campaign_status: ["draft", "active", "ended"],
       campaign_type: [
         "affiliation",
@@ -2210,6 +2268,7 @@ export const Constants = {
       contract_status: ["draft", "pending_signature", "signed", "terminated"],
       deal_format: ["video_post", "ugc", "story", "reel", "live"],
       deal_status: ["negotiation", "active", "completed", "cancelled"],
+      engagement_status: ["active", "ended"],
       in_kind_status: ["declared", "disputed", "cancelled"],
       ledger_kind: [
         "topup",
@@ -2229,6 +2288,7 @@ export const Constants = {
         "cancelled",
       ],
       transaction_type: ["deal_payment", "affiliate_payout"],
+      usage_rights_scope: ["organic", "paid"],
       user_role: ["creator", "brand"],
     },
   },
