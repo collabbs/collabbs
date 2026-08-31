@@ -25,6 +25,7 @@ export default function PerformancePanel({
   declaredAt,
   validatedAt,
   enSequestre,
+  reliquat,
 }: {
   dealId: string;
   role: "brand" | "creator";
@@ -35,6 +36,17 @@ export default function PerformancePanel({
   declaredAt: string | null;
   validatedAt: string | null;
   enSequestre: boolean;
+  /**
+   * Ce qui repart RÉELLEMENT chez la marque : le plafond non consommé PLUS la
+   * commission correspondante, puisqu'elle est recalculée sur le montant
+   * réellement versé.
+   *
+   * Calculé côté serveur depuis la transaction, parce que le taux qui compte
+   * est celui figé au paiement — pas le taux courant. Écrire ici
+   * « plafond − dû » donnerait un chiffre faux : la marque lirait 101 € et
+   * recevrait 111 €.
+   */
+  reliquat: number | null;
 }) {
   const router = useRouter();
   const [saisie, setSaisie] = useState(views != null ? String(views) : "");
@@ -91,8 +103,8 @@ export default function PerformancePanel({
           </p>
           <p className="mt-1 text-xs text-emerald-700">
             {fmtVues(Number(views ?? 0))} vues retenues.
-            {duValide < cap && (
-              <> Le reliquat de {eur(cap - duValide)} a été remboursé à la marque.</>
+            {reliquat != null && reliquat > 0 && (
+              <> Le reliquat de {eur(reliquat)} a été remboursé à la marque, commission comprise.</>
             )}
           </p>
           {proofUrl && (
@@ -179,8 +191,17 @@ export default function PerformancePanel({
             </p>
             {duValide < cap && (
               <p className="mt-1 text-xs text-zinc-500">
-                Les {eur(cap - duValide)} restants de ton plafond te seront remboursés à la
-                validation, commission comprise.
+                {reliquat != null ? (
+                  <>
+                    {eur(reliquat)} te seront remboursés à la validation — les {eur(cap - duValide)}{" "}
+                    non consommés sur ton plafond, plus la commission correspondante.
+                  </>
+                ) : (
+                  <>
+                    Les {eur(cap - duValide)} non consommés sur ton plafond te seront remboursés à la
+                    validation, avec la commission correspondante.
+                  </>
+                )}
               </p>
             )}
             {proofUrl && (

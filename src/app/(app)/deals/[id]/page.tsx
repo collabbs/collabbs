@@ -20,6 +20,7 @@ import ReviewBox from "./ReviewBox";
 import RefundButton from "./RefundButton";
 import ReceiveButton from "./ReceiveButton";
 import PerformancePanel from "./PerformancePanel";
+import { montantAuxVues } from "@/lib/performance";
 import DealTimeline from "./DealTimeline";
 
 export async function generateMetadata({
@@ -148,7 +149,7 @@ export default async function DealDetailPage({
     supabase
       .from("transactions")
       .select(
-        "id, status, gross_amount, net_amount, platform_fee, created_at, escrow_released_at, paid_at",
+        "id, status, gross_amount, net_amount, platform_fee, platform_fee_rate, created_at, escrow_released_at, paid_at",
       )
       .eq("deal_id", id)
       .eq("type", "deal_payment")
@@ -216,6 +217,29 @@ export default async function DealDetailPage({
   // ne tiendra pas s'il fait 6 000 vues — et laisserait croire à la marque
   // qu'elle doit 400 € quand elle en devra 48.
   const auxVuesEnAttente = deal.perf_rate != null && !deal.perf_validated_at;
+
+  // Le reliquat exact, au taux FIGÉ dans la transaction. Sans séquestre il
+  // n'existe pas encore : on renvoie null plutôt qu'un chiffre inventé.
+  const reliquatAuxVues =
+    deal.perf_rate != null && payment
+      ? (() => {
+          const plafond = Number(deal.amount);
+          const taux = Number(payment.platform_fee_rate ?? 0);
+          const brut = Number(payment.gross_amount);
+          // Après validation, la transaction a DÉJÀ été ramenée au réel : la
+          // comparer au dû donnerait zéro, et la marque perdrait toute trace
+          // du remboursement au moment précis où il devient un fait. On repart
+          // donc de ce que valait le séquestre au plafond.
+          if (deal.perf_validated_at)
+            return Math.max(0, plafond + Math.round(plafond * taux) - brut);
+          const du = montantAuxVues(
+            Number(deal.perf_views ?? 0),
+            Number(deal.perf_rate),
+            plafond,
+          );
+          return Math.max(0, brut - (du + Math.round(du * taux)));
+        })()
+      : null;
   const paymentReleased =
     payment !== null &&
     (payment.status === "released" || payment.status === "paid");
@@ -386,6 +410,7 @@ export default async function DealDetailPage({
               declaredAt={deal.perf_declared_at}
               validatedAt={deal.perf_validated_at}
               enSequestre={paymentPaid}
+              reliquat={reliquatAuxVues}
             />
           )}
 
