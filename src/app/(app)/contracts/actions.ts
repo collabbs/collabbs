@@ -96,13 +96,19 @@ export async function cancelInKind(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) back("Déclaration introuvable.", "error");
 
-  // La RLS restreint déjà à la marque propriétaire ; on filtre quand même.
-  const { error } = await untyped(supabase)
+  // La RLS restreint déjà à la marque propriétaire ; on filtre quand même — et
+  // surtout on LIT les lignes touchées. Sans ça, retirer la déclaration d'une
+  // autre marque affichait « retirée du cumul » sans que rien ne bouge : le
+  // seuil légal, lui, continuait de la compter.
+  const { data: modifiees, error } = await untyped(supabase)
     .from("in_kind_benefits")
     .update({ status: "cancelled" })
     .eq("id", id)
-    .eq("brand_id", user.id);
+    .eq("brand_id", user.id)
+    .select("id");
   if (error) back(error.message, "error");
+  if (!modifiees || modifiees.length === 0)
+    back("Cette déclaration est introuvable, ou elle n'est pas la tienne.", "error");
 
   revalidatePath("/contracts");
   back("Déclaration retirée du cumul.");

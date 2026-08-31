@@ -63,11 +63,21 @@ export async function removeCampaignExample(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const { error } = await supabase
+  // `.select()` est ce qui rend le résultat LISIBLE. Sans lui, une suppression
+  // refusée par la RLS — parce que l'exemple appartient à une autre marque —
+  // renvoie `error: null` et zéro ligne : indiscernable d'un succès. L'écran
+  // annonçait « supprimé », et l'exemple était toujours là au rechargement.
+  const { data: supprimes, error } = await supabase
     .from("campaign_examples")
     .delete()
-    .eq("id", exampleId);
+    .eq("id", exampleId)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  if (!supprimes || supprimes.length === 0)
+    return {
+      ok: false,
+      error: "Cet exemple n'existe plus, ou il n'appartient pas à cette campagne.",
+    };
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/opportunities/${campaignId}`);

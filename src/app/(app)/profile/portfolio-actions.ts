@@ -66,11 +66,18 @@ export async function removePortfolioItem(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const { error } = await supabase
+  // Même piège qu'ailleurs : la RLS restreint la suppression au propriétaire,
+  // mais un refus ne produit pas d'erreur — zéro ligne, `error: null`. Sans
+  // lire les lignes touchées, le créateur voyait « supprimé » sur un contenu
+  // qui revenait au rechargement.
+  const { data: supprimes, error } = await supabase
     .from("creator_portfolio_items")
     .delete()
-    .eq("id", itemId);
+    .eq("id", itemId)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  if (!supprimes || supprimes.length === 0)
+    return { ok: false, error: "Ce contenu n'existe plus, ou il ne t'appartient pas." };
 
   revalidatePath("/profile");
   return { ok: true };
