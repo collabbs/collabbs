@@ -69,6 +69,22 @@ export default function DeliverableRow({
   const [editing, setEditing] = useState(!submitted);
   const [url, setUrl] = useState(d.submissionUrl ?? "");
   const [notes, setNotes] = useState(d.submissionNotes ?? "");
+  /**
+   * Ce que le créateur vient de faire, avant même que le serveur ne le
+   * confirme à l'écran.
+   *
+   * L'action enregistre bien (vérifié en base), `revalidatePath` et
+   * `router.refresh()` sont tous deux appelés — et pourtant le badge reste
+   * « À livrer » jusqu'à un rechargement manuel. Constaté sur une livraison
+   * réelle : la ligne était `done: true` en base pendant que l'écran disait le
+   * contraire, plus d'une minute après.
+   *
+   * Quelle qu'en soit la cause exacte côté cache, la règle ne change pas : on
+   * ne laisse jamais quelqu'un devant un écran qui ignore ce qu'il vient de
+   * faire. Un créateur qui voit « À livrer » après avoir livré recommence, ou
+   * écrit à la marque pour signaler un bug qui n'existe pas.
+   */
+  const [livreLocalement, setLivreLocalement] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -76,7 +92,10 @@ export default function DeliverableRow({
   async function submitUrl() {
     await onAction(async () => {
       const res = await setDeliverableSubmission(d.id, url, notes);
-      if (res.ok) setEditing(false);
+      if (res.ok) {
+        setEditing(false);
+        setLivreLocalement(true);
+      }
       return res;
     });
   }
@@ -150,10 +169,10 @@ export default function DeliverableRow({
         <div className="flex items-center gap-2">
           <span
             className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-              d.done ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-400"
+              d.done || livreLocalement ? "bg-blue-50 text-blue-700" : "bg-zinc-100 text-zinc-400"
             }`}
           >
-            {d.done ? "Livré" : "À livrer"}
+            {d.done || livreLocalement ? "Livré" : "À livrer"}
           </span>
           {role === "brand" && status === "active" && d.done && !d.approved ? (
             <div className="flex flex-wrap items-center gap-2">
