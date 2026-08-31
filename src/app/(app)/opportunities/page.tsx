@@ -7,7 +7,7 @@ import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
-import { countsAsEarning } from "@/lib/affiliate-earnings";
+import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 import { demoVisible } from "@/lib/demo-data";
 
 export const metadata = { title: "Opportunités — Collabbs" };
@@ -244,9 +244,10 @@ export default async function OpportunitiesPage({
   // Stats du créateur connecté : nb d'opportunités, gains affil cumulés.
   const allEvents = myEventsRes.data ?? [];
   const totalClicks = allEvents.filter((e) => e.type === "click").length;
-  const totalGains = allEvents
-    .filter((e) => e.type === "sale")
-    .reduce((s, e) => s + (e.commission_amount ?? 0), 0);
+  // Encore une définition divergente des gains : celle-ci ne comptait que les
+  // ventes — donc pas les actions au CPA — et ignorait le statut, donc
+  // additionnait les commissions écartées. `sumEarnings` est la règle unique.
+  const totalGains = sumEarnings(allEvents);
   const activeLinks = linkRows.length;
   const pendingApps = (appsRes.data ?? []).length;
 

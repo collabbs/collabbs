@@ -66,7 +66,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(brand_id, promo_commission_pct, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, promo_commission_pct, promo_min_purchase, promo_expires_at, brands(postback_secret))",
     )
     .eq("promo_code", normalized)
     .maybeSingle();
@@ -82,6 +82,23 @@ async function handle(p: Payload) {
     return NextResponse.json({ ok: false, error: "secret invalide" }, { status: 401 });
   }
 
+  // Les conditions posées par la marque n'étaient VÉRIFIÉES NULLE PART. Le
+  // panier minimum et la date d'expiration s'affichaient au créateur — « dès
+  // 50 € d'achat », « expire le 30/09 » — et le postback commissionnait quand
+  // même une commande de 5 € reçue trois mois plus tard.
+  //
+  // On enregistre quand même la vente : elle a eu lieu, la marque doit la voir
+  // et le créateur comprendre pourquoi elle ne lui rapporte rien. On l'écarte
+  // avec sa raison, plutôt que de la faire disparaître.
+  const minimum = Number(link.campaigns?.promo_min_purchase ?? 0);
+  const expiration = link.campaigns?.promo_expires_at as string | null | undefined;
+  let ecartee: string | null = null;
+  if (minimum > 0 && amount < minimum) {
+    ecartee = `Panier de ${amount} € inférieur au minimum de ${minimum} € fixé par la marque`;
+  } else if (expiration && new Date(expiration).getTime() < Date.now()) {
+    ecartee = `Code expiré le ${new Date(expiration).toLocaleDateString("fr-FR")}`;
+  }
+
   const pct = link.campaigns?.promo_commission_pct ?? 0;
   // Au centime : on manipule désormais de l'argent réellement versé.
   const commission = Math.round(amount * pct) / 100;
@@ -92,11 +109,12 @@ async function handle(p: Payload) {
       link_id: link.id,
       type: "sale",
       // Non financée tant que la réservation sur la provision n'a pas abouti.
-      status: "unfunded",
+      status: ecartee ? "rejected" : "unfunded",
       source: "promo_code",
       sale_amount: amount,
-      commission_amount: commission,
+      commission_amount: ecartee ? 0 : commission,
       external_ref: p.externalRef,
+      reject_reason: ecartee,
     })
     .select("id")
     .single();
@@ -111,6 +129,17 @@ async function handle(p: Payload) {
       });
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  // Une vente écartée ne réserve rien : il n'y a pas de commission à couvrir.
+  if (ecartee) {
+    return NextResponse.json({
+      ok: true,
+      rejected: true,
+      reason: ecartee,
+      sale_amount: amount,
+      commission: 0,
+    });
   }
 
   // Réserve la commission + les frais Collabbs sur la provision de la marque.

@@ -87,7 +87,13 @@ export default function ActionPanel({
             <p className="text-[11px] text-emerald-600">Clics</p>
           </div>
           <div>
-            <p className="text-xl font-extrabold text-emerald-700">{gains}€</p>
+            <p className="text-xl font-extrabold text-emerald-700">
+              {gains.toLocaleString("fr-FR", {
+                minimumFractionDigits: gains % 1 === 0 ? 0 : 2,
+                maximumFractionDigits: 2,
+              })}
+              €
+            </p>
             <p className="text-[11px] text-emerald-600">Gains</p>
           </div>
         </div>

@@ -137,7 +137,12 @@ export default async function OpportunityDetailPage({
   const totalClicks = campaignEv.filter((e) => e.type === "click").length;
   const totalSales = campaignEv.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
   // Les actions (CPA) comptent, le rejeté et le remboursé non.
-  const totalCommissionsPaid = sumEarnings(campaignEv);
+  // Ce que la campagne a fait GAGNER aux créateurs — pas ce qui leur a été
+  // versé : `sumEarnings` compte aussi les commissions réservées et acquises,
+  // qui ne partent qu'au versement mensuel. L'encadré s'intitulait « Versé aux
+  // créateurs » : un créateur qui découvre la campagne y lisait la promesse
+  // d'un argent déjà sorti.
+  const totalCommissionsGagnees = sumEarnings(campaignEv);
   const activeCreators = campaignLinkIds.length;
   const completedDeals = (campaignDealsRes.data ?? []).filter(
     (d) => d.status === "completed" || d.status === "active",
@@ -165,6 +170,12 @@ export default async function OpportunityDetailPage({
         }
       }
     }
+    // Additionner des commissions au centime en binaire donne
+    // 30.589999999999996 — et c'est ce que le créateur lisait dans son
+    // encadré « Gains ». On arrondit à la source, pas à l'affichage : le
+    // nombre juste doit exister avant d'être montré.
+    gains = Math.round(gains * 100) / 100;
+    promoCommissionTotal = Math.round(promoCommissionTotal * 100) / 100;
   }
 
   const status: "none" | "linked" | "applied" = linkRes.data
@@ -475,7 +486,7 @@ export default async function OpportunityDetailPage({
                       Valeur
                     </p>
                     <p className="mt-1 font-display text-xl font-black text-ink">
-                      {c.giveaway_prize_value}€
+                      {c.giveaway_prize_value.toLocaleString("fr-FR")} €
                     </p>
                   </div>
                 )}
@@ -490,7 +501,7 @@ export default async function OpportunityDetailPage({
                   </div>
                 )}
               </div>
-              {c.giveaway_rules_url && (
+              {c.giveaway_rules_url ? (
                 <a
                   href={c.giveaway_rules_url}
                   target="_blank"
@@ -499,6 +510,16 @@ export default async function OpportunityDetailPage({
                 >
                   Voir le règlement officiel ↗
                 </a>
+              ) : (
+                // Le créateur relaie le jeu auprès de SA communauté : c'est lui
+                // qu'on interpellera si le tirage n'a pas lieu. Il doit savoir
+                // avant de publier, pas après.
+                <p className="mt-3 rounded-lg bg-white/70 p-3 text-xs text-amber-800 ring-1 ring-amber-200">
+                  <strong>Aucun règlement n&apos;a été fourni.</strong> Un
+                  jeu-concours en France doit en avoir un, et c&apos;est toi
+                  qu&apos;on interpellera si le tirage n&apos;a pas lieu —
+                  demande-le à la marque avant de relayer.
+                </p>
               )}
             </section>
           )}
@@ -549,10 +570,14 @@ export default async function OpportunityDetailPage({
                 </div>
                 <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    Versé aux créateurs
+                    Gagné par les créateurs
                   </p>
                   <p className="mt-1 font-display text-2xl font-black text-emerald-700">
-                    {Math.round(totalCommissionsPaid).toLocaleString("fr-FR")}€
+                    {totalCommissionsGagnees.toLocaleString("fr-FR", {
+                      minimumFractionDigits: totalCommissionsGagnees % 1 === 0 ? 0 : 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    €
                   </p>
                 </div>
               </div>

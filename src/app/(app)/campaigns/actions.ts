@@ -132,6 +132,15 @@ export async function createCampaign(
   // lui sont payées avec `promo_commission_pct`, pas avec la grille
   // d'affiliation. À 0 %, le créateur diffuse un code et ne touche rien —
   // sans que rien ne le lui dise.
+  // Un concours sans lot annoncé : le créateur relaie « 🎁 Concours à faire
+  // gagner » et un encadré vide. Il ne peut rien en dire à sa communauté.
+  if (data.withGiveaway && !data.giveawayPrizeLabel.trim()) {
+    return {
+      ok: false,
+      error: "Indique ce qu'il y a à gagner : sans lot, le créateur n'a rien à annoncer à sa communauté.",
+    };
+  }
+
   if (data.withPromoCode && !(data.promoCommissionPct && data.promoCommissionPct > 0)) {
     return {
       ok: false,
