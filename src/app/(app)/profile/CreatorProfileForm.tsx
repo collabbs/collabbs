@@ -128,6 +128,22 @@ export default function CreatorProfileForm({
     (offerIds.length ? 20 : 0);
   const listable = hasPhoto && hasNiche && offerIds.length > 0;
 
+  // Un tarif renseigné sur au moins une offre.
+  //
+  // Ce n'est PAS une condition d'apparition : bloquer la mise en ligne sur un
+  // prix ferait disparaître des profils déjà en place, et tout le monde y
+  // perdrait. Mais c'est le manque le plus coûteux du profil — en production,
+  // 79 offres sur 80 n'ont aucun prix, et une marque qui parcourt la
+  // marketplace ne voit donc « à partir de » nulle part. Elle ne peut pas
+  // choisir, donc elle ne choisit pas.
+  //
+  // On le dit là où le créateur peut agir, au lieu de le laisser deviner
+  // pourquoi personne ne le contacte.
+  const aUnTarif = offerIds.some(
+    (id) => id !== "affil" && Number(offerSel[id]?.price) > 0,
+  );
+  const peutAvoirUnTarif = offerIds.some((id) => id !== "affil");
+
   async function save() {
     setError(null);
     setSaving(true);
@@ -575,6 +591,12 @@ export default function CreatorProfileForm({
                     <span className="text-sm text-zinc-400">€</span>
                   </div>
                 )}
+                {sel && o.id !== "affil" && !(Number(sel.price) > 0) && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Sans prix, cette offre n&apos;apparaît pas dans le « à partir
+                    de » de ta carte. Tu peux le changer à tout moment.
+                  </p>
+                )}
                 {/* Le repère de CE format, jamais un chiffre global : un tarif
                     de story n'a rien à voir avec un tarif d'UGC, et un repère
                     mélangé ferait afficher au créateur un prix qui ne
@@ -614,11 +636,19 @@ export default function CreatorProfileForm({
           <div className="flex items-center gap-2 text-xs sm:text-sm">
             <span
               className={`flex h-2 w-2 shrink-0 rounded-full ${
-                listable ? "bg-emerald-500" : "bg-amber-400"
+                listable && (!peutAvoirUnTarif || aUnTarif)
+                  ? "bg-emerald-500"
+                  : "bg-amber-400"
               }`}
             />
             <span className="text-zinc-600">
-              {listable ? (
+              {listable && peutAvoirUnTarif && !aUnTarif ? (
+                <>
+                  <strong className="text-amber-700">Visible, mais sans tarif.</strong>{" "}
+                  Sans prix, ta carte n&apos;affiche pas de « à partir de » — les
+                  marques passent.
+                </>
+              ) : listable ? (
                 <>
                   <strong className="text-emerald-700">Visible par les marques.</strong>{" "}
                   Tes modifs sont prêtes à être enregistrées.

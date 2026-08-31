@@ -28,11 +28,35 @@ function fmtFollowers(n: number): string {
   if (n >= 1_000) return `${Math.round(n / 1000)}k`;
   return String(n);
 }
-function priceFromRates(
+/**
+ * Le « à partir de » d'un créateur.
+ *
+ * ─── Le défaut que ça répare ───
+ * Cette valeur se calculait uniquement depuis `creators.rate_video`,
+ * `rate_mention` et `rate_pack`. Or **aucun formulaire n'écrit jamais ces
+ * trois colonnes** : elles ne sont que lues. Seuls les profils de
+ * démonstration en ont, parce qu'ils ont été insérés directement en base.
+ *
+ * Résultat en production : 22 des 24 profils de démonstration affichaient un
+ * tarif, et zéro des créateurs réels. Une marque qui parcourt la marketplace
+ * voyait donc des prix partout SAUF chez les vraies personnes — et le seul
+ * créateur qui avait pris la peine de renseigner ses tarifs dans son profil ne
+ * les voyait apparaître nulle part.
+ *
+ * On lit maintenant d'abord ce que le créateur a réellement saisi
+ * (`creator_offers.price`), et les anciennes colonnes ne servent plus que de
+ * repli — ce qui laisse les profils de démonstration inchangés.
+ */
+function prixAPartirDe(
+  prixDesOffres: Record<string, number | null> | undefined,
   rateVideo: number | null,
   rateMention: number | null,
   ratePack: number | null,
 ): number | null {
+  const saisis = Object.values(prixDesOffres ?? {}).filter(
+    (v): v is number => v != null && v > 0,
+  );
+  if (saisis.length) return Math.min(...saisis);
   const rates = [rateVideo, rateMention, ratePack].filter(
     (v): v is number => v != null && v > 0,
   );
@@ -193,7 +217,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
 
-  const { profMap, platsBy, nichesBy, offersBy } = await loadRelations(ids);
+  const { profMap, platsBy, nichesBy, offersBy, offerPriceBy } = await loadRelations(ids);
 
   const NOW = Date.now();
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -237,7 +261,12 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       platformSlug: main.slug,
       followers: fmtFollowers(main.subs),
       engagement: c.engagement != null ? `${c.engagement}%` : "—",
-      priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
+      priceFrom: prixAPartirDe(
+        offerPriceBy.get(c.id),
+        c.rate_video,
+        c.rate_mention,
+        c.rate_pack,
+      ),
       offers,
       rating,
       photo: prof.avatar_url,
@@ -356,7 +385,12 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     reviewsCount,
     dealsCount,
     engagement: c.engagement != null ? `${c.engagement}%` : "—",
-    priceFrom: priceFromRates(c.rate_video, c.rate_mention, c.rate_pack),
+    priceFrom: prixAPartirDe(
+      offerPriceBy.get(c.id),
+      c.rate_video,
+      c.rate_mention,
+      c.rate_pack,
+    ),
     offers: orderOffers(offersBy.get(c.id) ?? []),
     offerPrices: (offerPriceBy.get(c.id) ?? {}) as Partial<Record<OfferId, number | null>>,
     photo: prof?.avatar_url ?? null,
