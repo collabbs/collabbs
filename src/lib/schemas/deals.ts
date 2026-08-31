@@ -71,13 +71,23 @@ export const termesDealSchema = z.object({
     quoi: "La durée des droits d'utilisation",
     min: 1,
     max: 120,
-  }).nullable(),
+  })
+    .nullish()
+    .transform((v) => v ?? null),
 
-  /** Exclusivité : le créateur s'interdit les marques concurrentes. */
-  exclusivity: z.boolean(),
+  /**
+   * Exclusivité : le créateur s'interdit les marques concurrentes.
+   *
+   * Ces trois champs sont FACULTATIFS à l'envoi : un appelant qui ne touche
+   * pas aux droits ne doit pas être obligé de les répéter. L'absence vaut
+   * « pas d'exclusivité », jamais « exclusivité sans durée ».
+   */
+  exclusivity: z.boolean().nullish().transform((v) => v ?? false),
   exclusivityDays: nombreEntier({
     quoi: "La durée d'exclusivité",
     min: 1,
     max: 365,
-  }).nullable(),
+  })
+    .nullish()
+    .transform((v) => v ?? null),
 });

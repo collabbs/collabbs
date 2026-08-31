@@ -62,3 +62,30 @@ describe("termes d'une collaboration", () => {
     }
   });
 });
+
+describe("droits d'usage et exclusivité", () => {
+  it("restent facultatifs : ne pas y toucher n'invalide pas les termes", () => {
+    // Ces champs ont été ajoutés après coup. Les rendre obligatoires aurait
+    // cassé tout appelant qui ne s'occupe que du montant et de l'échéance.
+    const r = valider(termesDealSchema, {
+      amount: 300,
+      quantity: 1,
+      deadline: null,
+      brandNotes: null,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.exclusivity).toBe(false);
+      expect(r.data.usageRightsMonths).toBeNull();
+      expect(r.data.exclusivityDays).toBeNull();
+    }
+  });
+
+  it("refuse une durée de droits absurde", () => {
+    const r = valider(termesDealSchema, {
+      amount: 300, quantity: 1, deadline: null, brandNotes: null,
+      usageRightsMonths: 500,
+    });
+    expect(r.ok).toBe(false);
+  });
+});

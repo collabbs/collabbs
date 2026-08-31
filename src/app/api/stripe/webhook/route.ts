@@ -7,6 +7,11 @@ import {
   handleChargeRefunded,
 } from "@/lib/stripe";
 import { handleTopupCheckout } from "@/lib/affiliate-billing";
+import {
+  enregistrerAbonnement,
+  prolongerAbonnement,
+  cloturerAbonnement,
+} from "@/lib/abonnement-stripe";
 import { reportError } from "@/lib/report-error";
 
 // Webhook Stripe — source de vérité asynchrone pour les événements de paiement.
@@ -48,9 +53,12 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        // Deux natures de paiement transitent par Checkout : le règlement d'un
-        // deal (séquestre) et l'approvisionnement d'une provision d'affiliation.
-        if (session.metadata?.kind === "topup") {
+        // Trois natures de paiement transitent par Checkout : le règlement
+        // d'un deal (séquestre), l'approvisionnement d'une provision
+        // d'affiliation, et l'abonnement mensuel d'une marque.
+        if (session.metadata?.kind === "abonnement") {
+          await enregistrerAbonnement(session);
+        } else if (session.metadata?.kind === "topup") {
           await handleTopupCheckout(session);
         } else {
           await ensureCheckoutSessionRecorded(session);
@@ -59,6 +67,19 @@ export async function POST(request: Request) {
       }
       case "charge.refunded": {
         await handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+      }
+      // Renouvellement mensuel : l'échéance recule d'un mois. Sans cet
+      // évènement, le plan expirerait au bout du premier mois payé alors que
+      // la marque continue de régler.
+      case "invoice.paid": {
+        await prolongerAbonnement(event.data.object as Stripe.Invoice);
+        break;
+      }
+      // Résiliation, carte refusée trois fois, fin d'essai : Stripe clôt
+      // l'abonnement et la marque retombe au tarif gratuit.
+      case "customer.subscription.deleted": {
+        await cloturerAbonnement(event.data.object as Stripe.Subscription);
         break;
       }
       // D'autres évènements seront ajoutés ici si besoin (transfer.created, account.updated…)

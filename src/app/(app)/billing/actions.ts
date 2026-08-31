@@ -15,6 +15,8 @@ import { notify } from "@/lib/notifications";
 import { valider, nombreDuFormulaire } from "@/lib/validation";
 import { approvisionnementSchema, rechargeAutoSchema } from "@/lib/schemas/billing";
 import { reportError } from "@/lib/report-error";
+import { ouvrirAbonnement } from "@/lib/abonnement-stripe";
+import { planValide } from "@/lib/tarifs";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Colonnes ajoutées par la migration 0035, pas encore dans database.types.ts.
@@ -302,4 +304,31 @@ export async function rejectPixelSale(formData: FormData) {
 
   revalidatePath("/billing");
   redirect("/billing?rejected=1");
+}
+
+
+/**
+ * La marque souscrit un abonnement. Le plan est lu du formulaire et validé :
+ * un plan inconnu ne doit pas ouvrir un paiement au hasard.
+ */
+export async function souscrireAbonnement(formData: FormData) {
+  const brandId = await requireBrand();
+  const voulu = planValide(String(formData.get("plan") ?? ""));
+  if (voulu === "free") {
+    redirect("/billing?error=Plan+inconnu.");
+  }
+
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+
+  const res = await ouvrirAbonnement({
+    brandId,
+    plan: voulu,
+    origin: `${proto}://${host}`,
+  });
+  if (!res.ok || !res.url) {
+    redirect(`/billing?error=${encodeURIComponent(res.error ?? "Abonnement indisponible.")}`);
+  }
+  redirect(res.url);
 }

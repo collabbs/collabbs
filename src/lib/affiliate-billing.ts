@@ -4,6 +4,8 @@ import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
 import { TARIFS } from "@/lib/tarifs";
+import { tauxAffiliation } from "@/lib/tarifs";
+import { planDeLaMarque } from "@/lib/abonnement";
 
 /**
  * Circuit d'argent de l'affiliation.
@@ -42,9 +44,9 @@ function round2(n: number): number {
  * Décomposition d'une vente affiliée.
  * `commission` est ce que la campagne promet au créateur.
  */
-export function affiliateBreakdown(commission: number) {
+export function affiliateBreakdown(commission: number, plan?: string | null) {
   const creatorAmount = round2(commission);
-  const platformFee = round2(creatorAmount * AFFILIATE_FEE_RATE);
+  const platformFee = round2(creatorAmount * tauxAffiliation(plan));
   return {
     creatorAmount,                                  // ce que touche le créateur
     platformFee,                                    // ce que garde Collabbs
@@ -91,7 +93,10 @@ export async function settleSale(params: {
     .maybeSingle();
   if (guard?.needs_review) return "unfunded";
 
-  const { creatorAmount, platformFee, brandTotal } = affiliateBreakdown(commission);
+  // Le taux suit le plan de la marque : c'est elle qui règle les frais, et
+  // c'est ce que son abonnement achète.
+  const plan = await planDeLaMarque(brandId);
+  const { creatorAmount, platformFee, brandTotal } = affiliateBreakdown(commission, plan);
 
   const validateAt = new Date();
   validateAt.setDate(validateAt.getDate() + VALIDATION_DAYS);

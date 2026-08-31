@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dealBreakdown, eur } from "@/lib/deal";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxCollab } from "@/lib/tarifs";
 
 // Client Stripe côté serveur uniquement (compte Collabbs, mode test pour l'instant).
 // La clé secrète ne doit JAMAIS être exposée au navigateur.
@@ -65,14 +67,18 @@ export async function ensureCheckoutSessionRecorded(
     .single();
   if (!deal) return { ok: false };
 
-  const b = dealBreakdown(deal.amount);
+  // Le taux appliqué est celui du plan de la marque AU MOMENT DU PAIEMENT.
+  // Il est figé dans la transaction : un changement de plan plus tard ne doit
+  // pas réécrire ce qui a été encaissé.
+  const plan = await planDeLaMarque(deal.brand_id);
+  const b = dealBreakdown(deal.amount, plan);
   const { error: errTx } = await admin.from("transactions").insert({
     type: "deal_payment",
     deal_id: dealId,
     brand_id: deal.brand_id,
     creator_id: deal.creator_id,
     gross_amount: b.gross,
-    platform_fee_rate: 0.1,
+    platform_fee_rate: tauxCollab(plan),
     platform_fee: b.fee,
     net_amount: b.net,
     currency: "eur",

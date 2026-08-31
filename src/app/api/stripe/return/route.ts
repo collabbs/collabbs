@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stripe, ensureCheckoutSessionRecorded } from "@/lib/stripe";
 import { handleTopupCheckout } from "@/lib/affiliate-billing";
+import { enregistrerAbonnement } from "@/lib/abonnement-stripe";
 
 // Retour de Stripe Checkout : enregistre la transaction en séquestre via le
 // helper partagé. La même logique tourne aussi côté webhook, donc si le
@@ -13,6 +14,17 @@ export async function GET(request: Request) {
   let dealId: string | undefined;
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Abonnement : on l'enregistre ici ET au webhook. Si l'onglet se ferme,
+    // le webhook rattrape ; si le webhook tarde, le retour a déjà fait le
+    // travail. Écrire deux fois le même plan ne change rien.
+    if (session.metadata?.kind === "abonnement") {
+      const res = await enregistrerAbonnement(session);
+      return NextResponse.redirect(
+        `${url.origin}/billing?${res.ok ? "abonnement=1" : "error=Abonnement+non+enregistr%C3%A9"}`,
+        302,
+      );
+    }
 
     // Approvisionnement de la provision d'affiliation : autre destination.
     if (session.metadata?.kind === "topup") {

@@ -14,6 +14,9 @@ import {
   rejectPixelSale,
 } from "./actions";
 import EmptyState from "@/components/EmptyState";
+import PlansAbonnement from "@/components/app/PlansAbonnement";
+import { planValide } from "@/lib/tarifs";
+import { ilYA, estEchu } from "@/lib/temps";
 
 export const metadata = { title: "Provision — Collabbs" };
 
@@ -74,10 +77,31 @@ export default async function BillingPage({
   const { data: brand } = await untyped(supabase)
     .from("brands")
     .select(
-      "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at",
+      "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at, plan, plan_expires_at",
     )
     .eq("id", user.id)
     .single();
+
+  // Le plan appliqué, échéance comprise : un abonnement échu vaut « gratuit »
+  // même si la colonne dit encore autre chose.
+  const planActuel = estEchu(brand?.plan_expires_at) ? "free" : planValide(brand?.plan);
+
+  // Ce que la marque a réellement versé en collaborations sur 30 jours. C'est
+  // ce chiffre qui vend l'abonnement : elle lit les siens, pas une promesse.
+  const depuis = ilYA(30);
+  const { data: txMois } = await untyped(supabase)
+    .from("transactions")
+    .select("net_amount")
+    .eq("brand_id", user.id)
+    .eq("type", "deal_payment")
+    .gte("created_at", depuis);
+  const volumeMensuel = Math.round(
+    (txMois ?? []).reduce(
+      (somme: number, t: { net_amount: number | string | null }) =>
+        somme + Number(t.net_amount ?? 0),
+      0,
+    ),
+  );
 
   const balance = Number(brand?.balance ?? 0);
   const hasCard = Boolean(brand?.payment_method_id);
@@ -330,6 +354,8 @@ export default async function BillingPage({
           </button>
         </form>
       </div>
+
+      <PlansAbonnement planActuel={planActuel} volumeMensuel={volumeMensuel} />
 
       {/* Recharge automatique */}
       <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
