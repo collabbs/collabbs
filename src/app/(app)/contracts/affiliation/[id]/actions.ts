@@ -6,8 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 /**
  * Signature d'un contrat-cadre d'affiliation.
@@ -32,7 +30,7 @@ export async function signAffiliateContract(formData: FormData) {
   if (!user) redirect("/login");
 
   const admin = createAdminClient();
-  const { data: contrat } = await untyped(admin)
+  const { data: contrat } = await admin
     .from("contracts")
     .select("id, kind, brand_id, creator_id, brand_signed_at, creator_signed_at, status")
     .eq("id", contractId)
@@ -57,10 +55,17 @@ export async function signAffiliateContract(formData: FormData) {
   const now = new Date().toISOString();
   const autreSignee = estMarque ? contrat.creator_signed_at : contrat.brand_signed_at;
 
-  const { data: maj } = await untyped(admin)
+  // Deux objets explicites plutôt qu'une clé calculée : `{ [champ]: now }`
+  // produit un type indexé par `string` que le client Supabase rejette, et
+  // qui surtout ne vérifie plus que la colonne écrite existe vraiment.
+  const signature = estMarque
+    ? { brand_signed_at: now }
+    : { creator_signed_at: now };
+
+  const { data: maj } = await admin
     .from("contracts")
     .update({
-      [champ]: now,
+      ...signature,
       // Le contrat n'est signé que lorsque les DEUX l'ont fait.
       status: autreSignee ? "signed" : "pending_signature",
     })
@@ -75,7 +80,15 @@ export async function signAffiliateContract(formData: FormData) {
 
   // On prévient l'autre partie : soit qu'on attend sa signature, soit que le
   // contrat est complet.
+  // Un contrat-cadre d'affiliation a toujours ses deux parties — la contrainte
+  // CHECK de la migration 0046 l'impose. Mais les colonnes restent nullables,
+  // et une notification adressée à `null` ne partirait à personne sans le
+  // moindre signe : c'est la partie adverse qui ne saurait jamais qu'on
+  // attend sa signature.
   const autre = estMarque ? contrat.creator_id : contrat.brand_id;
+  if (!autre) {
+    redirect(`/contracts/affiliation/${contractId}`);
+  }
   notify({
     userId: autre,
     type: autreSignee ? "affiliate_contract_signed" : "affiliate_contract_awaiting",

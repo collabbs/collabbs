@@ -16,11 +16,11 @@ import { fetchChannelAudience } from "@/lib/youtube";
  * d'ici là, leurs chiffres restent explicitement déclaratifs.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 /** Identifiant de la plateforme YouTube dans la table `platforms`. */
-async function youtubePlatformId(supabase: any): Promise<number | null> {
+async function youtubePlatformId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<number | null> {
   const { data } = await supabase
     .from("platforms")
     .select("id, slug")
@@ -54,7 +54,7 @@ export async function verifyYouTubeAudience(): Promise<{
     return { ok: false, error: "Plateforme YouTube introuvable." };
   }
 
-  const { data: row } = await untyped(supabase)
+  const { data: row } = await supabase
     .from("creator_platforms")
     .select("id, url, handle, subscribers")
     .eq("creator_id", user.id)
@@ -99,7 +99,7 @@ export async function verifyYouTubeAudience(): Promise<{
       ? Math.round(((declared - audience.subscribers) / declared) * 100)
       : null;
 
-  const { error } = await untyped(supabase)
+  const { error } = await supabase
     .from("creator_platforms")
     .update({
       verified_subscribers: audience.subscribers,

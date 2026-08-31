@@ -1316,8 +1316,7 @@ export async function leaveBrandReview(
     .maybeSingle();
   if (existing) return { ok: false, error: "Tu as déjà laissé un avis sur cette marque." };
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const { error } = await (supabase as any).from("brand_reviews").insert({
+  const { error } = await supabase.from("brand_reviews").insert({
     deal_id: dealId,
     brand_id: deal.brand_id,
     creator_id: user.id,

@@ -10,7 +10,6 @@ import { signAffiliateContract } from "./actions";
 
 export const metadata = { title: "Contrat-cadre — Collabbs" };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Le contrat-cadre d'affiliation, lisible et imprimable.
@@ -31,7 +30,7 @@ export default async function AffiliateContractPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: contract } = await (supabase as any)
+  const { data: contract } = await supabase
     .from("contracts")
     .select(
       "id, kind, reference, status, terms_snapshot, brand_id, creator_id, period_year, brand_signed_at, creator_signed_at",

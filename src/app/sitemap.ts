@@ -17,7 +17,6 @@ import { ARTICLES } from "@/lib/blog";
  */
 export const revalidate = 3600;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -54,14 +53,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let creatorPages: MetadataRoute.Sitemap = [];
   try {
     const supabase = await createClient();
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("creators")
       .select("handle, updated_at, is_demo")
       .not("handle", "is", null)
       .neq("is_demo", true)
       .limit(5000);
 
-    creatorPages = ((data ?? []) as any[]).map((c) => ({
+    creatorPages = (data ?? []).map((c) => ({
       url: `${SITE.url}/creators/${c.handle}`,
       lastModified: c.updated_at ? new Date(c.updated_at) : now,
       changeFrequency: "weekly" as const,

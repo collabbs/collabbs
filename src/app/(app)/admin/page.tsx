@@ -22,8 +22,6 @@ export const metadata = { title: "Administration — Collabbs" };
  * d'outil d'arbitrage qui bloquait, pas l'absence de statistiques.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 function dateFr(iso: string | null) {
   if (!iso) return "—";
@@ -71,34 +69,34 @@ export default async function AdminPage({
   const admin = createAdminClient();
 
   const [txRes, dealsRes, ledgerRes, inKindRes, salesRes, profilesRes] = await Promise.all([
-    untyped(admin)
+    admin
       .from("transactions")
       .select("id, type, deal_id, brand_id, creator_id, gross_amount, platform_fee, net_amount, status, created_at"),
-    untyped(admin)
+    admin
       .from("deals")
       .select("id, brand_id, creator_id, title, amount, status, created_at, accepted_at, brand_validated_at"),
-    untyped(admin).from("brand_ledger").select("kind, amount"),
-    untyped(admin)
+    admin.from("brand_ledger").select("kind, amount"),
+    admin
       .from("in_kind_benefits")
       .select("id, brand_id, creator_id, label, value, status, dispute_reason, sent_at")
       .eq("status", "disputed"),
-    untyped(admin)
+    admin
       .from("affiliate_events")
       .select("id, sale_amount, commission_amount, platform_fee, status, occurred_at, external_ref")
       .in("type", ["sale", "action"])
       .in("status", ["unfunded", "pending"])
       .order("occurred_at", { ascending: false })
       .limit(20),
-    untyped(admin).from("profiles").select("id, display_name, role"),
+    admin.from("profiles").select("id, display_name, role"),
   ]);
 
-  const txs = (txRes.data ?? []) as any[];
-  const deals = (dealsRes.data ?? []) as any[];
-  const ledger = (ledgerRes.data ?? []) as any[];
-  const disputes = (inKindRes.data ?? []) as any[];
-  const sales = (salesRes.data ?? []) as any[];
+  const txs = txRes.data ?? [];
+  const deals = dealsRes.data ?? [];
+  const ledger = ledgerRes.data ?? [];
+  const disputes = inKindRes.data ?? [];
+  const sales = salesRes.data ?? [];
   const nameOf = new Map<string, string>(
-    ((profilesRes.data ?? []) as any[]).map((p) => [p.id, p.display_name ?? "—"]),
+    (profilesRes.data ?? []).map((p) => [p.id, p.display_name ?? "—"]),
   );
 
   // Chiffres d'ensemble.
@@ -121,7 +119,12 @@ export default async function AdminPage({
   const stuckEscrow = dealTx
     .filter((t) => t.status === "in_escrow")
     .map((t) => ({ tx: t, deal: deals.find((d) => d.id === t.deal_id) }))
-    .filter((x) => x.deal)
+    // Prédicat de type, et pas un simple `Boolean` : sans lui, `deal` reste
+    // « peut-être absent » pour le compilateur, et le JSX plus bas lit ses
+    // champs sans filet — sur l'écran d'arbitrage des séquestres bloqués.
+    .filter((x): x is { tx: (typeof dealTx)[number]; deal: (typeof deals)[number] } =>
+      Boolean(x.deal),
+    )
     .map((x) => ({ ...x, days: daysSince(x.tx.created_at) ?? 0 }))
     .sort((a, b) => b.days - a.days);
 
@@ -132,13 +135,13 @@ export default async function AdminPage({
   );
   // Erreurs de production non traitées. Sans cet écran, le journal serait
   // aussi invisible que les `console.error` qu'il remplace.
-  const { data: erreursRaw } = await (admin as any)
+  const { data: erreursRaw } = await admin
     .from("error_reports")
     .select("id, context, message, detail, occurrences, first_seen_at, last_seen_at")
     .is("resolved_at", null)
     .order("last_seen_at", { ascending: false })
     .limit(20);
-  const erreurs = (erreursRaw ?? []) as any[];
+  const erreurs = erreursRaw ?? [];
 
   const attention =
     stuckEscrow.filter((x) => x.days >= 14).length +

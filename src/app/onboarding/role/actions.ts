@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { reportError } from "@/lib/report-error";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Confirme le rôle d'un compte arrivé sans rôle — c'est-à-dire par Google.
@@ -21,7 +20,7 @@ export async function confirmerRole(role: "creator" | "brand") {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data, error } = await (supabase as any).rpc("confirm_user_role", {
+  const { data, error } = await supabase.rpc("confirm_user_role", {
     p_role: role,
   });
 

@@ -54,8 +54,7 @@ export async function GET(
   // Enregistre le clic, en ne comptant qu'une fois par visiteur, par lien et
   // par jour. L'index unique fait le travail : un doublon lève une erreur qu'on
   // ignore volontairement — la redirection doit aboutir quoi qu'il arrive.
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const clickRes = await (supabase as any).from("affiliate_events").insert({
+  const clickRes = await supabase.from("affiliate_events").insert({
     link_id: link.id,
     type: "click",
     visitor_hash: visitorHash(request, link.id),

@@ -176,8 +176,7 @@ export default async function DealDetailPage({
   // Avis laissé par le créateur SUR la marque. La table arrive avec la
   // migration 0039 ; tant qu'elle n'est pas appliquée on n'affiche rien plutôt
   // que de casser la page.
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  const { data: brandReviewRow } = await (supabase as any)
+  const { data: brandReviewRow } = await supabase
     .from("brand_reviews")
     .select("rating, comment")
     .eq("deal_id", id)

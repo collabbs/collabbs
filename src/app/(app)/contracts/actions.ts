@@ -14,8 +14,6 @@ import { notify } from "@/lib/notifications";
  * contester, parce que ça pèse sur SON cumul annuel.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 function back(msg: string, kind: "ok" | "error" = "ok"): never {
   redirect(`/contracts?${kind === "ok" ? "saved" : "error"}=${encodeURIComponent(msg)}`);
@@ -55,7 +53,7 @@ export async function declareInKind(formData: FormData) {
     .maybeSingle();
   if (!creator) back(`Aucun créateur trouvé avec le @ « ${handle} ».`, "error");
 
-  const { error } = await untyped(supabase).from("in_kind_benefits").insert({
+  const { error } = await supabase.from("in_kind_benefits").insert({
     brand_id: user.id,
     creator_id: creator.id,
     label,
@@ -100,7 +98,7 @@ export async function cancelInKind(formData: FormData) {
   // surtout on LIT les lignes touchées. Sans ça, retirer la déclaration d'une
   // autre marque affichait « retirée du cumul » sans que rien ne bouge : le
   // seuil légal, lui, continuait de la compter.
-  const { data: modifiees, error } = await untyped(supabase)
+  const { data: modifiees, error } = await supabase
     .from("in_kind_benefits")
     .update({ status: "cancelled" })
     .eq("id", id)
@@ -135,20 +133,20 @@ export async function disputeInKind(formData: FormData) {
   // bien le destinataire, puis on écrit avec ses propres droits limités à la
   // contestation. Le service-role n'est pas nécessaire : la policy d'update est
   // réservée à la marque, donc on passe par une lecture + une écriture ciblée.
-  const { data: row } = await untyped(supabase)
+  const { data: row } = await supabase
     .from("in_kind_benefits")
     .select("id, creator_id")
     .eq("id", id)
     .maybeSingle();
   if (!row || row.creator_id !== user.id) back("Action non autorisée.", "error");
 
-  const { error } = await untyped(supabase).rpc("dispute_in_kind_benefit", {
+  const { error } = await supabase.rpc("dispute_in_kind_benefit", {
     p_id: id,
     p_reason: reason,
   });
   if (error) back(error.message, "error");
 
-  const { data: full } = await untyped(supabase)
+  const { data: full } = await supabase
     .from("in_kind_benefits")
     .select("brand_id, label")
     .eq("id", id)

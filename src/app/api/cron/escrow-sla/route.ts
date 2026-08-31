@@ -31,8 +31,6 @@ import { reportError } from "@/lib/report-error";
  * l'argent — l'écran d'administration est là pour les cas ambigus.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 const DAY_MS = 86_400_000;
 
@@ -48,7 +46,7 @@ export async function GET(request: Request) {
   // ---------------------------------------------------------------
   // 1. Libération automatique après le délai de validation
   // ---------------------------------------------------------------
-  const { data: actives } = await untyped(admin)
+  const { data: actives } = await admin
     .from("deals")
     .select(
       "id, brand_id, creator_id, title, amount, status, brand_validation_deadline_days, brand_validated_at, deliverables(id, done, approved, submitted_at, revision_requested)",
@@ -56,8 +54,8 @@ export async function GET(request: Request) {
     .eq("status", "active")
     .is("brand_validated_at", null);
 
-  for (const deal of (actives ?? []) as any[]) {
-    const dels = (deal.deliverables ?? []) as any[];
+  for (const deal of (actives ?? [])) {
+    const dels = deal.deliverables ?? [];
     if (dels.length === 0) continue;
 
     // Tout doit être livré, et rien ne doit être en cours de retouche.
@@ -85,7 +83,7 @@ export async function GET(request: Request) {
     }
 
     // Le paiement doit être en séquestre : sans argent, rien à libérer.
-    const { data: tx } = await untyped(admin)
+    const { data: tx } = await admin
       .from("transactions")
       .select("id, status, net_amount")
       .eq("deal_id", deal.id)
@@ -97,7 +95,7 @@ export async function GET(request: Request) {
     }
 
     const validatedAt = new Date().toISOString();
-    const { error: errCloture } = await untyped(admin)
+    const { error: errCloture } = await admin
       .from("deals")
       .update({ status: "completed", brand_validated_at: validatedAt })
       .eq("id", deal.id);
@@ -109,7 +107,7 @@ export async function GET(request: Request) {
       result.failed++;
       continue;
     }
-    await untyped(admin)
+    await admin
       .from("deliverables")
       .update({ approved: true })
       .eq("deal_id", deal.id);
@@ -156,15 +154,15 @@ export async function GET(request: Request) {
   // ---------------------------------------------------------------
   // 2. Relance des collaborations acceptées mais non réglées
   // ---------------------------------------------------------------
-  const { data: unpaid } = await untyped(admin)
+  const { data: unpaid } = await admin
     .from("deals")
     .select("id, brand_id, creator_id, title, amount, escrow_due_at")
     .eq("status", "active")
     .not("escrow_due_at", "is", null)
     .lt("escrow_due_at", new Date().toISOString());
 
-  for (const deal of (unpaid ?? []) as any[]) {
-    const { data: tx } = await untyped(admin)
+  for (const deal of (unpaid ?? [])) {
+    const { data: tx } = await admin
       .from("transactions")
       .select("id")
       .eq("deal_id", deal.id)

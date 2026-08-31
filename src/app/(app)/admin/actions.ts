@@ -19,8 +19,6 @@ import { reportError } from "@/lib/report-error";
  * que pas d'arbitrage du tout.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 function back(msg: string, kind: "ok" | "error" = "ok"): never {
   redirect(`/admin?${kind === "ok" ? "done" : "error"}=${encodeURIComponent(msg)}`);
@@ -30,6 +28,29 @@ function back(msg: string, kind: "ok" | "error" = "ok"): never {
  * Libère le séquestre au bénéfice du créateur, hors du parcours normal.
  * Usage : la marque ne valide jamais alors que la livraison est faite.
  */
+/**
+ * Prévient quelqu'un, à condition qu'on sache qui.
+ *
+ * Sur `transactions`, `brand_id` et `creator_id` sont nullables. Un
+ * arbitrage qui débloque ou rembourse un séquestre DOIT prévenir les deux
+ * parties : si l'identifiant manque, il faut le savoir, pas laisser partir
+ * une notification vers personne.
+ */
+async function prevenir(
+  userId: string | null,
+  role: "créateur" | "marque",
+  contexte: string,
+  message: Omit<Parameters<typeof notify>[0], "userId">,
+) {
+  if (!userId) {
+    await reportError("admin/notification-sans-destinataire", new Error(`${role} inconnu`), {
+      detail: contexte,
+    });
+    return;
+  }
+  await notify({ ...message, userId });
+}
+
 export async function adminReleaseEscrow(formData: FormData) {
   await requireAdmin();
   if (!stripeConfigured) back("Stripe n'est pas configuré.", "error");
@@ -40,7 +61,7 @@ export async function adminReleaseEscrow(formData: FormData) {
   if (reason.length < 5) back("Motive ta décision — elle sera consignée.", "error");
 
   const admin = createAdminClient();
-  const { data: tx } = await untyped(admin)
+  const { data: tx } = await admin
     .from("transactions")
     .select("id, deal_id, brand_id, creator_id, net_amount, status, reference")
     .eq("deal_id", dealId)
@@ -49,7 +70,7 @@ export async function adminReleaseEscrow(formData: FormData) {
   if (!tx) back("Aucun paiement trouvé pour ce deal.", "error");
   if (tx.status !== "in_escrow") back(`Ce paiement n'est pas en séquestre (${tx.status}).`, "error");
 
-  const { data: creator } = await untyped(admin)
+  const { data: creator } = await admin
     .from("creators")
     .select("stripe_account_id")
     .eq("id", tx.creator_id)
@@ -73,7 +94,7 @@ export async function adminReleaseEscrow(formData: FormData) {
       { idempotencyKey: `admin-release-${tx.id}` },
     );
 
-    const { error: errTx } = await untyped(admin)
+    const { error: errTx } = await admin
       .from("transactions")
       .update({
         status: "paid",
@@ -88,15 +109,13 @@ export async function adminReleaseEscrow(formData: FormData) {
       back("Le virement est parti mais son enregistrement a échoué. Ne relance pas.", "error");
     }
 
-    await notify({
-      userId: tx.creator_id,
+    await prevenir(tx.creator_id, "créateur", `deal ${dealId}, transaction ${tx.id}`, {
       type: "admin_escrow_released",
       title: `${eur(Number(tx.net_amount))} débloqués par Collabbs`,
       body: `Suite à notre arbitrage, les fonds en séquestre t'ont été versés. Motif : ${reason}`,
       link: `/deals/${dealId}`,
     });
-    await notify({
-      userId: tx.brand_id,
+    await prevenir(tx.brand_id, "marque", `deal ${dealId}, transaction ${tx.id}`, {
       type: "admin_escrow_released",
       title: "Séquestre débloqué par Collabbs",
       body: `Les fonds ont été versés au créateur suite à notre arbitrage. Motif : ${reason}`,
@@ -122,7 +141,7 @@ export async function adminRefundEscrow(formData: FormData) {
   if (reason.length < 5) back("Motive ta décision — elle sera consignée.", "error");
 
   const admin = createAdminClient();
-  const { data: tx } = await untyped(admin)
+  const { data: tx } = await admin
     .from("transactions")
     .select("id, brand_id, creator_id, gross_amount, status, reference")
     .eq("deal_id", dealId)
@@ -141,11 +160,11 @@ export async function adminRefundEscrow(formData: FormData) {
       { idempotencyKey: `admin-refund-${tx.id}` },
     );
 
-    const { error: errRemb } = await untyped(admin)
+    const { error: errRemb } = await admin
       .from("transactions")
       .update({ status: "refunded" })
       .eq("id", tx.id);
-    const { error: errDeal } = await untyped(admin)
+    const { error: errDeal } = await admin
       .from("deals")
       .update({ status: "cancelled" })
       .eq("id", dealId);
@@ -158,15 +177,13 @@ export async function adminRefundEscrow(formData: FormData) {
       back("Le remboursement est parti mais son enregistrement a échoué. Ne relance pas.", "error");
     }
 
-    await notify({
-      userId: tx.brand_id,
+    await prevenir(tx.brand_id, "marque", `deal ${dealId}, transaction ${tx.id}`, {
       type: "admin_escrow_refunded",
       title: `${eur(Number(tx.gross_amount))} remboursés`,
       body: `Suite à notre arbitrage, les fonds séquestrés t'ont été rendus. Motif : ${reason}`,
       link: `/deals/${dealId}`,
     });
-    await notify({
-      userId: tx.creator_id,
+    await prevenir(tx.creator_id, "créateur", `deal ${dealId}, transaction ${tx.id}`, {
       type: "admin_escrow_refunded",
       title: "Collaboration close par Collabbs",
       body: `Les fonds ont été rendus à la marque suite à notre arbitrage. Motif : ${reason}`,
@@ -192,7 +209,7 @@ export async function adminResolveInKind(formData: FormData) {
   if (!id) back("Déclaration introuvable.", "error");
 
   const admin = createAdminClient();
-  const { error } = await untyped(admin)
+  const { error } = await admin
     .from("in_kind_benefits")
     .update({ status: keep ? "declared" : "cancelled" })
     .eq("id", id);
@@ -233,7 +250,7 @@ export async function resolveError(formData: FormData) {
   if (!errorId) back("Erreur introuvable.", "error");
 
   const admin = createAdminClient();
-  await untyped(admin)
+  await admin
     .from("error_reports")
     .update({ resolved_at: new Date().toISOString() })
     .eq("id", errorId);
@@ -266,7 +283,7 @@ export async function adminAdjustProvision(formData: FormData) {
   if (!motif) back("Le motif est obligatoire : il sera lisible par la marque.", "error");
 
   const admin = createAdminClient();
-  const { data, error } = await untyped(admin).rpc("adjust_balance", {
+  const { data, error } = await admin.rpc("adjust_balance", {
     p_brand: brandId,
     p_amount: montant,
     p_label: motif,

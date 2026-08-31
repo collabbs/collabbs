@@ -13,7 +13,6 @@ import { renderContractPdf } from "@/lib/contract-pdf";
 // @react-pdf/renderer a besoin du runtime Node (pas Edge).
 export const runtime = "nodejs";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export async function GET(
   _request: Request,
@@ -28,7 +27,7 @@ export async function GET(
     return NextResponse.json({ error: "non connecté" }, { status: 401 });
   }
 
-  const { data: contract } = await (supabase as any)
+  const { data: contract } = await supabase
     .from("contracts")
     .select(
       "kind, reference, terms_snapshot, brand_id, creator_id, brand_signed_at, creator_signed_at, terminated_at",

@@ -77,7 +77,6 @@ export default async function PayoutsPage({
   // Commissions d'affiliation : trois états distincts, parce qu'un créateur
   // doit savoir ce qui est encore réversible, ce qui lui est acquis, et ce qui
   // est déjà parti sur son compte.
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const { data: myLinks } = await supabase
     .from("affiliate_links")
     .select("id")
@@ -90,12 +89,12 @@ export default async function PayoutsPage({
   let affUnfunded = 0;  // la marque doit réapprovisionner
   let affToReview = 0;  // déclarée par la boutique, la marque doit confirmer
   if (myLinkIds.length > 0) {
-    const { data: affEvents } = await (supabase as any)
+    const { data: affEvents } = await supabase
       .from("affiliate_events")
       .select("status, commission_amount, needs_review")
       .in("type", ["sale", "action"])
       .in("link_id", myLinkIds);
-    for (const e of (affEvents ?? []) as any[]) {
+    for (const e of (affEvents ?? [])) {
       const c = Number(e.commission_amount ?? 0);
       // Une vente déclarée par le script de la boutique attend la confirmation
       // de la marque. La compter comme « non financée » l'accuserait à tort
