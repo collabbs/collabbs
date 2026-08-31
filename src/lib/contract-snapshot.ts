@@ -32,6 +32,8 @@ export type ContractSnapshot = {
     exclusivity: boolean;
     exclusivity_days: number | null;
     usage_rights_months: number | null;
+    usage_rights_scope: "organic" | "paid" | null;
+    usage_rights_fee: number | null;
   };
 };
 
@@ -171,7 +173,7 @@ export async function buildContractSnapshot(
   const { data: deal } = await admin
     .from("deals")
     .select(
-      "brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, exclusivity, exclusivity_days, usage_rights_months",
+      "brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, exclusivity, exclusivity_days, usage_rights_months, usage_rights_scope, usage_rights_fee",
     )
     .eq("id", dealId)
     .single();
@@ -283,6 +285,8 @@ export async function buildContractSnapshot(
         exclusivity: deal.exclusivity,
         exclusivity_days: deal.exclusivity_days ?? null,
         usage_rights_months: deal.usage_rights_months ?? null,
+        usage_rights_scope: deal.usage_rights_scope ?? null,
+        usage_rights_fee: deal.usage_rights_fee ?? null,
       },
     },
     ...(incomplete.length > 0 ? { incomplete } : {}),

@@ -159,10 +159,47 @@ export const termesDealSchema = z.object({
     .transform((v) => v ?? null),
 
   /**
+   * Périmètre de réutilisation cédé. Absent = aucune cession.
+   *
+   * Volontairement séparé de la durée : une durée sans périmètre ne dit pas
+   * ce qui a été cédé, et c'est justement le point qui se plaide.
+   */
+  usageRightsScope: z
+    .enum(["organic", "paid"])
+    .nullish()
+    .transform((v) => v ?? null),
+
+  /**
+   * Part de `amount` qui rémunère les droits.
+   *
+   * Bornée au montant lui-même : c'en est une part, pas un supplément à côté.
+   * Sans cette borne, l'écran afficherait « contenu : −200 € ».
+   */
+  usageRightsFee: nombreEntier({
+    quoi: "Le montant des droits d'usage",
+    min: 0,
+    max: DEAL_MONTANT_MAX,
+  })
+    .nullish()
+    .transform((v) => v ?? null),
+
+  /**
    * La marque envoie-t-elle un produit ? Repris de la campagne à la création,
    * mais modifiable ici : une collaboration directe peut parfaitement inclure
    * un envoi, et une campagne « produit physique » peut aboutir à une collab
    * qui n'en demande pas.
    */
   shippingRequired: z.boolean().nullish().transform((v) => v ?? false),
-});
+})
+  .refine((d) => d.usageRightsFee === null || d.usageRightsFee <= d.amount, {
+    error:
+      "Les droits d'usage ne peuvent pas dépasser le montant de la collaboration : ils en sont une part.",
+    path: ["usageRightsFee"],
+  })
+  // Une part de droits sans durée ni périmètre facturerait une cession que le
+  // contrat n'écrirait nulle part.
+  .refine((d) => !d.usageRightsFee || d.usageRightsScope !== null, {
+    error:
+      "Précise le périmètre des droits d'usage (supports propres ou publicité payante) avant de les facturer.",
+    path: ["usageRightsScope"],
+  });

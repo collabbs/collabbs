@@ -215,14 +215,31 @@ export function buildContractDocument(params: {
 
   add("Droits d'utilisation du contenu", [
     deal.usage_rights_months
-      ? `L'annonceur bénéficie d'un droit d'utilisation du contenu produit pour une durée de **${deal.usage_rights_months} mois** à compter de la livraison, sur ses propres supports de communication.`
+      ? // Le PÉRIMÈTRE est écrit noir sur blanc, et c'est le point qui compte :
+        // une clause qui dit seulement « six mois » sans dire pour quel usage
+        // se règle au tribunal le jour où l'annonceur pousse le contenu en
+        // publicité payante. Le prix payé pour ces droits y figure aussi —
+        // c'est ce qui rend la cession opposable.
+        `L'annonceur bénéficie d'un droit d'utilisation du contenu produit pour une durée de **${deal.usage_rights_months} mois** à compter de la livraison, ${
+          deal.usage_rights_scope === "paid"
+            ? "sur ses propres supports de communication **ainsi qu'en diffusion publicitaire payante**, y compris auprès d'audiences n'appartenant pas à la communauté du créateur"
+            : "sur ses **propres supports de communication uniquement**, à l'exclusion de toute diffusion publicitaire payante"
+        }.${
+          deal.usage_rights_fee
+            ? ` Cette cession est rémunérée **${deal.usage_rights_fee} €**, compris dans le montant total de la collaboration.`
+            : ""
+        }`
       // La formulation précédente renvoyait « aux limites convenues entre les
       // Parties sur la plateforme » — alors qu'aucun écran ne permettait d'en
       // convenir. Une clause qui renvoie à un accord inexistant ne protège
       // personne. À défaut de durée fixée, on énonce la règle protectrice :
       // pas de réutilisation au-delà de la publication convenue.
       : "À défaut de durée convenue entre les Parties, le droit d'utilisation de l'annonceur est limité à la publication réalisée par le créateur dans le cadre de la présente collaboration, à l'exclusion de toute réutilisation ultérieure sur ses propres supports.",
-    "Toute utilisation excédant ce périmètre, notamment une exploitation publicitaire payante, doit faire l'objet d'un accord distinct et, le cas échéant, d'une rémunération complémentaire.",
+    // Sans cette condition, le contrat interdisait à la ligne suivante la
+    // diffusion publicitaire qu'il venait d'accorder à la ligne précédente.
+    deal.usage_rights_scope === "paid"
+      ? "Toute utilisation excédant le périmètre et la durée ci-dessus doit faire l'objet d'un accord distinct et, le cas échéant, d'une rémunération complémentaire."
+      : "Toute utilisation excédant ce périmètre, notamment une exploitation publicitaire payante, doit faire l'objet d'un accord distinct et, le cas échéant, d'une rémunération complémentaire.",
     "Le créateur garantit être titulaire des droits sur le contenu livré et avoir obtenu les autorisations nécessaires des personnes y figurant.",
   ]);
 

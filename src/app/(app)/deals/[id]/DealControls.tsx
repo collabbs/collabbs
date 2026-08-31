@@ -9,6 +9,14 @@ import {
   updateDealTerms,
 } from "../actions";
 import DeliverableRow, { type Deliverable } from "./DeliverableRow";
+import {
+  supplementDroits,
+  libelleDroits,
+  PERIMETRES,
+  PERIMETRE_LABEL,
+  PERIMETRE_DESCRIPTION,
+  type Perimetre,
+} from "@/lib/droits";
 import RevisionPanel from "./RevisionPanel";
 
 type Props = {
@@ -22,6 +30,8 @@ type Props = {
     deadline: string | null;
     brandNotes: string | null;
     usageRightsMonths: number | null;
+    usageRightsScope: "organic" | "paid" | null;
+    usageRightsFee: number | null;
     exclusivity: boolean;
     exclusivityDays: number | null;
     shippingRequired: boolean;
@@ -47,7 +57,7 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(terms.amount);
+
   const [quantity, setQuantity] = useState(terms.quantity);
   const [envoiRequis, setEnvoiRequis] = useState(terms.shippingRequired);
   const [deadline, setDeadline] = useState(terms.deadline ?? "");
@@ -56,6 +66,20 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   // les fixer. Ils décident de ce que la marque a le droit de faire du contenu
   // après la livraison — c'est tout sauf un détail.
   const [droits, setDroits] = useState(terms.usageRightsMonths ?? "");
+  const [perimetre, setPerimetre] = useState<Perimetre>(terms.usageRightsScope ?? "organic");
+  // Le montant du contenu, hors droits. C'est LUI que la marque manipule ; le
+  // total suit. Saisir un total dont une part invisible paie des droits
+  // reviendrait à lui faire deviner ce qu'elle achète.
+  const [contenu, setContenu] = useState(
+    Math.max(0, terms.amount - (terms.usageRightsFee ?? 0)),
+  );
+
+  // Les droits ne sont facturés que s'il y a une durée. Le total est TOUJOURS
+  // la somme des deux : la marque ne peut pas se retrouver avec un montant qui
+  // ne correspond à rien de nommé.
+  const moisDroits = droits === "" ? null : Number(droits);
+  const fraisDroits = moisDroits ? supplementDroits(contenu, moisDroits, perimetre) : 0;
+  const amount = contenu + fraisDroits;
   const [exclu, setExclu] = useState(terms.exclusivity);
   const [excluJours, setExcluJours] = useState(terms.exclusivityDays ?? "");
 
@@ -127,13 +151,13 @@ export default function DealControls({ dealId, role, status, deliverables, terms
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <span className="text-xs font-semibold text-zinc-500">
-                {perfRate ? "Plafond (€)" : "Montant (€)"}
+                {perfRate ? "Plafond (€)" : "Montant du contenu (€)"}
               </span>
               <input
                 type="number"
                 min={0}
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                value={contenu}
+                onChange={(e) => setContenu(Number(e.target.value))}
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
               />
               {perfRate ? (
@@ -185,6 +209,49 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                 supports. Vide = aucune réutilisation au-delà de la publication.
               </span>
             </label>
+            {/* Le périmètre n'apparaît qu'une fois la durée posée : demander
+                « pour quel usage ? » avant « pendant combien de temps ? » n'a
+                pas de sens, et une durée vide ne cède rien. */}
+            {moisDroits ? (
+              <label className="text-sm sm:col-span-2">
+                <span className="text-xs font-semibold text-zinc-500">
+                  Ce que tu pourras en faire
+                </span>
+                <span className="mt-1 grid gap-2 sm:grid-cols-2">
+                  {PERIMETRES.map((p) => (
+                    <span
+                      key={p}
+                      onClick={() => setPerimetre(p)}
+                      className={`cursor-pointer rounded-lg border p-3 transition ${
+                        perimetre === p
+                          ? "border-purple-400 bg-purple-50"
+                          : "border-zinc-200 hover:border-zinc-300"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-ink">
+                          {PERIMETRE_LABEL[p]}
+                        </span>
+                        <span className="text-sm font-bold text-brand-deep">
+                          +{supplementDroits(contenu, moisDroits, p)}€
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-[11px] text-zinc-500">
+                        {PERIMETRE_DESCRIPTION[p]}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+                {/* La décomposition, en clair. Le créateur touche les deux
+                    lignes : c'est son droit qu'on licencie. */}
+                <span className="mt-2 block rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
+                  Contenu <strong className="text-ink">{contenu}€</strong> + droits{" "}
+                  <strong className="text-ink">{fraisDroits}€</strong> ={" "}
+                  <strong className="text-ink">{amount}€</strong> pour le créateur.{" "}
+                  {libelleDroits(moisDroits, perimetre)}.
+                </span>
+              </label>
+            ) : null}
             <label className="text-sm">
               <span className="text-xs font-semibold text-zinc-500">Exclusivité</span>
               <span className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2">
@@ -253,7 +320,9 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                     quantity,
                     deadline: deadline || null,
                     brandNotes: notes,
-                    usageRightsMonths: droits === "" ? null : Number(droits),
+                    usageRightsMonths: moisDroits,
+                    usageRightsScope: moisDroits ? perimetre : null,
+                    usageRightsFee: moisDroits ? fraisDroits : null,
                     exclusivity: exclu,
                     exclusivityDays: excluJours === "" ? null : Number(excluJours),
                     shippingRequired: envoiRequis,

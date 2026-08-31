@@ -110,7 +110,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number",
     )
     .eq("id", id)
     .single();
@@ -388,6 +388,24 @@ export default async function DealDetailPage({
                 <dt className="text-xs text-zinc-500">Échéance</dt>
                 <dd className="font-semibold text-ink">{fmtDate(deal.deadline)}</dd>
               </div>
+              {/* Les droits d'usage étaient invisibles ailleurs que dans le
+                  contrat — que personne ne relit. Le périmètre est affiché avec
+                  la durée : « 6 mois » ne dit pas si la marque peut passer le
+                  contenu en publicité. */}
+              {deal.usage_rights_months && (
+                <div>
+                  <dt className="text-xs text-zinc-500">Droits d&apos;usage</dt>
+                  <dd className="font-semibold text-ink">
+                    {deal.usage_rights_months} mois
+                    <span className="block text-xs font-normal text-zinc-500">
+                      {deal.usage_rights_scope === "paid"
+                        ? "Publicité payante incluse"
+                        : "Supports propres uniquement"}
+                      {deal.usage_rights_fee ? ` · ${eur(deal.usage_rights_fee)}` : ""}
+                    </span>
+                  </dd>
+                </div>
+              )}
             </dl>
             {deal.brand_notes && (
               <div className="mt-4 border-t border-zinc-100 pt-3">
@@ -590,6 +608,8 @@ export default async function DealDetailPage({
               deadline: deal.deadline,
               brandNotes: deal.brand_notes,
               usageRightsMonths: deal.usage_rights_months ?? null,
+              usageRightsScope: deal.usage_rights_scope ?? null,
+              usageRightsFee: deal.usage_rights_fee ?? null,
               exclusivity: deal.exclusivity ?? false,
               exclusivityDays: deal.exclusivity_days ?? null,
               shippingRequired: deal.shipping_required ?? false,
@@ -629,6 +649,15 @@ export default async function DealDetailPage({
                 </dt>
                 <dd className="font-semibold text-ink">{eur(b.net)}</dd>
               </div>
+              {/* La part des droits est une PART du montant du créateur, pas
+                  un supplément à côté : on la montre en retrait sous la ligne
+                  qu'elle décompose. */}
+              {deal.usage_rights_fee ? (
+                <div className="flex justify-between pl-3 text-xs">
+                  <dt className="text-zinc-400">dont droits d&apos;usage</dt>
+                  <dd className="text-zinc-400">{eur(deal.usage_rights_fee)}</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between">
                 <dt className="text-zinc-500">
                   Commission Collabbs ({Math.round(PLATFORM_FEE_RATE * 100)} %)

@@ -34,6 +34,8 @@ const snapshot = (over: Partial<ContractSnapshot["deal"]> = {}): ContractSnapsho
     exclusivity: false,
     exclusivity_days: null,
     usage_rights_months: null,
+    usage_rights_scope: null,
+    usage_rights_fee: null,
     ...over,
   },
 });
@@ -135,6 +137,8 @@ describe("contrat de collaboration", () => {
           exclusivity: true,
           exclusivity_days: 60,
           usage_rights_months: 12,
+          usage_rights_scope: null,
+          usage_rights_fee: null,
         }),
         brand: { ...party("MAISON VELO SAS"), rep_name: "Camille Roussel", vat: "FR40912345678" },
       },
@@ -261,5 +265,51 @@ describe("contrat de collaboration", () => {
       // Et surtout : le brut n'est plus présenté comme le net.
       expect(clause).not.toContain(`${fmt(gross)}**, montant net`);
     }
+  });
+});
+
+describe("droits d'usage : le périmètre cédé", () => {
+  // Un contrat qui dit « six mois » sans dire POUR QUEL USAGE se règle au
+  // tribunal le jour où l'annonceur pousse le contenu en publicité payante.
+  it("cantonne aux supports propres quand le périmètre est organique", () => {
+    const doc = buildContractDocument({
+      reference: "CLB-TEST",
+      snapshot: snapshot({
+        usage_rights_months: 6,
+        usage_rights_scope: "organic",
+        usage_rights_fee: 300,
+      }),
+      regime: "complete",
+    });
+    const texte = JSON.stringify(doc);
+    expect(texte).toContain("propres supports de communication uniquement");
+    // Le prix de la cession figure au contrat : c'est ce qui la rend opposable.
+    expect(texte).toContain("300");
+  });
+
+  it("accorde explicitement la publicité payante quand elle est cédée", () => {
+    const doc = buildContractDocument({
+      reference: "CLB-TEST",
+      snapshot: snapshot({
+        usage_rights_months: 6,
+        usage_rights_scope: "paid",
+        usage_rights_fee: 600,
+      }),
+      regime: "complete",
+    });
+    const texte = JSON.stringify(doc);
+    expect(texte).toContain("diffusion publicitaire payante");
+    // Et le contrat ne doit PAS interdire à la ligne suivante ce qu'il vient
+    // d'accorder à la ligne précédente.
+    expect(texte).not.toContain(
+      "notamment une exploitation publicitaire payante, doit faire l'objet d'un accord distinct",
+    );
+  });
+
+  it("reste protecteur quand aucune durée n'est convenue", () => {
+    const texte = JSON.stringify(
+      buildContractDocument({ reference: "CLB-TEST", snapshot: snapshot(), regime: "complete" }),
+    );
+    expect(texte).toContain("à l'exclusion de toute réutilisation ultérieure");
   });
 });

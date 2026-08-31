@@ -1215,6 +1215,8 @@ export type Database = {
       }
       deals: {
         Row: {
+          usage_rights_scope: Database["public"]["Enums"]["usage_rights_scope"] | null
+          usage_rights_fee: number | null
           shipping_required: boolean
           received_at: string | null
           perf_rate: number | null
@@ -1252,6 +1254,8 @@ export type Database = {
           usage_rights_months: number | null
         }
         Insert: {
+          usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
+          usage_rights_fee?: number | null
           shipping_required?: boolean
           received_at?: string | null
           perf_rate?: number | null
@@ -1289,6 +1293,8 @@ export type Database = {
           usage_rights_months?: number | null
         }
         Update: {
+          usage_rights_scope?: Database["public"]["Enums"]["usage_rights_scope"] | null
+          usage_rights_fee?: number | null
           shipping_required?: boolean
           received_at?: string | null
           perf_rate?: number | null
@@ -1939,6 +1945,7 @@ export type Database = {
       }
     }
     Enums: {
+      usage_rights_scope: "organic" | "paid"
       affiliate_event_status:
         | "unfunded"
         | "pending"

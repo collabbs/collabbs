@@ -292,6 +292,8 @@ export async function updateDealTerms(
     deadline: string | null;
     brandNotes: string | null;
     usageRightsMonths?: number | null;
+    usageRightsScope?: "organic" | "paid" | null;
+    usageRightsFee?: number | null;
     exclusivity?: boolean;
     exclusivityDays?: number | null;
     shippingRequired?: boolean;
@@ -322,6 +324,8 @@ export async function updateDealTerms(
     deadline: data.deadline,
     brandNotes: data.brandNotes,
     usageRightsMonths: data.usageRightsMonths ?? null,
+    usageRightsScope: data.usageRightsScope ?? null,
+    usageRightsFee: data.usageRightsFee ?? null,
     exclusivity: data.exclusivity ?? false,
     exclusivityDays: data.exclusivityDays ?? null,
     shippingRequired: data.shippingRequired ?? false,
@@ -336,6 +340,11 @@ export async function updateDealTerms(
       deadline: controle.data.deadline,
       brand_notes: controle.data.brandNotes?.trim() || null,
       usage_rights_months: controle.data.usageRightsMonths,
+      // Sans durée, il n'y a pas de cession : on efface périmètre et montant
+      // plutôt que de laisser traîner une facturation orpheline que le contrat
+      // n'écrirait nulle part.
+      usage_rights_scope: controle.data.usageRightsMonths ? controle.data.usageRightsScope : null,
+      usage_rights_fee: controle.data.usageRightsMonths ? controle.data.usageRightsFee : null,
       exclusivity: controle.data.exclusivity,
       // Une exclusivité sans durée ne veut rien dire : on ne garde le nombre
       // de jours que si la case est cochée.
