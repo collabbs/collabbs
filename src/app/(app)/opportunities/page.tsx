@@ -261,6 +261,15 @@ export default async function OpportunitiesPage({
   const activeLinks = linkRows.length;
   const pendingApps = (appsRes.data ?? []).length;
 
+  // Les campagnes où une marque attend une réponse de CE créateur.
+  //
+  // Construites depuis la liste NON filtrée, et affichées hors de la grille :
+  // une invitation s'adresse à quelqu'un, elle ne peut pas disparaître parce
+  // qu'une puce de niche est restée cochée. C'était le défaut le plus probable
+  // du dispositif — l'invitation partait, la notification arrivait, et l'écran
+  // vers lequel elle renvoie ne montrait rien.
+  const invitations = (campaignsRes.data ?? []).filter((c) => invitedSet.has(c.id));
+
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -315,6 +324,41 @@ export default async function OpportunitiesPage({
           </div>
         )}
       </div>
+
+        {invitations.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-5 sm:p-6">
+            <p className="font-display text-lg font-black text-ink">
+              ✨ {invitations.length === 1
+                ? "Une marque t'invite"
+                : `${invitations.length} marques t'invitent`}
+            </p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Elles ont repéré ton profil et te proposent leur campagne. À toi de
+              répondre — accepter ne t&apos;engage à rien de plus qu&apos;à recevoir
+              une proposition chiffrée.
+            </p>
+            <ul className="mt-4 space-y-2">
+              {invitations.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/opportunities/${c.id}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">{c.name}</p>
+                      <p className="truncate text-sm text-zinc-500">
+                        {c.brands?.name ?? "Une marque"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white">
+                      Voir et répondre →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Teaser cliquable vers la page dédiée /activity */}
         {(activeLinks > 0 || pendingApps > 0) && (

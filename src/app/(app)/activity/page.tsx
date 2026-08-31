@@ -82,10 +82,18 @@ export default async function ActivityPage() {
   // Mes candidatures
   const { data: apps } = await supabase
     .from("applications")
-    .select("id, campaign_id, status, created_at, message")
+    .select("id, campaign_id, status, created_at, message, initiated_by")
     .eq("creator_id", user.id)
     .order("created_at", { ascending: false });
   const appRows = apps ?? [];
+
+  // Une invitation reçue et une candidature envoyée sont toutes deux « en
+  // attente », mais l'attente ne pèse pas sur la même personne : dans un cas
+  // le créateur attend une réponse, dans l'autre c'est LUI qu'on attend.
+  // Les afficher pareil lui ferait patienter devant sa propre décision.
+  const enAttenteDeMoi = appRows.filter(
+    (a) => a.initiated_by === "brand" && a.status === "pending",
+  ).length;
 
   // Mes deals
   const { data: deals } = await supabase
@@ -171,10 +179,16 @@ export default async function ActivityPage() {
             label="Liens actifs"
           />
           <StatBlock
-            icon="⏳"
+            icon={enAttenteDeMoi > 0 ? "✨" : "⏳"}
             tone="brand"
-            value={String(pendingApps)}
-            label="Candidatures en attente"
+            value={String(enAttenteDeMoi > 0 ? enAttenteDeMoi : pendingApps)}
+            label={
+              enAttenteDeMoi > 0
+                ? enAttenteDeMoi > 1
+                  ? "Invitations à traiter"
+                  : "Invitation à traiter"
+                : "Candidatures en attente"
+            }
           />
           <StatBlock
             icon="🤝"
@@ -315,7 +329,7 @@ export default async function ActivityPage() {
       {appRows.length > 0 && (
         <section className="mt-8">
           <h2 className="font-display text-xl font-black text-ink">
-            Mes candidatures{" "}
+            Mes candidatures et invitations{" "}
             <span className="text-zinc-400">({appRows.length})</span>
           </h2>
           <div className="mt-4 space-y-2">
@@ -323,7 +337,12 @@ export default async function ActivityPage() {
               const c = campaignMap.get(a.campaign_id);
               const brand = c?.brand_id ? brandMap.get(c.brand_id) : null;
               const meta =
-                APP_STATUS_META[a.status] ?? APP_STATUS_META.pending;
+                a.initiated_by === "brand" && a.status === "pending"
+                  ? {
+                      label: "À toi de répondre",
+                      tone: "bg-purple-100 text-purple-700",
+                    }
+                  : APP_STATUS_META[a.status] ?? APP_STATUS_META.pending;
               return (
                 <Link
                   key={a.id}
