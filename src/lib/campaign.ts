@@ -99,3 +99,35 @@ export const TIER_LABELS: { key: "nano" | "micro" | "mid" | "macro"; label: stri
   { key: "mid", label: "Mid · 50–200k" },
   { key: "macro", label: "Macro · 200k+" },
 ];
+
+/**
+ * De quoi un créateur a-t-il besoin pour participer à cette campagne ?
+ *
+ * Le produit répondait à cette question avec un seul booléen — « est-ce de
+ * l'affiliation ? » — et se trompait deux fois :
+ *
+ *  · **L'hybride** promet un forfait ET une commission. Le créateur ne voyait
+ *    que « active ton lien » : aucun chemin ne menait à la collaboration qui
+ *    verse le forfait. Le fixe était affiché et impayable.
+ *  · **Le CPA** rémunère des actions suivies par un lien. L'écran proposait
+ *    « candidater », ce qui aurait créé une collaboration à 0 € — et aucun
+ *    lien, donc aucune action mesurable.
+ *
+ * Les deux besoins ne s'excluent pas : sur une campagne hybride, le créateur
+ * active son lien et candidate.
+ */
+export function besoinLienDeSuivi(type: string, avecCodePromo = false): boolean {
+  return (
+    type === "affiliation" ||
+    type === "hybrid" ||
+    type === "cpa_flat" ||
+    type === "cpa_tiers" ||
+    // Un code promo se rattache au lien du créateur : sans lien, pas de code.
+    avecCodePromo
+  );
+}
+
+/** Une candidature n'a de sens que si une collaboration doit naître. */
+export function besoinCandidature(type: string): boolean {
+  return type === "video" || type === "performance" || type === "hybrid";
+}

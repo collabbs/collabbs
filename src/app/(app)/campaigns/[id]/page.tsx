@@ -3,13 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import PlatformIcon from "@/components/PlatformIcon";
-import {
-  CAMPAIGN_TYPE_LABEL,
-  TONE_LABEL,
-  campaignReward,
-  eur,
-  type CampaignType,
-} from "@/lib/campaign";
+import { CAMPAIGN_TYPE_LABEL, TONE_LABEL, campaignReward, eur, type CampaignType, besoinCandidature, besoinLienDeSuivi } from "@/lib/campaign";
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
 import { openConversation } from "../../messages/actions";
 import { createDealFromApplication } from "../../deals/actions";
@@ -61,7 +55,13 @@ export default async function CampaignManagePage({
   if (!c || c.brand_id !== user.id) notFound();
 
   const type = c.type as CampaignType;
-  const isAffiliation = type === "affiliation" || type === "hybrid";
+  // La marque voit ce que sa campagne produit réellement : des candidatures
+  // quand une collaboration doit naître, des affiliés quand un lien est en jeu.
+  // Avec le booléen unique, une campagne hybride cachait ses candidatures et
+  // une campagne au CPA cachait ses affiliés.
+  const avecCandidatures = besoinCandidature(type);
+  const avecAffilies = besoinLienDeSuivi(type, Boolean(c.with_promo_code));
+  const isAffiliation = avecAffilies;
   const isCpa = type === "cpa_flat" || type === "cpa_tiers";
 
   const [nichesRes, platformsRes, appsRes, linksRes, dealsRes, brandRes, examplesRes] = await Promise.all([
@@ -611,7 +611,7 @@ export default async function CampaignManagePage({
       </div>
 
       {/* Candidatures (campagnes non-affiliation) */}
-      {!isAffiliation && (
+      {avecCandidatures && (
         <section className="mt-8">
           <h2 className="font-display text-lg font-black text-ink">
             Candidatures {apps.length > 0 && <span className="text-zinc-400">({apps.length})</span>}
@@ -685,7 +685,7 @@ export default async function CampaignManagePage({
       {isAffiliation && <ShareCampaignCard publicUrl={`${origin}/c/${c.id}`} />}
 
       {/* Affiliés (campagnes affiliation / hybride) */}
-      {isAffiliation && (
+      {avecAffilies && (
         <section className="mt-8">
           <h2 className="font-display text-lg font-black text-ink">
             Affiliés {links.length > 0 && <span className="text-zinc-400">({links.length})</span>}

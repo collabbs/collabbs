@@ -5,7 +5,8 @@ import { activateAffiliateLink, applyToCampaign } from "../actions";
 
 export default function ActionPanel({
   campaignId,
-  isAffiliation,
+  besoinLien,
+  besoinCandidature,
   initialStatus,
   initialCode,
   clicks = 0,
@@ -13,7 +14,10 @@ export default function ActionPanel({
   rewardedFor = "vente",
 }: {
   campaignId: string;
-  isAffiliation: boolean;
+  /** La campagne se suit par un lien : affiliation, CPA, code promo, hybride. */
+  besoinLien: boolean;
+  /** Une collaboration doit naître : forfait, performance, hybride. */
+  besoinCandidature: boolean;
   initialStatus: "none" | "linked" | "applied";
   initialCode?: string;
   clicks?: number;
@@ -26,7 +30,13 @@ export default function ActionPanel({
    */
   rewardedFor?: string;
 }) {
-  const [status, setStatus] = useState(initialStatus);
+  // Sur une campagne hybride, les deux gestes coexistent : le lien est actif
+  // ET la candidature est en attente. Un état unique les rendait exclusifs, et
+  // le second geste devenait inatteignable.
+  const [lienActif, setLienActif] = useState(initialStatus === "linked");
+  const [candidatureEnvoyee, setCandidatureEnvoyee] = useState(
+    initialStatus === "applied",
+  );
   const [code, setCode] = useState(initialCode ?? "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,7 +50,7 @@ export default function ActionPanel({
     setBusy(false);
     if (res.ok && res.code) {
       setCode(res.code);
-      setStatus("linked");
+      setLienActif(true);
     } else setError(res.error ?? "Erreur.");
   }
 
@@ -49,7 +59,7 @@ export default function ActionPanel({
     setError(null);
     const res = await applyToCampaign(campaignId, message);
     setBusy(false);
-    if (res.ok) setStatus("applied");
+    if (res.ok) setCandidatureEnvoyee(true);
     else setError(res.error ?? "Erreur.");
   }
 
@@ -59,8 +69,7 @@ export default function ActionPanel({
     setTimeout(() => setCopied(false), 1500);
   }
 
-  if (status === "linked") {
-    return (
+  const blocLien = lienActif ? (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
         <p className="text-sm font-bold text-emerald-700">
           ✓ Ton lien d&apos;affiliation est actif
@@ -98,22 +107,18 @@ export default function ActionPanel({
           </div>
         </div>
       </div>
-    );
-  }
+  ) : null;
 
-  if (status === "applied") {
-    return (
+  const blocCandidatureEnvoyee = candidatureEnvoyee ? (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
         <p className="text-sm font-bold text-emerald-700">✓ Candidature envoyée</p>
         <p className="mt-1 text-xs text-emerald-600">
           La marque va étudier ton profil. Tu seras notifié·e de sa réponse.
         </p>
       </div>
-    );
-  }
+  ) : null;
 
-  if (isAffiliation) {
-    return (
+  const blocActiverLien = (
       <div>
         <button
           type="button"
@@ -128,10 +133,9 @@ export default function ActionPanel({
         </p>
         {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
       </div>
-    );
-  }
+  );
 
-  return (
+  const blocCandidater = (
     <div>
       <label className="text-xs font-semibold text-zinc-500" htmlFor="apply-msg">
         Message à la marque (optionnel)
@@ -153,6 +157,17 @@ export default function ActionPanel({
         {busy ? "Envoi…" : "Candidater à cette campagne"}
       </button>
       {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+    </div>
+  );
+
+  // Sur une campagne hybride, les deux blocs s'affichent l'un sous l'autre :
+  // le créateur active son lien pour la commission, et candidate pour le
+  // forfait. C'est exactement ce que la campagne lui promet.
+  return (
+    <div className="space-y-4">
+      {besoinLien && (lienActif ? blocLien : blocActiverLien)}
+      {besoinCandidature &&
+        (candidatureEnvoyee ? blocCandidatureEnvoyee : blocCandidater)}
     </div>
   );
 }

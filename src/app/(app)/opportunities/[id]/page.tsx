@@ -17,6 +17,7 @@ import { pluralizeAction } from "@/lib/cpa";
 import FaqAccordion from "./FaqAccordion";
 import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
+import { besoinLienDeSuivi, besoinCandidature } from "@/lib/campaign";
 
 export async function generateMetadata({
   params,
@@ -84,7 +85,12 @@ export default async function OpportunityDetailPage({
     .filter((v): v is { label: string; slug: string } => Boolean(v));
 
   const type = c.type as CampaignType;
-  const isAffiliation = type === "affiliation" || type === "hybrid";
+  // Deux besoins, pas un seul : une campagne hybride réclame le lien ET la
+  // candidature, une campagne au CPA réclame le lien seul. Le booléen unique
+  // « est-ce de l'affiliation ? » se trompait sur les deux.
+  const avecLien = besoinLienDeSuivi(type, Boolean(c.with_promo_code));
+  const avecCandidature = besoinCandidature(type);
+  const isAffiliation = avecLien;
 
   // Statut du créateur sur cette campagne.
   const [linkRes, appRes, examplesRes, brandStatsRes] = await Promise.all([
@@ -847,18 +853,25 @@ export default async function OpportunityDetailPage({
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm">
             <p className="font-display text-lg font-black text-ink">
-              {isAffiliation ? "Lance-toi" : "Intéressé·e ?"}
+              {avecLien && avecCandidature
+                ? "Deux façons de gagner"
+                : avecLien
+                  ? "Lance-toi"
+                  : "Intéressé·e ?"}
             </p>
             <p className="mt-1 text-sm text-zinc-500">
-              {isAffiliation
-                ? "Génère ton lien unique et commence à gagner."
-                : "Envoie ta candidature à la marque."}
+              {avecLien && avecCandidature
+                ? "Active ton lien pour les commissions, et candidate pour le forfait."
+                : avecLien
+                  ? "Génère ton lien unique et commence à gagner."
+                  : "Envoie ta candidature à la marque."}
             </p>
             <div className="mt-4">
               {c.status === "active" ? (
                 <ActionPanel
                   campaignId={c.id}
-                  isAffiliation={isAffiliation}
+                  besoinLien={avecLien}
+                  besoinCandidature={avecCandidature}
                   initialStatus={status}
                   initialCode={linkRes.data?.code}
                   clicks={clicks}
