@@ -20,7 +20,9 @@ import {
   expeditionSchema,
   DEAL_QUANTITE_MAX,
 } from "@/lib/schemas/deals";
-import { dealBreakdown, PLATFORM_FEE_RATE } from "@/lib/deal";
+import { dealBreakdown } from "@/lib/deal";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxCollab } from "@/lib/tarifs";
 import { montantAuxVues } from "@/lib/performance";
 import { reglerCollaborationAuxVues } from "@/lib/performance-reglement";
 import { adresseLivraison, lienDeSuivi } from "@/lib/expedition";
@@ -1171,7 +1173,19 @@ export async function createDealCheckout(dealId: string) {
   // La marque règle la rémunération du créateur ET la commission Collabbs. Les
   // deux lignes sont détaillées dans le paiement Stripe : elle doit voir ce
   // qu'elle paie, pas un total opaque.
-  const detail = dealBreakdown(deal.amount);
+  //
+  // ⚠️ LE PLAN, et il manquait. `dealBreakdown(deal.amount)` sans second
+  // argument applique le taux du plan GRATUIT — 10 % — à tout le monde. Une
+  // marque abonnée était donc débitée au plein tarif alors qu'elle avait
+  // acheté 8 % ou 5 % : elle payait une remise qu'elle ne recevait pas.
+  //
+  // Pire, l'enregistrement (`ensureCheckoutSessionRecorded`) recalcule, LUI,
+  // avec le vrai plan. Stripe encaissait 330 € et la transaction inscrivait
+  // 315 € : quinze euros encaissés dont le produit n'avait aucune trace, et
+  // une comptabilité fausse de l'écart. Constaté sur un paiement réel.
+  const plan = await planDeLaMarque(deal.brand_id);
+  const detail = dealBreakdown(deal.amount, plan);
+  const tauxAffiche = Math.round(tauxCollab(plan) * 100);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -1189,7 +1203,7 @@ export async function createDealCheckout(dealId: string) {
         price_data: {
           currency: "eur",
           product_data: {
-            name: `Commission Collabbs (${Math.round(PLATFORM_FEE_RATE * 100)} %)`,
+            name: `Commission Collabbs (${tauxAffiche} %)`,
           },
           unit_amount: detail.fee * 100,
         },

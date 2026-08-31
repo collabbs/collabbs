@@ -5,7 +5,6 @@ import {
   DEAL_FORMAT_LABEL,
   DEAL_STATUS_META,
   dealBreakdown,
-  PLATFORM_FEE_RATE,
   eur,
   type DealFormat,
   type DealStatus,
@@ -13,6 +12,8 @@ import {
 import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 import { thresholdWith, LEGAL_THRESHOLD } from "@/lib/legal-threshold";
+import { planDeLaMarque } from "@/lib/abonnement";
+import { tauxCollab } from "@/lib/tarifs";
 import { openConversation } from "../../messages/actions";
 import { createDealCheckout } from "../actions";
 import DealControls from "./DealControls";
@@ -197,13 +198,25 @@ export default async function DealDetailPage({
   // retenue sur la part du créateur. Recalculer affichait « Réglé 330 € » sur
   // une collaboration où la marque avait payé 300 €. Un montant déjà encaissé
   // ne se recalcule pas : il se relit.
+  // Le taux RÉELLEMENT applicable. Deux sources, dans cet ordre :
+  //  · payé → celui figé dans la transaction, seul opposable ;
+  //  · pas encore payé → celui du plan actuel de la marque.
+  //
+  // L'écran affichait `PLATFORM_FEE_RATE` en dur, c'est-à-dire le taux du plan
+  // GRATUIT. Sur une marque abonnée, il annonçait « 10 % » à côté d'un montant
+  // calculé à 5 % — 15 € présentés comme un dixième de 300.
+  const planMarque = await planDeLaMarque(deal.brand_id);
+  const tauxApplique = payment
+    ? Number(payment.platform_fee_rate ?? tauxCollab(planMarque))
+    : tauxCollab(planMarque);
+
   const b = payment
     ? {
         gross: Number(payment.gross_amount),
         fee: Number(payment.platform_fee),
         net: Number(payment.net_amount),
       }
-    : dealBreakdown(deal.amount);
+    : dealBreakdown(deal.amount, planMarque);
 
   // Calculs timeline
   const paymentPaid =
@@ -703,7 +716,7 @@ export default async function DealDetailPage({
               ) : null}
               <div className="flex justify-between">
                 <dt className="text-zinc-500">
-                  Commission Collabbs ({Math.round(PLATFORM_FEE_RATE * 100)} %)
+                  Commission Collabbs ({Math.round(tauxApplique * 100)} %)
                 </dt>
                 <dd className="text-zinc-500">
                   {role === "brand" ? `+ ${eur(b.fee)}` : "à la charge de la marque"}
