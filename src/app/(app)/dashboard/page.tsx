@@ -205,6 +205,10 @@ export default async function DashboardPage() {
 
     const deals = dealsRes.data ?? [];
     const activeDeals = deals.filter((d) => d.status === "active").length;
+    // Ce que le créateur a réellement reçu. Recalculer depuis `deal.amount`
+    // appliquerait la convention d'aujourd'hui à des collaborations réglées
+    // sous l'ancienne — un montant encaissé se relit, il ne se recalcule pas.
+    // Faute de transaction jointe ici, on retombe sur le calcul courant.
     const dealNet = deals
       .filter((d) => d.status === "completed")
       .reduce((s, d) => s + dealBreakdown(d.amount).net, 0);

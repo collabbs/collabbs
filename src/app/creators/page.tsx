@@ -251,7 +251,7 @@ export default async function CreatorsPage({
               {Math.round(PLATFORM_FEE_RATE * 100)}%
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-              Commission seulement
+              Commission, côté marque
             </p>
           </div>
           {/* « 24h — réponse moyenne » figurait ici. Ce délai n'est mesuré

@@ -5,6 +5,7 @@ import {
   DEAL_FORMAT_LABEL,
   DEAL_STATUS_META,
   dealBreakdown,
+  PLATFORM_FEE_RATE,
   eur,
   type DealFormat,
   type DealStatus,
@@ -185,7 +186,20 @@ export default async function DealDetailPage({
   const payment = txRes.data ?? null;
   const status = deal.status as DealStatus;
   const meta = DEAL_STATUS_META[status];
-  const b = dealBreakdown(deal.amount);
+  // ⚠️ Quand un paiement existe, on LIT la transaction au lieu de recalculer.
+  //
+  // Le calcul applique la convention d'aujourd'hui — commission ajoutée au
+  // prix — à une collaboration peut-être réglée sous l'ancienne, où elle était
+  // retenue sur la part du créateur. Recalculer affichait « Réglé 330 € » sur
+  // une collaboration où la marque avait payé 300 €. Un montant déjà encaissé
+  // ne se recalcule pas : il se relit.
+  const b = payment
+    ? {
+        gross: Number(payment.gross_amount),
+        fee: Number(payment.platform_fee),
+        net: Number(payment.net_amount),
+      }
+    : dealBreakdown(deal.amount);
 
   // Calculs timeline
   const paymentPaid =
@@ -529,14 +543,23 @@ export default async function DealDetailPage({
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm">
             <h2 className="font-display text-lg font-black text-ink">Paiement</h2>
+            {/* La commission s'AJOUTE désormais au montant du créateur. Le
+                signe « − » d'avant décrivait l'ancienne convention, où elle
+                était retenue sur sa part. */}
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-zinc-500">Montant</dt>
-                <dd className="font-semibold text-ink">{eur(b.gross)}</dd>
+                <dt className="text-zinc-500">
+                  {role === "brand" ? "Pour le créateur" : "Ta rémunération"}
+                </dt>
+                <dd className="font-semibold text-ink">{eur(b.net)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-zinc-500">Commission Collabbs (10%)</dt>
-                <dd className="text-zinc-500">− {eur(b.fee)}</dd>
+                <dt className="text-zinc-500">
+                  Commission Collabbs ({Math.round(PLATFORM_FEE_RATE * 100)} %)
+                </dt>
+                <dd className="text-zinc-500">
+                  {role === "brand" ? `+ ${eur(b.fee)}` : "à la charge de la marque"}
+                </dd>
               </div>
               <div className="flex justify-between border-t border-zinc-100 pt-2">
                 <dt className="font-semibold text-ink">
@@ -592,7 +615,7 @@ export default async function DealDetailPage({
                   type="submit"
                   className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                 >
-                  Régler {eur(deal.amount)} (séquestre)
+                  Régler {eur(b.gross)} (séquestre)
                 </button>
                 <p className="mt-1.5 text-center text-[11px] text-zinc-400">
                   Paiement sécurisé Stripe · test (carte 4242 4242 4242 4242)

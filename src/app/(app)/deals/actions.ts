@@ -14,6 +14,7 @@ import { eur } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
 import { valider } from "@/lib/validation";
 import { termesDealSchema, DEAL_QUANTITE_MAX } from "@/lib/schemas/deals";
+import { dealBreakdown, PLATFORM_FEE_RATE } from "@/lib/deal";
 
 type Result = { ok: boolean; error?: string };
 
@@ -1113,6 +1114,11 @@ export async function createDealCheckout(dealId: string) {
   const proto = host.startsWith("localhost") ? "http" : "https";
   const origin = `${proto}://${host}`;
 
+  // La marque règle la rémunération du créateur ET la commission Collabbs. Les
+  // deux lignes sont détaillées dans le paiement Stripe : elle doit voir ce
+  // qu'elle paie, pas un total opaque.
+  const detail = dealBreakdown(deal.amount);
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -1121,7 +1127,17 @@ export async function createDealCheckout(dealId: string) {
         price_data: {
           currency: "eur",
           product_data: { name: deal.title ?? "Collaboration Collabbs" },
-          unit_amount: deal.amount * 100,
+          unit_amount: detail.net * 100,
+        },
+      },
+      {
+        quantity: 1,
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: `Commission Collabbs (${Math.round(PLATFORM_FEE_RATE * 100)} %)`,
+          },
+          unit_amount: detail.fee * 100,
         },
       },
     ],

@@ -16,7 +16,7 @@ function pourcentageFrais(valeur: number): string {
 describe("taux de commission affiché sur la facture", () => {
   it("lit un taux, la convention retenue", () => {
     expect(pourcentageFrais(PLATFORM_FEE_RATE)).toBe("10");
-    expect(pourcentageFrais(AFFILIATE_FEE_RATE)).toBe("25");
+    expect(pourcentageFrais(AFFILIATE_FEE_RATE)).toBe("20");
   });
 
   it("rattrape les lignes déjà écrites en pourcentage", () => {

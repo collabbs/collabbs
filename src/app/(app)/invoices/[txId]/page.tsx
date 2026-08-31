@@ -265,7 +265,7 @@ export default async function InvoicePage({
                   )}
                 </td>
                 <td className="py-3 text-right align-top font-medium text-ink">
-                  {eur(tx.gross_amount)}
+                  {eur(tx.net_amount)}
                 </td>
               </tr>
               <tr className="border-b border-zinc-100">
@@ -273,15 +273,20 @@ export default async function InvoicePage({
                   Commission Collabbs ({pourcentageFrais(tx.platform_fee_rate)} %)
                 </td>
                 <td className="py-3 text-right text-xs text-zinc-500">
-                  − {eur(tx.platform_fee)}
+                  + {eur(tx.platform_fee)}
                 </td>
               </tr>
+              {/* Cette présentation — rémunération, puis commission ajoutée,
+                  puis total — est vraie sous les DEUX conventions : même du
+                  temps où la commission était retenue sur la part du créateur,
+                  l'annonceur déboursait bien le total et le créateur touchait
+                  le net. Les récapitulatifs anciens restent donc justes. */}
               <tr>
                 <td className="pt-4 text-sm font-bold uppercase tracking-wide text-ink">
-                  Total reversé au créateur
+                  Total réglé par l&apos;annonceur
                 </td>
                 <td className="pt-4 text-right font-display text-xl font-black text-ink">
-                  {eur(tx.net_amount)}
+                  {eur(tx.gross_amount)}
                 </td>
               </tr>
             </tbody>

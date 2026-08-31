@@ -1,7 +1,7 @@
 import "server-only";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 // Taux unique, celui qu'applique réellement le calcul du versement.
-import { PLATFORM_FEE_RATE } from "@/lib/deal";
+import { PLATFORM_FEE_RATE, dealBreakdown } from "@/lib/deal";
 
 /**
  * Corps du contrat de collaboration commerciale.
@@ -177,15 +177,18 @@ export function buildContractDocument(params: {
   // n'allait pas toucher. Constaté le 30 août 2026 en comparant le contrat à
   // l'écran de la collaboration.
   //
-  // Les trois montants sont désormais énoncés séparément : ce que l'annonceur
-  // verse, ce que la plateforme prélève, ce que le créateur reçoit. Un contrat
-  // ne peut pas dire autre chose que ce qui se passe.
-  const dealFee = Math.round(deal.amount * PLATFORM_FEE_RATE);
-  const dealNet = deal.amount - dealFee;
+  // Les trois montants sont énoncés séparément : ce que reçoit le créateur, ce
+  // que la plateforme facture EN PLUS à l'annonceur, et le total déboursé. Un
+  // contrat ne peut pas dire autre chose que ce qui se passe.
+  //
+  // La rédaction précédente disait « la plateforme prélève 10 %, le net
+  // revenant au créateur s'élève à… » — c'était exact tant que la commission
+  // était déduite de sa part. Elle ne l'est plus.
+  const { fee: dealFee, gross: dealTotal } = dealBreakdown(deal.amount);
 
   add("Rémunération et avantages en nature", [
-    `En contrepartie de la prestation, l'annonceur verse la somme de **${eur(deal.amount)}**.`,
-    `Sur cette somme, la plateforme Collabbs prélève une commission de **${Math.round(PLATFORM_FEE_RATE * 100)} %**, soit ${eur(dealFee)}. Le montant net revenant au créateur s'élève ainsi à **${eur(dealNet)}**.`,
+    `En contrepartie de la prestation, le créateur perçoit la somme de **${eur(deal.amount)}**, sans aucune retenue de la part de la plateforme.`,
+    `La commission de la plateforme Collabbs, égale à **${Math.round(PLATFORM_FEE_RATE * 100)} %** de cette somme soit ${eur(dealFee)}, est facturée à l'annonceur en supplément. Le montant total déboursé par l'annonceur s'élève ainsi à **${eur(dealTotal)}**.`,
     "Le paiement est effectué par l'intermédiaire de la plateforme Collabbs, qui séquestre les fonds dès l'acceptation du contrat et les libère au bénéfice du créateur après validation de la livraison par l'annonceur.",
     "Les Parties déclarent que la rémunération ci-dessus est exhaustive. Tout avantage en nature complémentaire (produit, dotation, service offert) doit être déclaré sur la plateforme et sa valeur ajoutée au cumul annuel, conformément à la réglementation.",
   ]);

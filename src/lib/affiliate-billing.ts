@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
+import { TARIFS } from "@/lib/tarifs";
 
 /**
  * Circuit d'argent de l'affiliation.
@@ -22,7 +23,7 @@ import { reportError } from "@/lib/report-error";
  */
 
 /** Part Collabbs sur la commission d'affiliation, facturée en plus à la marque. */
-export const AFFILIATE_FEE_RATE = 0.25;
+export const AFFILIATE_FEE_RATE = TARIFS.free.tauxAffiliation;
 
 /** Jours avant qu'une vente ne devienne définitive (fenêtre de retours). */
 export const VALIDATION_DAYS = 30;
