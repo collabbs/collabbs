@@ -184,7 +184,8 @@ export default async function PayoutsPage({
 
           {affValidated > 0 && affValidated < 20 && (
             <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600">
-              Encore {eurExact(20 - affValidated)} avant ton prochain versement. Le reste
+              Encore {eurExact(20 - affValidated)}{" "}
+              avant ton prochain versement. Le reste
               s&apos;accumule, rien n&apos;est perdu.
             </p>
           )}
