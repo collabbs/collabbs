@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEAL_STATUS_META, eur, type DealStatus } from "@/lib/deal";
 
+import { moisRestants, libelleEngagement, prochaineEcheance } from "@/lib/ambassadeur";
+
 export const metadata = { title: "Collaborations — Collabbs" };
 
 export default async function DealsPage() {
@@ -25,8 +27,28 @@ export default async function DealsPage() {
     .order("created_at", { ascending: false });
   const deals = dealsData ?? [];
 
+  // Les partenariats récurrents actifs. Sans cette section, un engagement
+  // n'existait QUE depuis la page d'une de ses collaborations : une marque
+  // avec trois ambassadeurs n'avait aucun endroit où les voir, et un créateur
+  // aucun moyen de savoir combien de mois lui restaient. Une fonctionnalité
+  // qu'on ne peut pas trouver n'existe pas.
+  const { data: engagementsData } = await supabase
+    .from("engagements")
+    .select(
+      "id, brand_id, creator_id, monthly_amount, contents_per_month, months_total, months_created, starts_at",
+    )
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+  const engagements = engagementsData ?? [];
+
+  // Les contreparties viennent des DEUX sources. Les tirer des seules
+  // collaborations laisserait un partenariat sans nom affiché dès qu'aucune de
+  // ses collaborations n'est dans la liste.
   const otherIds = [
-    ...new Set(deals.map((d) => (iAmBrand ? d.creator_id : d.brand_id))),
+    ...new Set([
+      ...deals.map((d) => (iAmBrand ? d.creator_id : d.brand_id)),
+      ...engagements.map((e) => (iAmBrand ? e.creator_id : e.brand_id)),
+    ]),
   ];
   const { data: profs } = otherIds.length
     ? await supabase.from("profiles").select("id, display_name, avatar_url").in("id", otherIds)
@@ -63,6 +85,40 @@ export default async function DealsPage() {
               <p className="text-xs text-zinc-500">{s.label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {engagements.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+          <h2 className="font-display text-lg font-black text-ink">Partenariats récurrents</h2>
+          <ul className="mt-3 space-y-2">
+            {engagements.map((e) => {
+              const autre = profMap.get(iAmBrand ? e.creator_id : e.brand_id);
+              const restants = moisRestants(e.months_total, e.months_created);
+              return (
+                <li
+                  key={e.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl bg-zinc-50 px-4 py-3"
+                >
+                  <span className="text-sm font-semibold text-ink">
+                    {autre?.display_name ?? "Partenaire"}
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    {libelleEngagement(e.months_total, e.contents_per_month, e.monthly_amount)} ·
+                    mois <strong className="text-ink">{e.months_created}</strong>/{e.months_total}
+                    {restants > 0 && (
+                      <>
+                        {" · prochain le "}
+                        {new Date(
+                          prochaineEcheance(e.starts_at, e.months_created),
+                        ).toLocaleDateString("fr-FR")}
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
