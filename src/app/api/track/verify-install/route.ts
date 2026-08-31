@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { verifierUrlPublique, MAX_REDIRECTIONS } from "@/lib/url-publique";
 
 // Vérifie qu'une marque connectée a bien installé le drop-in tracker sur son site.
 // On fetch sa homepage côté serveur (pas de CORS) et on cherche notre script.
@@ -27,26 +28,67 @@ export async function GET() {
 
   const url = brand.website.startsWith("http") ? brand.website : `https://${brand.website}`;
 
+  // ─── Pourquoi tout ce protocole pour un simple fetch ───
+  // L'URL vient de la marque, et n'importe qui peut créer un compte marque.
+  // Sans contrôle, inscrire `http://169.254.169.254/` comme site web faisait
+  // interroger le réseau interne par notre propre serveur, et le message
+  // d'erreur ci-dessous renvoyait le code HTTP obtenu : de quoi cartographier
+  // ce qui écoute. Voir `lib/url-publique`.
+  //
+  // Les redirections sont suivies À LA MAIN parce que valider seulement
+  // l'adresse saisie ne protège de rien : un domaine parfaitement ordinaire
+  // peut répondre 302 vers une adresse interne. Chaque saut est revalidé.
   let html = "";
+  let cible = url;
   try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Collabbs Verifier) AppleWebKit/537.36 (KHTML, like Gecko)",
-      },
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    clearTimeout(t);
-    if (!res.ok)
-      return NextResponse.json({
-        ok: false,
-        reason: "fetch_failed",
-        message: `Ton site a répondu ${res.status} — vérifie qu'il est en ligne.`,
+    for (let saut = 0; ; saut++) {
+      const verdict = await verifierUrlPublique(cible);
+      if (!verdict.ok) {
+        return NextResponse.json({
+          ok: false,
+          reason: "invalid_url",
+          message:
+            verdict.raison === "dns"
+              ? "On n'a pas pu résoudre l'adresse de ton site."
+              : "Cette adresse ne peut pas être vérifiée : indique l'URL publique de ta boutique.",
+        });
+      }
+
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(verdict.url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Collabbs Verifier) AppleWebKit/537.36 (KHTML, like Gecko)",
+        },
+        signal: controller.signal,
+        redirect: "manual",
       });
-    html = await res.text();
+      clearTimeout(t);
+
+      const suivante = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (suivante) {
+        if (saut >= MAX_REDIRECTIONS) {
+          return NextResponse.json({
+            ok: false,
+            reason: "too_many_redirects",
+            message: "Ton site enchaîne trop de redirections pour qu'on puisse le vérifier.",
+          });
+        }
+        // `new URL(x, base)` résout aussi bien un `/chemin` qu'une URL entière.
+        cible = new URL(suivante, verdict.url).toString();
+        continue;
+      }
+
+      if (!res.ok)
+        return NextResponse.json({
+          ok: false,
+          reason: "fetch_failed",
+          message: `Ton site a répondu ${res.status} — vérifie qu'il est en ligne.`,
+        });
+      html = await res.text();
+      break;
+    }
   } catch {
     return NextResponse.json({
       ok: false,
