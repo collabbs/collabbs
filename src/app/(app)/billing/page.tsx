@@ -445,10 +445,14 @@ export default async function BillingPage({
       {sales.length > 0 && (
         <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
           <h2 className="font-semibold text-ink">Ventes attribuées</h2>
+          {/* La dernière phrase disait « une fois la commission versée, ce
+              n'est plus possible » — ce n'est plus vrai depuis que le
+              remboursement d'une vente versée inscrit une régularisation. */}
           <p className="mt-1 text-sm text-zinc-500">
-            Si tu rembourses un client, déclare-le ici : la commission mise de côté
-            t&apos;est immédiatement rendue. Une fois la commission versée au créateur,
-            ce n&apos;est plus possible automatiquement.
+            Si tu rembourses un client, déclare-le ici. Tant que la commission
+            n&apos;est pas partie chez le créateur, elle t&apos;est rendue sur ta
+            provision. Si elle est déjà versée, elle est déduite de son prochain
+            versement — on ne reprend jamais un virement reçu.
           </p>
 
           <ul className="mt-3 divide-y divide-zinc-100">
@@ -467,7 +471,12 @@ export default async function BillingPage({
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink">
-                      Vente de {eur(Number(s.sale_amount ?? 0))}
+                      {/* Une action au CPA n'a pas de montant de panier : la
+                          ligne affichait « Vente de 0,00 € » en face d'un
+                          engagement de 350 €. */}
+                      {s.source === "cpa_action"
+                        ? "Action réalisée"
+                        : `Vente de ${eur(Number(s.sale_amount ?? 0))}`}
                       {handle && (
                         <span className="font-normal text-zinc-500"> · @{handle}</span>
                       )}
