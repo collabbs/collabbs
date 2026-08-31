@@ -30,10 +30,9 @@ export function demoVisible(): boolean {
 /**
  * Cette marque est-elle une marque de démonstration ?
  *
- * Lecture séparée plutôt qu'une colonne dans chaque requête : `brands.is_demo`
- * arrive avec la migration 0053 et les types engendrés depuis la base ne la
- * connaissent pas encore. L'appel ne se fait que lorsque les données de démo
- * sont cachées — donc jamais en développement.
+ * Lecture séparée plutôt qu'une colonne dans chaque requête : l'appel ne se
+ * fait que lorsque les données de démonstration sont cachées — donc jamais en
+ * développement.
  */
 export async function marqueDeDemo(
   client: unknown,

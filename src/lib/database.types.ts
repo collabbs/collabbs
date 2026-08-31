@@ -1,7 +1,3 @@
-// Types générés depuis le schéma Supabase (24 tables).
-// Régénérer après chaque migration via le MCP Supabase (generate_typescript_types)
-// ou : npx supabase gen types typescript --project-id muuyrrvetwegkrmpkkad
-
 export type Json =
   | string
   | number
@@ -11,74 +7,147 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      affiliate_clawbacks: {
+        Row: {
+          affiliate_event_id: string | null
+          amount: number
+          brand_id: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          reason: string | null
+          settled_at: string | null
+          settled_by_tx: string | null
+        }
+        Insert: {
+          affiliate_event_id?: string | null
+          amount: number
+          brand_id?: string | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          reason?: string | null
+          settled_at?: string | null
+          settled_by_tx?: string | null
+        }
+        Update: {
+          affiliate_event_id?: string | null
+          amount?: number
+          brand_id?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          reason?: string | null
+          settled_at?: string | null
+          settled_by_tx?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_clawbacks_affiliate_event_id_fkey"
+            columns: ["affiliate_event_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_clawbacks_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_clawbacks_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_clawbacks_settled_by_tx_fkey"
+            columns: ["settled_by_tx"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_events: {
         Row: {
-          paid_at: string | null
-          payout_id: string | null
-          platform_fee: number
-          refunded_at: string | null
-          reject_reason: string | null
-          needs_review: boolean
-          reviewed_at: string | null
-          status: Database["public"]["Enums"]["affiliate_event_status"] | null
-          validate_at: string | null
           action_count: number
+          click_day: string | null
           commission_amount: number | null
           created_at: string
           external_ref: string | null
           id: string
           link_id: string
+          needs_review: boolean
           occurred_at: string
+          paid_at: string | null
+          payout_id: string | null
+          platform_fee: number
+          refunded_at: string | null
+          reject_reason: string | null
+          reviewed_at: string | null
           sale_amount: number | null
           source: string
+          status: Database["public"]["Enums"]["affiliate_event_status"] | null
           type: Database["public"]["Enums"]["affiliate_event_type"]
+          validate_at: string | null
+          visitor_hash: string | null
         }
         Insert: {
-          paid_at?: string | null
-          payout_id?: string | null
-          platform_fee?: number
-          refunded_at?: string | null
-          reject_reason?: string | null
-          needs_review?: boolean
-          reviewed_at?: string | null
-          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
-          validate_at?: string | null
           action_count?: number
+          click_day?: string | null
           commission_amount?: number | null
           created_at?: string
           external_ref?: string | null
           id?: string
           link_id: string
+          needs_review?: boolean
           occurred_at?: string
-          sale_amount?: number | null
-          source?: string
-          type: Database["public"]["Enums"]["affiliate_event_type"]
-        }
-        Update: {
           paid_at?: string | null
           payout_id?: string | null
           platform_fee?: number
           refunded_at?: string | null
           reject_reason?: string | null
-          needs_review?: boolean
           reviewed_at?: string | null
+          sale_amount?: number | null
+          source?: string
           status?: Database["public"]["Enums"]["affiliate_event_status"] | null
+          type: Database["public"]["Enums"]["affiliate_event_type"]
           validate_at?: string | null
+          visitor_hash?: string | null
+        }
+        Update: {
           action_count?: number
+          click_day?: string | null
           commission_amount?: number | null
           created_at?: string
           external_ref?: string | null
           id?: string
           link_id?: string
+          needs_review?: boolean
           occurred_at?: string
+          paid_at?: string | null
+          payout_id?: string | null
+          platform_fee?: number
+          refunded_at?: string | null
+          reject_reason?: string | null
+          reviewed_at?: string | null
           sale_amount?: number | null
           source?: string
+          status?: Database["public"]["Enums"]["affiliate_event_status"] | null
           type?: Database["public"]["Enums"]["affiliate_event_type"]
+          validate_at?: string | null
+          visitor_hash?: string | null
         }
         Relationships: [
           {
@@ -86,6 +155,13 @@ export type Database = {
             columns: ["link_id"]
             isOneToOne: false
             referencedRelation: "affiliate_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_events_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -216,6 +292,67 @@ export type Database = {
           },
         ]
       }
+      brand_ledger: {
+        Row: {
+          affiliate_event_id: string | null
+          amount: number
+          balance_after: number
+          brand_id: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["ledger_kind"]
+          label: string | null
+          stripe_ref: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          affiliate_event_id?: string | null
+          amount: number
+          balance_after: number
+          brand_id: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["ledger_kind"]
+          label?: string | null
+          stripe_ref?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          affiliate_event_id?: string | null
+          amount?: number
+          balance_after?: number
+          brand_id?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["ledger_kind"]
+          label?: string | null
+          stripe_ref?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_ledger_affiliate_event_id_fkey"
+            columns: ["affiliate_event_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_ledger_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_ledger_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_niches: {
         Row: {
           brand_id: string
@@ -282,15 +419,64 @@ export type Database = {
           },
         ]
       }
+      brand_reviews: {
+        Row: {
+          brand_id: string
+          comment: string | null
+          created_at: string
+          creator_id: string
+          deal_id: string | null
+          id: string
+          rating: number
+        }
+        Insert: {
+          brand_id: string
+          comment?: string | null
+          created_at?: string
+          creator_id: string
+          deal_id?: string | null
+          id?: string
+          rating: number
+        }
+        Update: {
+          brand_id?: string
+          comment?: string | null
+          created_at?: string
+          creator_id?: string
+          deal_id?: string | null
+          id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_reviews_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_reviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_reviews_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           autotopup_amount: number
           autotopup_enabled: boolean
           autotopup_threshold: number
           balance: number
-          payment_method_id: string | null
-          stripe_customer_id: string | null
-          topup_failed_at: string | null
           commission_macro: number
           commission_micro: number
           commission_mid: number
@@ -298,10 +484,16 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_demo: boolean
           logo_url: string | null
           name: string
+          payment_method_id: string | null
           postback_secret: string
+          rating: number | null
+          reviews_count: number
           sector: string | null
+          stripe_customer_id: string | null
+          topup_failed_at: string | null
           tracking_verified_at: string | null
           updated_at: string
           website: string | null
@@ -311,9 +503,6 @@ export type Database = {
           autotopup_enabled?: boolean
           autotopup_threshold?: number
           balance?: number
-          payment_method_id?: string | null
-          stripe_customer_id?: string | null
-          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -321,10 +510,16 @@ export type Database = {
           created_at?: string
           description?: string | null
           id: string
+          is_demo?: boolean
           logo_url?: string | null
           name: string
+          payment_method_id?: string | null
           postback_secret?: string
+          rating?: number | null
+          reviews_count?: number
           sector?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           tracking_verified_at?: string | null
           updated_at?: string
           website?: string | null
@@ -334,9 +529,6 @@ export type Database = {
           autotopup_enabled?: boolean
           autotopup_threshold?: number
           balance?: number
-          payment_method_id?: string | null
-          stripe_customer_id?: string | null
-          topup_failed_at?: string | null
           commission_macro?: number
           commission_micro?: number
           commission_mid?: number
@@ -344,10 +536,16 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_demo?: boolean
           logo_url?: string | null
           name?: string
+          payment_method_id?: string | null
           postback_secret?: string
+          rating?: number | null
+          reviews_count?: number
           sector?: string | null
+          stripe_customer_id?: string | null
+          topup_failed_at?: string | null
           tracking_verified_at?: string | null
           updated_at?: string
           website?: string | null
@@ -358,41 +556,6 @@ export type Database = {
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      campaign_examples: {
-        Row: {
-          id: string
-          campaign_id: string
-          url: string | null
-          caption: string | null
-          position: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          campaign_id: string
-          url?: string | null
-          caption?: string | null
-          position?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          campaign_id?: string
-          url?: string | null
-          caption?: string | null
-          position?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_examples_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -428,6 +591,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "campaign_cpa_tiers_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_examples: {
+        Row: {
+          campaign_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          position: number
+          url: string | null
+        }
+        Insert: {
+          campaign_id: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          url?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_examples_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
@@ -497,6 +695,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          attribution_days: number
           avoid: string | null
           brand_id: string
           category: string | null
@@ -507,22 +706,23 @@ export type Database = {
           commission_type: Database["public"]["Enums"]["commission_type"] | null
           commission_unit: string | null
           commission_value: number | null
+          cpa_action_label: string | null
+          cpa_value_per_action: number | null
           created_at: string
           description: string | null
           ends_at: string | null
           fixed_amount: number | null
-          id: string
-          min_subscribers: number | null
-          cpa_action_label: string | null
-          cpa_value_per_action: number | null
           giveaway_prize_label: string | null
           giveaway_prize_value: number | null
           giveaway_rules_url: string | null
           giveaway_winners_count: number | null
+          id: string
+          min_subscribers: number | null
           name: string
           product_image_url: string | null
           product_kind: Database["public"]["Enums"]["product_kind"] | null
           product_name: string | null
+          product_retail_value: number | null
           product_url: string | null
           promo_auto_generate: boolean
           promo_code: string | null
@@ -531,8 +731,7 @@ export type Database = {
           promo_expires_at: string | null
           promo_min_purchase: number | null
           requirements: string | null
-          with_giveaway: boolean
-          with_promo_code: boolean
+          ships_product_to_creator: boolean
           spots: number | null
           starts_at: string | null
           status: Database["public"]["Enums"]["campaign_status"]
@@ -540,8 +739,11 @@ export type Database = {
           tone: Database["public"]["Enums"]["content_tone"] | null
           type: Database["public"]["Enums"]["campaign_type"]
           updated_at: string
+          with_giveaway: boolean
+          with_promo_code: boolean
         }
         Insert: {
+          attribution_days?: number
           avoid?: string | null
           brand_id: string
           category?: string | null
@@ -549,25 +751,28 @@ export type Database = {
           commission_micro?: number | null
           commission_mid?: number | null
           commission_nano?: number | null
-          commission_type?: Database["public"]["Enums"]["commission_type"] | null
+          commission_type?:
+            | Database["public"]["Enums"]["commission_type"]
+            | null
           commission_unit?: string | null
           commission_value?: number | null
+          cpa_action_label?: string | null
+          cpa_value_per_action?: number | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
           fixed_amount?: number | null
-          id?: string
-          min_subscribers?: number | null
-          cpa_action_label?: string | null
-          cpa_value_per_action?: number | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null
           giveaway_winners_count?: number | null
+          id?: string
+          min_subscribers?: number | null
           name: string
           product_image_url?: string | null
           product_kind?: Database["public"]["Enums"]["product_kind"] | null
           product_name?: string | null
+          product_retail_value?: number | null
           product_url?: string | null
           promo_auto_generate?: boolean
           promo_code?: string | null
@@ -576,6 +781,7 @@ export type Database = {
           promo_expires_at?: string | null
           promo_min_purchase?: number | null
           requirements?: string | null
+          ships_product_to_creator?: boolean
           spots?: number | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["campaign_status"]
@@ -587,6 +793,7 @@ export type Database = {
           with_promo_code?: boolean
         }
         Update: {
+          attribution_days?: number
           avoid?: string | null
           brand_id?: string
           category?: string | null
@@ -594,25 +801,28 @@ export type Database = {
           commission_micro?: number | null
           commission_mid?: number | null
           commission_nano?: number | null
-          commission_type?: Database["public"]["Enums"]["commission_type"] | null
+          commission_type?:
+            | Database["public"]["Enums"]["commission_type"]
+            | null
           commission_unit?: string | null
           commission_value?: number | null
+          cpa_action_label?: string | null
+          cpa_value_per_action?: number | null
           created_at?: string
           description?: string | null
           ends_at?: string | null
           fixed_amount?: number | null
-          id?: string
-          min_subscribers?: number | null
-          cpa_action_label?: string | null
-          cpa_value_per_action?: number | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null
           giveaway_winners_count?: number | null
+          id?: string
+          min_subscribers?: number | null
           name?: string
           product_image_url?: string | null
           product_kind?: Database["public"]["Enums"]["product_kind"] | null
           product_name?: string | null
+          product_retail_value?: number | null
           product_url?: string | null
           promo_auto_generate?: boolean
           promo_code?: string | null
@@ -621,6 +831,7 @@ export type Database = {
           promo_expires_at?: string | null
           promo_min_purchase?: number | null
           requirements?: string | null
+          ships_product_to_creator?: boolean
           spots?: number | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["campaign_status"]
@@ -643,11 +854,15 @@ export type Database = {
       }
       contracts: {
         Row: {
+          brand_id: string | null
           brand_signed_at: string | null
           created_at: string
+          creator_id: string | null
           creator_signed_at: string | null
-          deal_id: string
+          deal_id: string | null
           id: string
+          kind: string
+          period_year: number | null
           reference: string
           status: Database["public"]["Enums"]["contract_status"]
           terminated_at: string | null
@@ -655,11 +870,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           brand_signed_at?: string | null
           created_at?: string
+          creator_id?: string | null
           creator_signed_at?: string | null
-          deal_id: string
+          deal_id?: string | null
           id?: string
+          kind?: string
+          period_year?: number | null
           reference: string
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
@@ -667,11 +886,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           brand_signed_at?: string | null
           created_at?: string
+          creator_id?: string | null
           creator_signed_at?: string | null
-          deal_id?: string
+          deal_id?: string | null
           id?: string
+          kind?: string
+          period_year?: number | null
           reference?: string
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
@@ -679,6 +902,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contracts_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contracts_deal_id_fkey"
             columns: ["deal_id"]
@@ -788,40 +1025,40 @@ export type Database = {
       }
       creator_platforms: {
         Row: {
-          platform_ref: string | null
-          verified_at: string | null
-          verified_source: string | null
-          verified_subscribers: number | null
           creator_id: string
           handle: string | null
           id: string
           platform_id: number
+          platform_ref: string | null
           subscribers: number | null
           url: string | null
+          verified_at: string | null
+          verified_source: string | null
+          verified_subscribers: number | null
         }
         Insert: {
-          platform_ref?: string | null
-          verified_at?: string | null
-          verified_source?: string | null
-          verified_subscribers?: number | null
           creator_id: string
           handle?: string | null
           id?: string
           platform_id: number
+          platform_ref?: string | null
           subscribers?: number | null
           url?: string | null
-        }
-        Update: {
-          platform_ref?: string | null
           verified_at?: string | null
           verified_source?: string | null
           verified_subscribers?: number | null
+        }
+        Update: {
           creator_id?: string
           handle?: string | null
           id?: string
           platform_id?: number
+          platform_ref?: string | null
           subscribers?: number | null
           url?: string | null
+          verified_at?: string | null
+          verified_source?: string | null
+          verified_subscribers?: number | null
         }
         Relationships: [
           {
@@ -842,46 +1079,46 @@ export type Database = {
       }
       creator_portfolio_items: {
         Row: {
-          id: string
+          created_at: string
           creator_id: string
-          url: string
-          title: string | null
-          thumbnail_url: string | null
+          duration_seconds: number | null
+          id: string
+          is_short: boolean
+          like_count: number | null
           platform_slug: string | null
           position: number
-          created_at: string
+          thumbnail_url: string | null
+          title: string | null
+          url: string
           view_count: number | null
-          like_count: number | null
-          duration_seconds: number | null
-          is_short: boolean
         }
         Insert: {
-          id?: string
+          created_at?: string
           creator_id: string
-          url: string
-          title?: string | null
-          thumbnail_url?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_short?: boolean
+          like_count?: number | null
           platform_slug?: string | null
           position?: number
-          created_at?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          url: string
           view_count?: number | null
-          like_count?: number | null
-          duration_seconds?: number | null
-          is_short?: boolean
         }
         Update: {
-          id?: string
+          created_at?: string
           creator_id?: string
-          url?: string
-          title?: string | null
-          thumbnail_url?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_short?: boolean
+          like_count?: number | null
           platform_slug?: string | null
           position?: number
-          created_at?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          url?: string
           view_count?: number | null
-          like_count?: number | null
-          duration_seconds?: number | null
-          is_short?: boolean
         }
         Relationships: [
           {
@@ -895,11 +1132,10 @@ export type Database = {
       }
       creators: {
         Row: {
+          bio: string | null
           city: string | null
           city_slug: string | null
           country: string | null
-          travels: boolean
-          bio: string | null
           created_at: string
           custom_niche: string | null
           deals_count: number
@@ -915,15 +1151,15 @@ export type Database = {
           reviews_count: number
           stripe_account_id: string | null
           total_earnings: number
+          travels: boolean
           updated_at: string
           verified: boolean
         }
         Insert: {
+          bio?: string | null
           city?: string | null
           city_slug?: string | null
           country?: string | null
-          travels?: boolean
-          bio?: string | null
           created_at?: string
           custom_niche?: string | null
           deals_count?: number
@@ -939,15 +1175,15 @@ export type Database = {
           reviews_count?: number
           stripe_account_id?: string | null
           total_earnings?: number
+          travels?: boolean
           updated_at?: string
           verified?: boolean
         }
         Update: {
+          bio?: string | null
           city?: string | null
           city_slug?: string | null
           country?: string | null
-          travels?: boolean
-          bio?: string | null
           created_at?: string
           custom_niche?: string | null
           deals_count?: number
@@ -963,6 +1199,7 @@ export type Database = {
           reviews_count?: number
           stripe_account_id?: string | null
           total_earnings?: number
+          travels?: boolean
           updated_at?: string
           verified?: boolean
         }
@@ -988,6 +1225,7 @@ export type Database = {
           created_at: string
           creator_id: string
           deadline: string | null
+          delivered_at: string | null
           escrow_due_at: string | null
           exclusivity: boolean
           exclusivity_days: number | null
@@ -997,8 +1235,12 @@ export type Database = {
           quantity: number
           revision_rounds_max: number
           revision_rounds_used: number
+          shipped_at: string | null
+          shipping_address: Json | null
+          shipping_carrier: string | null
           status: Database["public"]["Enums"]["deal_status"]
           title: string | null
+          tracking_number: string | null
           updated_at: string
           usage_rights_months: number | null
         }
@@ -1013,6 +1255,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           deadline?: string | null
+          delivered_at?: string | null
           escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
@@ -1022,8 +1265,12 @@ export type Database = {
           quantity?: number
           revision_rounds_max?: number
           revision_rounds_used?: number
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          shipping_carrier?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
+          tracking_number?: string | null
           updated_at?: string
           usage_rights_months?: number | null
         }
@@ -1038,6 +1285,7 @@ export type Database = {
           created_at?: string
           creator_id?: string
           deadline?: string | null
+          delivered_at?: string | null
           escrow_due_at?: string | null
           exclusivity?: boolean
           exclusivity_days?: number | null
@@ -1047,8 +1295,12 @@ export type Database = {
           quantity?: number
           revision_rounds_max?: number
           revision_rounds_used?: number
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          shipping_carrier?: string | null
           status?: Database["public"]["Enums"]["deal_status"]
           title?: string | null
+          tracking_number?: string | null
           updated_at?: string
           usage_rights_months?: number | null
         }
@@ -1135,6 +1387,117 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "deliverables_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      error_reports: {
+        Row: {
+          context: string
+          detail: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          message: string
+          occurrences: number
+          resolved_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context: string
+          detail?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message: string
+          occurrences?: number
+          resolved_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: string
+          detail?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          message?: string
+          occurrences?: number
+          resolved_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_reports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      in_kind_benefits: {
+        Row: {
+          brand_id: string
+          created_at: string
+          creator_id: string
+          deal_id: string | null
+          dispute_reason: string | null
+          id: string
+          label: string
+          note: string | null
+          sent_at: string
+          status: Database["public"]["Enums"]["in_kind_status"]
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          creator_id: string
+          deal_id?: string | null
+          dispute_reason?: string | null
+          id?: string
+          label: string
+          note?: string | null
+          sent_at?: string
+          status?: Database["public"]["Enums"]["in_kind_status"]
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          creator_id?: string
+          deal_id?: string | null
+          dispute_reason?: string | null
+          id?: string
+          label?: string
+          note?: string | null
+          sent_at?: string
+          status?: Database["public"]["Enums"]["in_kind_status"]
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "in_kind_benefits_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "in_kind_benefits_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "in_kind_benefits_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
@@ -1319,30 +1682,51 @@ export type Database = {
       }
       profiles: {
         Row: {
-          is_admin: boolean
           avatar_url: string | null
           created_at: string
           display_name: string | null
           id: string
+          is_admin: boolean
           role: Database["public"]["Enums"]["user_role"]
+          role_confirmed: boolean
           updated_at: string
         }
         Insert: {
-          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          is_admin?: boolean
           role: Database["public"]["Enums"]["user_role"]
+          role_confirmed?: boolean
           updated_at?: string
         }
         Update: {
-          is_admin?: boolean
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_admin?: boolean
           role?: Database["public"]["Enums"]["user_role"]
+          role_confirmed?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rate_limit_buckets: {
+        Row: {
+          key: string
+          tokens: number
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          tokens: number
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          tokens?: number
           updated_at?: string
         }
         Relationships: []
@@ -1483,7 +1867,55 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      confirm_user_role: {
+        Args: { p_role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
+      consume_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
+        Returns: {
+          allowed: boolean
+          tokens_left: number
+        }[]
+      }
+      credit_balance: {
+        Args: {
+          p_amount: number
+          p_brand: string
+          p_event?: string
+          p_kind: Database["public"]["Enums"]["ledger_kind"]
+          p_label?: string
+          p_stripe_ref?: string
+        }
+        Returns: number
+      }
+      credit_cpa_action: {
+        Args: { p_event: string; p_link: string; p_total: number }
+        Returns: number
+      }
+      dispute_in_kind_benefit: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      purge_rate_limit_buckets: { Args: never; Returns: number }
+      report_error: {
+        Args: {
+          p_context: string
+          p_detail?: string
+          p_message: string
+          p_user?: string
+        }
+        Returns: undefined
+      }
+      reserve_commission: {
+        Args: {
+          p_amount: number
+          p_brand: string
+          p_event: string
+          p_label?: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       affiliate_event_status:
@@ -1493,12 +1925,6 @@ export type Database = {
         | "paid"
         | "refunded"
         | "rejected"
-      ledger_kind:
-        | "topup"
-        | "reserve"
-        | "reserve_release"
-        | "payout"
-        | "adjustment"
       affiliate_event_type: "click" | "sale" | "action"
       application_initiator: "creator" | "brand"
       application_status: "pending" | "accepted" | "rejected" | "withdrawn"
@@ -1512,13 +1938,18 @@ export type Database = {
         | "giveaway"
         | "cpa_flat"
         | "cpa_tiers"
-        | "cpa_flat"
-        | "cpa_tiers"
       commission_type: "percentage" | "fixed_per_action" | "recurring"
       content_tone: "authentic" | "educational" | "testimonial"
       contract_status: "draft" | "pending_signature" | "signed" | "terminated"
       deal_format: "video_post" | "ugc" | "story" | "reel" | "live"
       deal_status: "negotiation" | "active" | "completed" | "cancelled"
+      in_kind_status: "declared" | "disputed" | "cancelled"
+      ledger_kind:
+        | "topup"
+        | "reserve"
+        | "reserve_release"
+        | "payout"
+        | "adjustment"
       offer_type: "ugc" | "post" | "perf" | "affil" | "story"
       product_kind: "physical" | "digital" | "service"
       transaction_status:
@@ -1536,3 +1967,174 @@ export type Database = {
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      affiliate_event_status: [
+        "unfunded",
+        "pending",
+        "validated",
+        "paid",
+        "refunded",
+        "rejected",
+      ],
+      affiliate_event_type: ["click", "sale", "action"],
+      application_initiator: ["creator", "brand"],
+      application_status: ["pending", "accepted", "rejected", "withdrawn"],
+      campaign_status: ["draft", "active", "ended"],
+      campaign_type: [
+        "affiliation",
+        "video",
+        "hybrid",
+        "performance",
+        "promo_code",
+        "giveaway",
+        "cpa_flat",
+        "cpa_tiers",
+      ],
+      commission_type: ["percentage", "fixed_per_action", "recurring"],
+      content_tone: ["authentic", "educational", "testimonial"],
+      contract_status: ["draft", "pending_signature", "signed", "terminated"],
+      deal_format: ["video_post", "ugc", "story", "reel", "live"],
+      deal_status: ["negotiation", "active", "completed", "cancelled"],
+      in_kind_status: ["declared", "disputed", "cancelled"],
+      ledger_kind: [
+        "topup",
+        "reserve",
+        "reserve_release",
+        "payout",
+        "adjustment",
+      ],
+      offer_type: ["ugc", "post", "perf", "affil", "story"],
+      product_kind: ["physical", "digital", "service"],
+      transaction_status: [
+        "pending",
+        "in_escrow",
+        "released",
+        "paid",
+        "refunded",
+        "cancelled",
+      ],
+      transaction_type: ["deal_payment", "affiliate_payout"],
+      user_role: ["creator", "brand"],
+    },
+  },
+} as const

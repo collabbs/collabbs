@@ -28,19 +28,7 @@ export default async function ChoixRolePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // `role_confirmed` arrive avec la migration 0052 ; les types engendrés
-  // depuis la base ne la connaissent pas encore.
-  const { data: profil } = await (supabase as unknown as {
-    from: (t: string) => {
-      select: (c: string) => {
-        eq: (k: string, v: string) => {
-          maybeSingle: () => Promise<{
-            data: { role_confirmed?: boolean; display_name?: string | null } | null;
-          }>;
-        };
-      };
-    };
-  })
+  const { data: profil } = await supabase
     .from("profiles")
     .select("role_confirmed, display_name")
     .eq("id", user.id)

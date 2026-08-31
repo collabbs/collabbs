@@ -60,16 +60,7 @@ export default async function OpportunitiesPage({
           )
           .eq("status", "active")
           .order("created_at", { ascending: false });
-        // `is_demo` n'est pas dans le select : les types engendrés depuis la
-        // base ne la connaissent pas encore (migration 0053). Le filtre, lui,
-        // fonctionne — PostgREST accepte de filtrer sur une colonne de la
-        // jointure sans la renvoyer.
-        return demoVisible()
-          ? requete
-          : (requete as unknown as { neq: (c: string, v: boolean) => typeof requete }).neq(
-              "brands.is_demo",
-              true,
-            );
+        return demoVisible() ? requete : requete.neq("brands.is_demo", true);
       })(),
       supabase.from("niches").select("id, label").order("label"),
       supabase.from("platforms").select("id, label, slug").order("id"),

@@ -17,17 +17,7 @@ export default async function StartPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await (supabase as unknown as {
-    from: (t: string) => {
-      select: (c: string) => {
-        eq: (k: string, v: string) => {
-          maybeSingle: () => Promise<{
-            data: { role?: string | null; role_confirmed?: boolean } | null;
-          }>;
-        };
-      };
-    };
-  })
+  const { data: profile } = await supabase
     .from("profiles")
     .select("role, role_confirmed")
     .eq("id", user.id)
