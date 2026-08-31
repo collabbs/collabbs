@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { SITE } from "@/lib/legal-entity";
+import { ARTICLES } from "@/lib/blog";
 
 /**
  * Plan du site.
@@ -25,6 +26,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: SITE.url, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE.url}/creators`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE.url}/signup`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    // Le blog et ses articles. Priorité haute : ce sont les pages qui captent
+    // une intention de recherche, donc celles par lesquelles un visiteur
+    // arrive sans nous connaître.
+    { url: `${SITE.url}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    ...ARTICLES.map((a) => ({
+      url: `${SITE.url}/blog/${a.slug}`,
+      lastModified: new Date(a.misAJourLe ?? a.publieLe),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
     { url: `${SITE.url}/login`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE.url}/legal/mentions`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${SITE.url}/legal/cgu`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },

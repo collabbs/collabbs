@@ -8,6 +8,10 @@ const COLUMNS = [
       { label: "Pour les créateurs", href: "/signup" },
       { label: "Pour les marques", href: "/signup?role=brand" },
       { label: "Tarifs", href: "#tarifs" },
+      // Le blog vit dans « Produit » et pas dans un menu du haut : le haut de
+      // page sert à faire s'inscrire. La plupart des lecteurs arriveront de
+      // toute façon sur un article directement depuis une recherche.
+      { label: "Ressources", href: "/blog" },
     ],
   },
   {
