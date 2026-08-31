@@ -16,11 +16,14 @@ import { valider } from "@/lib/validation";
 import {
   termesDealSchema,
   declarationVuesSchema,
+  adresseLivraisonSchema,
+  expeditionSchema,
   DEAL_QUANTITE_MAX,
 } from "@/lib/schemas/deals";
 import { dealBreakdown, PLATFORM_FEE_RATE } from "@/lib/deal";
 import { montantAuxVues } from "@/lib/performance";
 import { reglerCollaborationAuxVues } from "@/lib/performance-reglement";
+import { adresseLivraison, lienDeSuivi } from "@/lib/expedition";
 
 type Result = { ok: boolean; error?: string };
 
@@ -125,7 +128,7 @@ export async function createDealFromApplication(applicationId: string) {
   const { data: app } = await supabase
     .from("applications")
     .select(
-      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, fixed_amount, commission_value, campaign_platforms(platform_id))",
+      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, fixed_amount, commission_value, product_kind, campaign_platforms(platform_id))",
     )
     .eq("id", applicationId)
     .single();
@@ -153,6 +156,13 @@ export async function createDealFromApplication(applicationId: string) {
   const perfRate =
     app.campaigns?.type === "performance" ? (app.campaigns?.commission_value ?? null) : null;
 
+  // Une campagne qui annonce un produit PHYSIQUE implique un envoi. Le
+  // créateur le lit sur l'annonce ; sans ce report, la collaboration s'ouvrait
+  // en l'ignorant, et personne n'avait d'endroit où donner une adresse.
+  // Les produits numériques et les services ne s'expédient pas : on ne coche
+  // que le physique, et la marque peut toujours corriger dans les termes.
+  const envoiRequis = app.campaigns?.product_kind === "physical";
+
   const { data: deal, error } = await supabase
     .from("deals")
     .insert({
@@ -162,6 +172,7 @@ export async function createDealFromApplication(applicationId: string) {
       title: app.campaigns?.name ?? "Collaboration",
       amount,
       perf_rate: perfRate,
+      shipping_required: envoiRequis,
       format: "video_post",
       platform_id: platformId,
       quantity: 1,
@@ -283,6 +294,7 @@ export async function updateDealTerms(
     usageRightsMonths?: number | null;
     exclusivity?: boolean;
     exclusivityDays?: number | null;
+    shippingRequired?: boolean;
   },
 ): Promise<Result> {
   const supabase = await createClient();
@@ -312,6 +324,7 @@ export async function updateDealTerms(
     usageRightsMonths: data.usageRightsMonths ?? null,
     exclusivity: data.exclusivity ?? false,
     exclusivityDays: data.exclusivityDays ?? null,
+    shippingRequired: data.shippingRequired ?? false,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
 
@@ -327,6 +340,7 @@ export async function updateDealTerms(
       // Une exclusivité sans durée ne veut rien dire : on ne garde le nombre
       // de jours que si la case est cochée.
       exclusivity_days: controle.data.exclusivity ? controle.data.exclusivityDays : null,
+      shipping_required: controle.data.shippingRequired,
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
@@ -1416,6 +1430,176 @@ export async function validerVues(dealId: string): Promise<Result> {
     type: "deal_validated",
     title: `Tes vues sont validées — ${eur(reglement.du ?? 0)}`,
     body: `La marque a validé les vues déclarées sur « ${deal.title ?? "la collaboration"} ». Le versement part à la clôture de la collaboration.`,
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  return { ok: true };
+}
+
+/**
+ * Le créateur donne l'adresse où envoyer le produit.
+ *
+ * C'est LUI qui la donne, jamais la marque : c'est sa donnée personnelle, et
+ * lui seul sait où il peut réceptionner. Tant que le colis n'est pas parti, il
+ * peut la corriger — un déménagement, un point relais plus commode.
+ */
+export async function enregistrerAdresseLivraison(
+  dealId: string,
+  data: {
+    name: string;
+    line1: string;
+    line2?: string | null;
+    zip: string;
+    city: string;
+    country: string;
+    phone?: string | null;
+    note?: string | null;
+  },
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("creator_id, brand_id, title, shipping_required, shipped_at, status")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.creator_id !== user.id) return { ok: false, error: "Action non autorisée." };
+  if (!deal.shipping_required)
+    return { ok: false, error: "Cette collaboration ne prévoit pas d'envoi de produit." };
+  if (deal.shipped_at)
+    return {
+      ok: false,
+      error:
+        "Le colis est déjà parti : l'adresse ne peut plus changer. Préviens la marque par message.",
+    };
+  if (deal.status === "cancelled")
+    return { ok: false, error: "Cette collaboration est annulée." };
+
+  const controle = valider(adresseLivraisonSchema, data);
+  if (!controle.ok) return { ok: false, error: controle.error };
+
+  const { error } = await supabase
+    .from("deals")
+    .update({ shipping_address: controle.data })
+    .eq("id", dealId);
+  if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.brand_id,
+    type: "deal_proposed",
+    title: `Adresse de livraison reçue — « ${deal.title ?? "collaboration"} »`,
+    body: "Le créateur a indiqué où envoyer le produit. Tu peux expédier et renseigner le suivi.",
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  return { ok: true };
+}
+
+/**
+ * La marque déclare avoir expédié.
+ *
+ * L'adresse est exigée avant : déclarer un envoi vers nulle part ferait
+ * démarrer l'attente du créateur sur un colis qui n'existe pas, et lui ferait
+ * porter un retard qui n'est pas le sien.
+ */
+export async function marquerExpedie(
+  dealId: string,
+  data: { carrier?: string | null; tracking?: string | null },
+): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("brand_id, creator_id, title, shipping_required, shipping_address, shipped_at")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
+  if (!deal.shipping_required)
+    return { ok: false, error: "Cette collaboration ne prévoit pas d'envoi de produit." };
+  if (deal.shipped_at) return { ok: true };
+  if (!adresseLivraison(deal.shipping_address))
+    return {
+      ok: false,
+      error:
+        "Le créateur n'a pas encore donné d'adresse de livraison complète. Attends qu'il la renseigne avant de déclarer l'envoi.",
+    };
+
+  const controle = valider(expeditionSchema, data);
+  if (!controle.ok) return { ok: false, error: controle.error };
+
+  const { error } = await supabase
+    .from("deals")
+    .update({
+      shipped_at: new Date().toISOString(),
+      shipping_carrier: controle.data.carrier?.trim() || null,
+      tracking_number: controle.data.tracking?.trim() || null,
+    })
+    .eq("id", dealId);
+  if (error) return { ok: false, error: error.message };
+
+  const suivi = lienDeSuivi(
+    controle.data.carrier?.trim() ?? null,
+    controle.data.tracking?.trim() ?? null,
+  );
+  await notify({
+    userId: deal.creator_id,
+    type: "deal_proposed",
+    title: `Ton produit est parti 📦`,
+    body: suivi
+      ? `La marque a expédié le produit de « ${deal.title ?? "la collaboration"} ». Le suivi est disponible sur la page de la collaboration.`
+      : `La marque a expédié le produit de « ${deal.title ?? "la collaboration"} ». Confirme la réception dès qu'il arrive.`,
+    link: `/deals/${dealId}`,
+  });
+
+  revalidatePath(`/deals/${dealId}`);
+  return { ok: true };
+}
+
+/**
+ * Le créateur confirme avoir reçu le produit.
+ *
+ * Ce geste est le vrai point de départ de son délai : avant, il attendait. La
+ * date est enregistrée pour que, en cas de désaccord sur un retard, on sache
+ * de quand part le compteur.
+ */
+export async function confirmerReception(dealId: string): Promise<Result> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const { data: deal } = await supabase
+    .from("deals")
+    .select("creator_id, brand_id, title, shipped_at, received_at")
+    .eq("id", dealId)
+    .single();
+  if (!deal || deal.creator_id !== user.id) return { ok: false, error: "Action non autorisée." };
+  if (!deal.shipped_at)
+    return { ok: false, error: "La marque n'a pas encore déclaré l'envoi du produit." };
+  if (deal.received_at) return { ok: true };
+
+  const { error } = await supabase
+    .from("deals")
+    .update({ received_at: new Date().toISOString() })
+    .eq("id", dealId);
+  if (error) return { ok: false, error: error.message };
+
+  await notify({
+    userId: deal.brand_id,
+    type: "deal_proposed",
+    title: `Produit bien reçu — « ${deal.title ?? "collaboration"} »`,
+    body: "Le créateur confirme la réception. La production du contenu peut commencer.",
     link: `/deals/${dealId}`,
   });
 

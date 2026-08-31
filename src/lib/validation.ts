@@ -191,6 +191,24 @@ export function texteRequis(opts: {
  * leur propre nettoyage avant d'écrire, et on ne veut pas deux endroits qui
  * décident de la forme finale d'un même champ.
  */
+/**
+ * Un texte qu'on exige vraiment.
+ *
+ * `texteFacultatif` acceptait la chaîne vide, ce qui convient à un champ qu'on
+ * peut laisser blanc. Pour une adresse de livraison, le vide n'est pas une
+ * réponse : c'est un colis qui revient. Le message nomme le champ, parce que
+ * « ce champ est requis » sur un formulaire de huit lignes n'aide personne.
+ */
+export function texteObligatoire(opts: { quoi: string; max: number }) {
+  return z
+    .string({ error: `${opts.quoi} doit être du texte.` })
+    .refine((s) => s.trim().length > 0, { error: `${opts.quoi} est obligatoire.` })
+    .refine((s) => s.trim().length <= opts.max, {
+      error: `${opts.quoi} est trop long (${opts.max} caractères maximum).`,
+    })
+    .transform((s) => s.trim());
+}
+
 export function texteFacultatif(opts: { quoi: string; max: number }) {
   return z
     .string({ error: `${opts.quoi} doit être du texte.` })

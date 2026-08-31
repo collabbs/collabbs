@@ -2,7 +2,9 @@ import { z } from "zod";
 import {
   nombreEntier,
   texteFacultatif,
+  texteObligatoire,
   dateISO,
+  TEXTE_COURT_MAX,
   TEXTE_LONG_MAX,
 } from "@/lib/validation";
 
@@ -66,6 +68,39 @@ export const declarationVuesSchema = z.object({
     }),
 });
 
+/**
+ * Adresse de livraison du produit.
+ *
+ * C'est une donnée personnelle, et c'est le créateur qui la donne — jamais la
+ * marque. Les champs exigés sont ceux sans lesquels un colis revient : un nom,
+ * une rue, un code postal, une ville, un pays. Le téléphone reste facultatif
+ * mais on le demande, parce que la plupart des transporteurs en ont besoin
+ * pour livrer.
+ */
+export const adresseLivraisonSchema = z.object({
+  name: texteObligatoire({ quoi: "Le nom du destinataire", max: TEXTE_COURT_MAX }),
+  line1: texteObligatoire({ quoi: "L'adresse", max: TEXTE_COURT_MAX }),
+  line2: texteFacultatif({ quoi: "Le complément d'adresse", max: TEXTE_COURT_MAX }).nullish(),
+  zip: texteObligatoire({ quoi: "Le code postal", max: 16 }),
+  city: texteObligatoire({ quoi: "La ville", max: TEXTE_COURT_MAX }),
+  country: texteObligatoire({ quoi: "Le pays", max: TEXTE_COURT_MAX }),
+  phone: texteFacultatif({ quoi: "Le téléphone", max: 32 }).nullish(),
+  note: texteFacultatif({ quoi: "L'indication de livraison", max: TEXTE_LONG_MAX }).nullish(),
+});
+
+/**
+ * Déclaration d'expédition par la marque.
+ *
+ * Transporteur et numéro de suivi sont FACULTATIFS : toutes les remises ne
+ * passent pas par un transporteur suivi — main propre, coursier, produit
+ * envoyé par un autre canal. Les rendre obligatoires forcerait la marque à
+ * inventer un numéro, ce qui est pire que pas de numéro du tout.
+ */
+export const expeditionSchema = z.object({
+  carrier: texteFacultatif({ quoi: "Le transporteur", max: TEXTE_COURT_MAX }).nullish(),
+  tracking: texteFacultatif({ quoi: "Le numéro de suivi", max: TEXTE_COURT_MAX }).nullish(),
+});
+
 export const termesDealSchema = z.object({
   /**
    * En euros ENTIERS : la colonne l'est. On refuse la virgule au lieu de
@@ -122,4 +157,12 @@ export const termesDealSchema = z.object({
   })
     .nullish()
     .transform((v) => v ?? null),
+
+  /**
+   * La marque envoie-t-elle un produit ? Repris de la campagne à la création,
+   * mais modifiable ici : une collaboration directe peut parfaitement inclure
+   * un envoi, et une campagne « produit physique » peut aboutir à une collab
+   * qui n'en demande pas.
+   */
+  shippingRequired: z.boolean().nullish().transform((v) => v ?? false),
 });

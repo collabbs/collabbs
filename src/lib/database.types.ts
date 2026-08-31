@@ -1215,6 +1215,8 @@ export type Database = {
       }
       deals: {
         Row: {
+          shipping_required: boolean
+          received_at: string | null
           perf_rate: number | null
           perf_views: number | null
           perf_proof_url: string | null
@@ -1250,6 +1252,8 @@ export type Database = {
           usage_rights_months: number | null
         }
         Insert: {
+          shipping_required?: boolean
+          received_at?: string | null
           perf_rate?: number | null
           perf_views?: number | null
           perf_proof_url?: string | null
@@ -1285,6 +1289,8 @@ export type Database = {
           usage_rights_months?: number | null
         }
         Update: {
+          shipping_required?: boolean
+          received_at?: string | null
           perf_rate?: number | null
           perf_views?: number | null
           perf_proof_url?: string | null

@@ -20,6 +20,7 @@ import ReviewBox from "./ReviewBox";
 import RefundButton from "./RefundButton";
 import ReceiveButton from "./ReceiveButton";
 import PerformancePanel from "./PerformancePanel";
+import ExpeditionPanel from "./ExpeditionPanel";
 import { montantAuxVues } from "@/lib/performance";
 import DealTimeline from "./DealTimeline";
 
@@ -109,7 +110,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number",
     )
     .eq("id", id)
     .single();
@@ -396,6 +397,20 @@ export default async function DealDetailPage({
             )}
           </div>
 
+          {/* Envoi du produit — avant les vues et le contrat : dans le temps
+              réel d'une collaboration en nature, le colis part d'abord. */}
+          {deal.shipping_required && (
+            <ExpeditionPanel
+              dealId={deal.id}
+              role={role}
+              adresse={deal.shipping_address}
+              shippedAt={deal.shipped_at}
+              receivedAt={deal.received_at}
+              carrier={deal.shipping_carrier}
+              tracking={deal.tracking_number}
+            />
+          )}
+
           {/* Vues — uniquement sur les collaborations payées à la performance.
               Placé AVANT le contrat : c'est l'action du moment, le contrat se
               consulte. */}
@@ -577,6 +592,7 @@ export default async function DealDetailPage({
               usageRightsMonths: deal.usage_rights_months ?? null,
               exclusivity: deal.exclusivity ?? false,
               exclusivityDays: deal.exclusivity_days ?? null,
+              shippingRequired: deal.shipping_required ?? false,
             }}
             revisions={{
               used: deal.revision_rounds_used,

@@ -24,6 +24,7 @@ type Props = {
     usageRightsMonths: number | null;
     exclusivity: boolean;
     exclusivityDays: number | null;
+    shippingRequired: boolean;
   };
   /** Compteur retouches du deal (passé par la page parent). */
   revisions?: { used: number; max: number };
@@ -48,6 +49,7 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(terms.amount);
   const [quantity, setQuantity] = useState(terms.quantity);
+  const [envoiRequis, setEnvoiRequis] = useState(terms.shippingRequired);
   const [deadline, setDeadline] = useState(terms.deadline ?? "");
   const [notes, setNotes] = useState(terms.brandNotes ?? "");
   // Ces deux termes étaient écrits dans le contrat sans que personne ne puisse
@@ -208,6 +210,29 @@ export default function DealControls({ dealId, role, status, deliverables, terms
               )}
             </label>
             <label className="text-sm sm:col-span-2">
+              <span className="text-xs font-semibold text-zinc-500">Envoi d&apos;un produit</span>
+              <span className="mt-1 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={envoiRequis}
+                  onChange={(e) => setEnvoiRequis(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300"
+                />
+                <span className="text-sm text-zinc-600">
+                  J&apos;envoie un produit au créateur avant qu&apos;il produise son contenu
+                </span>
+              </span>
+              {/* Le créateur ne peut pas tourner ce qu'il n'a pas reçu. Cocher
+                  ouvre l'échange d'adresse et le suivi du colis ; ne pas cocher
+                  laisserait les deux parties s'attendre sans le savoir. */}
+              {envoiRequis && (
+                <span className="mt-1 block text-xs text-zinc-500">
+                  Le créateur pourra indiquer son adresse, et tu pourras déclarer l&apos;envoi avec
+                  son suivi.
+                </span>
+              )}
+            </label>
+            <label className="text-sm sm:col-span-2">
               <span className="text-xs font-semibold text-zinc-500">Brief / notes</span>
               <textarea
                 value={notes}
@@ -231,6 +256,7 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                     usageRightsMonths: droits === "" ? null : Number(droits),
                     exclusivity: exclu,
                     exclusivityDays: excluJours === "" ? null : Number(excluJours),
+                    shippingRequired: envoiRequis,
                   });
                   if (res.ok) setEditing(false);
                   return res;
