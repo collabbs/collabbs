@@ -47,8 +47,15 @@ export const LEGAL_ENTITY = {
   vat: "FR66947466918",
   publicationDirector: "Julien Dreneau",
   contactEmail: "contact@collabbs.com",
-  /** ⚠️ À COMPLÉTER — un moyen de contact direct est exigé par la LCEN. */
-  phone: TODO,
+  /**
+   * Un moyen de contact DIRECT est exigé par la LCEN (article 6) : une adresse
+   * électronique seule ne suffit pas pour un éditeur professionnel.
+   *
+   * Écrit au format international : ces mentions sont lues par des annonceurs
+   * qui ne sont pas tous en France, et « 06 33 11 83 13 » ne se compose pas
+   * depuis l'étranger.
+   */
+  phone: "+33 6 33 11 83 13",
 } as const;
 
 /** Hébergeur — obligatoire dans les mentions légales. */
@@ -94,7 +101,16 @@ export const SITE = {
   updatedAt: "29 août 2026",
 } as const;
 
-/** Vrai si l'identité de l'éditeur n'est pas encore renseignée. */
+/**
+ * Vrai si l'identité de l'éditeur n'est pas encore renseignée.
+ *
+ * Le cast est délibéré. TypeScript sait désormais qu'AUCUN champ ne vaut
+ * `TODO` — toutes les mentions sont complètes depuis le 31/08/2026 — et refuse
+ * donc une comparaison qu'il peut prouver fausse. C'est une bonne nouvelle,
+ * pas une raison de supprimer le garde : le jour où quelqu'un ajoute un champ
+ * en le laissant à compléter, cette fonction doit le voir, et la page doit
+ * l'afficher en rouge plutôt que de publier une mention légale trouée.
+ */
 export function legalEntityIncomplete(): boolean {
-  return Object.values(LEGAL_ENTITY).some((v) => v === TODO);
+  return Object.values(LEGAL_ENTITY as Record<string, string>).some((v) => v === TODO);
 }
