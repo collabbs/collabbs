@@ -10,18 +10,28 @@ type Plan = {
   featured: boolean;
 };
 
+/**
+ * ⚠️ Cette page annonçait des limites que le produit n'applique pas — « 3 deals
+ * vidéo actifs / mois », « 5 liens d'affiliation actifs ». Aucune n'existait
+ * dans le code, et aucune ne DOIT exister : bloquer la troisième
+ * collaboration, c'est bloquer le chiffre d'affaires de la marque, donc le
+ * nôtre. Une limite doit protéger la place de marché, pas empêcher la
+ * première réussite.
+ *
+ * Ce que l'abonnement change est plus simple, et vrai : le TAUX. C'est le
+ * modèle de Collabstr (10 % → 5 %) et d'Insense (20 % → 7 %).
+ */
 const PLANS: Plan[] = [
   {
     name: "Free",
     price: "0",
-    desc: "Pour tester la plateforme",
+    desc: "Tout le produit, sans engagement",
     features: [
-      "3 deals vidéo actifs / mois",
-      "5 liens d'affiliation actifs",
-      "Analytics basiques",
-      "Marketplace en lecture",
-      "Support email 48h",
-      "10% commission sur deals · 20% sur affiliation",
+      "Collaborations et liens d'affiliation illimités",
+      "Contrat écrit conforme et paiement séquestré",
+      "Code promo, CPA, concours",
+      "Analytics et export comptable",
+      "10 % sur les collaborations · 20 % sur l'affiliation",
     ],
     cta: "Commencer gratuitement",
     ctaHref: "/signup?role=brand",
@@ -30,15 +40,12 @@ const PLANS: Plan[] = [
   {
     name: "Growth",
     price: "99",
-    desc: "Pour scaler ton acquisition",
+    desc: "Rentable dès 4 950 € de collabs / mois",
     features: [
-      "Deals vidéo illimités",
-      "Liens d'affiliation illimités",
-      "Analytics avancées (ROAS, cohorts)",
-      "Filtres de recherche avancés",
-      "Templates de brief",
+      "Tout le plan gratuit",
       "Support prioritaire 12h",
-      "8% commission sur deals · 18% sur affiliation",
+      "Templates de brief",
+      "8 % sur les collaborations · 18 % sur l'affiliation",
     ],
     cta: "Démarrer Growth",
     ctaHref: "/signup?role=brand",
@@ -47,14 +54,12 @@ const PLANS: Plan[] = [
   {
     name: "Scale",
     price: "299",
-    desc: "Pour les marques établies",
+    desc: "Rentable dès 5 980 € de collabs / mois",
     features: [
-      "Tout Growth, sans limites",
-      "API publique d'accès",
+      "Tout le plan Growth",
+      "Plusieurs utilisateurs",
       "Account manager dédié",
-      "5 utilisateurs équipe",
-      "Workflow d'approbation",
-      "Dès 5% sur deals · dès 15% sur affiliation",
+      "5 % sur les collaborations · 15 % sur l'affiliation",
     ],
     cta: "Contacter les ventes",
     ctaHref: "mailto:contact@collabbs.com",
@@ -75,8 +80,9 @@ export default function Pricing() {
           </h2>
           <p className="mt-3 text-zinc-600">
             Les créateurs, c&apos;est{" "}
-            <span className="font-semibold text-ink">100% gratuit, à vie</span>.
-            Ci-dessous, les plans pour les marques.
+            <span className="font-semibold text-ink">100 % gratuit, à vie</span>{" "}
+            — la commission s&apos;ajoute au prix, elle n&apos;est jamais retenue
+            sur leur rémunération. Ci-dessous, les plans pour les marques.
           </p>
         </div>
 
