@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Script de lancement local (chemins spécifiques à une machine)
 run-dev.sh
+
+# Config locale Claude Code (chemins spécifiques à la machine)
+.claude/

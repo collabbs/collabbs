@@ -520,6 +520,422 @@ export const ARTICLES: Article[] = [
       { titre: "Influence commerciale : nouvelles obligations dès janvier 2026 — TGS France Avocats", url: "https://www.tgs-avocats.fr/blog/influence-commerciale-de-nouvelles-obligations-contractuelles-des-janvier-2026" },
     ],
   },
+  {
+    slug: "meilleures-plateformes-ugc-france",
+    titre: "Les meilleures plateformes UGC en France : le comparatif 2026",
+    description:
+      "Youdji, Influee, Moggo, Skeepers, Collabbs : quatre modèles économiques très différents derrière un même mot. Tarifs relevés sur les pages publiques de chaque plateforme, et comment choisir selon votre situation.",
+    intention: "meilleure plateforme UGC france comparatif",
+    categorie: "Comparatif",
+    publieLe: "2026-08-31",
+    lecture: 9,
+    contenu: [
+      {
+        type: "p",
+        texte:
+          "Toutes ces plateformes promettent la même chose : des vidéos UGC, des créateurs vérifiés, des paiements sécurisés. La différence n'est pas là. Elle est dans **qui paie quoi**, et ça change le coût réel d'un facteur trois selon la plateforme et selon le volume que vous produisez.",
+      },
+      {
+        type: "encadre",
+        ton: "info",
+        titre: "Comment ce comparatif a été fait",
+        texte:
+          "Chaque chiffre cité ici a été relevé le **31 août 2026 sur la page publique de la plateforme concernée** — pas sur un comparatif tiers, pas de mémoire. Les liens sont en bas de page, vérifiez vous-même. Les tarifs évoluent : si vous lisez ceci bien plus tard, recoupez.",
+      },
+      { type: "h2", texte: "Quatre modèles économiques, pas quatre plateformes" },
+      {
+        type: "p",
+        texte:
+          "Comprenez le modèle et vous saurez laquelle vous convient, sans lire une seule page de fonctionnalités.",
+      },
+      { type: "h3", texte: "1. Abonnement mensuel + commission — Influee" },
+      {
+        type: "p",
+        texte:
+          "Influee facture un abonnement à la plateforme, **et** prend une commission sur ce que vous versez aux créateurs. Sa page tarifs affiche Starter à **199 € / mois** (jusqu'à 10 créateurs par mois), Basic à **449 € / mois** (25 créateurs), Pro à **849 € / mois** (50 créateurs), et une offre Enterprise sur mesure. À chaque palier s'ajoutent **10 % de frais de marketplace sur les paiements aux créateurs**, qui ne sont pas compris dans l'abonnement.",
+      },
+      {
+        type: "p",
+        texte:
+          "Leur propre exemple de calcul : 199 € d'abonnement + 10 vidéos de 30 secondes à 28 € = **479 € le premier mois**. La plateforme annonce plus de 150 000 créateurs dans le monde et les droits d'utilisation inclus.",
+      },
+      {
+        type: "p",
+        texte:
+          "**Le modèle est bon si** vous produisez en continu et en volume : l'abonnement se dilue. **Il est mauvais si** vous faites trois vidéos par trimestre — vous payez l'abonnement les mois où vous ne produisez rien.",
+      },
+      { type: "h3", texte: "2. Commission prélevée au créateur — Youdji" },
+      {
+        type: "p",
+        texte:
+          "Youdji ne fait payer ni abonnement ni commission à la marque. Sa page tarifs affiche pour les marques et agences : **abonnement 0 € / mois, commission 0 %**. Pour les créateurs, la même page affiche : **abonnement 0 € / mois, commission 20 %**.",
+      },
+      {
+        type: "p",
+        texte:
+          "Autrement dit, la plateforme est gratuite pour la marque parce que c'est le créateur qui la finance, à hauteur d'un cinquième de ce qu'il facture. La plateforme annonce plus de 11 300 créateurs vérifiés, plus de 3 000 marques et agences, et un paiement séquestré libéré à l'approbation de la commande.",
+      },
+      {
+        type: "encadre",
+        ton: "alerte",
+        titre: "Une commission créateur se répercute presque toujours sur le prix",
+        texte:
+          "Un créateur qui veut toucher 200 € net sur une plateforme à 20 % ne facture pas 200 €, il facture 250 €. La gratuité côté marque est donc en partie une gratuité de façade : elle est intégrée dans les tarifs affichés par les créateurs. Ce qui ne veut pas dire que le modèle est mauvais — mais il faut comparer des prix nets, pas des pourcentages.",
+      },
+      { type: "h3", texte: "3. Prix fixe par vidéo — Moggo" },
+      {
+        type: "p",
+        texte:
+          "Moggo vend la vidéo, pas l'accès à un annuaire : **99 € HT** pour une vidéo de 15 secondes, sans abonnement et sans commission. Le site annonce plus de 4 000 créateurs vérifiés, deux demandes de retouche incluses, une livraison sous sept jours et les droits publicitaires pour deux ans compris dans le prix.",
+      },
+      {
+        type: "p",
+        texte:
+          "**Le modèle est bon si** vous voulez du contenu sans gérer de relation créateur : vous commandez, vous recevez. **Il est limité si** vous cherchez une relation durable avec des créateurs identifiés, une campagne d'affiliation, ou un créateur qui parle à sa propre audience — ici vous achetez un fichier vidéo, pas une prise de parole.",
+      },
+      { type: "h3", texte: "4. Suite entreprise sur devis — Skeepers" },
+      {
+        type: "p",
+        texte:
+          "Skeepers ne publie aucun tarif : chaque parcours mène à « Demander une démo ». C'est une suite complète — avis clients, feedback, communautés de marque, et une brique marketing d'influence — annoncée à plus de 6 000 entreprises clientes et plus de 100 000 micro et nano-influenceurs.",
+      },
+      {
+        type: "p",
+        texte:
+          "**Le modèle est bon si** vous êtes une marque établie avec un budget annuel et un besoin qui dépasse l'UGC. **Il est inadapté si** vous êtes entrepreneur ou petite marque : l'entrée se fait par un cycle commercial, pas par une inscription.",
+      },
+      { type: "h2", texte: "Le tableau" },
+      {
+        type: "tableau",
+        entetes: ["Plateforme", "Coût pour la marque", "Coût pour le créateur", "Modèle"],
+        lignes: [
+          ["**Youdji**", "0 € / mois, 0 % de commission", "0 € / mois, **20 % de commission**", "Marketplace financée par les créateurs"],
+          ["**Influee**", "199 à 849 € / mois **+ 10 %** sur les paiements créateurs", "Non affiché sur la page tarifs marques", "Abonnement + commission"],
+          ["**Moggo**", "99 € HT par vidéo de 15 s", "Non affiché", "Vente à l'unité, sans abonnement"],
+          ["**Skeepers**", "Sur devis, démo obligatoire", "Non affiché", "Suite entreprise"],
+          ["**Collabbs**", "0 € / mois + 10 %, ou 99 € / mois + 8 %, ou 299 € / mois + 5 %", "**0 %** — le créateur touche le montant annoncé", "Commission ajoutée au prix, à la charge de la marque"],
+        ],
+      },
+      {
+        type: "p",
+        texte:
+          "Une précision d'honnêteté : Collabbs est lancé en 2026 et n'affiche pas de compteur de créateurs, parce qu'un chiffre gonflé se retourne toujours contre celui qui l'annonce. Si votre critère numéro un est la taille du catalogue, les plateformes ci-dessus ont plusieurs années d'avance et il faut le dire.",
+      },
+      { type: "h2", texte: "Ce que le tableau ne montre pas : le coût réel à volume donné" },
+      {
+        type: "p",
+        texte:
+          "Prenez une marque qui commande **cinq vidéos à 200 € net pour le créateur** dans le mois. Voici ce qu'elle sort réellement, sur la base des tarifs publics ci-dessus :",
+      },
+      {
+        type: "liste",
+        items: [
+          "**Influee, offre Starter** : 199 € d'abonnement + 1 000 € aux créateurs + 100 € de frais de marketplace = **1 299 €**.",
+          "**Youdji** : 0 € de frais, mais le créateur qui veut 200 € net facture 250 € pour absorber les 20 % — soit **1 250 €** si les tarifs affichés intègrent la commission, ce qui est l'usage.",
+          "**Moggo** : cinq vidéos de 15 s à 99 € HT = **495 €**, mais ce n'est pas le même produit — format court, pas de relation créateur, pas de publication sur le compte du créateur.",
+          "**Collabbs, offre gratuite** : 1 000 € aux créateurs + 100 € de commission = **1 100 €**, sans abonnement, et le créateur touche bien 200 €.",
+        ],
+      },
+      {
+        type: "p",
+        texte:
+          "Ces chiffres ne désignent pas un gagnant : ils montrent que **la question utile est votre volume mensuel**, pas le pourcentage affiché. En dessous de dix vidéos par mois, tout modèle avec abonnement vous coûte cher. Au-dessus de cinquante, c'est l'inverse.",
+      },
+      { type: "h2", texte: "Le critère que presque aucune plateforme ne traite : le contrat" },
+      {
+        type: "p",
+        texte:
+          "Depuis le **1er janvier 2026**, un contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année civile entre une même marque et un même créateur** — avantages en nature compris. Marque, agence et créateur sont **solidairement responsables**.",
+      },
+      {
+        type: "p",
+        texte:
+          "Ce seuil se franchit sans qu'on s'en aperçoive : quatre collaborations à 300 € avec le même créateur dans l'année, et vous y êtes. Une plateforme qui vous met en relation mais vous laisse gérer le contrat vous laisse aussi la responsabilité.",
+      },
+      {
+        type: "cta",
+        titre: "Collabbs génère le contrat et suit le seuil pour vous",
+        texte:
+          "Le contrat est produit au moment de l'accord, signé par les deux parties, et fige les conditions réelles de la collaboration. Le cumul annuel par créateur est suivi automatiquement. L'argent est bloqué en séquestre à l'acceptation et libéré à la validation. Et la commission est payée par la marque : le créateur touche l'intégralité du montant annoncé.",
+        libelle: "Créer un compte gratuitement",
+        href: "/signup",
+      },
+    ],
+    sources: [
+      { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
+      { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
+      { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
+      { titre: "Skeepers — page d'accueil (relevée le 31/08/2026)", url: "https://skeepers.io/fr/" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+    ],
+  },
+  {
+    slug: "alternative-youdji",
+    titre: "Alternative à Youdji : ce que change une commission payée par la marque",
+    description:
+      "Youdji est gratuit pour les marques et prélève 20 % aux créateurs. Ce que ce choix implique concrètement sur les tarifs, sur la qualité des profils, et quelles alternatives existent en France.",
+    intention: "alternative youdji",
+    categorie: "Comparatif",
+    publieLe: "2026-08-30",
+    lecture: 6,
+    contenu: [
+      {
+        type: "p",
+        texte:
+          "Youdji est une plateforme UGC française sérieuse : paiement séquestré, facturation automatique, plus de 11 300 créateurs vérifiés annoncés et plus de 6 millions de dollars reversés selon son site. Si vous cherchez une alternative, c'est rarement pour la qualité de l'outil — c'est presque toujours pour une question de tarif, et elle mérite d'être posée précisément.",
+      },
+      { type: "h2", texte: "Ce que dit exactement leur page tarifs" },
+      {
+        type: "p",
+        texte:
+          "Deux colonnes, deux chiffres. **Marques et agences : abonnement 0 € / mois, commission 0 %.** **Créateurs : abonnement 0 € / mois, commission 20 %.**",
+      },
+      {
+        type: "p",
+        texte:
+          "C'est cohérent et assumé : la plateforme est financée par le côté créateur. Un créateur qui facture 250 € en reçoit 200. Aucun reproche à faire à un modèle affiché aussi clairement — mais il a trois conséquences qu'il vaut mieux avoir en tête avant de choisir.",
+      },
+      { type: "h2", texte: "Conséquence 1 : la gratuité côté marque est en partie apparente" },
+      {
+        type: "p",
+        texte:
+          "Un créateur qui vise 200 € net ne peut pas afficher 200 €. Il affiche 250 €. La commission ne disparaît pas parce qu'elle est prélevée de l'autre côté : elle **remonte dans les prix du catalogue**.",
+      },
+      {
+        type: "p",
+        texte:
+          "Comparer « 0 % » à « 10 % » n'a donc aucun sens tant qu'on n'a pas comparé le **prix net payé pour une même prestation**. C'est le seul chiffre qui compte, et il faut le calculer sur des devis réels, pas sur des pages tarifs.",
+      },
+      { type: "h2", texte: "Conséquence 2 : le créateur a intérêt à sortir de la plateforme" },
+      {
+        type: "p",
+        texte:
+          "Quand la commission pèse sur le créateur, chaque collaboration lui coûte 20 %. La deuxième collaboration avec la même marque est donc **structurellement tentante à faire en direct** — et beaucoup le font. La marque y gagne à court terme, et perd le séquestre, le contrat et la trace écrite au moment précis où les montants deviennent significatifs.",
+      },
+      {
+        type: "p",
+        texte:
+          "Quand la commission est à la charge de la marque et s'ajoute au prix, le créateur n'a aucune raison de fuir : il touche la même chose dedans et dehors, mais dedans il est payé d'avance et couvert par un contrat.",
+      },
+      { type: "h2", texte: "Conséquence 3 : le seuil légal reste sur votre bureau" },
+      {
+        type: "p",
+        texte:
+          "Depuis le 1er janvier 2026, un contrat écrit est obligatoire dès **1 000 € HT cumulés dans l'année entre une marque et un créateur**, avantages en nature compris, avec **responsabilité solidaire** des deux parties. Ce cumul se suit par couple marque × créateur : c'est un travail de comptabilité que personne ne fait à la main correctement.",
+      },
+      { type: "h2", texte: "Les alternatives, selon ce que vous cherchez" },
+      {
+        type: "liste",
+        items: [
+          "**Vous voulez juste des fichiers vidéo, vite** : Moggo vend la vidéo de 15 secondes à 99 € HT, sans abonnement ni commission, droits publicitaires deux ans inclus.",
+          "**Vous produisez en gros volume tous les mois** : Influee propose des abonnements de 199 à 849 € / mois selon le nombre de créateurs, plus 10 % sur les paiements créateurs, avec plus de 150 000 créateurs annoncés.",
+          "**Vous êtes une entreprise établie avec un besoin large** : Skeepers couvre avis clients, communautés et influence, sur devis après démo.",
+          "**Vous voulez que le créateur touche le montant annoncé et que le contrat soit géré** : c'est le parti pris de Collabbs, détaillé ci-dessous.",
+        ],
+      },
+      { type: "h2", texte: "Le parti pris de Collabbs" },
+      {
+        type: "p",
+        texte:
+          "Sur Collabbs, **la commission est payée par la marque et s'ajoute au prix** au lieu d'être prélevée sur la part du créateur. Une collaboration à 300 € coûte 330 € à la marque en offre gratuite, et le créateur reçoit 300 €. Le taux baisse avec l'abonnement : 10 % sans abonnement, 8 % à 99 € / mois, 5 % à 299 € / mois.",
+      },
+      {
+        type: "p",
+        texte:
+          "Ce n'est pas une générosité, c'est un calcul : un créateur payé intégralement n'a aucune raison de contourner la plateforme, et une marque qui garde ses collaborations dans l'outil garde ses contrats et ses preuves.",
+      },
+      {
+        type: "encadre",
+        ton: "info",
+        titre: "Où sont vérifiés ces chiffres",
+        texte:
+          "Les tarifs Youdji, Influee, Moggo et Skeepers cités ici ont été relevés le **31 août 2026 sur leurs pages publiques**, dont les liens figurent en bas de cet article. Aucun n'est repris d'un comparatif tiers. Les tarifs bougent : vérifiez à la source avant de décider.",
+      },
+      {
+        type: "cta",
+        titre: "Essayez sans abonnement",
+        texte:
+          "L'offre gratuite de Collabbs permet de faire tourner deux campagnes en même temps, sans carte bancaire et sans engagement. Contrat conforme généré automatiquement, paiement séquestré, suivi du seuil de 1 000 €. Gratuit pour les créateurs, toujours.",
+        libelle: "Créer un compte gratuitement",
+        href: "/signup",
+      },
+    ],
+    sources: [
+      { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
+      { titre: "Youdji — page créateurs (relevée le 31/08/2026)", url: "https://youdji.com/fr/creators" },
+      { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
+      { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+    ],
+  },
+  {
+    slug: "alternative-skeepers",
+    titre: "Alternative à Skeepers quand on est entrepreneur ou petite marque",
+    description:
+      "Skeepers est une suite entreprise vendue sur devis après démo. Si vous cherchez une alternative, c'est souvent parce que le cycle commercial ne correspond pas à votre taille. Les options qui s'ouvrent par simple inscription.",
+    intention: "alternative skeepers",
+    categorie: "Comparatif",
+    publieLe: "2026-08-29",
+    lecture: 6,
+    contenu: [
+      {
+        type: "p",
+        texte:
+          "Skeepers est un acteur majeur : plus de 6 000 entreprises clientes annoncées, une communauté de plus de 100 000 micro et nano-influenceurs, et une suite qui va bien au-delà de l'UGC — avis clients, gestion du feedback, communautés de marque, marketing d'influence.",
+      },
+      {
+        type: "p",
+        texte:
+          "Si vous cherchez une alternative, ce n'est généralement pas un problème de fonctionnalités. C'est que **rien n'est accessible sans passer par une démo commerciale**, et qu'aucun tarif n'est publié. Pour une marque qui fait 30 000 € de chiffre d'affaires et veut lancer trois collaborations le mois prochain, ce n'est simplement pas le bon format.",
+      },
+      { type: "h2", texte: "Ce que vous cherchez vraiment en cherchant une alternative" },
+      {
+        type: "liste",
+        items: [
+          "**Un tarif public**, que vous pouvez évaluer seul, sans rendez-vous.",
+          "**Une inscription immédiate**, sans engagement annuel ni minimum de volume.",
+          "**Une brique unique** — les collaborations créateurs — sans payer pour trois modules que vous n'utiliserez pas.",
+          "**La conformité quand même** : contrat écrit, traçabilité des paiements. Ce n'est pas parce qu'on est petit que le décret ne s'applique pas.",
+        ],
+      },
+      { type: "h2", texte: "Les options accessibles sans passer par un commercial" },
+      { type: "h3", texte: "Si vous voulez des vidéos, sans relation créateur" },
+      {
+        type: "p",
+        texte:
+          "**Moggo** vend la vidéo à l'unité : 99 € HT pour un format de 15 secondes, sans abonnement ni commission, deux retouches et deux ans de droits publicitaires inclus, livraison annoncée sous sept jours. Vous commandez comme sur un site marchand.",
+      },
+      { type: "h3", texte: "Si vous produisez beaucoup, tous les mois" },
+      {
+        type: "p",
+        texte:
+          "**Influee** fonctionne à l'abonnement : 199 € / mois pour jusqu'à 10 créateurs, 449 € pour 25, 849 € pour 50, plus **10 % de frais de marketplace** sur les sommes versées aux créateurs. La plateforme annonce plus de 150 000 créateurs. Le modèle devient intéressant à partir d'une production régulière et soutenue.",
+      },
+      { type: "h3", texte: "Si vous ne voulez rien payer d'avance" },
+      {
+        type: "p",
+        texte:
+          "**Youdji** n'applique ni abonnement ni commission aux marques — sa page tarifs affiche 0 € / mois et 0 %. En contrepartie, la même page affiche **20 % de commission côté créateur**, qui se retrouve mécaniquement dans les tarifs que les créateurs affichent.",
+      },
+      { type: "h3", texte: "Si le contrat et la conformité sont votre sujet" },
+      {
+        type: "p",
+        texte:
+          "C'est la raison d'être de **Collabbs** : offre gratuite sans carte bancaire avec deux campagnes actives simultanées et 10 % de commission, puis 99 € / mois pour 8 % et cinq campagnes, ou 299 € / mois pour 5 % et un nombre illimité de campagnes. La commission est **à la charge de la marque** et s'ajoute au prix : le créateur touche l'intégralité du montant convenu.",
+      },
+      {
+        type: "encadre",
+        ton: "alerte",
+        titre: "Être une petite structure n'exonère de rien",
+        texte:
+          "Depuis le 1er janvier 2026, le contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année civile entre une marque et un créateur**, avantages en nature inclus, et la responsabilité est **solidaire**. Le seuil ne dépend ni de votre chiffre d'affaires ni de votre effectif. Trois collaborations à 400 € dans l'année avec le même créateur suffisent.",
+      },
+      { type: "h2", texte: "Comment trancher en une question" },
+      {
+        type: "p",
+        texte:
+          "Demandez-vous ce que vous achetez. **Un fichier vidéo** ? Prenez le prix à l'unité. **Un volume industriel** ? Prenez l'abonnement. **Une relation avec des créateurs qui parlent à leur audience, avec un cadre juridique qui tient** ? Prenez la plateforme qui produit le contrat et bloque l'argent, pas celle qui se contente de vous présenter des profils.",
+      },
+      {
+        type: "cta",
+        titre: "Commencez sans rendez-vous commercial",
+        texte:
+          "Compte créé en deux minutes, offre gratuite sans carte bancaire, deux campagnes actives en même temps. Contrat écrit conforme généré à l'accord, paiement séquestré jusqu'à validation, suivi automatique du seuil de 1 000 € par créateur.",
+        libelle: "Créer un compte gratuitement",
+        href: "/signup",
+      },
+    ],
+    sources: [
+      { titre: "Skeepers — page d'accueil (relevée le 31/08/2026)", url: "https://skeepers.io/fr/" },
+      { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
+      { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
+      { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+    ],
+  },
+  {
+    slug: "plateforme-ugc-createur-combien-elle-prend",
+    titre: "Créateur UGC : combien chaque plateforme vous prend réellement",
+    description:
+      "Avant de fixer vos tarifs, sachez ce que la plateforme retient. Comparatif des commissions côté créateur en France, et comment calculer le prix à afficher pour toucher le montant que vous visez.",
+    intention: "commission plateforme ugc créateur combien",
+    categorie: "Créateurs",
+    publieLe: "2026-08-28",
+    lecture: 7,
+    contenu: [
+      {
+        type: "p",
+        texte:
+          "La première erreur d'un créateur UGC qui démarre n'est pas de facturer trop peu. C'est de **facturer un montant sans savoir ce qu'il en restera**. Sur certaines plateformes, un tarif de 200 € vous laisse 200 €. Sur d'autres, il vous en laisse 160.",
+      },
+      { type: "h2", texte: "Ce que retiennent les principales plateformes en France" },
+      {
+        type: "tableau",
+        entetes: ["Plateforme", "Ce qu'elle retient au créateur", "Sur 250 € facturés, vous touchez"],
+        lignes: [
+          ["**Youdji**", "20 % de commission, aucun abonnement", "**200 €**"],
+          ["**Collabbs**", "0 % — la commission est payée par la marque, en plus du prix", "**250 €**"],
+          ["**Influee**", "Non affiché sur la page tarifs destinée aux marques", "À vérifier auprès d'eux"],
+          ["**Moggo**", "Non affiché — la plateforme vend la vidéo à prix fixe et rémunère ses créateurs séparément", "À vérifier auprès d'eux"],
+        ],
+      },
+      {
+        type: "encadre",
+        ton: "info",
+        titre: "Pourquoi deux cases disent « à vérifier »",
+        texte:
+          "Parce que ces plateformes ne publient pas leur commission créateur sur une page publique, et qu'inventer un chiffre serait exactement le genre d'information qui vous ferait perdre de l'argent. Demandez-le par écrit avant votre première collaboration — une plateforme sérieuse répond en une phrase.",
+      },
+      { type: "h2", texte: "La formule pour afficher le bon prix" },
+      {
+        type: "p",
+        texte:
+          "Sur une plateforme qui prélève un pourcentage, le prix à afficher n'est **pas** votre objectif majoré du même pourcentage. C'est votre objectif **divisé** par ce qui vous reste.",
+      },
+      {
+        type: "liste",
+        items: [
+          "Objectif 200 € net, commission 20 % → 200 ÷ 0,80 = **250 €** à afficher.",
+          "Objectif 400 € net, commission 20 % → 400 ÷ 0,80 = **500 €** à afficher.",
+          "L'erreur classique : afficher 200 + 20 % = 240 €, et toucher 192 €. Vous perdez 8 € à chaque fois sans le voir.",
+        ],
+      },
+      { type: "h2", texte: "Le vrai risque n'est pas la commission, c'est de ne pas être payé" },
+      {
+        type: "p",
+        texte:
+          "Une commission de 20 % sur une collaboration payée vaut infiniment mieux que 0 % sur une collaboration jamais réglée. Avant de comparer les taux, vérifiez trois choses :",
+      },
+      {
+        type: "liste",
+        items: [
+          "**L'argent est-il bloqué avant que vous tourniez ?** Un séquestre signifie que la marque a déjà payé, et que la somme vous attend. Sans séquestre, vous travaillez à crédit.",
+          "**Que se passe-t-il si la marque ne valide jamais ?** Sur une plateforme sérieuse, la validation devient automatique après un délai. Sinon, votre paiement dépend du bon vouloir d'un interlocuteur silencieux.",
+          "**Y a-t-il un contrat écrit ?** Depuis le 1er janvier 2026, il est obligatoire dès 1 000 € HT cumulés dans l'année avec la même marque, avantages en nature compris — et vous êtes **solidairement responsable** de son absence, pas seulement la marque.",
+        ],
+      },
+      { type: "h2", texte: "Les produits offerts comptent dans le seuil" },
+      {
+        type: "p",
+        texte:
+          "C'est le piège des créateurs qui travaillent beaucoup en gifting. La valeur des produits reçus entre dans le cumul annuel au même titre que l'argent. Trois envois à 350 € de valeur commerciale de la même marque, et vous êtes au-dessus du seuil : le contrat écrit est obligatoire, même si vous n'avez jamais reçu un euro.",
+      },
+      {
+        type: "cta",
+        titre: "Sur Collabbs, vous touchez le montant affiché",
+        texte:
+          "Zéro commission, zéro abonnement, à vie. La commission est payée par la marque et s'ajoute au prix : si vous annoncez 250 €, vous recevez 250 €. L'argent est bloqué en séquestre avant que vous tourniez, le contrat est généré et signé automatiquement, et la validation se déclenche seule si la marque ne répond pas.",
+        libelle: "Créer mon profil gratuitement",
+        href: "/signup",
+      },
+    ],
+    sources: [
+      { titre: "Youdji — page tarifs (relevée le 31/08/2026)", url: "https://youdji.com/fr/pricing" },
+      { titre: "Influee — tarification création UGC (relevée le 31/08/2026)", url: "https://influee.co/fr/tarification/creation-ugc" },
+      { titre: "Moggo — page d'accueil (relevée le 31/08/2026)", url: "https://www.moggo.fr/" },
+      { titre: "Décret n° 2025-1137 du 28 novembre 2025 — Légifrance", url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051594013" },
+    ],
+  },
 ];
 
 export function articleParSlug(slug: string): Article | undefined {
