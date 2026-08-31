@@ -7,6 +7,8 @@ import { OFFER_TYPES, OFFER_BY_ID, type OfferId } from "@/components/landing/cre
 import { saveCreatorOnboarding, uploadAvatar } from "@/app/onboarding/actions";
 import { extractHandleFromUrl } from "@/lib/social-handle";
 import { compressImage } from "@/lib/image-compress";
+import ReperesTarifaires from "@/components/app/ReperesTarifaires";
+import type { Reperes } from "@/lib/benchmark";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -26,6 +28,7 @@ export default function CreatorProfileForm({
   legalSection,
   portfolioSection,
   initial,
+  reperes,
 }: {
   displayName: string;
   niches: Niche[];
@@ -44,6 +47,8 @@ export default function CreatorProfileForm({
     platforms: { platformId: number; handle: string; subs: string; url: string }[];
     offers: { offer: string; price: string }[];
   };
+  /** Repères tarifaires par format, calculés côté serveur. */
+  reperes: Record<string, Reperes>;
 }) {
   const [handle, setHandle] = useState(initial.handle);
   const [bio, setBio] = useState(initial.bio);
@@ -569,6 +574,13 @@ export default function CreatorProfileForm({
                     />
                     <span className="text-sm text-zinc-400">€</span>
                   </div>
+                )}
+                {/* Le repère de CE format, jamais un chiffre global : un tarif
+                    de story n'a rien à voir avec un tarif d'UGC, et un repère
+                    mélangé ferait afficher au créateur un prix qui ne
+                    correspond à rien de ce qu'il vend. */}
+                {sel && o.id !== "affil" && reperes[o.id] && (
+                  <ReperesTarifaires reperes={reperes[o.id]} compact />
                 )}
                 {sel && o.id === "affil" && (
                   <p className="mt-3 text-xs italic text-brand-deep">

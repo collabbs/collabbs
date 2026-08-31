@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CampaignForm from "./CampaignForm";
+import { reperesPourOffre } from "@/lib/benchmark-data";
 
 export const metadata = {
   title: "Nouvelle campagne — Collabbs",
@@ -26,9 +27,16 @@ export default async function NewCampaignPage() {
 
   if (profileRes.data?.role !== "brand") redirect("/dashboard");
 
+  // « Je mets combien ? » est la question qui bloque la publication d'une
+  // campagne. On la charge côté serveur pour que le formulaire n'ait aucune
+  // requête à faire : le repère doit être là au moment où le champ apparaît,
+  // pas deux secondes après.
+  const reperes = await reperesPourOffre("ugc");
+
   const b = brandRes.data;
   return (
     <CampaignForm
+      reperes={reperes}
       niches={nichesRes.data ?? []}
       platforms={platformsRes.data ?? []}
       defaultCommission={{

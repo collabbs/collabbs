@@ -6,6 +6,7 @@ import LegalInfoSection from "./LegalInfoSection";
 import PortfolioManager from "./PortfolioManager";
 import AudienceVerification from "./AudienceVerification";
 import type { LegalInfoData } from "./legal-utils";
+import { reperesParOffre } from "@/lib/benchmark-data";
 
 export const metadata = {
   title: "Mon profil — Collabbs",
@@ -113,6 +114,7 @@ export default async function ProfilePage() {
             publicHandle={creatorRes.data?.handle ?? null}
           />
         }
+        reperes={await reperesParOffre()}
         initial={{
           handle: creatorRes.data?.handle ?? "",
           bio: creatorRes.data?.bio ?? "",

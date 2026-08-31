@@ -11,6 +11,8 @@ import {
   type ProductKind,
   type CpaTier,
 } from "../actions";
+import ReperesTarifaires from "@/components/app/ReperesTarifaires";
+import type { Reperes } from "@/lib/benchmark";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -45,10 +47,13 @@ export default function CampaignForm({
   niches,
   platforms,
   defaultCommission,
+  reperes,
 }: {
   niches: Niche[];
   platforms: Platform[];
   defaultCommission: Record<TierKey, number>;
+  /** Repères tarifaires, calculés côté serveur — voir `lib/benchmark`. */
+  reperes: Reperes;
 }) {
   const router = useRouter();
   const [type, setType] = useState<CampaignType>("affiliation");
@@ -452,6 +457,11 @@ export default function CampaignForm({
             />
             <span className="text-sm text-zinc-400">€</span>
           </div>
+          {/* Le repère se pose SOUS le champ, jamais dedans en valeur par
+              défaut : pré-remplir un montant ferait passer une statistique
+              pour une recommandation de Collabbs, et la marque paierait ce
+              qu'on lui a suggéré plutôt que ce qu'elle a décidé. */}
+          <ReperesTarifaires reperes={reperes} />
         </div>
       )}
 
