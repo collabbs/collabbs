@@ -132,7 +132,6 @@ export default async function ContractsPage({
   // Avantages en nature. Si la migration 0036 n'est pas encore appliquée, la
   // requête échoue proprement et la section reste masquée plutôt que de casser
   // toute la page.
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const { data: inKindRaw, error: inKindErr } = await supabase
     .from("in_kind_benefits")
     .select("id, brand_id, creator_id, label, value, sent_at, note, status, dispute_reason")

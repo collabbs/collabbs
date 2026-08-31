@@ -6,8 +6,6 @@ import { AFFILIATE_FEE_RATE, VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate
 import { notify } from "@/lib/notifications";
 import type { AffiliateContractSnapshot } from "@/lib/contract-template";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 /**
  * Contrat-cadre d'affiliation.
@@ -52,7 +50,7 @@ export async function ensureAffiliateFrameworkContract(
 ): Promise<EnsureResult> {
   const admin = createAdminClient();
 
-  const { data: existant } = await untyped(admin)
+  const { data: existant } = await admin
     .from("contracts")
     .select("id")
     .eq("kind", "affiliate")
@@ -98,7 +96,7 @@ export async function ensureAffiliateFrameworkContract(
   let contrat: { id: string; reference: string } | null = null;
   for (let essai = 0; essai < 5; essai++) {
     const reference = frameworkRef();
-    const { data, error } = await untyped(admin)
+    const { data, error } = await admin
       .from("contracts")
       .insert({
         kind: "affiliate",

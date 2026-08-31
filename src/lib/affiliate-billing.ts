@@ -60,8 +60,6 @@ type Admin = ReturnType<typeof createAdminClient>;
 // dans `database.types.ts` (fichier généré depuis Supabase, à régénérer une fois
 // la migration appliquée). En attendant, on isole les casts ici plutôt que de
 // les disperser dans le code appelant.
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (admin: Admin) => admin as any;
 
 /**
  * Réserve la commission d'une vente sur la provision de la marque.
@@ -86,7 +84,7 @@ export async function settleSale(params: {
   // la marque. Tant que le drapeau est levé, aucun argent ne bouge — même si un
   // appelant se trompe. C'est la dernière barrière avant la provision, et elle
   // reste ici pour que tout nouveau chemin en hérite gratuitement.
-  const { data: guard } = await untyped(admin)
+  const { data: guard } = await admin
     .from("affiliate_events")
     .select("needs_review")
     .eq("id", eventId)
@@ -103,7 +101,7 @@ export async function settleSale(params: {
 
   // La vente porte d'emblée sa décomposition et sa date de validation, même si
   // la réservation échoue : on veut garder la trace de ce qui est dû.
-  await untyped(admin)
+  await admin
     .from("affiliate_events")
     .update({
       commission_amount: creatorAmount,
@@ -123,7 +121,7 @@ export async function settleSale(params: {
   }
 
   const status: SettlementStatus = reserved ? "pending" : "unfunded";
-  const { error: errStatut } = await untyped(admin)
+  const { error: errStatut } = await admin
     .from("affiliate_events")
     .update({ status })
     .eq("id", eventId);
@@ -164,7 +162,7 @@ async function tryReserve(
   eventId: string,
   amount: number,
 ): Promise<boolean> {
-  const { data, error } = await untyped(admin).rpc("reserve_commission", {
+  const { data, error } = await admin.rpc("reserve_commission", {
     p_brand: brandId,
     p_event: eventId,
     p_amount: amount,
@@ -190,7 +188,7 @@ export async function releaseReservation(params: {
   const { eventId, status, reason } = params;
   const admin = createAdminClient();
 
-  const { data: ev } = await untyped(admin)
+  const { data: ev } = await admin
     .from("affiliate_events")
     .select("id, status, commission_amount, platform_fee, link_id")
     .eq("id", eventId)
@@ -200,7 +198,19 @@ export async function releaseReservation(params: {
   if (ev.status === "refunded" || ev.status === "rejected") {
     return { ok: true, message: "Déjà traitée." };
   }
-  const { data: linkRow } = await untyped(admin)
+  // Un statut nul ne devrait jamais exister, mais il ne doit surtout pas
+  // passer silencieusement : plus bas, le verrou de concurrence s'écrit
+  // `.eq("status", ev.status)`, et en SQL une comparaison à NULL n'est jamais
+  // vraie. La ligne ne serait donc jamais prise, la fonction répondrait
+  // « Déjà traitée », et l'argent ne reviendrait jamais à la marque — avec un
+  // message rassurant à l'écran.
+  if (ev.status === null) {
+    void reportError("affiliate/release-statut-nul", new Error("statut nul"), {
+      detail: `événement ${eventId}`,
+    });
+    return { ok: false, message: "Cette vente est dans un état incohérent. Contacte le support." };
+  }
+  const { data: linkRow } = await admin
     .from("affiliate_links")
     .select("id, creator_id, campaigns(brand_id)")
     .eq("id", ev.link_id)
@@ -214,7 +224,7 @@ export async function releaseReservation(params: {
     // n'est ni possible techniquement, ni acceptable pour le créateur.
     const owed = round2(Number(ev.commission_amount ?? 0));
     if (owed > 0 && linkRow?.creator_id) {
-      await untyped(admin).from("affiliate_clawbacks").insert({
+      await admin.from("affiliate_clawbacks").insert({
         creator_id: linkRow.creator_id,
         brand_id: brandOf ?? null,
         affiliate_event_id: eventId,
@@ -232,7 +242,7 @@ export async function releaseReservation(params: {
         link: "/payouts",
       });
     }
-    await untyped(admin)
+    await admin
       .from("affiliate_events")
       .update({
         status,
@@ -254,7 +264,7 @@ export async function releaseReservation(params: {
   // « pending », et le prochain passage recréditait la marque une seconde
   // fois. Ici, une seule exécution peut franchir cette porte ; les suivantes
   // ne touchent aucune ligne et s'arrêtent.
-  const { data: pris, error: errStatut } = await untyped(admin)
+  const { data: pris, error: errStatut } = await admin
     .from("affiliate_events")
     .update({
       status,
@@ -284,19 +294,19 @@ export async function releaseReservation(params: {
   // recréditer : la marque perdait sa réservation, et personne ne la touchait.
   const encoreChezNous = ev.status === "pending" || ev.status === "validated";
   if (brandId && encoreChezNous && total > 0) {
-    const { error } = await untyped(admin).rpc("credit_balance", {
+    const { error } = await admin.rpc("credit_balance", {
       p_brand: brandId,
       p_amount: total,
       p_kind: "reserve_release",
       p_event: eventId,
-      p_stripe_ref: null,
+      p_stripe_ref: undefined,
       p_label: reason ?? (status === "refunded" ? "Vente remboursée" : "Vente écartée"),
     });
     if (error) {
       // Le crédit a échoué : on remet la vente dans son état d'origine, sinon
       // la marque perdrait sa réservation pour de bon — la prochaine tentative
       // trouverait « déjà traitée » et ne rendrait jamais rien.
-      await untyped(admin)
+      await admin
         .from("affiliate_events")
         .update({ status: ev.status, refunded_at: null, reject_reason: null })
         .eq("id", eventId);
@@ -316,7 +326,7 @@ export async function releaseReservation(params: {
  */
 export async function ensureBrandCustomer(brandId: string): Promise<string> {
   const admin = createAdminClient();
-  const { data: brand } = await untyped(admin)
+  const { data: brand } = await admin
     .from("brands")
     .select("id, name, stripe_customer_id")
     .eq("id", brandId)
@@ -333,7 +343,7 @@ export async function ensureBrandCustomer(brandId: string): Promise<string> {
     metadata: { brand_id: brandId },
   });
 
-  await untyped(admin)
+  await admin
     .from("brands")
     .update({ stripe_customer_id: customer.id })
     .eq("id", brandId);
@@ -352,7 +362,7 @@ export async function attemptAutoTopup(
   brandId: string,
 ): Promise<{ ok: boolean; amount?: number; message?: string }> {
   const admin = createAdminClient();
-  const { data: brand } = await untyped(admin)
+  const { data: brand } = await admin
     .from("brands")
     .select("id, stripe_customer_id, payment_method_id, autotopup_enabled, autotopup_amount")
     .eq("id", brandId)
@@ -403,18 +413,18 @@ export async function creditTopup(
 ): Promise<{ ok: boolean; already?: boolean }> {
   const admin = createAdminClient();
 
-  const { data: existing } = await untyped(admin)
+  const { data: existing } = await admin
     .from("brand_ledger")
     .select("id")
     .eq("stripe_ref", stripeRef)
     .maybeSingle();
   if (existing) return { ok: true, already: true };
 
-  const { error } = await untyped(admin).rpc("credit_balance", {
+  const { error } = await admin.rpc("credit_balance", {
     p_brand: brandId,
     p_amount: round2(amount),
     p_kind: "topup",
-    p_event: null,
+    p_event: undefined,
     p_stripe_ref: stripeRef,
     p_label: label,
   });
@@ -423,7 +433,7 @@ export async function creditTopup(
     return { ok: false };
   }
 
-  await untyped(admin)
+  await admin
     .from("brands")
     .update({ topup_failed_at: null })
     .eq("id", brandId);
@@ -459,21 +469,21 @@ export async function reserveOutstanding(
   const admin = createAdminClient();
 
   // Les commissions dues par CETTE marque : on passe par ses campagnes.
-  const { data: campaigns } = await untyped(admin)
+  const { data: campaigns } = await admin
     .from("campaigns")
     .select("id")
     .eq("brand_id", brandId);
   const campaignIds = ((campaigns ?? []) as { id: string }[]).map((c) => c.id);
   if (campaignIds.length === 0) return { reserved: 0, total: 0 };
 
-  const { data: links } = await untyped(admin)
+  const { data: links } = await admin
     .from("affiliate_links")
     .select("id")
     .in("campaign_id", campaignIds);
   const linkIds = ((links ?? []) as { id: string }[]).map((l) => l.id);
   if (linkIds.length === 0) return { reserved: 0, total: 0 };
 
-  const { data: dues } = await untyped(admin)
+  const { data: dues } = await admin
     .from("affiliate_events")
     .select("id, commission_amount, platform_fee")
     .eq("status", "unfunded")
@@ -493,7 +503,7 @@ export async function reserveOutstanding(
     if (!ok) break; // provision épuisée
     const validateAt = new Date();
     validateAt.setDate(validateAt.getDate() + VALIDATION_DAYS);
-    await untyped(admin)
+    await admin
       .from("affiliate_events")
       .update({ status: "pending", validate_at: validateAt.toISOString() })
       .eq("id", e.id);
@@ -585,7 +595,7 @@ export async function handleTopupCheckout(session: {
           : intent.payment_method?.id;
       if (pm) {
         const admin = createAdminClient();
-        await untyped(admin)
+        await admin
           .from("brands")
           .update({ payment_method_id: pm })
           .eq("id", brandId);
@@ -602,7 +612,7 @@ export async function handleTopupCheckout(session: {
 
 async function flagTopupFailure(brandId: string) {
   const admin = createAdminClient();
-  await untyped(admin)
+  await admin
     .from("brands")
     .update({ topup_failed_at: new Date().toISOString() })
     .eq("id", brandId);
@@ -615,7 +625,7 @@ async function flagTopupFailure(brandId: string) {
  */
 export async function runAffiliateValidation(): Promise<{ validated: number }> {
   const admin = createAdminClient();
-  const { data, error } = await untyped(admin)
+  const { data, error } = await admin
     .from("affiliate_events")
     .update({ status: "validated" })
     .eq("status", "pending")
@@ -654,7 +664,7 @@ export async function runAffiliatePayouts(): Promise<{
   // JAMAIS revenir dans un lot. C'est cette colonne qui sert de réservation
   // (voir la prise de lot plus bas) — sans elle, un échec d'écriture après un
   // virement réussi ferait repayer les mêmes ventes au passage suivant.
-  const { data: events, error: errLecture } = await untyped(admin)
+  const { data: events, error: errLecture } = await admin
     .from("affiliate_events")
     .select("id, commission_amount, platform_fee, affiliate_links(creator_id)")
     .eq("status", "validated")
@@ -672,7 +682,7 @@ export async function runAffiliatePayouts(): Promise<{
     string,
     { ids: string[]; commission: number; fee: number }
   >();
-  for (const e of (events ?? []) as any[]) {
+  for (const e of events ?? []) {
     const creatorId = e.affiliate_links?.creator_id;
     if (!creatorId) continue;
     const bucket = byCreator.get(creatorId) ?? { ids: [], commission: 0, fee: 0 };
@@ -686,13 +696,13 @@ export async function runAffiliatePayouts(): Promise<{
     // Régularisations en attente : commissions versées puis annulées parce que
     // la marque a remboursé son client. On les déduit ici, jamais en reprenant
     // un virement déjà reçu.
-    const { data: clawbacks } = await untyped(admin)
+    const { data: clawbacks } = await admin
       .from("affiliate_clawbacks")
       .select("id, amount")
       .eq("creator_id", creatorId)
       .is("settled_at", null);
     const owed = round2(
-      (clawbacks ?? []).reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0),
+      (clawbacks ?? []).reduce((s: number, c) => s + Number(c.amount ?? 0), 0),
     );
 
     const net = round2(bucket.commission - owed);
@@ -704,7 +714,7 @@ export async function runAffiliatePayouts(): Promise<{
       continue;
     }
 
-    const { data: creator } = await untyped(admin)
+    const { data: creator } = await admin
       .from("creators")
       .select("id, stripe_account_id")
       .eq("id", creatorId)
@@ -728,7 +738,7 @@ export async function runAffiliatePayouts(): Promise<{
     }
 
     const fee = round2(bucket.fee);
-    const { data: tx, error: txErr } = await untyped(admin)
+    const { data: tx, error: txErr } = await admin
       .from("transactions")
       .insert({
         type: "affiliate_payout",
@@ -771,7 +781,7 @@ export async function runAffiliatePayouts(): Promise<{
     // Si on faisait le virement d'abord, une écriture ratée juste après
     // laisserait les ventes « validées » et le passage suivant les paierait
     // une seconde fois — de l'argent réel, deux fois.
-    const { data: prises, error: errPrise } = await untyped(admin)
+    const { data: prises, error: errPrise } = await admin
       .from("affiliate_events")
       .update({ payout_id: tx.id })
       .in("id", bucket.ids)
@@ -783,11 +793,11 @@ export async function runAffiliatePayouts(): Promise<{
       // Lot incomplet : une autre exécution est passée en même temps, ou
       // l'écriture a échoué. On rend ce qu'on avait pris et on laisse le
       // prochain passage refaire le compte proprement — rien n'est perdu.
-      await untyped(admin)
+      await admin
         .from("affiliate_events")
         .update({ payout_id: null })
         .eq("payout_id", tx.id);
-      await untyped(admin).from("transactions").update({ status: "cancelled" }).eq("id", tx.id);
+      await admin.from("transactions").update({ status: "cancelled" }).eq("id", tx.id);
       void reportError("affiliate/payout-prise", errPrise ?? "lot incomplet", {
         detail: `créateur ${creatorId} · ${prises?.length ?? 0}/${bucket.ids.length} ventes prises`,
       });
@@ -809,7 +819,7 @@ export async function runAffiliatePayouts(): Promise<{
         { idempotencyKey: `affiliate-payout-${tx.id}` },
       );
 
-      const { error: errTx } = await untyped(admin)
+      const { error: errTx } = await admin
         .from("transactions")
         .update({
           status: "paid",
@@ -823,7 +833,7 @@ export async function runAffiliatePayouts(): Promise<{
         });
       }
 
-      const { error: errVentes } = await untyped(admin)
+      const { error: errVentes } = await admin
         .from("affiliate_events")
         .update({ status: "paid", paid_at: new Date().toISOString(), payout_id: tx.id })
         .in("id", bucket.ids);
@@ -839,10 +849,10 @@ export async function runAffiliatePayouts(): Promise<{
       // La dette est soldée seulement maintenant : si le virement avait échoué,
       // elle serait restée ouverte pour le mois suivant.
       if (owed > 0) {
-        await untyped(admin)
+        await admin
           .from("affiliate_clawbacks")
           .update({ settled_at: new Date().toISOString(), settled_by_tx: tx.id })
-          .in("id", (clawbacks ?? []).map((c: any) => c.id));
+          .in("id", (clawbacks ?? []).map((c) => c.id));
       }
 
       await notify({
@@ -867,11 +877,11 @@ export async function runAffiliatePayouts(): Promise<{
       // On relâche le lot : les ventes redeviennent disponibles pour le
       // prochain passage. Sans ça, elles resteraient réservées à une
       // transaction annulée et ne seraient plus jamais versées.
-      await untyped(admin)
+      await admin
         .from("affiliate_events")
         .update({ payout_id: null })
         .eq("payout_id", tx.id);
-      await untyped(admin)
+      await admin
         .from("transactions")
         .update({ status: "cancelled" })
         .eq("id", tx.id);

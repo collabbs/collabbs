@@ -38,15 +38,13 @@ export type BrandReliability = {
   avgPaymentDays: number | null;
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 const DAY_MS = 86_400_000;
 
 export async function brandReliability(brandId: string): Promise<BrandReliability> {
   const admin = createAdminClient();
 
-  const { data: deals } = await untyped(admin)
+  const { data: deals } = await admin
     .from("deals")
     .select(
       "id, status, accepted_at, escrow_due_at, brand_validated_at, revision_rounds_used, transactions(type, created_at)",
@@ -54,7 +52,7 @@ export async function brandReliability(brandId: string): Promise<BrandReliabilit
     .eq("brand_id", brandId)
     .eq("status", "completed");
 
-  const rows = (deals ?? []) as any[];
+  const rows = deals ?? [];
   const empty: BrandReliability = {
     deals: rows.length,
     meaningful: false,
@@ -73,7 +71,7 @@ export async function brandReliability(brandId: string): Promise<BrandReliabilit
 
   for (const d of rows) {
     const payment = (d.transactions ?? []).find(
-      (t: any) => t.type === "deal_payment",
+      (t) => t.type === "deal_payment",
     );
 
     if (payment?.created_at && d.accepted_at) {

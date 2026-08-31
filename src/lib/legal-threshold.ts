@@ -51,8 +51,6 @@ export type ThresholdState = {
   approaching: boolean;
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const untyped = (c: unknown) => c as any;
 
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -105,7 +103,7 @@ export async function thresholdFor(
 
   let fromAffiliate = 0;
   if (linkIds.length > 0) {
-    const { data: events } = await untyped(admin)
+    const { data: events } = await admin
       .from("affiliate_events")
       .select("commission_amount, status, occurred_at")
       .in("type", ["sale", "action"])
@@ -119,7 +117,7 @@ export async function thresholdFor(
       .gte("occurred_at", from)
       .lt("occurred_at", to);
     fromAffiliate = (events ?? []).reduce(
-      (s: number, e: any) => s + Number(e.commission_amount ?? 0),
+      (s: number, e) => s + Number(e.commission_amount ?? 0),
       0,
     );
   }
@@ -127,7 +125,7 @@ export async function thresholdFor(
   // Avantages en nature : la loi les compte au même titre que l'argent.
   // On ne retient que ceux qui sont déclarés — un avantage contesté par le
   // créateur ou annulé par la marque ne pèse pas sur le cumul.
-  const { data: inKind } = await untyped(admin)
+  const { data: inKind } = await admin
     .from("in_kind_benefits")
     .select("value, sent_at, status")
     .eq("brand_id", brandId)
@@ -136,7 +134,7 @@ export async function thresholdFor(
     .gte("sent_at", from.slice(0, 10))
     .lt("sent_at", to.slice(0, 10));
   const fromInKind = (inKind ?? []).reduce(
-    (s: number, g: any) => s + Number(g.value ?? 0),
+    (s: number, g) => s + Number(g.value ?? 0),
     0,
   );
 

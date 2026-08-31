@@ -48,6 +48,32 @@ function dateFr(iso: string) {
   });
 }
 
+/**
+ * Les ventes d'affiliation à afficher.
+ *
+ * Extraite en fonction pour une seule raison : le type des lignes se déduit
+ * alors du `select`, et `VenteAffichee` ci-dessous suit automatiquement toute
+ * modification de la requête. Annoncer `any[]` à la place revenait à ce que le
+ * compilateur ne vérifie plus aucun des champs lus dans le JSX.
+ */
+async function chargerVentes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  linkIds: string[],
+) {
+  const { data } = await supabase
+    .from("affiliate_events")
+    .select(
+      "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
+    )
+    .in("type", ["sale", "action"])
+    .in("link_id", linkIds)
+    .order("occurred_at", { ascending: false })
+    .limit(30);
+  return data ?? [];
+}
+
+type VenteAffichee = Awaited<ReturnType<typeof chargerVentes>>[number];
+
 export default async function BillingPage({
   searchParams,
 }: {
@@ -125,8 +151,8 @@ export default async function BillingPage({
   let reserved = 0;
   let validated = 0;
   let unfunded = 0;
-  let sales: any[] = [];
-  let toReview: any[] = [];
+  let sales: VenteAffichee[] = [];
+  let toReview: VenteAffichee[] = [];
   if (campaignIds.length > 0) {
     const { data: links } = await supabase
       .from("affiliate_links")
@@ -135,17 +161,7 @@ export default async function BillingPage({
     const linkIds = (links ?? []).map((l) => l.id);
 
     if (linkIds.length > 0) {
-      const { data: events } = await supabase
-        .from("affiliate_events")
-        .select(
-          "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
-        )
-        .in("type", ["sale", "action"])
-        .in("link_id", linkIds)
-        .order("occurred_at", { ascending: false })
-        .limit(30);
-
-      const all = events ?? [];
+      const all = await chargerVentes(supabase, linkIds);
       // Les ventes en attente de confirmation ne sont pas encore de l'argent :
       // elles ont leur propre section et ne comptent dans aucun total.
       toReview = all.filter((e) => e.needs_review);
@@ -254,7 +270,7 @@ export default async function BillingPage({
             de verser. Rien n&apos;est débité tant que tu n&apos;as pas confirmé.
           </p>
           <ul className="mt-3 space-y-2">
-            {toReview.map((s2: any) => {
+            {toReview.map((s2) => {
               const commission = Number(s2.commission_amount ?? 0);
               return (
                 <li
@@ -488,8 +504,10 @@ export default async function BillingPage({
 
           <ul className="mt-3 divide-y divide-zinc-100">
             {sales.map((s) => {
-              const meta = SALE_STATUS_META[s.status] ?? {
-                label: s.status,
+              // Un statut inconnu ou nul afficherait sinon une pastille vide :
+              // la marque verrait une ligne d'argent sans savoir où elle en est.
+              const meta = (s.status && SALE_STATUS_META[s.status]) ?? {
+                label: s.status ?? "État inconnu",
                 tone: "bg-zinc-100 text-zinc-600",
               };
               const handle = s.affiliate_links?.creators?.handle;
