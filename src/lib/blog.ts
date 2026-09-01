@@ -94,6 +94,13 @@ export const ARTICLES: Article[] = [
       },
       {
         type: "encadre",
+        ton: "info",
+        titre: "Un outil gratuit pour suivre ce cumul",
+        texte:
+          "Ce calcul est le genre de chose qu'on ne fait pas de tête : par marque, sur l'année, argent et cadeaux additionnés. Nous avons mis en ligne un **suivi du seuil de 1 000 €** utilisable sans compte, où rien ne quitte votre navigateur : [ouvrir l'outil](/outils/seuil-1000-euros).",
+      },
+      {
+        type: "encadre",
         ton: "alerte",
         titre: "Les avantages en nature comptent aussi",
         texte:
@@ -437,6 +444,13 @@ export const ARTICLES: Article[] = [
         type: "p",
         texte:
           "Un contrat qui dit seulement « six mois » sans préciser le périmètre se règle au tribunal le jour où la marque pousse le contenu en publicité. Et une clause qui renvoie « aux limites convenues entre les parties » sans qu'aucune limite n'ait jamais été convenue ne protège personne.",
+      },
+      {
+        type: "encadre",
+        ton: "info",
+        titre: "Chiffrer votre cas en dix secondes",
+        texte:
+          "Nous avons mis ces paliers dans un calculateur gratuit et sans compte : vous entrez le prix du contenu, la durée et le périmètre, il vous rend le montant à facturer. [Ouvrir le calculateur](/outils/droits-usage).",
       },
       {
         type: "cta",

@@ -10,20 +10,45 @@ import type { Bloc } from "@/lib/blog";
  * l'écriture bien plus qu'il n'améliore la page.
  */
 
-/** Rend les passages entre doubles astérisques en gras, rien d'autre. */
+/**
+ * Rend le gras et les liens, rien d'autre.
+ *
+ * Deux notations seulement, et c'est délibéré : `**gras**` et `[texte](/chemin)`.
+ * Un article a besoin d'insister et de renvoyer ailleurs ; tout le reste est de
+ * la décoration qui ralentit l'écriture plus qu'elle n'améliore la page.
+ *
+ * Les liens internes passent par `Link` — un article qui renvoie vers un outil
+ * du site ne doit pas recharger la page entière pour ça.
+ */
 function Riche({ texte }: { texte: string }) {
-  const morceaux = texte.split(/(\*\*[^*]+\*\*)/g);
+  const morceaux = texte.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
   return (
     <>
-      {morceaux.map((m, i) =>
-        m.startsWith("**") && m.endsWith("**") ? (
-          <strong key={i} className="font-semibold text-ink">
-            {m.slice(2, -2)}
-          </strong>
-        ) : (
-          <span key={i}>{m}</span>
-        ),
-      )}
+      {morceaux.map((m, i) => {
+        if (m.startsWith("**") && m.endsWith("**")) {
+          return (
+            <strong key={i} className="font-semibold text-ink">
+              {m.slice(2, -2)}
+            </strong>
+          );
+        }
+        const lien = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(m);
+        if (lien) {
+          const [, libelle, href] = lien;
+          const classe =
+            "font-medium text-brand underline underline-offset-2 hover:text-purple-800";
+          return href.startsWith("/") ? (
+            <Link key={i} href={href} className={classe}>
+              {libelle}
+            </Link>
+          ) : (
+            <a key={i} href={href} target="_blank" rel="noopener noreferrer" className={classe}>
+              {libelle}
+            </a>
+          );
+        }
+        return <span key={i}>{m}</span>;
+      })}
     </>
   );
 }
