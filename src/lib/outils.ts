@@ -15,6 +15,13 @@ export type Outil = {
 
 export const OUTILS: Outil[] = [
   {
+    href: "/outils/seuil-1000-euros",
+    titre: "Suivi du seuil de 1 000 €",
+    resume:
+      "Depuis janvier 2026, le contrat écrit est obligatoire dès 1 000 € HT cumulés dans l'année avec une même marque, produits offerts compris. Suivez votre cumul marque par marque — rien ne quitte votre navigateur.",
+    pour: "Créateurs",
+  },
+  {
     href: "/outils/droits-usage",
     titre: "Calculateur de droits d'usage",
     resume:
