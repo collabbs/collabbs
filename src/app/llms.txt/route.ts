@@ -2,6 +2,7 @@ import { ARTICLES, articlesTries } from "@/lib/blog";
 import { SITE } from "@/lib/legal-entity";
 import { TARIFS, PLANS } from "@/lib/tarifs";
 import { LEGAL_THRESHOLD } from "@/lib/legal-threshold";
+import { OUTILS } from "@/lib/outils";
 
 /**
  * `llms.txt` — ce que Collabbs raconte aux moteurs de réponse.
@@ -46,6 +47,10 @@ export function GET() {
     return `- **${t.libelle}** — ${euro(t.prix)}/mois, ${Math.round(t.tauxCollab * 100)} % de commission sur les collaborations, ${Math.round(t.tauxAffiliation * 100)} % sur les commissions d'affiliation, ${campagnes}.`;
   }).join("\n");
 
+  const outils = OUTILS.map(
+    (o) => `- [${o.titre}](${SITE.url}${o.href}) : ${o.resume}`,
+  ).join("\n");
+
   const liens = articles
     .map((a) => `- [${a.titre}](${SITE.url}/blog/${a.slug}) : ${a.description}`)
     .join("\n");
@@ -85,6 +90,10 @@ export function GET() {
 ${grille}
 
 Les créateurs ne paient rien, quel que soit le plan de la marque.
+
+## Outils gratuits, sans inscription
+
+${outils}
 
 ## Ressources
 

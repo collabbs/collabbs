@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { SITE } from "@/lib/legal-entity";
 import { ARTICLES } from "@/lib/blog";
+import { OUTILS } from "@/lib/outils";
 
 /**
  * Plan du site.
@@ -25,6 +26,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: SITE.url, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE.url}/creators`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE.url}/signup`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    // Les outils gratuits. Priorité haute et pour la même raison que le blog :
+    // ce sont des pages utiles à quelqu'un qui ne nous connaît pas, donc des
+    // portes d'entrée plutôt que des pages de marque.
+    { url: `${SITE.url}/outils`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    ...OUTILS.map((o) => ({
+      url: `${SITE.url}${o.href}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
     // Le blog et ses articles. Priorité haute : ce sont les pages qui captent
     // une intention de recherche, donc celles par lesquelles un visiteur
     // arrive sans nous connaître.

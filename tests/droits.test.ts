@@ -4,6 +4,7 @@ import {
   palierPourDuree,
   libelleDroits,
   perimetreValide,
+  PALIERS_DROITS,
 } from "@/lib/droits";
 
 describe("palierPourDuree", () => {
@@ -67,5 +68,44 @@ describe("perimetreValide", () => {
     expect(perimetreValide(null)).toBe("organic");
     expect(perimetreValide("tout")).toBe("organic");
     expect(perimetreValide("paid")).toBe("paid");
+  });
+});
+
+/**
+ * Les cas exacts affichés par le calculateur public `/outils/droits-usage`.
+ *
+ * Cet outil est la première chose que verra un créateur qui ne connaît pas
+ * Collabbs, et il chiffre de l'argent. Un écart entre ce qu'il annonce et ce
+ * que le produit facture réellement serait pire qu'une absence d'outil : ce
+ * serait une promesse démentie à la première collaboration.
+ */
+describe("valeurs affichées par le calculateur public", () => {
+  it("l'état par défaut : 300 €, six mois, comptes propres → 450 €", () => {
+    expect(supplementDroits(300, 6, "organic")).toBe(150);
+  });
+
+  it("la cession la plus lourde : sans limite, publicité payante → +300 %", () => {
+    // 1,5 × 2 = 3. Sur 300 €, cela fait 900 € de droits pour 1 200 € au total.
+    expect(supplementDroits(300, null, "paid")).toBe(900);
+  });
+
+  it("l'exemple raconté sur la page : 300 €, un an de publicité payante → 780 €", () => {
+    // C'est le chiffre écrit en toutes lettres dans le texte de la page.
+    // S'il change ici sans changer là-bas, la page ment.
+    expect(300 + supplementDroits(300, 12, "paid")).toBe(780);
+  });
+
+  it("chaque palier proposé par le calculateur produit un supplément", () => {
+    for (const p of PALIERS_DROITS) {
+      expect(supplementDroits(300, p.mois, "organic")).toBeGreaterThan(0);
+      expect(supplementDroits(300, p.mois, "paid")).toBe(
+        supplementDroits(300, p.mois, "organic") * 2,
+      );
+    }
+  });
+
+  it("un montant vide ne produit aucun supplément plutôt qu'un NaN", () => {
+    expect(supplementDroits(0, 12, "paid")).toBe(0);
+    expect(supplementDroits(Number.NaN, 12, "paid")).toBe(0);
   });
 });

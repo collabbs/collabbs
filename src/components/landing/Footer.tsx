@@ -11,6 +11,7 @@ const COLUMNS = [
       // Le blog vit dans « Produit » et pas dans un menu du haut : le haut de
       // page sert à faire s'inscrire. La plupart des lecteurs arriveront de
       // toute façon sur un article directement depuis une recherche.
+      { label: "Outils gratuits", href: "/outils" },
       { label: "Ressources", href: "/blog" },
     ],
   },
