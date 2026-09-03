@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import DemandeModele from "./DemandeModele";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
 import Link from "next/link";
 import {
@@ -54,6 +55,10 @@ export default function SuiviSeuil() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const etats = etatParMarque(lignes, annee);
+  // Le formulaire du modèle n'apparaît qu'une fois qu'il sert à quelque chose :
+  // quand au moins une marque a franchi le seuil, ou s'en approche.
+  const marquesAuDessus = etats.filter((e) => e.obligatoire).length;
+  const marquesQuiApprochent = etats.filter((e) => e.approche && !e.obligatoire).length;
   const annees = anneesPresentes(lignes);
   const anneesAffichees = annees.includes(annee) ? annees : [annee, ...annees];
 
@@ -244,7 +249,11 @@ export default function SuiviSeuil() {
 
               {e.nature > 0 && (
                 <p className="mt-1.5 text-xs text-zinc-500">
-                  Dont {eur(e.nature)} en avantages en nature, qui comptent au même titre
+                  {/* `{" "}` explicite : JSX supprime l'espace qui suit une
+                      expression quand le texte se poursuit à la ligne
+                      suivante. Sans lui, ça rend « 250 €en avantages ». */}
+                  Dont {eur(e.nature)}{" "}
+                  en avantages en nature, qui comptent au même titre
                   que l&apos;argent versé.
                 </p>
               )}
@@ -292,6 +301,13 @@ export default function SuiviSeuil() {
           );
         })}
       </div>
+
+      {(marquesAuDessus > 0 || marquesQuiApprochent > 0) && (
+        <DemandeModele
+          marquesAuDessus={marquesAuDessus}
+          marquesQuiApprochent={marquesQuiApprochent}
+        />
+      )}
 
       {lignes.length > 0 && (
         <button

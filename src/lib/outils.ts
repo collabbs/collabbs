@@ -22,6 +22,13 @@ export const OUTILS: Outil[] = [
     pour: "Créateurs",
   },
   {
+    href: "/outils/modele-contrat",
+    titre: "Modèle de contrat conforme au décret",
+    resume:
+      "Le décret impose le contrat écrit au-delà de 1 000 €, mais n'impose à personne de le fournir. Voici le document, avec toutes les mentions obligatoires — à copier, compléter et imprimer.",
+    pour: "Créateurs et marques",
+  },
+  {
     href: "/outils/droits-usage",
     titre: "Calculateur de droits d'usage",
     resume:

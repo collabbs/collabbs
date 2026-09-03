@@ -2006,6 +2006,33 @@ export type Database = {
           },
         ]
       }
+      tool_leads: {
+        Row: {
+          contexte: Json
+          converti_le: string | null
+          created_at: string
+          email: string
+          id: string
+          source: string
+        }
+        Insert: {
+          contexte?: Json
+          converti_le?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          source: string
+        }
+        Update: {
+          contexte?: Json
+          converti_le?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          source?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
