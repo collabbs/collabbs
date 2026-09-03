@@ -26,6 +26,7 @@ import { tauxCollab } from "@/lib/tarifs";
 import { montantAuxVues } from "@/lib/performance";
 import { reglerCollaborationAuxVues } from "@/lib/performance-reglement";
 import { adresseLivraison, lienDeSuivi } from "@/lib/expedition";
+import { peutRembourser } from "@/lib/remboursement";
 
 type Result = { ok: boolean; error?: string };
 
@@ -1074,6 +1075,17 @@ export async function refundDeal(dealId: string): Promise<Result> {
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
+
+  // ⚠️ LE GARDE-FOU QUI MANQUAIT. Sans lui, la marque pouvait régler, recevoir
+  // la vidéo publiée, puis reprendre ses fonds : le créateur avait travaillé et
+  // publié pour rien. C'est la promesse centrale du produit — et une clause du
+  // contrat signé par les deux parties. Voir `@/lib/remboursement`.
+  const { data: livrables } = await supabase
+    .from("deliverables")
+    .select("submitted_at, done")
+    .eq("deal_id", dealId);
+  const verdict = peutRembourser(livrables ?? []);
+  if (!verdict.autorise) return { ok: false, error: verdict.motif };
 
   const admin = createAdminClient();
   const { data: tx } = await admin

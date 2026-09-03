@@ -25,6 +25,7 @@ import ExpeditionPanel from "./ExpeditionPanel";
 import EngagementPanel from "./EngagementPanel";
 import { montantAuxVues } from "@/lib/performance";
 import DealTimeline from "./DealTimeline";
+import { peutRembourser, EXPLICATION_REMBOURSEMENT_FERME } from "@/lib/remboursement";
 
 export async function generateMetadata({
   params,
@@ -778,7 +779,19 @@ export default async function DealDetailPage({
                 {status === "completed" && role === "creator" && (
                   <ReceiveButton dealId={deal.id} amountLabel={eur(payment.net_amount)} />
                 )}
-                {role === "brand" && <RefundButton dealId={deal.id} />}
+                {/* Le bouton s'affichait dès que le paiement était en séquestre,
+                    sans regarder si le créateur avait livré. On montre
+                    désormais ce qui est réellement possible — et quand ça ne
+                    l'est plus, on dit ce qui reste à faire plutôt que de
+                    laisser un bouton qui sera refusé. */}
+                {role === "brand" &&
+                  (peutRembourser(deliverables).autorise ? (
+                    <RefundButton dealId={deal.id} />
+                  ) : (
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                      {EXPLICATION_REMBOURSEMENT_FERME}
+                    </p>
+                  ))}
               </div>
             ) : role === "brand" && status === "active" && deal.amount > 0 ? (
               <form action={createDealCheckout.bind(null, deal.id)} className="mt-4">
