@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import { fabriquerCodePromo } from "@/lib/promo-code";
 import { peutDecider } from "@/lib/invitations";
+import { evaluerProfil, phraseManquants } from "@/lib/profil-listable";
+import { chargerListabilite } from "@/lib/profil-listable.server";
 
 export async function activateAffiliateLink(
   campaignId: string,
@@ -83,6 +85,20 @@ export async function applyToCampaign(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  // Un profil incomplet n'apparaît PAS au catalogue (`getMarketplaceCreators`)
+  // — mais rien n'empêchait jusqu'ici son titulaire de candidater. La marque
+  // recevait donc une candidature sans photo, sans audience et sans tarif,
+  // d'une personne qu'elle ne peut même pas retrouver dans l'annuaire. On
+  // refuse, en disant ce qui manque : c'est le meilleur moment pour demander
+  // au créateur de compléter son profil, puisqu'il veut quelque chose.
+  const etat = evaluerProfil(await chargerListabilite(supabase, user.id));
+  if (!etat.listable) {
+    return {
+      ok: false,
+      error: `${phraseManquants(etat.manquants)} Les marques ne peuvent pas te trouver tant que ton profil est incomplet.`,
+    };
+  }
 
   const { data: existing } = await supabase
     .from("applications")

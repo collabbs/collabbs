@@ -463,7 +463,20 @@ export default function OpportunityCard({
             </div>
           )}
           {error && (
-            <p className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-700">{error}</p>
+            <div className="mt-2 rounded-md bg-red-50 p-2 text-xs text-red-700">
+              <p>{error}</p>
+              {/* Un refus qui ne dit pas où aller est un cul-de-sac. Le
+                  moment où le créateur veut candidater est le meilleur pour
+                  lui faire compléter son profil : il a une raison. */}
+              {error.includes("profil") && (
+                <Link
+                  href="/profile"
+                  className="mt-1 inline-block font-semibold underline underline-offset-2"
+                >
+                  Compléter mon profil →
+                </Link>
+              )}
+            </div>
           )}
         </div>
       </div>

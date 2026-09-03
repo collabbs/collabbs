@@ -8,6 +8,7 @@ import { OFFER_TYPES, OFFER_BY_ID, type OfferId } from "@/components/landing/cre
 import { saveCreatorOnboarding, uploadAvatar } from "../actions";
 import { extractHandleFromUrl } from "@/lib/social-handle";
 import { compressImage } from "@/lib/image-compress";
+import { evaluerProfil } from "@/lib/profil-listable";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -211,7 +212,17 @@ export default function Wizard({
     (hasNiche ? 20 : 0) +
     (Object.keys(platformSel).length ? 20 : 0) +
     (offerIds.length ? 20 : 0);
-  const listable = hasPhoto && hasNiche && offerIds.length > 0;
+  // Le réseau manquait ici alors que le catalogue l'exige : l'écran affichait
+  // « ✓ Visible par les marques » à quelqu'un que `getMarketplaceCreators`
+  // refusait ensuite d'afficher, sans jamais le lui dire. Source unique
+  // désormais partagée avec la candidature aux campagnes.
+  const { listable } = evaluerProfil({
+    pseudo: handle,
+    photo: photoPreview,
+    reseaux: Object.keys(platformSel).length,
+    niches: hasNiche ? 1 : 0,
+    offres: offerIds.length,
+  });
 
   const prices = offerIds.map((id) => Number(offerSel[id].price)).filter((n) => n > 0);
   const minPrice = prices.length ? Math.min(...prices) : null;

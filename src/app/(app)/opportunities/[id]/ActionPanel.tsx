@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   activateAffiliateLink,
   applyToCampaign,
@@ -235,7 +236,17 @@ export default function ActionPanel({
       >
         {busy ? "Envoi…" : "Candidater à cette campagne"}
       </button>
-      {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
+      {error && (
+        <div className="mt-2 text-center text-xs text-red-600">
+          <p>{error}</p>
+          {/* Cf. OpportunityCard : un refus doit dire où aller le lever. */}
+          {error.includes("profil") && (
+            <Link href="/profile" className="mt-1 inline-block font-semibold underline underline-offset-2">
+              Compléter mon profil →
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 
