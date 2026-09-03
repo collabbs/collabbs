@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { cheminInterne } from "@/lib/redirection";
 
 /**
  * Callback de confirmation email / OAuth.
@@ -9,7 +10,9 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   // Default = /start qui dispatch vers la marketplace adaptée au rôle.
-  const next = searchParams.get("next") ?? "/start";
+  // Même filtre qu'à l'inscription : le lien de confirmation part par
+  // e-mail, donc `next` est modifiable par quiconque relaie ce lien.
+  const next = cheminInterne(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { cheminInterne } from "@/lib/redirection";
 import {
   checkRateLimit,
   clientIp,
@@ -105,7 +106,7 @@ export async function signup(formData: FormData) {
     : `${origin}/auth/callback`;
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -116,6 +117,25 @@ export async function signup(formData: FormData) {
 
   if (error) {
     redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Supabase ouvre-t-il la session tout de suite ?
+  //
+  // Oui si la confirmation d'e-mail est désactivée dans le tableau de bord
+  // (Authentication → Sign In / Providers → Email → « Confirm email »). Dans
+  // ce cas on entre directement dans le produit : le visiteur voit ce pour
+  // quoi il est venu avant qu'on lui demande le moindre effort. Faire sortir
+  // quelqu'un du site pour ouvrir sa boîte mail AVANT qu'il ait rien vu est
+  // la plus grosse déperdition d'un tunnel — il n'a encore aucune raison de
+  // faire le trajet.
+  //
+  // Non si la confirmation reste exigée : on retombe sur l'écran « vérifie
+  // tes emails », inchangé. Le code fonctionne donc dans les deux réglages,
+  // et basculer le réglage ne casse rien.
+  if (data.session) {
+    revalidatePath("/", "layout");
+    // `next` vient du formulaire : jamais suivi tel quel. Voir `cheminInterne`.
+    redirect(cheminInterne(next));
   }
 
   redirect("/signup?success=1");

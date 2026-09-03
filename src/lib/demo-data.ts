@@ -6,19 +6,38 @@ import "server-only";
  * La base contient 24 créateurs fictifs (`creators.is_demo`) et 6 marques
  * fictives (`brands.is_demo`, migration 0053) avec leurs campagnes :
  * photographies de banque d'images, tarifs inventés, avis semés à la main.
- * Ils rendent l'outil présentable pendant qu'on le construit — et ils
- * deviennent un mensonge le jour où un vrai visiteur arrive, parce que rien ne
- * les distingue du réel. Une marque peut écrire à un créateur fictif ; un
- * créateur peut candidater à une campagne de « Sephora » et attendre une
- * réponse qui ne viendra jamais.
  *
- * Règle : **visibles en développement, invisibles en production.** Le travail
- * quotidien garde son annuaire peuplé, le site public ne montre que des
- * personnes réelles — sans qu'on ait à supprimer quoi que ce soit, ni à
- * penser à le faire le jour J.
+ * Le 30 août ce module les masquait tous en production. Décision de Julien le
+ * 3 septembre : **les créateurs fictifs reviennent**, parce qu'un catalogue
+ * qui contient une seule fiche ne convertit personne et qu'il n'y a pas
+ * d'alternative tant que les vrais créateurs ne sont pas arrivés. Le risque
+ * assumé : une marque peut écrire à un profil fictif et n'obtenir aucune
+ * réponse. Aucun euro n'est en jeu — `acceptDeal` refuse tout appelant qui
+ * n'est pas le créateur, et `createDealCheckout` exige un deal déjà actif.
  *
- * `NEXT_PUBLIC_SHOW_DEMO_DATA` force l'un ou l'autre : « 1 » les affiche
- * (utile sur une préproduction de démonstration), « 0 » les cache.
+ * Les MARQUES fictives, elles, restent masquées : les démasquer ferait
+ * candidater de vrais créateurs à des campagnes de « Sephora » qui n'existent
+ * pas. Le côté créateur n'a pas le même besoin — son annuaire à lui, ce sont
+ * les campagnes, et il en existe de vraies.
+ *
+ * D'où deux interrupteurs distincts plutôt qu'un seul :
+ * `demoCreatorsVisible()` pour l'annuaire des créateurs, `demoVisible()` pour
+ * les marques et leurs campagnes.
+ *
+ * `NEXT_PUBLIC_SHOW_DEMO_DATA` force les DEUX : « 1 » les affiche, « 0 » les
+ * cache — l'échappatoire reste utile pour une préproduction propre.
+ */
+export function demoCreatorsVisible(): boolean {
+  const forcage = process.env.NEXT_PUBLIC_SHOW_DEMO_DATA;
+  if (forcage === "1") return true;
+  if (forcage === "0") return false;
+  // Volontairement vrai en production : voir ci-dessus.
+  return true;
+}
+
+/**
+ * Marques et campagnes de démonstration : visibles en développement,
+ * invisibles en production. Un créateur ne doit pas candidater dans le vide.
  */
 export function demoVisible(): boolean {
   const forcage = process.env.NEXT_PUBLIC_SHOW_DEMO_DATA;

@@ -7,12 +7,16 @@ import { SITE } from "@/lib/legal-entity";
  * Deux régimes, pilotés par `NEXT_PUBLIC_ALLOW_INDEXING` :
  *
  *  - **Avant l'ouverture (défaut)** — tout est interdit aux moteurs. Cette
- *    prudence répondait à une inquiétude précise : le site contenait des
+ *    prudence répond à une inquiétude précise : le catalogue contient des
  *    profils de démonstration, et une page désindexée reste des mois dans les
- *    caches. Cette raison a disparu depuis — `demoVisible()` les masque en
- *    production, et le plan du site les exclut par `is_demo`. En production,
- *    `/creators` ne liste que des créateurs réels. Le régime fermé ne sert donc
- *    plus qu'à choisir le MOMENT de l'ouverture, plus à s'en protéger.
+ *    caches.
+ *
+ *    ⚠️ Depuis le 3 septembre, `/creators` affiche de nouveau les profils
+ *    fictifs (voir `demoCreatorsVisible`) — un catalogue à une seule fiche ne
+ *    convertissait personne. Le plan du site continue de les EXCLURE par
+ *    `is_demo` : ils peuplent l'espace marque, ils n'entrent pas dans l'index
+ *    de Google. Faire indexer deux douzaines de fiches inventées coûterait au
+ *    domaine bien plus longtemps qu'elles ne servent.
  *
  *  - **Après l'ouverture** — les pages publiques s'indexent, l'espace connecté
  *    et les points d'entrée techniques restent fermés.

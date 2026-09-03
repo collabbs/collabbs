@@ -290,6 +290,11 @@ export default function Wizard({
 
 
   // Écran "Bienvenue" uniquement à la création initiale.
+  // ⚠️ Le second bouton menait à `/creators` — l'annuaire des créateurs. On
+  // envoyait donc le créateur qui vient de finir son profil regarder ses
+  // concurrents. Côté créateur, la marketplace ce sont LES CAMPAGNES DES
+  // MARQUES : `/opportunities`. C'est le seul endroit où il peut agir, et
+  // c'est le moment où il est le plus motivé.
   if (step === STEPS.length && !isEdit) {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
@@ -324,10 +329,10 @@ export default function Wizard({
             Aller à mon tableau de bord
           </Link>
           <Link
-            href="/creators"
+            href="/opportunities"
             className="rounded-full px-6 py-3 text-sm font-medium text-zinc-500 transition hover:text-ink"
           >
-            Explorer la marketplace
+            Voir les campagnes des marques
           </Link>
         </div>
       </main>
