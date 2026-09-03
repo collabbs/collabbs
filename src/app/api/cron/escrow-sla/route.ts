@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const now = Date.now();
-  const result = { released: 0, skipped: 0, reminded: 0, failed: 0 };
+  const result = { released: 0, skipped: 0, reminded: 0, failed: 0, recovered: 0, pending: 0 };
 
   // ---------------------------------------------------------------
   // 1. Libération automatique après le délai de validation
@@ -180,6 +180,74 @@ export async function GET(request: Request) {
         `Tant que les fonds ne sont pas séquestrés, il n'a aucune garantie d'être payé.`,
       link: `/deals/${deal.id}`,
       throttleMinutes: 2880,
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // 3. Reprise des versements restés en plan
+  // ---------------------------------------------------------------
+  //
+  // Le bloc 1 ne regarde que les collaborations `active` non encore validées :
+  // une fois validée, une collaboration n'était PLUS JAMAIS reprise. Or le
+  // versement échoue très souvent au moment de la validation, pour une raison
+  // qui se résout ensuite : le créateur n'avait pas fini de connecter son
+  // compte Stripe. C'est l'étape la plus lourde du produit — identité, IBAN,
+  // vérification — et il est normal qu'elle traîne au-delà de la clôture.
+  //
+  // L'argent restait alors en séquestre indéfiniment, pendant que l'écran du
+  // créateur lui annonçait « nous relançons automatiquement ». Personne ne
+  // relançait. Le seul recours était un bouton sur la page de la
+  // collaboration, que rien n'indiquait d'aller chercher.
+  //
+  // Aucun webhook `account.updated` n'existe côté Stripe, et la page des
+  // paiements ne tente rien non plus : cette reprise quotidienne est donc la
+  // seule chose qui tienne la promesse faite à l'écran.
+  const { data: closes } = await admin
+    .from("deals")
+    .select("id, creator_id, title")
+    .eq("status", "completed");
+
+  for (const deal of (closes ?? [])) {
+    const { data: tx } = await admin
+      .from("transactions")
+      .select("id, net_amount")
+      .eq("deal_id", deal.id)
+      .eq("type", "deal_payment")
+      .eq("status", "in_escrow")
+      .maybeSingle();
+    if (!tx) continue; // rien en attente sur cette collaboration
+
+    const reprise = await attemptDealPayout(deal.id);
+    if (!reprise.released) {
+      result.pending++;
+      // On ne notifie QUE lorsque le créateur peut agir — un compte absent ou
+      // incomplet. Pour les autres causes il n'a rien à faire, et le prévenir
+      // chaque jour d'un problème qui ne le concerne pas ferait couper les
+      // notifications. `throttleMinutes` borne de toute façon la répétition.
+      if (reprise.reason === "no_account" || reprise.reason === "account_not_ready") {
+        await notify({
+          userId: deal.creator_id,
+          type: "payout_pending_account",
+          title: `${eur(Number(tx.net_amount))} t'attendent`,
+          body:
+            `Les fonds de « ${deal.title ?? "ta collaboration"} » sont prêts, mais ton compte de paiement ` +
+            `n'est pas encore utilisable. Termine sa configuration et le versement partira tout seul.`,
+          link: "/payouts",
+          throttleMinutes: 4320,
+        });
+      }
+      continue;
+    }
+
+    result.recovered++;
+    await notify({
+      userId: deal.creator_id,
+      type: "payout_recovered",
+      title: `${eur(Number(tx.net_amount))} viennent de partir`,
+      body:
+        `Le versement de « ${deal.title ?? "ta collaboration"} » était en attente de ton compte de paiement. ` +
+        `Il est maintenant complet : les fonds sont en route.`,
+      link: "/payouts",
     });
   }
 
