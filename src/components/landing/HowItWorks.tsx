@@ -104,7 +104,7 @@ export default function HowItWorks() {
             <StepList steps={CREATOR_STEPS} accent="neutral" />
             <div className="mt-auto flex justify-center pt-10">
               <Link
-                href="/signup"
+                href="/signup?role=creator"
                 className="inline-flex rounded-full border border-zinc-300 px-6 py-3 text-sm font-semibold text-ink transition hover:bg-zinc-100"
               >
                 Créer mon profil — gratuit

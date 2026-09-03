@@ -100,7 +100,7 @@ export default function Hero() {
             style={{ animationDelay: "0.2s" }}
           >
             Vous êtes créateur ?{" "}
-            <Link href="/signup" className="font-semibold text-brand hover:underline">
+            <Link href="/signup?role=creator" className="font-semibold text-brand hover:underline">
               Créez votre profil — c&apos;est gratuit, et ça le reste →
             </Link>
           </p>
@@ -125,12 +125,22 @@ export default function Hero() {
         <div className="marquee-pause hidden h-[calc(100svh-4rem)] grid-cols-2 gap-5 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,#000_8%,#000_92%,transparent)] lg:grid">
           <div className="marquee-up flex flex-col gap-5">
             {[...colA, ...colA].map((c, i) => (
-              <CreatorCard key={`a-${i}`} creator={c} />
+              <CreatorCard
+                key={`a-${i}`}
+                creator={c}
+                href="/creators"
+                libelleSurvol="Parcourir les créateurs →"
+              />
             ))}
           </div>
           <div className="marquee-down flex flex-col gap-5">
             {[...colB, ...colB].map((c, i) => (
-              <CreatorCard key={`b-${i}`} creator={c} />
+              <CreatorCard
+                key={`b-${i}`}
+                creator={c}
+                href="/creators"
+                libelleSurvol="Parcourir les créateurs →"
+              />
             ))}
           </div>
         </div>
@@ -140,7 +150,11 @@ export default function Hero() {
           <div className="marquee-left flex w-max gap-4">
             {[...FEATURED_CREATORS, ...FEATURED_CREATORS].map((c, i) => (
               <div key={`m-${i}`} className="w-40 shrink-0">
-                <CreatorCard creator={c} />
+                <CreatorCard
+                  creator={c}
+                  href="/creators"
+                  libelleSurvol="Parcourir les créateurs →"
+                />
               </div>
             ))}
           </div>

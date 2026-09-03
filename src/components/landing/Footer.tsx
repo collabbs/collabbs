@@ -5,7 +5,12 @@ const COLUMNS = [
   {
     title: "Produit",
     links: [
-      { label: "Pour les créateurs", href: "/signup" },
+      // Le catalogue manquait ici : c'est la page qui vend aux marques, et
+      // celle qu'on veut voir liée depuis tout le site pour l'indexation.
+      { label: "Trouver un créateur", href: "/creators" },
+      // `?role=creator` manquait alors que la ligne marque le portait : le
+      // visiteur devait redéclarer un rôle qu'il venait d'annoncer en cliquant.
+      { label: "Pour les créateurs", href: "/signup?role=creator" },
       { label: "Pour les marques", href: "/signup?role=brand" },
       { label: "Tarifs", href: "#tarifs" },
       // Le blog vit dans « Produit » et pas dans un menu du haut : le haut de

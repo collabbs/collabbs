@@ -1,9 +1,18 @@
 import Link from "next/link";
 import Logo from "./Logo";
 
+// Chaque libellé nomme ce qui se passe quand on clique, et reprend le
+// vocabulaire déjà employé plus bas (« Comment ça marche », CTA final).
+//
+// Avant : « Créateurs » menait à un formulaire d'inscription. Une marque qui
+// clique sur « Créateurs » veut VOIR des créateurs — elle tombait sur un mur
+// lui demandant un compte avant d'avoir rien vu. Le catalogue n'était par
+// ailleurs accessible depuis aucune barre permanente, alors que c'est lui qui
+// vend. Et « Créateurs » perdait le rôle que le visiteur venait de déclarer,
+// là où « Marques » le transmettait : il fallait le rechoisir à l'écran suivant.
 const LINKS = [
-  { label: "Créateurs", href: "/signup" },
-  { label: "Marques", href: "/signup?role=brand" },
+  { label: "Trouver un créateur", href: "/creators" },
+  { label: "Devenir créateur", href: "/signup?role=creator" },
   { label: "Tarifs", href: "#tarifs" },
 ];
 

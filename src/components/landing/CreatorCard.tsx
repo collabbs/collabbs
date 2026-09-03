@@ -13,10 +13,17 @@ export default function CreatorCard({
   creator,
   href,
   overlay,
+  libelleSurvol = "Voir le profil →",
 }: {
   creator: Creator & { platformSlug?: string };
   /** Si fourni, toute la carte devient cliquable (ex. vers /signup pour collaborer). */
   href?: string;
+  /**
+   * Texte de l'incitation au survol. Ignoré si la carte n'est pas cliquable.
+   * Par défaut « Voir le profil », ce qui n'est juste que si `href` mène bien
+   * à un profil — quand il mène ailleurs, il faut le dire.
+   */
+  libelleSurvol?: string;
   /** Bouton/élément optionnel placé en absolu (ex. cœur shortlist). */
   overlay?: React.ReactNode;
 }) {
@@ -84,12 +91,18 @@ export default function CreatorCard({
           )}
         </div>
 
-        {/* Hover overlay : CTA "Voir le profil" */}
-        <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/0 p-3 opacity-0 transition-all duration-300 group-hover:bg-black/20 group-hover:opacity-100">
-          <span className="translate-y-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-ink shadow-lg transition-transform duration-300 group-hover:translate-y-0">
-            Voir le profil →
-          </span>
-        </div>
+        {/* L'incitation au survol n'apparaît QUE si la carte est cliquable.
+            Elle s'affichait auparavant sur toutes les cartes, y compris celles
+            de la page d'accueil qui ne sont pas des liens : le visiteur lisait
+            « Voir le profil → », cliquait, et rien ne se passait. Une promesse
+            qui ne s'ouvre pas coûte plus cher qu'une absence de promesse. */}
+        {href && (
+          <div className="absolute inset-0 z-20 flex items-end justify-center bg-black/0 p-3 opacity-0 transition-all duration-300 group-hover:bg-black/20 group-hover:opacity-100">
+            <span className="translate-y-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-ink shadow-lg transition-transform duration-300 group-hover:translate-y-0">
+              {libelleSurvol}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="px-1 pb-1 pt-3">

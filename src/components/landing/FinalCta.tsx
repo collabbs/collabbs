@@ -23,7 +23,7 @@ export default function FinalCta() {
             Trouver un créateur
           </Link>
           <Link
-            href="/signup"
+            href="/signup?role=creator"
             className="rounded-full bg-white/10 px-6 py-3 text-sm font-semibold text-white ring-1 ring-inset ring-white/40 transition hover:bg-white/20"
           >
             Devenir créateur — gratuit

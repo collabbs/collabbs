@@ -49,6 +49,26 @@ function Chip(props: { label: React.ReactNode; href: string; active: boolean }) 
   return <FilterChip {...props} />;
 }
 
+/**
+ * En dessous de combien de profils on cesse d'annoncer le nombre.
+ *
+ * ─── Pourquoi ce n'est pas de la dissimulation ───
+ * La page affichait « 1 créateur prêts à collaborer » — faute d'accord mise à
+ * part, une marketplace qui annonce qu'elle contient un créateur vient de dire
+ * au visiteur de passer son chemin. Le nombre est un argument quand il est
+ * grand, et un aveu quand il est petit.
+ *
+ * On ne cache rien pour autant : les profils sont tous là, sous les yeux, et
+ * se comptent en trois secondes. Ce qu'on retire, c'est de METTRE EN AVANT une
+ * faiblesse à la place d'un argument. En dessous du seuil, la phrase dit ce
+ * qui est vrai quel que soit le volume — le contrat et le séquestre — et ça,
+ * aucun concurrent ne peut l'écrire.
+ *
+ * Dix : c'est le nombre en dessous duquel un catalogue se lit d'un coup d'œil,
+ * donc celui à partir duquel l'annoncer apporte une information.
+ */
+const SEUIL_ANNONCE_VOLUME = 10;
+
 export default async function CreatorsPage({
   searchParams,
 }: {
@@ -236,21 +256,31 @@ export default async function CreatorsPage({
             Trouve <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">le créateur</span> qui fera décoller ta marque
           </h1>
           <p className="mt-3 max-w-2xl text-zinc-600">
-            {results.length > 0 ? (
+            {results.length >= SEUIL_ANNONCE_VOLUME ? (
               <>
-                <span className="font-semibold text-ink">{results.length} créateur{results.length > 1 ? "s" : ""}</span>{" "}
+                <span className="font-semibold text-ink">
+                  {results.length} créateur{results.length > 1 ? "s" : ""}
+                </span>{" "}
                 {verifiedCount > 0 ? (
                   <>
                     dont <span className="font-semibold text-ink">{verifiedCount}</span> à
                     l&apos;audience vérifiée
                   </>
                 ) : (
-                  <>prêts à collaborer</>
+                  <>
+                    prêt{results.length > 1 ? "s" : ""} à collaborer
+                  </>
                 )}
                 . Filtre par niche, plateforme ou offre — réserve en 1 clic.
               </>
             ) : (
-              <>Parcours librement les profils. Paie à la vidéo ou lance une affiliation en 1 clic.</>
+              <>
+                Chaque collaboration est encadrée par un{" "}
+                <span className="font-semibold text-ink">contrat écrit conforme</span> et un{" "}
+                <span className="font-semibold text-ink">paiement séquestré</span> : la marque
+                règle à l&apos;acceptation, le créateur est payé à la validation. Gratuit pour
+                les créateurs.
+              </>
             )}
           </p>
         </div>
