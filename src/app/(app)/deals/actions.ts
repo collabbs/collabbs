@@ -1082,7 +1082,7 @@ export async function refundDeal(dealId: string): Promise<Result> {
   // contrat signé par les deux parties. Voir `@/lib/remboursement`.
   const { data: livrables } = await supabase
     .from("deliverables")
-    .select("submitted_at, done")
+    .select("submitted_at, done, revision_requested, updated_at")
     .eq("deal_id", dealId);
   const verdict = peutRembourser(livrables ?? []);
   if (!verdict.autorise) return { ok: false, error: verdict.motif };

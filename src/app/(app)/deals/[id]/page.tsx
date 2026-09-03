@@ -129,7 +129,7 @@ export default async function DealDetailPage({
     supabase
       .from("deliverables")
       .select(
-        "id, label, done, approved, position, submission_url, submission_notes, submission_files, submitted_at, revision_requested, revision_message",
+        "id, label, done, approved, position, submission_url, submission_notes, submission_files, submitted_at, revision_requested, revision_message, updated_at",
       )
       .eq("deal_id", id)
       .order("position"),
