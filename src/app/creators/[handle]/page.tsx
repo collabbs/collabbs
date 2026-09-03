@@ -16,7 +16,20 @@ export async function generateMetadata({
 }) {
   const { handle } = await params;
   const c = await getCreatorByHandle(handle);
-  if (c) return { title: `${c.name} (@${c.handle}) — Collabbs` };
+  if (c) {
+    // Les fiches de démonstration peuplent le catalogue pour les marques,
+    // mais elles n'ont RIEN à faire dans l'index de Google : ce sont des
+    // personnes inventées. Le plan du site les excluait déjà ; ça ne suffit
+    // pas, un moteur suit aussi les liens du catalogue. C'est ici que ça se
+    // joue, et il fallait le poser AVANT d'ouvrir l'indexation.
+    if (c.isDemo) {
+      return {
+        title: `${c.name} (@${c.handle}) — Collabbs`,
+        robots: { index: false, follow: false },
+      };
+    }
+    return { title: `${c.name} (@${c.handle}) — Collabbs` };
+  }
 
   // Un pseudo inexistant affiche bien la page 404, mais avec un statut HTTP
   // 200 : le `loading.tsx` de ce segment ouvre une frontière Suspense, et

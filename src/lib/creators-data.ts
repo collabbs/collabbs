@@ -289,6 +289,14 @@ export type CreatorProfileData = {
   id: string;
   name: string;
   handle: string;
+  /**
+   * Fiche de démonstration ? Exposé parce que la PAGE doit le savoir : depuis
+   * qu'on réaffiche ces profils en production, ils sont atteignables par les
+   * moteurs via les liens du catalogue. Sans `noindex`, Google indexerait
+   * deux douzaines de créateurs inventés sur le domaine — et une page
+   * désindexée reste des mois dans les caches.
+   */
+  isDemo: boolean;
   bio: string | null;
   /** `null` tant qu'aucun avis n'a été reçu. */
   rating: number | null;
@@ -380,6 +388,7 @@ export async function getCreatorByHandle(handle: string): Promise<CreatorProfile
     id: c.id,
     name: prof?.display_name ?? "Créateur",
     handle: c.handle ?? handle,
+    isDemo: c.is_demo === true,
     bio: c.bio,
     rating,
     reviewsCount,
