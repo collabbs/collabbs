@@ -6,11 +6,13 @@ import { SITE } from "@/lib/legal-entity";
  *
  * Deux régimes, pilotés par `NEXT_PUBLIC_ALLOW_INDEXING` :
  *
- *  - **Avant l'ouverture (défaut)** — tout est interdit aux moteurs. Le site
- *    est en ligne et accessible à qui a l'adresse, mais il contient encore
- *    24 profils de démonstration et des compteurs qui ne reflètent aucune
- *    réalité. Les laisser s'indexer laisserait des traces durables : une page
- *    désindexée reste des mois dans les caches et les captures.
+ *  - **Avant l'ouverture (défaut)** — tout est interdit aux moteurs. Cette
+ *    prudence répondait à une inquiétude précise : le site contenait des
+ *    profils de démonstration, et une page désindexée reste des mois dans les
+ *    caches. Cette raison a disparu depuis — `demoVisible()` les masque en
+ *    production, et le plan du site les exclut par `is_demo`. En production,
+ *    `/creators` ne liste que des créateurs réels. Le régime fermé ne sert donc
+ *    plus qu'à choisir le MOMENT de l'ouverture, plus à s'en protéger.
  *
  *  - **Après l'ouverture** — les pages publiques s'indexent, l'espace connecté
  *    et les points d'entrée techniques restent fermés.
