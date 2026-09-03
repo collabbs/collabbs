@@ -29,8 +29,16 @@ create table if not exists public.tool_leads (
 -- Une adresse ne compte qu'une fois par outil : quelqu'un qui revient
 -- recalculer ne doit pas créer un doublon, et l'action de capture s'appuie
 -- dessus pour rester idempotente.
+--
+-- ⚠️ Sur les COLONNES, pas sur `lower(email)`. Un index d'expression ne
+-- satisfait PAS un `on conflict (email, source)` : PostgREST remonterait
+-- « no unique or exclusion constraint matching the ON CONFLICT
+-- specification » et toute capture échouerait. La mise en minuscules est
+-- faite avant l'insertion, côté action (`normaliserEmail`), donc la colonne
+-- ne contient jamais que du minuscule et l'unicité porte bien sur la même
+-- chose.
 create unique index if not exists tool_leads_email_source_idx
-  on public.tool_leads (lower(email), source);
+  on public.tool_leads (email, source);
 
 create index if not exists tool_leads_created_at_idx
   on public.tool_leads (created_at desc);
