@@ -97,7 +97,23 @@ export default function QuizCreateur() {
   const etape = etapeChoisie ?? premiereEtapeIncomplete(carte);
   const setEtape = setEtapeChoisie;
   const avancement = avancementCreateur(carte);
-  const maj = (patch: Partial<CarteCreateur>) => setCarte((p) => ({ ...p, ...patch }));
+  /**
+   * ⚠️ On ÉPINGLE l'étape dès la première modification.
+   *
+   * L'étape est déduite de ce qui est rempli, ce qui permet de reprendre au
+   * bon endroit quand on revient. Mais tant qu'elle reste déduite, elle bouge
+   * À CHAQUE FRAPPE : côté marque, la première question exige le nom ET la
+   * description — à la première lettre de la description la question devenait
+   * « complète » et l'écran sautait au milieu de la saisie.
+   *
+   * La déduction ne doit donc servir qu'à l'ARRIVÉE. Dès que la personne
+   * touche quoi que ce soit, l'étape se fige sur celle qu'elle regarde, et
+   * seuls les boutons la font bouger.
+   */
+  const maj = (patch: Partial<CarteCreateur>) => {
+    setEtapeChoisie((precedente) => precedente ?? etape);
+    setCarte((p) => ({ ...p, ...patch }));
+  };
 
   const carteComplete = avancement.pourcentage === 100 && carte.prixMini !== null;
 

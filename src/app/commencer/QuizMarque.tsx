@@ -76,7 +76,23 @@ export default function QuizMarque() {
   const etape = etapeChoisie ?? premiereEtapeIncompleteMarque(carte);
   const setEtape = setEtapeChoisie;
   const avancement = avancementMarque(carte);
-  const maj = (patch: Partial<CarteMarque>) => setCarte((p) => ({ ...p, ...patch }));
+  /**
+   * ⚠️ On ÉPINGLE l'étape dès la première modification.
+   *
+   * L'étape est déduite de ce qui est rempli, ce qui permet de reprendre au
+   * bon endroit quand on revient. Mais tant qu'elle reste déduite, elle bouge
+   * À CHAQUE FRAPPE : côté marque, la première question exige le nom ET la
+   * description — à la première lettre de la description la question devenait
+   * « complète » et l'écran sautait au milieu de la saisie.
+   *
+   * La déduction ne doit donc servir qu'à l'ARRIVÉE. Dès que la personne
+   * touche quoi que ce soit, l'étape se fige sur celle qu'elle regarde, et
+   * seuls les boutons la font bouger.
+   */
+  const maj = (patch: Partial<CarteMarque>) => {
+    setEtapeChoisie((precedente) => precedente ?? etape);
+    setCarte((p) => ({ ...p, ...patch }));
+  };
 
   const briefComplet = avancement.pourcentage === 100 && Boolean(carte.echeance);
   const veutFixe = carte.remuneration === "fixe" || carte.remuneration === "les-deux";
