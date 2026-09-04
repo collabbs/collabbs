@@ -99,21 +99,18 @@ export default function QuizMarque() {
           <CarteBriefApercu carte={carte} />
         </div>
 
-        <div className="mt-8 w-full rounded-2xl border border-zinc-200 bg-white p-5 text-left">
-          <p className="text-[15px] font-bold text-ink">
-            Publie-le, et les créateurs peuvent te répondre.
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
-            Crée ton compte pour le mettre en ligne. Le contrat est généré tout
-            seul et ton paiement reste bloqué jusqu&apos;à la livraison.
-          </p>
-          <Link
-            href="/signup?role=brand"
-            className={`${BOUTON_PRINCIPAL} mt-4 flex items-center justify-center`}
-          >
-            Publier mon brief
-          </Link>
-        </div>
+        {/* Même règle que côté créateur : on ne demande pas de compte à
+            quelqu'un qui vient de fournir un effort. On lui montre ce pour
+            quoi il est venu — des créateurs. */}
+        <p className="mt-6 text-[15px] leading-relaxed text-zinc-500">
+          Voyons maintenant qui pourrait le porter.
+        </p>
+        <Link
+          href="/creators"
+          className={`${BOUTON_PRINCIPAL} mt-5 flex items-center justify-center`}
+        >
+          Voir les créateurs
+        </Link>
 
         <button
           type="button"

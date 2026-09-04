@@ -133,24 +133,22 @@ export default function QuizCreateur() {
           <CarteApercu carte={carte} />
         </div>
 
-        {/* La seule demande du parcours, et elle se justifie toute seule : la
-            photo n'est pas un caprice de formulaire, c'est ce qui rend
-            visible. `evaluerProfil` l'exige, on le dit en clair. */}
-        <div className="mt-8 w-full rounded-2xl border border-zinc-200 bg-white p-5 text-left">
-          <p className="text-[15px] font-bold text-ink">
-            Il manque ta photo pour que les marques puissent te trouver.
-          </p>
-          <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
-            C&apos;est la dernière chose. Crée ton compte, ajoute-la, et ton profil
-            entre dans les recherches des marques.
-          </p>
-          <Link
-            href="/signup?role=creator"
-            className={`${BOUTON_PRINCIPAL} mt-4 flex items-center justify-center`}
-          >
-            Terminer mon profil
-          </Link>
-        </div>
+        {/* ⚠️ PAS de demande de compte ici. On sortait le formulaire
+            d'inscription au moment exact où la personne venait de fournir un
+            effort — c'est le pire endroit possible, et c'est contraire au
+            principe qu'on s'est donné : le mur se pose sur le geste qui engage
+            (marquer son intérêt pour une marque), jamais sur celui qui
+            n'engage rien. La suite, c'est ce pour quoi elle est venue. */}
+        <p className="mt-6 text-[15px] leading-relaxed text-zinc-500">
+          Des marques cherchent des créateurs en ce moment. Regarde ce
+          qu&apos;elles proposent.
+        </p>
+        <Link
+          href="/defile"
+          className={`${BOUTON_PRINCIPAL} mt-5 flex items-center justify-center`}
+        >
+          Voir les campagnes ouvertes
+        </Link>
 
         <button
           type="button"

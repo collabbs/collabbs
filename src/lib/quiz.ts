@@ -31,6 +31,14 @@ export const CLE_BRIEF = "collabbs.brief.v1";
  * repasse pas par « tu es une marque ou un créateur ? » — il a déjà répondu.
  */
 export const CLE_COTE = "collabbs.cote.v1";
+/**
+ * Les briefs qui ont intéressé un visiteur pas encore inscrit.
+ *
+ * Gardés le temps qu'il crée son compte : à l'inscription, l'écran ne dira pas
+ * « crée un compte » mais « tes 3 coups de cœur t'attendent ». Ce n'est plus
+ * un formulaire, c'est la récupération de quelque chose qu'on possède déjà.
+ */
+export const CLE_INTERETS = "collabbs.interets.v1";
 
 /* ────────────────────────────────────────────────────────────── créateur ── */
 
