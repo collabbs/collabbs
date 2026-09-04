@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useStockageLocal } from "@/hooks/useStockageLocal";
+import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
 import { NICHES, OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import PlatformIcon from "@/components/PlatformIcon";
 import CarteApercu from "./CarteApercu";
 import {
+  CLES_PARCOURS,
+  CLE_COTE,
   CLE_CARTE,
   TRANCHES_AUDIENCE,
   avancementCreateur,
@@ -159,6 +161,17 @@ export default function QuizCreateur() {
           className="mt-5 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
         >
           Modifier mes réponses
+        </button>
+        {/* Sans ça, quelqu'un qui a répondu une fois ne peut plus jamais
+            recommencer : sa carte est gardée et le questionnaire reprend
+            toujours à la fin. Il faut pouvoir tout effacer, y compris le côté
+            choisi — sinon on reste coincé du mauvais côté. */}
+        <button
+          type="button"
+          onClick={() => oublierStockageLocal(CLES_PARCOURS)}
+          className="mt-2 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+        >
+          Tout recommencer
         </button>
       </div>
     );
@@ -374,13 +387,24 @@ export default function QuizCreateur() {
 
       <div className="mt-8">{courante.contenu}</div>
 
-      {etape > 0 && (
+      {etape > 0 ? (
         <button
           type="button"
           onClick={() => setEtape(etape - 1)}
           className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
         >
           ← Retour
+        </button>
+      ) : (
+        /* À la première question il n'y a pas de retour — mais quelqu'un qui
+           s'est trompé de côté doit pouvoir en sortir, sinon il est coincé
+           dans le mauvais questionnaire sans aucune issue. */
+        <button
+          type="button"
+          onClick={() => oublierStockageLocal([CLE_COTE])}
+          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+        >
+          ← Je ne suis pas créateur
         </button>
       )}
     </div>

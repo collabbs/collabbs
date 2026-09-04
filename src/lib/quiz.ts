@@ -40,6 +40,15 @@ export const CLE_COTE = "collabbs.cote.v1";
  */
 export const CLE_INTERETS = "collabbs.interets.v1";
 
+/**
+ * Tout ce que le parcours d'entrée garde dans le navigateur.
+ *
+ * Rassemblé ici pour qu'une remise à zéro n'en oublie aucune : effacer la
+ * carte sans effacer le côté choisi laisserait quelqu'un coincé dans le
+ * questionnaire créateur alors qu'il voulait tout recommencer.
+ */
+export const CLES_PARCOURS = [CLE_CARTE, CLE_BRIEF, CLE_COTE, CLE_INTERETS] as const;
+
 /* ────────────────────────────────────────────────────────────── créateur ── */
 
 /**

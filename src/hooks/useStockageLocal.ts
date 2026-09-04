@@ -89,6 +89,29 @@ export function useStockageLocal<T>(
   return [valeur, ecrire];
 }
 
+/**
+ * Efface des clés et prévient tous les composants abonnés.
+ *
+ * Écrit pour le parcours d'entrée : sans ça, quelqu'un qui a répondu au
+ * questionnaire ne peut plus jamais le refaire — sa carte est gardée, et rien
+ * ne permet de repartir de zéro. Le nom de l'évènement étant privé à ce
+ * module, la remise à zéro ne peut se faire QUE d'ici.
+ *
+ * Le cache `memoire` n'a pas besoin d'être purgé : `instantane` renvoie la
+ * valeur par défaut dès que la clé est absente, sans le consulter.
+ */
+export function oublierStockageLocal(cles: readonly string[]): void {
+  for (const cle of cles) {
+    try {
+      window.localStorage.removeItem(cle);
+    } catch {
+      /* mode privé, stockage désactivé */
+    }
+    memoire.delete(cle);
+  }
+  window.dispatchEvent(new Event(EVENEMENT_LOCAL));
+}
+
 /** `storage` ne se déclenche pas dans l'onglet qui écrit : on s'en fabrique un. */
 const EVENEMENT_LOCAL = "collabbs:stockage-local";
 
