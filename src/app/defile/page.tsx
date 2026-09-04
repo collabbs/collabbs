@@ -23,23 +23,34 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PageDefile() {
+export default async function PageDefile({
+  searchParams,
+}: {
+  searchParams: Promise<{ apercu?: string }>;
+}) {
   const briefs = await briefsDuDefile();
+  // `?apercu=match` force l'écran de match pour pouvoir le juger. Il s'annonce
+  // comme un aperçu à l'écran : on ne laisse jamais croire à une vraie
+  // réciprocité, ce serait promettre une réponse qui ne viendrait pas.
+  const { apercu } = await searchParams;
 
   return (
     <div className="min-h-dvh bg-white">
-      <header className="mx-auto flex max-w-lg items-center justify-between px-5 py-5">
+      {/* En-tête minuscule : la carte doit prendre l'écran, c'est elle
+          l'interaction. Mais on garde une sortie visible — quelqu'un qui ne
+          comprend pas ce qu'il regarde doit pouvoir aller lire. */}
+      <header className="mx-auto flex max-w-md items-center justify-between px-5 py-3">
         <Link href="/decouvrir" aria-label="Collabbs">
-          <Logo />
+          <Logo size={26} />
         </Link>
         <Link
-          href="/login"
-          className="text-sm font-medium text-zinc-500 transition hover:text-ink"
+          href="/decouvrir"
+          className="text-xs font-medium text-zinc-400 transition hover:text-ink"
         >
-          J&apos;ai déjà un compte
+          C&apos;est quoi Collabbs&nbsp;?
         </Link>
       </header>
-      <Defile briefs={briefs} />
+      <Defile briefs={briefs} apercuMatch={apercu === "match"} />
     </div>
   );
 }

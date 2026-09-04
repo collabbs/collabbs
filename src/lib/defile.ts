@@ -33,6 +33,16 @@ export type BriefDefile = {
   commission: { min: number; max: number } | null;
   spots: number | null;
   niches: number[];
+  /**
+   * La marque a-t-elle déjà marqué son intérêt pour ce créateur ?
+   *
+   * C'est la SEULE chose qui déclenche un match. Faux pour l'instant : un
+   * visiteur anonyme n'a pas de profil, donc aucune marque ne peut l'avoir
+   * repéré. Le champ existe parce que le jour où le repérage sera notifié
+   * (`toggleSaveCreator`), c'est ici qu'il se branchera — et parce qu'un match
+   * fabriqué serait une promesse de réponse qui ne viendrait jamais.
+   */
+  dejaInteressee: boolean;
 };
 
 /**
@@ -81,5 +91,6 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     })(),
     spots: c.spots ?? null,
     niches: (c.campaign_niches ?? []).map((n) => n.niche_id),
+    dejaInteressee: false,
   }));
 }
