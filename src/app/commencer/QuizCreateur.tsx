@@ -20,21 +20,24 @@ import {
 /**
  * Le questionnaire créateur.
  *
- * ─── Cinq questions, une par écran ───
- * Une seule question à la fois, avec la carte qui se remplit à côté. Un
- * formulaire de quinze champs se ferme ; cinq questions qui font apparaître
- * quelque chose se terminent.
+ * ─── Ce qui a changé après avoir étudié le tunnel Noom ───
  *
- * ─── Rien n'est perdu, jamais ───
- * Les réponses vont dans le navigateur à chaque frappe. Quelqu'un qui part et
- * revient retrouve sa carte — c'est le même mécanisme que l'outil du seuil, et
- * c'est ce qui permettra plus tard de convertir la carte en profil au moment
- * de l'inscription, sans rien redemander.
+ * 1. **Le titre affirme, il n'interroge pas.** L'écran qui demande le sexe
+ *    s'intitule chez eux « Hormones impact how our bodies metabolize food » —
+ *    la question n'apparaît que dans les options. On ne se sent pas interrogé,
+ *    on se sent expliqué, et on ne se demande pas pourquoi on donne ça.
  *
- * ─── L'échappatoire est visible partout ───
- * Une marque sans idée de campagne, un créateur qui découvre : ils doivent
- * pouvoir sortir vers l'explication à tout moment plutôt que d'abandonner
- * devant une question. On les perd au bon endroit, pas à la porte.
+ * 2. **L'échappatoire est DANS les réponses**, pas en petit lien gris à côté.
+ *    « Je ne sais pas encore » est une réponse légitime, pas un abandon.
+ *
+ * 3. **Pas de barre de progression.** Noom n'en a aucune : un intitulé de
+ *    section situe sans annoncer combien il reste. Un compteur « 1/5 » donne
+ *    un devoir à finir ; « Ton compte » donne l'impression d'avancer.
+ *
+ * 4. **Rien à l'écran que la question.** La carte ne s'affiche plus pendant
+ *    qu'on répond — c'était joli et c'était du bruit. Elle devient la
+ *    récompense de la fin, et c'est elle qui justifie la seule demande qu'on
+ *    fera : la photo.
  */
 
 const RESEAUX = ["tiktok", "instagram", "youtube", "twitch", "twitter"] as const;
@@ -46,21 +49,55 @@ const NOMS_RESEAUX: Record<string, string> = {
   twitter: "X",
 };
 
+/** Bouton de réponse : pleine largeur, cible généreuse, même rendu partout. */
+function Reponse({
+  actif,
+  onClick,
+  children,
+  suffixe,
+}: {
+  actif?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  suffixe?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[60px] w-full items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition ${
+        actif
+          ? "border-transparent bg-ink text-white shadow-[0_12px_28px_-18px_rgba(0,0,0,.7)]"
+          : "border-zinc-200 bg-white text-ink hover:border-ink hover:shadow-[0_12px_28px_-22px_rgba(0,0,0,.5)]"
+      }`}
+    >
+      <span className="text-[15px] font-semibold leading-snug sm:text-base">{children}</span>
+      {suffixe && (
+        <span className={`shrink-0 text-xs font-bold ${actif ? "text-white/55" : "text-zinc-400"}`}>
+          {suffixe}
+        </span>
+      )}
+    </button>
+  );
+}
+
+const BOUTON_PRINCIPAL =
+  "min-h-[58px] w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90 disabled:opacity-30";
+
 export default function QuizCreateur() {
   const [carte, setCarte] = useStockageLocal<CarteCreateur>(CLE_CARTE, carteCreateurVide());
-  // `null` = « on n'a pas encore choisi », donc on déduit de la carte. Dérivé
-  // pendant le rendu plutôt que dans un effet : ça évite un rendu en cascade,
-  // et surtout un décalage entre le serveur et le navigateur au premier
-  // affichage.
   const [etapeChoisie, setEtapeChoisie] = useState<number | null>(null);
   const [lien, setLien] = useState("");
   const [reseauChoisi, setReseauChoisi] = useState<string | null>(null);
   const [erreurLien, setErreurLien] = useState<string | null>(null);
+  const [revelee, setRevelee] = useState(false);
 
   const etape = etapeChoisie ?? premiereEtapeIncomplete(carte);
   const setEtape = setEtapeChoisie;
   const avancement = avancementCreateur(carte);
   const maj = (patch: Partial<CarteCreateur>) => setCarte((p) => ({ ...p, ...patch }));
+
+  const carteComplete = avancement.pourcentage === 100 && carte.prixMini !== null;
 
   function validerLien() {
     const lu = lireLienProfil(lien, reseauChoisi ?? undefined);
@@ -68,7 +105,7 @@ export default function QuizCreateur() {
       setErreurLien(
         reseauChoisi
           ? "On n'arrive pas à lire ça. Colle le lien de ton profil, ou juste ton pseudo."
-          : "Colle le lien de ton profil — ou choisis d'abord ton réseau, puis ton pseudo suffira.",
+          : "Choisis ton réseau, puis ton pseudo suffira — ou colle le lien complet.",
       );
       return;
     }
@@ -81,11 +118,60 @@ export default function QuizCreateur() {
     return liste.includes(valeur) ? liste.filter((v) => v !== valeur) : [...liste, valeur];
   }
 
+  /* ──────────────────────────────────── la carte, en récompense de fin ──── */
+  if (revelee || (carteComplete && etapeChoisie === null)) {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 text-center sm:py-14">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+          Ta carte
+        </p>
+        <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-4xl">
+          Voilà ce qu&apos;une marque verra de toi.
+        </h1>
+
+        <div className="mt-8 w-full max-w-[260px] sm:max-w-[280px]">
+          <CarteApercu carte={carte} />
+        </div>
+
+        {/* La seule demande du parcours, et elle se justifie toute seule : la
+            photo n'est pas un caprice de formulaire, c'est ce qui rend
+            visible. `evaluerProfil` l'exige, on le dit en clair. */}
+        <div className="mt-8 w-full rounded-2xl border border-zinc-200 bg-white p-5 text-left">
+          <p className="text-[15px] font-bold text-ink">
+            Il manque ta photo pour que les marques puissent te trouver.
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
+            C&apos;est la dernière chose. Crée ton compte, ajoute-la, et ton profil
+            entre dans les recherches des marques.
+          </p>
+          <Link
+            href="/signup?role=creator"
+            className={`${BOUTON_PRINCIPAL} mt-4 flex items-center justify-center`}
+          >
+            Terminer mon profil
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setRevelee(false);
+            setEtape(0);
+          }}
+          className="mt-5 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+        >
+          Modifier mes réponses
+        </button>
+      </div>
+    );
+  }
+
+  /* ────────────────────────────────────────────────────── les questions ── */
   const ETAPES = [
-    /* ── 0 ─────────────────────────────────────────────── pseudo + réseau ── */
     {
-      question: "Ton compte principal, c'est lequel ?",
-      aide: "Colle le lien de ton profil. On en tire ton pseudo et ton réseau tout seuls.",
+      section: "Ton compte",
+      titre: "Une marque cherche d'abord un compte, pas un CV.",
+      aide: "Colle le lien de ton profil principal — on en tire ton pseudo et ton réseau.",
       contenu: (
         <div>
           <div className="flex flex-wrap gap-2">
@@ -94,10 +180,10 @@ export default function QuizCreateur() {
                 key={r}
                 type="button"
                 onClick={() => setReseauChoisi(reseauChoisi === r ? null : r)}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-semibold transition ${
                   reseauChoisi === r
                     ? "border-transparent bg-ink text-white"
-                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
                 }`}
               >
                 <PlatformIcon slug={r} className="h-4 w-4" />
@@ -115,7 +201,7 @@ export default function QuizCreateur() {
             }}
             onKeyDown={(e) => e.key === "Enter" && validerLien()}
             placeholder="tiktok.com/@ton.pseudo"
-            className="mt-4 w-full rounded-xl border border-zinc-200 px-4 py-3 text-base outline-none focus:border-purple-400"
+            className="mt-4 min-h-[58px] w-full rounded-2xl border border-zinc-200 px-5 text-base outline-none transition focus:border-ink"
           />
           {erreurLien && <p className="mt-2 text-sm text-red-600">{erreurLien}</p>}
 
@@ -123,7 +209,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={validerLien}
             disabled={!lien.trim()}
-            className="mt-4 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+            className={`${BOUTON_PRINCIPAL} mt-4`}
           >
             Continuer
           </button>
@@ -131,42 +217,33 @@ export default function QuizCreateur() {
       ),
     },
 
-    /* ── 1 ────────────────────────────────────────────────────── audience ── */
     {
-      question: "Tu réunis combien de personnes ?",
-      aide: "Une fourchette suffit. Personne ne connaît son compte au millier près.",
+      section: "Ton compte",
+      titre: "La taille d'une audience change ce qu'une marque peut proposer.",
+      aide: "Une fourchette suffit — personne ne connaît son compte au millier près.",
       contenu: (
-        <div className="grid gap-2">
+        <div className="grid gap-2.5">
           {TRANCHES_AUDIENCE.map((t) => (
-            <button
+            <Reponse
               key={t.id}
-              type="button"
+              actif={carte.audience === t.id}
+              suffixe={t.palier}
               onClick={() => {
                 maj({ audience: t.id as TrancheId });
                 setEtape(2);
               }}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left transition ${
-                carte.audience === t.id
-                  ? "border-transparent bg-ink text-white"
-                  : "border-zinc-200 hover:border-zinc-300"
-              }`}
             >
-              <span className="text-base font-semibold">{t.label}</span>
-              <span
-                className={`text-xs font-bold ${carte.audience === t.id ? "text-white/60" : "text-zinc-400"}`}
-              >
-                {t.palier}
-              </span>
-            </button>
+              {t.label} abonnés
+            </Reponse>
           ))}
         </div>
       ),
     },
 
-    /* ── 2 ───────────────────────────────────────────────────────── niche ── */
     {
-      question: "Tu parles de quoi ?",
-      aide: "Une ou deux, pas plus — c'est ce qui rend un profil trouvable.",
+      section: "Ton contenu",
+      titre: "Une marque de sport ne cherche pas dans la même liste qu'une marque de beauté.",
+      aide: "Une ou deux suffisent. C'est ce qui te rend trouvable.",
       contenu: (
         <div>
           <div className="flex flex-wrap gap-2">
@@ -175,10 +252,10 @@ export default function QuizCreateur() {
                 key={n}
                 type="button"
                 onClick={() => maj({ niches: basculer(carte.niches, n) })}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold transition ${
                   carte.niches.includes(n)
                     ? "border-transparent bg-ink text-white"
-                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
                 }`}
               >
                 {n}
@@ -189,7 +266,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={() => setEtape(3)}
             disabled={carte.niches.length === 0}
-            className="mt-5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+            className={`${BOUTON_PRINCIPAL} mt-6`}
           >
             Continuer
           </button>
@@ -197,42 +274,39 @@ export default function QuizCreateur() {
       ),
     },
 
-    /* ── 3 ────────────────────────────────────────────────────── formats ─── */
     {
-      question: "Tu proposes quoi aux marques ?",
-      aide: "Tout ce que tu acceptes de faire. Tu pourras en retirer plus tard.",
+      section: "Tes offres",
+      titre: "Toutes les collaborations ne se ressemblent pas, et ne se paient pas pareil.",
+      aide: "Coche tout ce que tu acceptes de faire. Tu pourras en retirer plus tard.",
       contenu: (
-        <div>
-          <div className="grid gap-2">
-            {OFFER_TYPES.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => maj({ offres: basculer(carte.offres, o.id as OfferId) })}
-                className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left transition ${
-                  carte.offres.includes(o.id as OfferId)
-                    ? "border-transparent bg-ink text-white"
-                    : "border-zinc-200 hover:border-zinc-300"
-                }`}
-              >
-                <span className="text-base font-semibold">
-                  {o.emoji} {o.label}
-                </span>
-                <span
-                  className={`text-xs font-medium ${
-                    carte.offres.includes(o.id as OfferId) ? "text-white/60" : "text-zinc-400"
-                  }`}
-                >
-                  {o.tag}
-                </span>
-              </button>
-            ))}
-          </div>
+        <div className="grid gap-2.5">
+          {OFFER_TYPES.map((o) => (
+            <Reponse
+              key={o.id}
+              actif={carte.offres.includes(o.id as OfferId)}
+              suffixe={o.tag}
+              onClick={() => maj({ offres: basculer(carte.offres, o.id as OfferId) })}
+            >
+              {o.emoji} {o.label}
+            </Reponse>
+          ))}
+
+          {/* L'échappatoire est une RÉPONSE, au milieu des autres — pas un lien
+              gris en bas de page. C'est ici qu'elle a un sens : quelqu'un qui
+              découvre ne sait pas encore ce qu'il peut vendre. On l'envoie
+              comprendre, pas dehors. */}
+          <Link
+            href="/decouvrir"
+            className="flex min-h-[60px] w-full items-center rounded-2xl border border-dashed border-zinc-200 px-5 py-4 text-[15px] font-semibold text-zinc-500 transition hover:border-zinc-400 hover:text-ink"
+          >
+            Je ne sais pas encore ce que je peux proposer
+          </Link>
+
           <button
             type="button"
             onClick={() => setEtape(4)}
             disabled={carte.offres.length === 0}
-            className="mt-5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+            className={`${BOUTON_PRINCIPAL} mt-3`}
           >
             Continuer
           </button>
@@ -240,13 +314,13 @@ export default function QuizCreateur() {
       ),
     },
 
-    /* ── 4 ─────────────────────────────────────────────────────── tarif ──── */
     {
-      question: "À partir de combien tu travailles ?",
-      aide: "Ton prix d'entrée, pour la prestation la plus simple. Il te protège des propositions à 20 €.",
+      section: "Tes offres",
+      titre: "Un tarif affiché t'évite les propositions à 20 €.",
+      aide: "Ton prix d'entrée, pour la prestation la plus simple.",
       contenu: (
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <input
               type="number"
               inputMode="numeric"
@@ -256,98 +330,61 @@ export default function QuizCreateur() {
                 maj({ prixMini: e.target.value === "" ? null : Number(e.target.value) })
               }
               placeholder="220"
-              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-base outline-none focus:border-purple-400"
+              className="min-h-[58px] w-full rounded-2xl border border-zinc-200 px-5 text-2xl font-bold tabular-nums outline-none transition focus:border-ink"
             />
-            <span className="text-lg font-bold text-zinc-400">€</span>
+            <span className="text-2xl font-bold text-zinc-300">€</span>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-zinc-500">
-            Tu ne sais pas quoi mettre ? Le prix moyen constaté en France pour une
-            vidéo UGC de 30 s est de 28 €, et les plateformes annoncent une entrée
-            de gamme à partir de 80 €. À toi de te situer.
+
+          {/* Repères sourcés plutôt qu'une fourchette inventée : ce sont ceux
+              de `REPERES_MARCHE`, relevés et datés. */}
+          <p className="mt-4 rounded-2xl bg-zinc-50 p-4 text-[13px] leading-relaxed text-zinc-500">
+            <strong className="font-semibold text-zinc-700">
+              Tu ne sais pas quoi mettre&nbsp;?
+            </strong>{" "}
+            Le prix moyen constaté en France pour une vidéo UGC de 30 secondes est
+            de 28 €, et les plateformes affichent une entrée de gamme à partir de
+            80 €. À toi de te situer.
           </p>
+
+          <button
+            type="button"
+            onClick={() => setRevelee(true)}
+            disabled={carte.prixMini === null}
+            className={`${BOUTON_PRINCIPAL} mt-5`}
+          >
+            Voir ma carte
+          </button>
         </div>
       ),
     },
   ];
 
   const courante = ETAPES[etape];
-  const fini = avancement.pourcentage === 100;
 
   return (
-    <div className="mx-auto grid min-h-dvh max-w-5xl grid-cols-1 gap-6 px-5 py-6 lg:gap-10 lg:grid-cols-[1fr_320px] lg:items-center lg:py-16">
-      {/* ── Colonne des questions ── */}
-      <div className="order-2 lg:order-1">
-        {/* Avancement */}
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-500"
-              style={{ width: `${avancement.pourcentage}%` }}
-            />
-          </div>
-          <span className="text-xs font-bold tabular-nums text-zinc-400">
-            {etape + 1}/{ETAPES.length}
-          </span>
-        </div>
+    <div className="mx-auto flex w-full max-w-lg flex-col px-5 py-8 sm:py-14">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+        {courante.section}
+      </p>
 
-        <h1 className="font-display mt-6 text-3xl font-black leading-tight tracking-tight text-ink sm:text-4xl">
-          {courante.question}
-        </h1>
-        <p className="mt-2 text-base leading-relaxed text-zinc-500">{courante.aide}</p>
+      <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-[34px]">
+        {courante.titre}
+      </h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-zinc-500 sm:text-base">
+        {courante.aide}
+      </p>
 
-        <div className="mt-6">{courante.contenu}</div>
+      <div className="mt-8">{courante.contenu}</div>
 
-        {/* Navigation + échappatoire */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          {etape > 0 ? (
-            <button
-              type="button"
-              onClick={() => setEtape(etape - 1)}
-              className="text-sm font-medium text-zinc-500 transition hover:text-ink"
-            >
-              ← Retour
-            </button>
-          ) : (
-            <span />
-          )}
-
-          {/* Toujours visible. Quelqu'un qui bloque doit sortir vers
-              l'explication, pas fermer l'onglet. */}
-          <Link
-            href="/decouvrir"
-            className="text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
-          >
-            Je découvre Collabbs d&apos;abord
-          </Link>
-        </div>
-
-        {fini && (
-          <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-            <p className="font-display text-lg font-black text-emerald-900">
-              Ta carte est prête.
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-emerald-800">
-              C&apos;est exactement ce qu&apos;une marque verra de toi. Prochaine
-              étape : les campagnes qui cherchent quelqu&apos;un comme toi.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Colonne de la carte ── */}
-      {/* Sur téléphone, la carte est volontairement PETITE. En taille réelle
-          elle occupait l'écran entier et repoussait la question hors de vue :
-          on arrivait sur une image sans savoir ce qu'on nous demandait. Elle
-          doit rester visible — c'est elle qui donne envie de répondre — mais
-          jamais au point de cacher la question. */}
-      <div className="order-1 flex justify-center lg:order-2 lg:sticky lg:top-16">
-        <div className="w-full max-w-[168px] sm:max-w-[220px] lg:max-w-[300px]">
-          <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 lg:mb-3 lg:text-xs">
-            Ce que voit une marque
-          </p>
-          <CarteApercu carte={carte} />
-        </div>
-      </div>
+      {etape > 0 && (
+        <button
+          type="button"
+          onClick={() => setEtape(etape - 1)}
+          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+        >
+          ← Retour
+        </button>
+      )}
     </div>
   );
 }

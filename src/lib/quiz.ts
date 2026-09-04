@@ -23,8 +23,14 @@ import type { OfferId } from "@/components/landing/creators";
 
 export type Cote = "creator" | "brand";
 
-/** Clé de stockage navigateur. Versionnée : la forme changera. */
+/** Clés de stockage navigateur. Versionnées : la forme changera. */
 export const CLE_CARTE = "collabbs.carte.v1";
+export const CLE_BRIEF = "collabbs.brief.v1";
+/**
+ * Le côté choisi. Gardé séparément pour qu'un visiteur qui revient ne
+ * repasse pas par « tu es une marque ou un créateur ? » — il a déjà répondu.
+ */
+export const CLE_COTE = "collabbs.cote.v1";
 
 /* ────────────────────────────────────────────────────────────── créateur ── */
 
@@ -242,4 +248,18 @@ export function premiereEtapeIncomplete(c: CarteCreateur): number {
   if (c.niches.length === 0) return 2;
   if (c.offres.length === 0) return 3;
   return 4;
+}
+
+/**
+ * À quelle question reprendre côté marque.
+ *
+ * Même raison que pour le créateur : le brief survit au rechargement, l'étape
+ * en cours non. Sans ça on redemande le nom de la marque à quelqu'un dont la
+ * carte l'affiche déjà.
+ */
+export function premiereEtapeIncompleteMarque(c: CarteMarque): number {
+  if (!c.nom || !c.produit) return 0;
+  if (c.formats.length === 0) return 1;
+  if (!c.remuneration || (c.montant === null && c.commission === null)) return 2;
+  return 3;
 }

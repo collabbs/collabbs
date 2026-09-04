@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
-import QuizCreateur from "./QuizCreateur";
+import Parcours from "./Parcours";
 import { SITE } from "@/lib/legal-entity";
 
 /**
@@ -11,9 +11,9 @@ import { SITE } from "@/lib/legal-entity";
  * d'accueil reste exactement ce qu'elle est. On bascule en un seul geste, à la
  * fin, quand il n'y aura plus de doute — pas en cassant l'existant en chemin.
  *
- * Pour l'instant seul le côté créateur est construit. Le côté marque produira
- * un BRIEF et non une fiche d'entreprise : un créateur ne fait pas défiler des
- * logos, il fait défiler des propositions.
+ * Les deux côtés sont construits. Celui de la marque produit un BRIEF et non
+ * une fiche d'entreprise : un créateur ne fait pas défiler des logos, il fait
+ * défiler des propositions.
  */
 export const metadata: Metadata = {
   title: "Crée ta carte — Collabbs",
@@ -39,7 +39,7 @@ export default function PageCommencer() {
           J&apos;ai déjà un compte
         </Link>
       </header>
-      <QuizCreateur />
+      <Parcours />
     </div>
   );
 }
