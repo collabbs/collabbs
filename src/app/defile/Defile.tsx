@@ -7,6 +7,7 @@ import { CLE_INTERETS, listeDeTextes } from "@/lib/quiz";
 import type { BriefDefile } from "@/lib/defile";
 import CarteBrief, { type Direction } from "./CarteBrief";
 import EcranMatch from "./EcranMatch";
+import { FicheBrief } from "./Fiche";
 
 /**
  * Le défilé, côté créateur.
@@ -41,6 +42,7 @@ export default function Defile({
   const interets = listeDeTextes(interetsBrut);
   const [index, setIndex] = useState(0);
   const [match, setMatch] = useState<BriefDefile | null>(null);
+  const [fiche, setFiche] = useState<BriefDefile | null>(null);
 
   const brief = briefs[index];
   const suivant = briefs[index + 1];
@@ -118,11 +120,17 @@ export default function Defile({
       {match && (
         <EcranMatch brief={match} apercu={apercuMatch} onContinuer={() => setMatch(null)} />
       )}
+      {fiche && <FicheBrief brief={fiche} onFermer={() => setFiche(null)} />}
 
       <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">
         <div className="relative min-h-0 flex-1">
           {suivant && <CarteBrief key={suivant.id} brief={suivant} enArriere />}
-          <CarteBrief key={brief.id} brief={brief} onDecision={decider} />
+          <CarteBrief
+            key={brief.id}
+            brief={brief}
+            onDecision={decider}
+            onOuvrir={() => setFiche(brief)}
+          />
         </div>
 
         {/* Boutons ronds sous la carte. Ils restent parce qu'un geste ne se fait
@@ -148,7 +156,8 @@ export default function Defile({
         </div>
 
         <p className="mt-4 text-center text-[11px] font-medium text-zinc-400">
-          Fais glisser la carte — à droite si ça t&apos;intéresse, à gauche sinon.
+          Fais glisser — à droite si ça t&apos;intéresse. Touche la carte pour en
+          lire plus.
         </p>
       </div>
     </>

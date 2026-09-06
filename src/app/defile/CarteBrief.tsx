@@ -53,23 +53,30 @@ export function remunerationLisible(brief: BriefDefile) {
 export default function CarteBrief({
   brief,
   onDecision,
+  onOuvrir,
   /** Carte du dessous : visible mais inerte, elle donne l'épaisseur du paquet. */
   enArriere,
 }: {
   brief: BriefDefile;
   onDecision?: (d: Direction) => void;
+  /** Pression simple, sans glissement : on ouvre la fiche détaillée. */
+  onOuvrir?: () => void;
   enArriere?: boolean;
 }) {
   const [dx, setDx] = useState(0);
   const [glisse, setGlisse] = useState(false);
   const [sortie, setSortie] = useState<Direction | null>(null);
   const depart = useRef(0);
+  // Distingue une PRESSION d'un GLISSEMENT : sans ça, ouvrir la fiche au
+  // toucher déclencherait aussi une décision, et inversement.
+  const aBouge = useRef(false);
 
   const inerte = enArriere || sortie !== null;
 
   function commencer(e: React.PointerEvent) {
     if (inerte || !onDecision) return;
     depart.current = e.clientX;
+    aBouge.current = false;
     setGlisse(true);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -80,12 +87,21 @@ export default function CarteBrief({
 
   function bouger(e: React.PointerEvent) {
     if (!glisse) return;
-    setDx(e.clientX - depart.current);
+    const ecart = e.clientX - depart.current;
+    // 6 px de tolérance : un doigt n'est jamais parfaitement immobile, et sans
+    // cette marge une pression normale passerait pour un micro-glissement.
+    if (Math.abs(ecart) > 6) aBouge.current = true;
+    setDx(ecart);
   }
 
   function relacher() {
     if (!glisse) return;
     setGlisse(false);
+    if (!aBouge.current) {
+      setDx(0);
+      onOuvrir?.();
+      return;
+    }
     if (Math.abs(dx) >= SEUIL) {
       const dir: Direction = dx > 0 ? "droite" : "gauche";
       setSortie(dir);

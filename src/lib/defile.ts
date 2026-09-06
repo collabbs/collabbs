@@ -31,6 +31,14 @@ export type BriefDefile = {
    * par paliers selon la taille du créateur.
    */
   commission: { min: number; max: number } | null;
+  /** Intitulé de la campagne. Sert de titre à la fiche détaillée. */
+  titre: string | null;
+  /** Attentes de la marque, en clair. Uniquement lues sur la fiche. */
+  exigences: string | null;
+  /** Date de fin, au format AAAA-MM-JJ. */
+  echeance: string | null;
+  /** Audience minimale demandée, s'il y en a une. */
+  audienceMini: number | null;
   spots: number | null;
   niches: number[];
   /**
@@ -58,7 +66,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
   const requete = admin
     .from("campaigns")
     .select(
-      "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, brands!inner(name, is_demo), campaign_niches(niche_id)",
+      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, brands!inner(name, is_demo), campaign_niches(niche_id)",
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -73,10 +81,14 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
   return data.map((c) => ({
     id: c.id,
     marque: c.brands?.name ?? "Une marque",
-    // La description sert de sous-titre. Tronquée ici et pas à l'affichage :
-    // on ne fait pas voyager trois paragraphes jusqu'au navigateur pour en
-    // montrer deux lignes.
-    produit: c.description ? c.description.slice(0, 140) : null,
+    // La carte n'en montre que deux lignes, mais la FICHE a besoin du texte
+    // entier : on ne tronque donc plus ici. Une campagne dont on ne peut pas
+    // lire les attentes ne se choisit pas.
+    produit: c.description ?? null,
+    titre: c.name ?? null,
+    exigences: c.requirements ?? null,
+    echeance: c.ends_at ?? null,
+    audienceMini: c.min_subscribers != null ? Number(c.min_subscribers) : null,
     type: c.type ?? "video",
     montant: c.fixed_amount != null ? Number(c.fixed_amount) : null,
     // Une campagne à paliers n'a pas de `commission_value` : elle porte un taux

@@ -59,7 +59,7 @@ export default async function PageDefile({
         </Link>
       </header>
       {cotéMarque ? (
-        <DefileCreateurs createurs={createurs} />
+        <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} />
       ) : (
         <Defile briefs={briefs} apercuMatch={apercu === "match"} />
       )}

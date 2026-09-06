@@ -7,6 +7,8 @@ import { CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 import CarteCreateur from "./CarteCreateur";
 import type { Direction } from "./CarteBrief";
+import { FicheCreateur } from "./Fiche";
+import EcranMatchCreateur from "./EcranMatchCreateur";
 
 /**
  * Le défilé, côté marque : on fait défiler des créateurs.
@@ -23,12 +25,21 @@ import type { Direction } from "./CarteBrief";
  * une marque tant qu'il n'a pas de compte. Marquer un créateur ici, c'est donc
  * du REPÉRAGE, et on ne promet rien de plus.
  */
-export default function DefileCreateurs({ createurs }: { createurs: MarketplaceCreator[] }) {
+export default function DefileCreateurs({
+  createurs,
+  apercuMatch,
+}: {
+  createurs: MarketplaceCreator[];
+  /** Aperçu de l'écran de match, demandé par `?apercu=match`. */
+  apercuMatch?: boolean;
+}) {
   const [reperagesBrut, setReperages] = useStockageLocal<string[]>(CLE_REPERAGES, []);
   // Une valeur qui n'est pas un tableau ferait lever `.includes` et tomber la
   // page. On répare, on ne fait pas confiance.
   const reperages = listeDeTextes(reperagesBrut);
   const [index, setIndex] = useState(0);
+  const [fiche, setFiche] = useState<MarketplaceCreator | null>(null);
+  const [match, setMatch] = useState<MarketplaceCreator | null>(null);
 
   const createur = createurs[index];
   const suivant = createurs[index + 1];
@@ -41,6 +52,11 @@ export default function DefileCreateurs({ createurs }: { createurs: MarketplaceC
   function reperer() {
     if (!createur) return;
     if (!reperages.includes(createur.id)) setReperages([...reperages, createur.id]);
+    // Aucun match spontané de ce côté : un match suppose que le créateur ait
+    // AUSSI marqué son intérêt, ce qu'il ne peut pas faire sans compte. On ne
+    // fabrique pas de réciprocité — une marque à qui on annonce un match et
+    // qui n'obtient jamais de réponse ne revient pas.
+    if (apercuMatch) setMatch(createur);
     avancer();
   }
 
@@ -97,10 +113,24 @@ export default function DefileCreateurs({ createurs }: { createurs: MarketplaceC
   }
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">
+    <>
+      {fiche && <FicheCreateur createur={fiche} onFermer={() => setFiche(null)} />}
+      {match && (
+        <EcranMatchCreateur
+          createur={match}
+          apercu={apercuMatch}
+          onContinuer={() => setMatch(null)}
+        />
+      )}
+      <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">
       <div className="relative min-h-0 flex-1">
         {suivant && <CarteCreateur key={suivant.id} createur={suivant} enArriere />}
-        <CarteCreateur key={createur.id} createur={createur} onDecision={decider} />
+        <CarteCreateur
+          key={createur.id}
+          createur={createur}
+          onDecision={decider}
+          onOuvrir={() => setFiche(createur)}
+        />
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-6">
@@ -123,8 +153,10 @@ export default function DefileCreateurs({ createurs }: { createurs: MarketplaceC
       </div>
 
       <p className="mt-4 text-center text-[11px] font-medium text-zinc-400">
-        Fais glisser — à droite si le profil te plaît, à gauche sinon.
+        Fais glisser — à droite si le profil te plaît. Touche la carte pour voir
+        le détail.
       </p>
-    </div>
+      </div>
+    </>
   );
 }
