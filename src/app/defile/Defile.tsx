@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
-import { CLE_INTERETS } from "@/lib/quiz";
+import { CLE_INTERETS, listeDeTextes } from "@/lib/quiz";
 import type { BriefDefile } from "@/lib/defile";
 import CarteBrief, { type Direction } from "./CarteBrief";
 import EcranMatch from "./EcranMatch";
@@ -35,7 +35,10 @@ export default function Defile({
   /** Aperçu de l'écran de match, demandé par `?apercu=match`. */
   apercuMatch?: boolean;
 }) {
-  const [interets, setInterets] = useStockageLocal<string[]>(CLE_INTERETS, []);
+  const [interetsBrut, setInterets] = useStockageLocal<string[]>(CLE_INTERETS, []);
+  // Une valeur qui n'est pas un tableau ferait lever `.includes` et tomber la
+  // page. On répare, on ne fait pas confiance.
+  const interets = listeDeTextes(interetsBrut);
   const [index, setIndex] = useState(0);
   const [match, setMatch] = useState<BriefDefile | null>(null);
 

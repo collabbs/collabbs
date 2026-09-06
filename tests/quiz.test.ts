@@ -7,6 +7,9 @@ import {
   carteMarqueVide,
   libelleTranche,
   premiereEtapeIncomplete,
+  normaliserCarteCreateur,
+  normaliserCarteMarque,
+  listeDeTextes,
 } from "@/lib/quiz";
 
 describe("lireLienProfil", () => {
@@ -156,5 +159,46 @@ describe("premiereEtapeIncomplete", () => {
         prixMini: 220,
       }),
     ).toBe(4);
+  });
+});
+
+describe("réparation des contenus abîmés", () => {
+  // Le stockage local survit aux déploiements. Une carte écrite par une
+  // version antérieure ne doit jamais faire tomber l'écran : il suffit qu'un
+  // champ attendu comme un tableau soit absent pour qu'un `.map()` lève et
+  // que toute la page affiche « Oups ».
+  it("répare une carte créateur de forme inconnue", () => {
+    const r = normaliserCarteCreateur({ handle: "ines.fit" });
+    expect(r.niches).toEqual([]);
+    expect(r.offres).toEqual([]);
+    expect(r.handle).toBe("ines.fit");
+    expect(r.prixMini).toBeNull();
+  });
+
+  it("survit à n'importe quoi", () => {
+    for (const nawak of [null, undefined, 42, "chaine", [], { niches: "Sport" }]) {
+      const r = normaliserCarteCreateur(nawak);
+      expect(Array.isArray(r.niches)).toBe(true);
+      expect(Array.isArray(r.offres)).toBe(true);
+    }
+  });
+
+  it("écarte une tranche d'audience qui n'existe plus", () => {
+    expect(normaliserCarteCreateur({ audience: "gigantesque" }).audience).toBeNull();
+    expect(normaliserCarteCreateur({ audience: "micro" }).audience).toBe("micro");
+  });
+
+  it("répare un brief marque", () => {
+    const r = normaliserCarteMarque({ nom: "Lumi", remuneration: "troc", montant: "400" });
+    expect(r.nom).toBe("Lumi");
+    expect(r.remuneration).toBeNull();
+    expect(r.montant).toBeNull();
+    expect(r.formats).toEqual([]);
+  });
+
+  it("ne garde que des chaînes dans une liste d'identifiants", () => {
+    expect(listeDeTextes(["a", 3, null, "b"])).toEqual(["a", "b"]);
+    expect(listeDeTextes("pas un tableau")).toEqual([]);
+    expect(listeDeTextes(null)).toEqual([]);
   });
 });

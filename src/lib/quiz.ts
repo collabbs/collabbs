@@ -288,3 +288,72 @@ export function premiereEtapeIncompleteMarque(c: CarteMarque): number {
   if (!c.remuneration || (c.montant === null && c.commission === null)) return 2;
   return 3;
 }
+
+/* ──────────────────────────────────────────────── contenus abîmés ──────── */
+
+/**
+ * Réparer une valeur venue du navigateur plutôt que de faire tomber l'écran.
+ *
+ * Le stockage local survit aux déploiements : quelqu'un qui a répondu à une
+ * version antérieure du questionnaire garde une carte d'une forme qui n'existe
+ * plus. Il suffit alors qu'un champ attendu comme un tableau soit absent pour
+ * qu'un `.map()` lève et que toute la page affiche « Oups ».
+ *
+ * Ces fonctions ne valident pas : elles RÉPARENT. Un champ inconnu est
+ * remplacé par sa valeur par défaut, et la personne reprend son parcours sans
+ * rien remarquer. Perdre une réponse est désagréable ; perdre l'écran entier
+ * fait fermer l'onglet.
+ */
+
+function texteOuNull(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v : null;
+}
+
+function nombreOuNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** N'accepte que les chaînes, et ignore le reste. */
+export function listeDeTextes(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string");
+}
+
+export function normaliserCarteCreateur(v: unknown): CarteCreateur {
+  const base = carteCreateurVide();
+  if (!v || typeof v !== "object") return base;
+  const o = v as Record<string, unknown>;
+  const tranches = TRANCHES_AUDIENCE.map((t) => t.id) as readonly string[];
+  return {
+    cote: "creator",
+    handle: texteOuNull(o.handle),
+    plateforme: texteOuNull(o.plateforme),
+    audience:
+      typeof o.audience === "string" && tranches.includes(o.audience)
+        ? (o.audience as TrancheId)
+        : null,
+    niches: listeDeTextes(o.niches),
+    offres: listeDeTextes(o.offres) as OfferId[],
+    prixMini: nombreOuNull(o.prixMini),
+  };
+}
+
+export function normaliserCarteMarque(v: unknown): CarteMarque {
+  const base = carteMarqueVide();
+  if (!v || typeof v !== "object") return base;
+  const o = v as Record<string, unknown>;
+  const modes = MODES_REMUNERATION.map((m) => m.id) as readonly string[];
+  return {
+    cote: "brand",
+    nom: texteOuNull(o.nom),
+    produit: texteOuNull(o.produit),
+    formats: listeDeTextes(o.formats) as OfferId[],
+    remuneration:
+      typeof o.remuneration === "string" && modes.includes(o.remuneration)
+        ? (o.remuneration as ModeRemunerationId)
+        : null,
+    montant: nombreOuNull(o.montant),
+    commission: nombreOuNull(o.commission),
+    echeance: texteOuNull(o.echeance),
+  };
+}

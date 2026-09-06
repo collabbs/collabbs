@@ -13,6 +13,7 @@ import {
   avancementMarque,
   carteMarqueVide,
   premiereEtapeIncompleteMarque,
+  normaliserCarteMarque,
   type CarteMarque,
   type ModeRemunerationId,
 } from "@/lib/quiz";
@@ -69,7 +70,10 @@ function Reponse({
 }
 
 export default function QuizMarque() {
-  const [carte, setCarte] = useStockageLocal<CarteMarque>(CLE_BRIEF, carteMarqueVide());
+  const [carteBrute, setCarte] = useStockageLocal<CarteMarque>(CLE_BRIEF, carteMarqueVide());
+  // Voir `QuizCreateur` : un contenu abîmé se répare, il ne fait pas tomber
+  // l'écran.
+  const carte = normaliserCarteMarque(carteBrute);
   const [etapeChoisie, setEtapeChoisie] = useState<number | null>(null);
   const [revelee, setRevelee] = useState(false);
 

@@ -14,6 +14,7 @@ import {
   avancementCreateur,
   carteCreateurVide,
   lireLienProfil,
+  normaliserCarteCreateur,
   premiereEtapeIncomplete,
   type CarteCreateur,
   type TrancheId,
@@ -87,7 +88,11 @@ const BOUTON_PRINCIPAL =
   "min-h-[58px] w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90 disabled:opacity-30";
 
 export default function QuizCreateur() {
-  const [carte, setCarte] = useStockageLocal<CarteCreateur>(CLE_CARTE, carteCreateurVide());
+  const [carteBrute, setCarte] = useStockageLocal<CarteCreateur>(CLE_CARTE, carteCreateurVide());
+  // Le stockage survit aux déploiements : une carte écrite par une version
+  // antérieure peut avoir une forme qui n'existe plus. On la répare plutôt
+  // que de laisser un `.map()` faire tomber tout l'écran sur « Oups ».
+  const carte = normaliserCarteCreateur(carteBrute);
   const [etapeChoisie, setEtapeChoisie] = useState<number | null>(null);
   const [lien, setLien] = useState("");
   const [reseauChoisi, setReseauChoisi] = useState<string | null>(null);

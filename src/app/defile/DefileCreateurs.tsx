@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
-import { CLE_REPERAGES } from "@/lib/quiz";
+import { CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 import CarteCreateur from "./CarteCreateur";
 import type { Direction } from "./CarteBrief";
@@ -24,7 +24,10 @@ import type { Direction } from "./CarteBrief";
  * du REPÉRAGE, et on ne promet rien de plus.
  */
 export default function DefileCreateurs({ createurs }: { createurs: MarketplaceCreator[] }) {
-  const [reperages, setReperages] = useStockageLocal<string[]>(CLE_REPERAGES, []);
+  const [reperagesBrut, setReperages] = useStockageLocal<string[]>(CLE_REPERAGES, []);
+  // Une valeur qui n'est pas un tableau ferait lever `.includes` et tomber la
+  // page. On répare, on ne fait pas confiance.
+  const reperages = listeDeTextes(reperagesBrut);
   const [index, setIndex] = useState(0);
 
   const createur = createurs[index];
