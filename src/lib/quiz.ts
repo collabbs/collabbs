@@ -39,6 +39,8 @@ export const CLE_COTE = "collabbs.cote.v1";
  * un formulaire, c'est la récupération de quelque chose qu'on possède déjà.
  */
 export const CLE_INTERETS = "collabbs.interets.v1";
+/** Les créateurs qu'une marque a repérés avant d'avoir un compte. */
+export const CLE_REPERAGES = "collabbs.reperages.v1";
 
 /**
  * Tout ce que le parcours d'entrée garde dans le navigateur.
@@ -47,7 +49,13 @@ export const CLE_INTERETS = "collabbs.interets.v1";
  * carte sans effacer le côté choisi laisserait quelqu'un coincé dans le
  * questionnaire créateur alors qu'il voulait tout recommencer.
  */
-export const CLES_PARCOURS = [CLE_CARTE, CLE_BRIEF, CLE_COTE, CLE_INTERETS] as const;
+export const CLES_PARCOURS = [
+  CLE_CARTE,
+  CLE_BRIEF,
+  CLE_COTE,
+  CLE_INTERETS,
+  CLE_REPERAGES,
+] as const;
 
 /* ────────────────────────────────────────────────────────────── créateur ── */
 

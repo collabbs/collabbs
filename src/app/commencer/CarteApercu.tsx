@@ -5,87 +5,122 @@ import { OFFER_BY_ID } from "@/components/landing/creators";
 import { libelleTranche, type CarteCreateur } from "@/lib/quiz";
 
 /**
- * La carte du créateur, telle qu'une marque la verra dans le défilé.
+ * La carte du créateur, telle qu'une marque la verra.
  *
- * Elle s'affiche pendant qu'on répond, et se remplit à mesure. C'est tout
- * l'intérêt du questionnaire : on ne remplit pas un formulaire à l'aveugle, on
- * regarde un objet se construire. Chaque réponse a un effet visible immédiat,
- * ce qui est la seule raison pour laquelle quelqu'un répond à la cinquième.
+ * ─── Le problème qu'elle doit résoudre ───
+ * Le questionnaire ne demande pas de photo — téléverser une image avant
+ * d'avoir un compte, sur téléphone, c'est le moment où l'on abandonne. Mais
+ * une carte sans photo, c'est un rectangle dégradé avec un pseudo dessus :
+ * ça ressemble à une image manquante, et ça donne l'impression d'un produit
+ * bâclé.
  *
- * Les zones non encore renseignées ne sont pas cachées : elles apparaissent en
- * creux. Un trou qu'on voit donne envie de le combler ; un trou invisible
- * laisse croire qu'on a fini.
+ * ─── La réponse ───
+ * Ne pas imiter une photo absente : assumer un objet TYPOGRAPHIQUE. Le pseudo
+ * devient le sujet de la carte, en très grand, sur un fond dont la teinte est
+ * dérivée du pseudo lui-même — deux créateurs différents n'ont donc pas la
+ * même carte. Et l'emplacement de la photo est marqué comme ce qu'il est : une
+ * chose à ajouter, avec ce qu'elle apporte, plutôt qu'un trou.
  */
+
+/**
+ * Teinte dérivée du pseudo.
+ *
+ * Déterministe à dessein : la carte de quelqu'un ne change pas de couleur d'un
+ * chargement à l'autre. Une couleur aléatoire donnerait l'impression que rien
+ * n'est décidé.
+ */
+function teinte(graine: string): { de: string; vers: string } {
+  let somme = 0;
+  for (let i = 0; i < graine.length; i++) somme = (somme * 31 + graine.charCodeAt(i)) % 360;
+  const h = somme;
+  return {
+    de: `hsl(${h} 72% 32%)`,
+    vers: `hsl(${(h + 42) % 360} 78% 46%)`,
+  };
+}
+
 export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
   const palier = libelleTranche(carte.audience);
   const offres = carte.offres.map((id) => OFFER_BY_ID[id]).filter(Boolean);
+  const pseudo = carte.handle ?? "ton.pseudo";
+  const { de, vers } = teinte(pseudo);
 
   return (
-    <div className="w-full overflow-hidden rounded-3xl border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,.04),0_24px_48px_-28px_rgba(0,0,0,.35)]">
-      {/* Visuel. Pas de photo demandée dans le questionnaire : téléverser une
-          image avant d'avoir un compte, sur téléphone, c'est le moment où l'on
-          abandonne. La photo se demandera à l'inscription, et c'est même
-          l'argument qui la justifiera — « ajoute ta photo pour être visible ». */}
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-500">
-        <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_20%_10%,rgba(255,255,255,.35),transparent_55%)]" />
+    <div className="w-full overflow-hidden rounded-[26px] bg-zinc-950 shadow-[0_1px_2px_rgba(0,0,0,.06),0_28px_56px_-30px_rgba(0,0,0,.6)]">
+      <div
+        className="relative aspect-[4/5] overflow-hidden"
+        style={{ background: `linear-gradient(145deg, ${de}, ${vers})` }}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_15%_8%,rgba(255,255,255,.32),transparent_58%)]" />
 
-        {carte.plateforme && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-            <PlatformIcon slug={carte.plateforme} className="h-3.5 w-3.5" />
-            {palier ?? "—"}
-          </span>
-        )}
+        {/* Bandeau du haut : réseau et palier d'audience. */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+          {carte.plateforme ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+              <PlatformIcon slug={carte.plateforme} className="h-3.5 w-3.5" />
+              {palier ?? "—"}
+            </span>
+          ) : (
+            <span />
+          )}
+          {carte.prixMini !== null && (
+            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black tabular-nums text-zinc-900">
+              dès {carte.prixMini.toLocaleString("fr-FR")} €
+            </span>
+          )}
+        </div>
 
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-black/55 to-transparent p-4 pt-10">
-          <p className="text-center text-lg font-black leading-tight tracking-tight text-white">
-            {carte.handle ? `@${carte.handle}` : "@ton pseudo"}
+        {/* Le pseudo EST le visuel. En très grand, coupé sur plusieurs lignes
+            s'il le faut : c'est ce qui donne à la carte l'air d'un objet
+            dessiné plutôt que d'une image qui n'a pas chargé. */}
+        <div className="absolute inset-x-0 bottom-0 p-5 pt-16">
+          <p className="font-display text-[34px] font-black leading-[0.92] tracking-tighter text-white [overflow-wrap:anywhere]">
+            @{pseudo}
           </p>
         </div>
       </div>
 
-      <div className="px-1 pb-1 pt-3">
+      <div className="space-y-2.5 p-4">
         <div className="flex flex-wrap gap-1.5">
           {carte.niches.length > 0 ? (
             carte.niches.map((n) => (
               <span
                 key={n}
-                className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
+                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white"
               >
                 {n}
               </span>
             ))
           ) : (
-            <span className="rounded-full border border-dashed border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-300">
+            <span className="rounded-full border border-dashed border-white/20 px-2.5 py-1 text-[11px] font-medium text-white/30">
               ta niche
             </span>
           )}
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {offres.length > 0 ? (
             offres.map((o) => (
               <span
                 key={o.id}
-                className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700"
+                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/80"
               >
                 {o.emoji} {o.short}
               </span>
             ))
           ) : (
-            <span className="rounded-full border border-dashed border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-300">
+            <span className="rounded-full border border-dashed border-white/20 px-2.5 py-1 text-[11px] font-medium text-white/30">
               ce que tu proposes
             </span>
           )}
         </div>
 
-        <p className="mt-3 font-display text-2xl font-black tabular-nums tracking-tight text-ink">
-          {carte.prixMini !== null ? (
-            <>
-              dès {carte.prixMini.toLocaleString("fr-FR")} €
-            </>
-          ) : (
-            <span className="text-zinc-300">dès — €</span>
-          )}
+        {/* L'absence de photo est nommée, avec ce qu'elle coûte. Un manque
+            expliqué se comble ; un trou se subit. */}
+        <p className="flex items-center gap-2 pt-1 text-[11px] leading-snug text-white/40">
+          <span className="text-sm">📷</span>
+          Ta photo viendra ici — c&apos;est elle qui décide si une marque
+          s&apos;arrête sur ton profil.
         </p>
       </div>
     </div>

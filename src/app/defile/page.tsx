@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import { briefsDuDefile } from "@/lib/defile";
+import { getMarketplaceCreators } from "@/lib/creators-data";
 import Defile from "./Defile";
+import DefileCreateurs from "./DefileCreateurs";
 import { SITE } from "@/lib/legal-entity";
 
 /**
@@ -26,13 +28,19 @@ export const metadata: Metadata = {
 export default async function PageDefile({
   searchParams,
 }: {
-  searchParams: Promise<{ apercu?: string }>;
+  searchParams: Promise<{ apercu?: string; cote?: string }>;
 }) {
-  const briefs = await briefsDuDefile();
+
   // `?apercu=match` force l'écran de match pour pouvoir le juger. Il s'annonce
   // comme un aperçu à l'écran : on ne laisse jamais croire à une vraie
   // réciprocité, ce serait promettre une réponse qui ne viendrait pas.
-  const { apercu } = await searchParams;
+  const { apercu, cote } = await searchParams;
+  // Les deux côtés ne font pas défiler la même chose : la marque regarde des
+  // créateurs, le créateur regarde des briefs. Si chacun défilait sur l'autre,
+  // le créateur ouvrirait le défilé et verrait UNE marque.
+  const cotéMarque = cote === "marque";
+  const briefs = cotéMarque ? [] : await briefsDuDefile();
+  const createurs = cotéMarque ? await getMarketplaceCreators() : [];
 
   return (
     <div className="min-h-dvh bg-white">
@@ -50,7 +58,11 @@ export default async function PageDefile({
           C&apos;est quoi Collabbs&nbsp;?
         </Link>
       </header>
-      <Defile briefs={briefs} apercuMatch={apercu === "match"} />
+      {cotéMarque ? (
+        <DefileCreateurs createurs={createurs} />
+      ) : (
+        <Defile briefs={briefs} apercuMatch={apercu === "match"} />
+      )}
     </div>
   );
 }

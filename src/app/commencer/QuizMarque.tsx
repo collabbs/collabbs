@@ -123,8 +123,10 @@ export default function QuizMarque() {
         <p className="mt-6 text-[15px] leading-relaxed text-zinc-500">
           Voyons maintenant qui pourrait le porter.
         </p>
+        {/* Vers le DÉFILÉ, pas vers l'annuaire : une marque ne cherche pas
+            dans une liste avec des filtres, elle reconnaît quelqu'un. */}
         <Link
-          href="/creators"
+          href="/defile?cote=marque"
           className={`${BOUTON_PRINCIPAL} mt-5 flex items-center justify-center`}
         >
           Voir les créateurs
