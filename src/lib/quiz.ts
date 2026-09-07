@@ -85,9 +85,27 @@ export type CarteCreateur = {
   audience: TrancheId | null;
   niches: string[];
   offres: OfferId[];
-  /** Prix d'entrée en euros, tel que saisi. `null` tant qu'il n'est pas donné. */
-  prixMini: number | null;
+  /**
+   * Un prix PAR offre, en euros.
+   *
+   * Un seul « prix d'entrée » était faux : personne ne facture une vidéo UGC
+   * au même tarif qu'une vidéo postée sur son propre compte. Et deux des cinq
+   * formats — affiliation et performance — ne se facturent pas en euros du
+   * tout : ce sont des commissions. Leur demander un prix n'avait aucun sens.
+   *
+   * Le produit stocke déjà un prix par offre (`creator_offers.price`) : la
+   * carte peut donc devenir un vrai profil sans traduction.
+   */
+  prix: Partial<Record<OfferId, number>>;
 };
+
+/**
+ * Les formats qui se facturent au forfait.
+ *
+ * Les deux autres — affiliation, performance — se rémunèrent au pourcentage
+ * des ventes. On ne demande donc pas de prix pour eux, et on le dit.
+ */
+export const OFFRES_AU_FORFAIT: readonly OfferId[] = ["ugc", "post", "story"];
 
 export function carteCreateurVide(): CarteCreateur {
   return {
@@ -97,7 +115,7 @@ export function carteCreateurVide(): CarteCreateur {
     audience: null,
     niches: [],
     offres: [],
-    prixMini: null,
+    prix: {},
   };
 }
 
@@ -223,6 +241,10 @@ export function avancementCreateur(c: CarteCreateur): Avancement {
   if (!c.audience) manquants.push("ta taille d'audience");
   if (c.niches.length === 0) manquants.push("ta niche");
   if (c.offres.length === 0) manquants.push("ce que tu proposes");
+  const auForfait = c.offres.filter((o) => OFFRES_AU_FORFAIT.includes(o));
+  if (auForfait.length > 0 && auForfait.some((o) => c.prix[o] == null)) {
+    manquants.push("tes tarifs");
+  }
   const total = 5;
   const faits = total - manquants.length;
   return {
@@ -334,7 +356,16 @@ export function normaliserCarteCreateur(v: unknown): CarteCreateur {
         : null,
     niches: listeDeTextes(o.niches),
     offres: listeDeTextes(o.offres) as OfferId[],
-    prixMini: nombreOuNull(o.prixMini),
+    prix: (() => {
+      const brut = o.prix;
+      if (!brut || typeof brut !== "object") return {};
+      const propre: Partial<Record<OfferId, number>> = {};
+      for (const [cle, valeur] of Object.entries(brut as Record<string, unknown>)) {
+        const n = nombreOuNull(valeur);
+        if (n !== null) propre[cle as OfferId] = n;
+      }
+      return propre;
+    })(),
   };
 }
 

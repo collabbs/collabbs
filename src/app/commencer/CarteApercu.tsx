@@ -42,6 +42,12 @@ function teinte(graine: string): { de: string; vers: string } {
 export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
   const palier = libelleTranche(carte.audience);
   const offres = carte.offres.map((id) => OFFER_BY_ID[id]).filter(Boolean);
+  // Le plus bas des tarifs saisis. Les formats à la commission n'en ont pas,
+  // et c'est normal : ils ne se facturent pas au forfait.
+  const tarifs = Object.values(carte.prix).filter(
+    (p): p is number => typeof p === "number" && p > 0,
+  );
+  const prixMini = tarifs.length > 0 ? Math.min(...tarifs) : null;
   const pseudo = carte.handle ?? "ton.pseudo";
   const { de, vers } = teinte(pseudo);
 
@@ -63,9 +69,9 @@ export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
           ) : (
             <span />
           )}
-          {carte.prixMini !== null && (
+          {prixMini !== null && (
             <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black tabular-nums text-zinc-900">
-              dès {carte.prixMini.toLocaleString("fr-FR")} €
+              dès {prixMini.toLocaleString("fr-FR")} €
             </span>
           )}
         </div>
@@ -98,29 +104,42 @@ export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        {/* Chaque offre porte SON prix. Un tarif unique ne disait pas ce qu'il
+            couvrait ; là, une marque sait ce que coûte exactement ce qu'elle
+            veut. Les formats à la commission affichent « % ventes » plutôt
+            qu'un montant qui n'existe pas. */}
+        <div className="space-y-1">
           {offres.length > 0 ? (
-            offres.map((o) => (
-              <span
-                key={o.id}
-                className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/80"
-              >
-                {o.emoji} {o.short}
-              </span>
-            ))
+            offres.map((o) => {
+              const prix = carte.prix[o.id as keyof typeof carte.prix];
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-baseline justify-between gap-3 rounded-lg bg-white/10 px-2.5 py-1.5"
+                >
+                  <span className="text-[12px] font-medium text-white/85">
+                    {o.emoji} {o.short}
+                  </span>
+                  <span className="shrink-0 text-[12px] font-bold tabular-nums text-white">
+                    {typeof prix === "number"
+                      ? `${prix.toLocaleString("fr-FR")} €`
+                      : "% ventes"}
+                  </span>
+                </div>
+              );
+            })
           ) : (
-            <span className="rounded-full border border-dashed border-white/20 px-2.5 py-1 text-[11px] font-medium text-white/30">
+            <span className="inline-block rounded-lg border border-dashed border-white/20 px-2.5 py-1.5 text-[11px] font-medium text-white/30">
               ce que tu proposes
             </span>
           )}
         </div>
 
-        {/* L'absence de photo est nommée, avec ce qu'elle coûte. Un manque
-            expliqué se comble ; un trou se subit. */}
-        <p className="flex items-center gap-2 pt-1 text-[11px] leading-snug text-white/40">
-          <span className="text-sm">📷</span>
-          Ta photo viendra ici — c&apos;est elle qui décide si une marque
-          s&apos;arrête sur ton profil.
+        {/* L'absence de photo est nommée — un manque expliqué se comble, un
+            trou se subit — mais en une ligne : trois lignes de gris en bas de
+            carte pesaient plus que l'information qu'elles portaient. */}
+        <p className="pt-0.5 text-[11px] text-white/35">
+          📷 Ta photo manque — c&apos;est elle qui fait s&apos;arrêter une marque.
         </p>
       </div>
     </div>

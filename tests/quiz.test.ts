@@ -95,7 +95,7 @@ describe("avancementCreateur", () => {
       audience: "micro",
       niches: ["Sport"],
       offres: ["ugc"],
-      prixMini: 220,
+      prix: { ugc: 220 },
     });
     expect(a.pourcentage).toBe(100);
     expect(a.manquants).toEqual([]);
@@ -156,7 +156,7 @@ describe("premiereEtapeIncomplete", () => {
         audience: "micro",
         niches: ["Sport"],
         offres: ["ugc"],
-        prixMini: 220,
+        prix: { ugc: 220 },
       }),
     ).toBe(4);
   });
@@ -172,7 +172,7 @@ describe("réparation des contenus abîmés", () => {
     expect(r.niches).toEqual([]);
     expect(r.offres).toEqual([]);
     expect(r.handle).toBe("ines.fit");
-    expect(r.prixMini).toBeNull();
+    expect(r.prix).toEqual({});
   });
 
   it("survit à n'importe quoi", () => {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
-import { NICHES, OFFER_TYPES, type OfferId } from "@/components/landing/creators";
+import { NICHES, OFFER_TYPES, OFFER_BY_ID, type OfferId } from "@/components/landing/creators";
 import PlatformIcon from "@/components/PlatformIcon";
 import CarteApercu from "./CarteApercu";
 import {
@@ -14,6 +14,7 @@ import {
   avancementCreateur,
   carteCreateurVide,
   lireLienProfil,
+  OFFRES_AU_FORFAIT,
   normaliserCarteCreateur,
   premiereEtapeIncomplete,
   type CarteCreateur,
@@ -125,7 +126,7 @@ export default function QuizCreateur() {
     setCarte((p) => ({ ...p, ...patch }));
   };
 
-  const carteComplete = avancement.pourcentage === 100 && carte.prixMini !== null;
+  const carteComplete = avancement.pourcentage === 100;
 
   function validerLien() {
     const lu = lireLienProfil(lien, reseauChoisi ?? undefined);
@@ -344,41 +345,74 @@ export default function QuizCreateur() {
     },
 
     {
-      section: "Tes offres",
+      section: "Tes tarifs",
       titre: "Un tarif affiché t'évite les propositions à 20 €.",
-      aide: "Ton prix d'entrée, pour la prestation la plus simple.",
+      aide: "Un prix par format — une vidéo UGC ne se facture pas comme une vidéo postée sur ton compte.",
       contenu: (
         <div>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={carte.prixMini ?? ""}
-              onChange={(e) =>
-                maj({ prixMini: e.target.value === "" ? null : Number(e.target.value) })
-              }
-              placeholder="220"
-              className={`${CHAMP} text-2xl font-bold tabular-nums`}
-            />
-            <span className="text-2xl font-bold text-zinc-300">€</span>
+          {/* UN PRIX PAR FORMAT. Un « prix d'entrée » unique était faux :
+              personne ne facture une UGC au même tarif qu'une vidéo postée.
+              Et l'affiliation comme la performance ne se facturent PAS en
+              euros — ce sont des commissions. On ne leur demande donc rien,
+              et on explique pourquoi plutôt que de les taire. */}
+          <div className="grid gap-3">
+            {carte.offres
+              .filter((id) => OFFRES_AU_FORFAIT.includes(id))
+              .map((id) => {
+                const offre = OFFER_BY_ID[id];
+                if (!offre) return null;
+                return (
+                  <label key={id} className="block">
+                    <span className="text-[14px] font-medium text-zinc-600">
+                      {offre.emoji} {offre.label}
+                    </span>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={carte.prix[id] ?? ""}
+                        onChange={(e) =>
+                          maj({
+                            prix: {
+                              ...carte.prix,
+                              ...(e.target.value === ""
+                                ? { [id]: undefined }
+                                : { [id]: Number(e.target.value) }),
+                            },
+                          })
+                        }
+                        placeholder="220"
+                        className={`${CHAMP} text-xl font-bold tabular-nums`}
+                      />
+                      <span className="text-xl font-bold text-zinc-300">€</span>
+                    </div>
+                  </label>
+                );
+              })}
           </div>
 
-          {/* Repères sourcés plutôt qu'une fourchette inventée : ce sont ceux
-              de `REPERES_MARCHE`, relevés et datés. */}
-          <p className="mt-4 rounded-2xl bg-zinc-50 p-4 text-[13px] leading-relaxed text-zinc-500">
+          {carte.offres.some((id) => !OFFRES_AU_FORFAIT.includes(id)) && (
+            <p className="mt-4 rounded-xl bg-[#F4F1F5] p-4 text-[13px] leading-relaxed text-zinc-500">
+              L&apos;affiliation et le paiement à la performance ne se facturent
+              pas au forfait : tu touches un pourcentage des ventes, fixé par la
+              marque dans chaque campagne. Rien à indiquer ici.
+            </p>
+          )}
+
+          <p className="mt-4 rounded-xl bg-[#F4F1F5] p-4 text-[13px] leading-relaxed text-zinc-500">
             <strong className="font-semibold text-zinc-700">
               Tu ne sais pas quoi mettre&nbsp;?
             </strong>{" "}
-            Le prix moyen constaté en France pour une vidéo UGC de 30 secondes est
-            de 28 €, et les plateformes affichent une entrée de gamme à partir de
-            80 €. À toi de te situer.
+            Le prix moyen constaté en France pour une vidéo UGC de 30 secondes
+            est de 28 €, et les plateformes affichent une entrée de gamme à
+            partir de 80 €. À toi de te situer.
           </p>
 
           <button
             type="button"
             onClick={() => setRevelee(true)}
-            disabled={carte.prixMini === null}
+            disabled={avancement.pourcentage < 100}
             className={`${PRINCIPAL} mt-5`}
           >
             Voir ma carte
