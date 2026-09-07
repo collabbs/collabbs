@@ -46,11 +46,13 @@ export default function CarteBriefApercu({ carte }: { carte: CarteMarque }) {
             "linear-gradient(135deg, #18181b, #3b0764)",
         }}
       >
-        {carte.photos.length > 0 && (
+        {/* Le visuel RETENU, pas la première photo trouvée : la marque a pu
+            en choisir un autre, ou en coller un à elle. */}
+        {carte.visuel && (
           <>
             <div
               className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url("${carte.photos[0]}")` }}
+              style={{ backgroundImage: `url("${carte.visuel}")` }}
             />
             <div className="absolute inset-0 bg-black/35" />
           </>

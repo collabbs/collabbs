@@ -372,3 +372,24 @@ export async function visuelsDeMarque(url: string): Promise<string[]> {
 
   return [];
 }
+
+/**
+ * Le logo d'un domaine, via le service public de Google.
+ *
+ * Dernier filet quand le site lui-même est inaccessible. Il répond pour des
+ * domaines que nous ne pouvons pas joindre — Decathlon, par exemple, dont la
+ * protection bloque aussi bien notre lecture qu'un service de capture d'écran.
+ *
+ * On demande 256 px : en dessous, c'est un pictogramme, et une carte
+ * construite autour d'un pictogramme flou est pire qu'une carte sans image.
+ * Ça reste un LOGO, jamais une photo — donc un repli, pas une solution.
+ */
+export function logoDuDomaine(url: string): string | null {
+  try {
+    const hote = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    if (!hote) return null;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hote)}&sz=256`;
+  } catch {
+    return null;
+  }
+}

@@ -1,6 +1,6 @@
 "use server";
 
-import { identiteDuSite, visuelsDeMarque } from "@/lib/identite-site";
+import { identiteDuSite, visuelsDeMarque, logoDuDomaine } from "@/lib/identite-site";
 
 export type IdentiteLue = {
   logo: string | null;
@@ -28,7 +28,10 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
       identiteDuSite(url),
       visuelsDeMarque(url),
     ]);
-    return { logo: identite.image, couleur: identite.couleur, photos };
+    // Si le site n'a rien livré, on tente le service de logos par domaine :
+    // il répond pour des marques qu'on ne peut pas joindre du tout.
+    const logo = identite.image ?? logoDuDomaine(url);
+    return { logo, couleur: identite.couleur, photos };
   } catch {
     return { logo: null, couleur: null, photos: [] };
   }

@@ -122,8 +122,26 @@ describe("avancementMarque", () => {
       formats: ["affil"],
       remuneration: "commission",
       commission: 8,
+      visuel: "https://exemple.test/photo.jpg",
     });
     expect(a.pourcentage).toBe(100);
+  });
+
+  it("exige un visuel pour etre complet", () => {
+    // C'est cette règle qui rend la garantie possible : on ne peut pas
+    // garantir de TROUVER une image sur tous les sites — certains bloquent
+    // tout accès automatisé — mais on peut garantir qu'aucune campagne ne
+    // parte sans visuel.
+    const sansVisuel = avancementMarque({
+      ...carteMarqueVide(),
+      nom: "Lumi",
+      produit: "cosmétiques",
+      formats: ["affil"],
+      remuneration: "commission",
+      commission: 8,
+    });
+    expect(sansVisuel.pourcentage).toBeLessThan(100);
+    expect(sansVisuel.manquants).toContain("un visuel");
   });
 });
 

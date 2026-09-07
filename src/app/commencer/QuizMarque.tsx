@@ -6,6 +6,7 @@ import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import CarteBriefApercu from "./CarteBriefApercu";
 import { lireIdentiteMarque } from "./actions";
+import ChoixVisuel from "./ChoixVisuel";
 import {
   CLES_PARCOURS,
   CLE_COTE,
@@ -92,7 +93,14 @@ export default function QuizMarque() {
     setLectureEnCours(true);
     try {
       const lu = await lireIdentiteMarque(site);
-      maj({ logo: lu.logo, couleur: lu.couleur, photos: lu.photos });
+      maj({
+        logo: lu.logo,
+        couleur: lu.couleur,
+        photos: lu.photos,
+        // Pré-choisie : pour la plupart des marques, l'étape du visuel se
+        // traversera sans qu'elles aient rien à faire.
+        visuel: lu.photos[0] ?? lu.logo ?? null,
+      });
     } finally {
       setLectureEnCours(false);
     }
@@ -351,6 +359,29 @@ export default function QuizMarque() {
               </button>
             </div>
           )}
+        </div>
+      ),
+    },
+
+    {
+      section: "Ton visuel",
+      titre: "Un créateur regarde une image avant de lire un montant.",
+      aide: "C'est ce qui décide s'il s'arrête sur ta campagne ou s'il passe.",
+      contenu: (
+        <div>
+          <ChoixVisuel
+            photos={carte.photos}
+            choisie={carte.visuel}
+            onChoisir={(url) => maj({ visuel: url })}
+          />
+          <button
+            type="button"
+            onClick={() => setEtape(4)}
+            disabled={!carte.visuel}
+            className={`${PRINCIPAL} mt-5`}
+          >
+            Continuer
+          </button>
         </div>
       ),
     },

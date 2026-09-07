@@ -158,6 +158,16 @@ export type CarteMarque = {
   couleur: string | null;
   /** Photos trouvées sur la boutique ou la page d'accueil. */
   photos: string[];
+  /**
+   * Le visuel retenu pour la carte.
+   *
+   * ⚠️ C'est LUI qui rend la garantie possible. On ne peut pas garantir de
+   * trouver une image sur tous les sites — certains bloquent tout accès
+   * automatisé, et aucune astuce ne passe. Mais on peut garantir qu'aucune
+   * campagne ne parte sans visuel : il est exigé pour publier. Pour la plupart
+   * des marques il est déjà rempli, et l'étape se traverse sans y penser.
+   */
+  visuel: string | null;
 };
 
 export function carteMarqueVide(): CarteMarque {
@@ -174,6 +184,7 @@ export function carteMarqueVide(): CarteMarque {
     logo: null,
     couleur: null,
     photos: [],
+    visuel: null,
   };
 }
 
@@ -275,7 +286,8 @@ export function avancementMarque(c: CarteMarque): Avancement {
   if (c.remuneration && c.montant === null && c.commission === null) {
     manquants.push("le montant");
   }
-  const total = 5;
+  if (!c.visuel) manquants.push("un visuel");
+  const total = 6;
   const faits = Math.max(0, total - manquants.length);
   return {
     pourcentage: Math.round((faits / total) * 100),
@@ -320,7 +332,8 @@ export function premiereEtapeIncompleteMarque(c: CarteMarque): number {
   if (!c.nom || !c.produit) return 0;
   if (c.formats.length === 0) return 1;
   if (!c.remuneration || (c.montant === null && c.commission === null)) return 2;
-  return 3;
+  if (!c.visuel) return 3;
+  return 4;
 }
 
 /* ──────────────────────────────────────────────── contenus abîmés ──────── */
@@ -402,5 +415,6 @@ export function normaliserCarteMarque(v: unknown): CarteMarque {
     logo: texteOuNull(o.logo),
     couleur: texteOuNull(o.couleur),
     photos: listeDeTextes(o.photos),
+    visuel: texteOuNull(o.visuel),
   };
 }
