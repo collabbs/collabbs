@@ -189,50 +189,43 @@ export default function CarteBrief({
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* Fond propre à la campagne. Plus clair qu'avant : la carte servait de
-          faire-valoir à un grand vide sombre, alors qu'elle doit se lire. */}
+      {/* Fond : la teinte de la campagne, toujours.
+          J'avais d'abord mis l'image du site en fond plein cadre. Mauvaise
+          idée : une image de partage social est un BANDEAU LARGE, et la caler
+          dans une carte verticale donne un recadrage bancal — chez Gymshark,
+          une bande grise coupée au milieu du logo. Un logo se met dans une
+          pastille, pas en fond. Il est donc remonté près du nom de la marque,
+          où il fait ce qu'un logo fait : identifier. */}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(160deg, hsl(${h} 58% 26%), hsl(${(h + 40) % 360} 66% 44%))`,
+          background: brief.couleurMarque
+            ? `linear-gradient(160deg, ${brief.couleurMarque}, hsl(${(h + 40) % 360} 62% 38%))`
+            : `linear-gradient(160deg, hsl(${h} 58% 26%), hsl(${(h + 40) % 360} 66% 44%))`,
         }}
       />
       <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_20%_0%,rgba(255,255,255,.24),transparent_55%)]" />
 
-      {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher. */}
-      {!enArriere && (
-        <>
-          <span
-            style={{ opacity: dx > 0 ? intensite : 0 }}
-            className="pointer-events-none absolute left-6 top-8 z-20 -rotate-[14deg] rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-emerald-400"
-          >
-            Intéressé
-          </span>
-          <span
-            style={{ opacity: dx < 0 ? intensite : 0 }}
-            className="pointer-events-none absolute right-6 top-8 z-20 rotate-[14deg] rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-rose-400"
-          >
-            Passer
-          </span>
-        </>
-      )}
-
-      {/* ─── La hiérarchie, entièrement revue ───
-          Le nom de la marque était l'élément le plus GROS de la carte. Il ne
-          dit pourtant rien à un créateur — et tant qu'une seule marque publie,
-          toutes les cartes affichaient le même mot en géant. Le montant, lui,
-          était écrit petit, en bas.
-
-          C'est l'inverse : un créateur qui fait défiler se demande combien, et
-          pour quoi. Le montant devient donc le sujet, la mission vient juste
-          après, et la marque redescend au rang d'étiquette. */}
       {/* Voile bas : le texte reste lisible quelle que soit la teinte tirée. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
         {/* Étiquette du haut : qui, et quel type de collaboration. */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white backdrop-blur">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/20 py-1 pl-1 pr-3 text-[12px] font-bold text-white backdrop-blur">
+            {/* Le logo, tiré du site de la marque. `bg-contain` pour ne jamais
+                le recadrer, sur blanc parce que la plupart sont dessinés pour
+                un fond clair. */}
+            {brief.image ? (
+              <span
+                className="h-6 w-6 shrink-0 rounded-full bg-white bg-contain bg-center bg-no-repeat ring-1 ring-white/40"
+                style={{ backgroundImage: `url("${brief.image}")` }}
+              />
+            ) : (
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-black">
+                {brief.marque.slice(0, 1).toUpperCase()}
+              </span>
+            )}
             {brief.marque}
           </span>
           <span className="rounded-full bg-black/25 px-3 py-1 text-[12px] font-semibold text-white/85 backdrop-blur">

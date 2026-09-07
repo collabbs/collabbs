@@ -1,6 +1,21 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 import { demoVisible } from "./demo-data";
+import { identiteDuSite } from "./identite-site";
+import { unstable_cache } from "next/cache";
+
+/**
+ * L'identité d'un site, mise en cache 24 h.
+ *
+ * Sans cache, chaque affichage du défilé irait interroger tous les sites des
+ * marques : lent pour le visiteur, et impoli pour eux. Une identité visuelle
+ * ne change pas d'une heure à l'autre.
+ */
+const identiteEnCache = unstable_cache(
+  async (site: string) => identiteDuSite(site),
+  ["identite-site"],
+  { revalidate: 86_400 },
+);
 
 /**
  * Le paquet du défilé, côté créateur : des briefs, pas des marques.
@@ -43,6 +58,17 @@ export type BriefDefile = {
   /** Intitulés des niches visées, résolus côté serveur. */
   niches: string[];
   /**
+   * Image tirée du site de la marque, s'il en expose une.
+   *
+   * C'est ce qui remplit le haut de la carte, qui n'était qu'un aplat de
+   * couleur. On ne demande pas de logo au questionnaire — téléverser avant
+   * d'avoir un compte fait abandonner — mais une adresse se donne en une
+   * seconde. Voir `identite-site`.
+   */
+  image: string | null;
+  /** Couleur de thème du site, quand il en déclare une. */
+  couleurMarque: string | null;
+  /**
    * La marque a-t-elle déjà marqué son intérêt pour ce créateur ?
    *
    * C'est la SEULE chose qui déclenche un match. Faux pour l'instant : un
@@ -67,7 +93,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
   const requete = admin
     .from("campaigns")
     .select(
-      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, brands!inner(name, is_demo), campaign_niches(niche_id)",
+      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -83,6 +109,21 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
 
   if (error || !data) return [];
   const libelle = new Map((niches ?? []).map((n) => [n.id, n.label]));
+
+  // Une seule lecture par site, en parallèle : plusieurs campagnes d'une même
+  // marque ne doivent pas déclencher plusieurs requêtes.
+  const sites = [
+    ...new Set(
+      data
+        .map((c) => c.brands?.website)
+        .filter((w): w is string => typeof w === "string" && w.trim().length > 0),
+    ),
+  ];
+  const identites = new Map(
+    await Promise.all(
+      sites.map(async (site) => [site, await identiteEnCache(site)] as const),
+    ),
+  );
 
   return data.map((c) => ({
     id: c.id,
@@ -111,6 +152,10 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     niches: (c.campaign_niches ?? [])
       .map((n) => libelle.get(n.niche_id))
       .filter((l): l is string => Boolean(l)),
+    image: c.brands?.website ? (identites.get(c.brands.website)?.image ?? null) : null,
+    couleurMarque: c.brands?.website
+      ? (identites.get(c.brands.website)?.couleur ?? null)
+      : null,
     dejaInteressee: false,
   }));
 }
