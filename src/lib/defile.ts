@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 import { demoVisible } from "./demo-data";
-import { identiteDuSite, visuelsDeMarque } from "./identite-site";
+import { identiteDeMarque, visuelsDeMarque } from "./identite-site";
 import { unstable_cache } from "next/cache";
 
 /**
@@ -12,7 +12,7 @@ import { unstable_cache } from "next/cache";
  * ne change pas d'une heure à l'autre.
  */
 const identiteEnCache = unstable_cache(
-  async (site: string) => identiteDuSite(site),
+  async (site: string) => identiteDeMarque(site),
   ["identite-site"],
   { revalidate: 86_400 },
 );
@@ -178,7 +178,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     niches: (c.campaign_niches ?? [])
       .map((n) => libelle.get(n.niche_id))
       .filter((l): l is string => Boolean(l)),
-    image: c.brands?.website ? (identites.get(c.brands.website)?.image ?? null) : null,
+    image: c.brands?.website ? (identites.get(c.brands.website)?.logo ?? null) : null,
     couleurMarque: c.brands?.website
       ? (identites.get(c.brands.website)?.couleur ?? null)
       : null,

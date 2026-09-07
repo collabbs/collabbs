@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BriefDefile } from "@/lib/defile";
+import { assombrir, eclaircir, encreLisible, versRvb } from "@/lib/teinte";
 
 /**
  * Une carte du défilé — pleine hauteur, qu'on attrape et qu'on jette.
@@ -26,6 +27,12 @@ import type { BriefDefile } from "@/lib/defile";
 
 const SEUIL = 100;
 
+/** `#rrggbb` + opacité → `rgba(...)`, pour composer des voiles teintés. */
+function rgba(couleur: string, opacite: number): string {
+  const c = versRvb(couleur) ?? [0, 0, 0];
+  return `rgba(${c[0]},${c[1]},${c[2]},${opacite})`;
+}
+
 export type Direction = "gauche" | "droite";
 
 export function remunerationLisible(brief: BriefDefile) {
@@ -39,6 +46,69 @@ export function remunerationLisible(brief: BriefDefile) {
   }
   if (taux) return { gros: taux, petit: "de commission" };
   return null;
+}
+
+/**
+ * La pastille de marque : son logo, ou son initiale.
+ *
+ * ─── Pourquoi mesurer ───
+ * Le service de logos annonce 256 px mais rend ce qu'il a. Pour Sephora, c'est
+ * une icône de 16 px — étirée à 44, elle devient une tache floue, et rien ne
+ * dit « bâclé » aussi vite qu'un logo flou sur une carte qu'on veut premium.
+ *
+ * La taille réelle ne se connaît qu'une fois l'image chargée. On la charge
+ * donc à part pour la mesurer, et on retombe sur l'initiale quand elle est
+ * trop petite : une lettre nette vaut mieux qu'un logo sale.
+ */
+function Pastille({
+  logo,
+  marque,
+  encre,
+}: {
+  logo: string | null;
+  marque: string;
+  encre: string;
+}) {
+  // On retient l'adresse ÉCARTÉE, pas un booléen : un booléen devrait être
+  // remis à vrai à chaque changement de logo, donc modifié depuis l'effet —
+  // ce qui déclenche un rendu en cascade. Comparer deux adresses se lit sans
+  // état intermédiaire, et une carte qui change de marque repart juste.
+  const [ecarte, setEcarte] = useState<string | null>(null);
+  const utilisable = logo !== null && logo !== ecarte;
+
+  useEffect(() => {
+    if (!logo) return;
+    const img = new window.Image();
+    // 64 px : il en faut le double des 44 px affichés pour rester net sur un
+    // écran à haute densité, ce qu'est tout téléphone.
+    img.onload = () => {
+      if (img.naturalWidth < 64) setEcarte(logo);
+    };
+    img.onerror = () => setEcarte(logo);
+    img.src = logo;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [logo]);
+
+  if (logo && utilisable) {
+    return (
+      <span
+        className="h-11 w-11 shrink-0 rounded-xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_4px_16px_-4px_rgba(0,0,0,.6)]"
+        style={{ backgroundImage: `url("${logo}")` }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black backdrop-blur"
+      style={{ background: rgba(encre, 0.2), color: encre }}
+    >
+      {marque.slice(0, 1).toUpperCase()}
+    </span>
+  );
 }
 
 export default function CarteBrief({
@@ -126,6 +196,33 @@ export default function CarteBrief({
         ]
       : null;
 
+  /* ─── La palette de CETTE marque ───
+     Tout ce qui suit se calcule à partir d'une seule couleur reçue : le fond,
+     la lueur, l'assombrissement et l'encre. Rien n'est fixé en dur, sinon la
+     carte irait bien avec une marque et mal avec les vingt autres. */
+  const base = brief.couleurMarque ?? "#1b1b21";
+  const clair = eclaircir(base, 0.36);
+  const sombre = assombrir(base, 0.62);
+  // Sur une photo, le blanc s'impose : on ne sait pas ce qu'elle contient.
+  // Sur un aplat, l'encre se déduit de la luminance — une marque au jaune vif
+  // aurait rendu le texte blanc illisible.
+  const encre = photo ? "#ffffff" : encreLisible(sombre);
+  const attenue = (o: number) => rgba(encre, o);
+  // Deux encres, pas une : le bas de la carte est assombri, le haut non. Sur
+  // une marque claire — le vert de Leroy Merlin — le blanc tenait en bas et
+  // devenait illisible en haut. L'encre se décide donc pour chaque zone, sur
+  // le fond qu'elle a réellement sous elle.
+  const encreHaut = photo ? "#ffffff" : encreLisible(base);
+
+  // Le montant est le sujet de la carte sans photo : il occupe la place que
+  // l'image occupait. Mais « 12 000 € » et « 400 € » n'ont pas la même
+  // longueur — une taille fixe déborderait ou flotterait.
+  const tailleMontant = (() => {
+    if (photo) return 62;
+    const n = remuneration?.gros.length ?? 0;
+    return n > 7 ? 64 : n > 5 ? 78 : 92;
+  })();
+
   const transform = sortieEffective
     ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
     : enArriere
@@ -177,17 +274,38 @@ export default function CarteBrief({
         </>
       ) : (
         <>
-          <div className="absolute inset-0 bg-ink" />
+          {/* ═══ QUAND IL N'Y A PAS DE PHOTO ═══
+
+              Avant : `bg-ink` et une lueur violet/rose. Une couleur inventée,
+              la MÊME pour Decathlon et pour Sephora — donc un fond par défaut,
+              et ça se voit. C'est ce que Julien a signalé : « ça va pas du
+              tout ».
+
+              Ces deux sites répondent 403 à tout accès automatisé, y compris
+              en se présentant comme un navigateur. Aucune photo n'en sortira
+              jamais. Mais leur LOGO reste joignable, et un logo contient la
+              couleur de la marque : on la lit dans ses pixels
+              (`couleurDominante`). Decathlon redevient bleu, Leroy Merlin
+              vert, et Sephora reste noir — parce que Sephora EST noir.
+
+              Le fond est donc un aplat de cette couleur, éclairé en haut et
+              assombri en bas dans SA propre teinte. Plus de voile noir : il
+              transformait chaque marque en la même bouillie grise. */}
+          <div className="absolute inset-0" style={{ background: base }} />
           <div
             aria-hidden
-            className="lueur-carte absolute left-1/2 top-[32%] h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
+            className="absolute inset-0"
             style={{
-              background:
-                "radial-gradient(circle, rgba(168,85,247,.85) 0%, rgba(236,72,153,.35) 50%, transparent 72%)",
-              filter: "blur(46px)",
+              background: `radial-gradient(120% 80% at 22% 10%, ${rgba(clair, 0.9)} 0%, ${rgba(clair, 0)} 62%)`,
             }}
           />
-          <div className="absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-black via-black/60 to-transparent" />
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-[68%]"
+            style={{
+              background: `linear-gradient(to top, ${rgba(sombre, 0.96)} 0%, ${rgba(sombre, 0.6)} 38%, ${rgba(sombre, 0)} 100%)`,
+            }}
+          />
         </>
       )}
 
@@ -211,8 +329,12 @@ export default function CarteBrief({
         </>
       )}
 
-      {/* Voile bas : le texte reste lisible quelle que soit la teinte tirée. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
+      {/* Voile bas — seulement sous une photo : elle peut être claire là où le
+          texte se pose. La carte colorée a déjà son propre assombrissement,
+          dans sa teinte ; lui superposer du noir la ternissait. */}
+      {photo && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
+      )}
 
       {/* ─── UNE AFFICHE, PAS UNE FICHE ───
 
@@ -229,17 +351,14 @@ export default function CarteBrief({
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-5">
         {/* Le logo en haut, petit : il identifie, il n'occupe plus la carte. */}
         <div className="flex items-center gap-2.5">
-          {brief.image ? (
-            <span
-              className="h-11 w-11 shrink-0 rounded-xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_4px_16px_-4px_rgba(0,0,0,.6)]"
-              style={{ backgroundImage: `url("${brief.image}")` }}
-            />
-          ) : (
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 font-display text-lg font-black text-white backdrop-blur">
-              {brief.marque.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          <span className="font-display truncate text-[18px] font-black tracking-tight text-white [text-shadow:0_2px_10px_rgba(0,0,0,.6)]">
+          <Pastille logo={brief.image} marque={brief.marque} encre={encreHaut} />
+          <span
+            className="font-display truncate text-[18px] font-black tracking-tight"
+            style={{
+              color: encreHaut,
+              textShadow: photo ? "0 2px 10px rgba(0,0,0,.6)" : "none",
+            }}
+          >
             {brief.marque}
           </span>
           {brief.dejaInteressee && (
@@ -249,23 +368,52 @@ export default function CarteBrief({
           )}
         </div>
 
-        {/* Le montant, posé sur la photo. */}
+        {/* Ce qu'on gagne. Sur une carte sans photo, c'est LE sujet : le
+            montant prend la place que l'image aurait prise, précédé d'une
+            règle et d'un mot qui en font une offre plutôt qu'un nombre. */}
         <div>
+          {!photo && (
+            <>
+              <div className="h-px w-14" style={{ background: attenue(0.45) }} />
+              <p
+                className="mb-2 mt-3 text-[11px] font-bold uppercase tracking-[0.2em]"
+                style={{ color: attenue(0.6) }}
+              >
+                Tu gagnes
+              </p>
+            </>
+          )}
+
           {remuneration ? (
             <>
-              <p className="font-display text-[62px] font-black leading-[0.85] tracking-[-0.05em] text-white [text-shadow:0_4px_24px_rgba(0,0,0,.7)] [overflow-wrap:anywhere]">
+              <p
+                className="font-display font-black leading-[0.85] tracking-[-0.05em] [overflow-wrap:anywhere]"
+                style={{
+                  fontSize: `${tailleMontant}px`,
+                  color: encre,
+                  textShadow: photo ? "0 4px 24px rgba(0,0,0,.7)" : "none",
+                }}
+              >
                 {remuneration.gros}
               </p>
-              <p className="mt-1 text-[14px] font-bold text-white/75">{remuneration.petit}</p>
+              <p className="mt-1 text-[14px] font-bold" style={{ color: attenue(0.75) }}>
+                {remuneration.petit}
+              </p>
             </>
           ) : (
-            <p className="font-display text-[38px] font-black leading-none tracking-tight text-white/80">
+            <p
+              className="font-display text-[38px] font-black leading-none tracking-tight"
+              style={{ color: attenue(0.8) }}
+            >
               À négocier
             </p>
           )}
 
           {brief.titre && (
-            <p className="mt-3 line-clamp-2 text-[16px] font-semibold leading-snug text-white/90">
+            <p
+              className="mt-3 line-clamp-2 text-[16px] font-semibold leading-snug"
+              style={{ color: attenue(0.9) }}
+            >
               {brief.titre}
             </p>
           )}
@@ -275,7 +423,8 @@ export default function CarteBrief({
               {brief.niches.slice(0, 3).map((n) => (
                 <span
                   key={n}
-                  className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur"
+                  className="rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur"
+                  style={{ background: attenue(0.18), color: encre }}
                 >
                   {n}
                 </span>

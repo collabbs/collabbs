@@ -1,5 +1,6 @@
 import "server-only";
 import { verifierUrlPublique, MAX_REDIRECTIONS } from "./url-publique";
+import { couleurDominante, type CouleurLogo } from "./couleur-image";
 
 /**
  * Récupérer l'identité visuelle d'une marque depuis son site.
@@ -392,4 +393,72 @@ export function logoDuDomaine(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * La couleur de la marque, lue dans les pixels de son logo.
+ *
+ * ─── Pourquoi passer par le logo ───
+ * `theme-color` répond pour les sites qui nous laissent lire leur page. Or
+ * c'est précisément sur ceux qui refusent — les grosses enseignes, protection
+ * anti-robot — qu'on n'a rien d'autre à montrer. Leur logo, lui, reste
+ * joignable par le service de favicons.
+ *
+ * Ne lève jamais et ne bloque jamais : sans couleur, la carte garde son
+ * traitement neutre, exactement comme avant.
+ */
+export async function couleurDuLogo(urlLogo: string): Promise<CouleurLogo | null> {
+  const controle = await verifierUrlPublique(urlLogo);
+  if (!controle.ok) return null;
+  try {
+    const r = await fetch(controle.url, {
+      redirect: "follow",
+      headers: { "User-Agent": AGENT },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    const type = r.headers.get("content-type") ?? "";
+    if (!type.startsWith("image/")) return null;
+    // Une icône dépasse rarement 100 ko. Au-delà, ce n'est pas ce qu'on croit
+    // lire, et on ne veut pas décompresser n'importe quoi en mémoire.
+    const octets = new Uint8Array(await r.arrayBuffer());
+    if (octets.length > 400_000) return null;
+    return couleurDominante(octets);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * L'identité d'une marque, telle que la carte en a besoin : un logo et une
+ * couleur, chacun avec son repli.
+ *
+ * Écrite parce que le questionnaire et le défilé enchaînaient les mêmes appels
+ * chacun de leur côté — et pas tout à fait : le défilé n'essayait pas le
+ * service de logos, donc une marque injoignable y perdait son logo alors que
+ * le questionnaire le trouvait. Une seule fonction, un seul comportement.
+ */
+export async function identiteDeMarque(
+  url: string,
+): Promise<{ logo: string | null; couleur: string | null }> {
+  const site = await identiteDuSite(url);
+  const parDomaine = logoDuDomaine(url);
+  const logo = site.image ?? parDomaine;
+
+  // La couleur déclarée par le site prime : c'est la marque qui l'a choisie.
+  // Faute de quoi on la lit dans les pixels de son logo.
+  let couleur = site.couleur;
+  if (!couleur && logo) couleur = (await couleurDuLogo(logo))?.couleur ?? null;
+
+  // Second essai, sur le logo du service de domaines.
+  //
+  // Le logo que le site expose lui-même est souvent un `.ico` ou un `.svg` —
+  // deux formats qu'on ne décode pas. Sans ce rattrapage, Sephora ressortait
+  // sans couleur alors que son logo était parfaitement lisible ailleurs : on
+  // butait sur le format, pas sur la marque. Le service, lui, rend un PNG.
+  if (!couleur && parDomaine && parDomaine !== logo) {
+    couleur = (await couleurDuLogo(parDomaine))?.couleur ?? null;
+  }
+
+  return { logo, couleur };
 }
