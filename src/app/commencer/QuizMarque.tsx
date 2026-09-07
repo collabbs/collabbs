@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import CarteBriefApercu from "./CarteBriefApercu";
+import { lireIdentiteMarque } from "./actions";
 import {
   CLES_PARCOURS,
   CLE_COTE,
@@ -76,6 +77,26 @@ export default function QuizMarque() {
   const carte = normaliserCarteMarque(carteBrute);
   const [etapeChoisie, setEtapeChoisie] = useState<number | null>(null);
   const [revelee, setRevelee] = useState(false);
+  const [lectureEnCours, setLectureEnCours] = useState(false);
+
+  /**
+   * Va chercher l'identité du site quand la marque sort du champ.
+   *
+   * C'est le moment où le questionnaire cesse d'être un formulaire : elle voit
+   * son logo et ses photos apparaître sur sa carte pendant qu'elle répond.
+   * Silencieux en cas d'échec — un site qui ne répond pas ne doit bloquer
+   * personne, la carte retombe sur son traitement graphique.
+   */
+  async function lireLeSite(site: string) {
+    if (!site.trim()) return;
+    setLectureEnCours(true);
+    try {
+      const lu = await lireIdentiteMarque(site);
+      maj({ logo: lu.logo, couleur: lu.couleur, photos: lu.photos });
+    } finally {
+      setLectureEnCours(false);
+    }
+  }
 
   const etape = etapeChoisie ?? premiereEtapeIncompleteMarque(carte);
   const setEtape = setEtapeChoisie;
@@ -183,6 +204,31 @@ export default function QuizMarque() {
             placeholder="Des soins visage bio, fabriqués en France"
             className={CHAMP}
           />
+
+          {/* L'adresse du site : la SEULE saisie qui habille la carte. On y lit
+              le logo, la couleur de marque et les photos produit — une marque
+              n'a rien à téléverser. */}
+          <div>
+            <input
+              type="text"
+              inputMode="url"
+              value={carte.site ?? ""}
+              onChange={(e) => maj({ site: e.target.value || null })}
+              onBlur={(e) => lireLeSite(e.target.value)}
+              placeholder="lumicosmetics.fr"
+              className={CHAMP}
+            />
+            <p className="mt-2 text-[13px] leading-snug text-zinc-500">
+              {lectureEnCours
+                ? "On regarde ton site…"
+                : carte.photos.length > 0
+                  ? `${carte.photos.length} visuels récupérés depuis ton site — ils habillent ta carte.`
+                  : carte.logo
+                    ? "Logo récupéré depuis ton site."
+                    : "On y récupère ton logo et tes photos. Rien à téléverser."}
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() => setEtape(1)}

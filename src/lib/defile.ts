@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 import { demoVisible } from "./demo-data";
-import { identiteDuSite } from "./identite-site";
+import { identiteDuSite, visuelsDeMarque } from "./identite-site";
 import { unstable_cache } from "next/cache";
 
 /**
@@ -14,6 +14,20 @@ import { unstable_cache } from "next/cache";
 const identiteEnCache = unstable_cache(
   async (site: string) => identiteDuSite(site),
   ["identite-site"],
+  { revalidate: 86_400 },
+);
+
+/**
+ * Les visuels de la marque, mis en cache pour les mêmes raisons.
+ *
+ * `visuelsDeMarque` essaie du plus riche au plus pauvre : catalogue de la
+ * boutique d'abord, images de la page d'accueil ensuite. Mesuré sur huit
+ * marques françaises : cinq rendent de vraies images, six rendent quelque
+ * chose. Les deux qui ne rendent rien bloquent tout accès automatisé.
+ */
+const photosEnCache = unstable_cache(
+  async (site: string) => visuelsDeMarque(site),
+  ["visuels-marque"],
   { revalidate: 86_400 },
 );
 
@@ -68,6 +82,15 @@ export type BriefDefile = {
   image: string | null;
   /** Couleur de thème du site, quand il en déclare une. */
   couleurMarque: string | null;
+  /**
+   * Photos produit de la marque, quand sa boutique les publie.
+   *
+   * C'est le seul élément qui donne vraiment envie de s'arrêter : un logo
+   * identifie, une photo montre des gens qui portent, tiennent, utilisent.
+   * Vide quand la marque n'est pas sur une boutique qui les expose — la carte
+   * retombe alors sur son traitement graphique.
+   */
+  photos: string[];
   /**
    * La marque a-t-elle déjà marqué son intérêt pour ce créateur ?
    *
@@ -124,6 +147,9 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
       sites.map(async (site) => [site, await identiteEnCache(site)] as const),
     ),
   );
+  const photos = new Map(
+    await Promise.all(sites.map(async (site) => [site, await photosEnCache(site)] as const)),
+  );
 
   return data.map((c) => ({
     id: c.id,
@@ -156,6 +182,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     couleurMarque: c.brands?.website
       ? (identites.get(c.brands.website)?.couleur ?? null)
       : null,
+    photos: c.brands?.website ? (photos.get(c.brands.website) ?? []) : [],
     dejaInteressee: false,
   }));
 }

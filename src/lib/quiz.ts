@@ -150,6 +150,14 @@ export type CarteMarque = {
   commission: number | null;
   /** Échéance au format AAAA-MM-JJ. */
   echeance: string | null;
+  /** Adresse du site. C'est la SEULE chose à saisir pour avoir un visuel. */
+  site: string | null;
+  /** Logo lu sur le site. Renseigné automatiquement. */
+  logo: string | null;
+  /** Couleur de thème lue sur le site. */
+  couleur: string | null;
+  /** Photos trouvées sur la boutique ou la page d'accueil. */
+  photos: string[];
 };
 
 export function carteMarqueVide(): CarteMarque {
@@ -162,6 +170,10 @@ export function carteMarqueVide(): CarteMarque {
     montant: null,
     commission: null,
     echeance: null,
+    site: null,
+    logo: null,
+    couleur: null,
+    photos: [],
   };
 }
 
@@ -386,5 +398,9 @@ export function normaliserCarteMarque(v: unknown): CarteMarque {
     montant: nombreOuNull(o.montant),
     commission: nombreOuNull(o.commission),
     echeance: texteOuNull(o.echeance),
+    site: texteOuNull(o.site),
+    logo: texteOuNull(o.logo),
+    couleur: texteOuNull(o.couleur),
+    photos: listeDeTextes(o.photos),
   };
 }

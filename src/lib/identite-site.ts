@@ -218,3 +218,157 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
 }
 
 export { MAX_REDIRECTIONS };
+
+
+/* ══════════════════════════════════════════════ photos de produit ═══════ */
+
+/**
+ * Les photos produit d'une boutique Shopify.
+ *
+ * ─── Pourquoi ça change tout ───
+ * L'identité d'un site donne un LOGO. Un logo sur une carte, c'est mieux qu'un
+ * aplat, mais ça n'accroche pas l'œil : il n'y a ni humain, ni matière, ni
+ * rien à regarder. Les photos produit, elles, montrent des gens qui portent le
+ * vêtement, tiennent l'objet, utilisent le service. C'est ce qui fait s'arrêter
+ * dans un fil.
+ *
+ * Shopify expose `/products.json` publiquement, sans authentification, sur
+ * toute boutique — et une grande part des marques qui cherchent des créateurs
+ * sont dessus. On demande donc, poliment, ce que la boutique publie déjà.
+ *
+ * ─── Le détail qui décide ───
+ * `www.gymshark.com/products.json` répond 403 (protection anti-robot sur le
+ * domaine principal) là où `gymshark.com/products.json` répond 200. On essaie
+ * donc les deux formes : c'est la différence entre aucune image et cinquante.
+ *
+ * ─── Ce qu'on ne fait pas ───
+ * Aucune image n'est rapatriée : on garde les URL du CDN de la marque. Et on
+ * s'arrête à quelques produits — on ne moissonne pas un catalogue.
+ */
+export async function photosProduit(url: string, combien = 6): Promise<string[]> {
+  let origine: URL;
+  try {
+    origine = new URL(url);
+  } catch {
+    return [];
+  }
+
+  // Sans `www` d'abord : c'est la forme qui passe le plus souvent.
+  const hotes = [origine.hostname.replace(/^www\./, ""), origine.hostname];
+
+  for (const hote of [...new Set(hotes)]) {
+    const cible = `https://${hote}/products.json?limit=${Math.min(combien * 3, 30)}`;
+    const controle = await verifierUrlPublique(cible);
+    if (!controle.ok) continue;
+
+    try {
+      const r = await fetch(controle.url, {
+        redirect: "follow",
+        headers: { "User-Agent": AGENT, Accept: "application/json" },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!r.ok) continue;
+      if (!(r.headers.get("content-type") ?? "").includes("json")) continue;
+
+      const data: unknown = await r.json();
+      const produits = (data as { products?: unknown[] })?.products;
+      if (!Array.isArray(produits)) continue;
+
+      const images = produits
+        .map((p) => {
+          const img = (p as { images?: { src?: string }[] })?.images?.[0]?.src;
+          return typeof img === "string" ? img : null;
+        })
+        .filter((src): src is string => src !== null && src.startsWith("https://"));
+
+      if (images.length > 0) return images.slice(0, combien);
+    } catch {
+      /* boutique injoignable ou format inattendu : on essaie l'autre forme */
+    }
+  }
+
+  return [];
+}
+
+
+/**
+ * Les images d'une page d'accueil, en dernier recours.
+ *
+ * Toutes les marques ne sont pas sur Shopify. Mais toute page d'accueil de
+ * marque est pleine de photos — c'est même sa raison d'être. On les récupère
+ * donc directement du HTML quand le catalogue n'est pas exposé.
+ *
+ * Le tri est l'essentiel : une page contient aussi des pictogrammes, des
+ * drapeaux, des logos de moyens de paiement, des pixels de suivi. On écarte
+ * donc tout ce qui ressemble à de l'interface, et on ne garde que ce qui a une
+ * chance d'être une photo — les CDN d'images ayant l'habitude d'annoncer une
+ * largeur dans l'URL, on s'en sert quand elle est là.
+ */
+const REJETS = /sprite|icon|logo|favicon|badge|flag|payment|placeholder|pixel|1x1|blank|avatar|arrow|chevron|social|\.svg($|\?)/i;
+
+export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]> {
+  const verdict = await verifierUrlPublique(url);
+  if (!verdict.ok) return [];
+
+  let html: string;
+  let base: URL;
+  try {
+    const r = await fetch(verdict.url, {
+      redirect: "follow",
+      headers: { "User-Agent": AGENT, Accept: "text/html" },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return [];
+    base = new URL(r.url);
+    html = (await r.text()).slice(0, 400_000);
+  } catch {
+    return [];
+  }
+
+  const candidats: string[] = [];
+  // `src`, mais aussi les attributs de chargement différé : les sites lourds
+  // en photos les mettent presque tous en `data-src`, et s'en tenir à `src`
+  // ne rendrait que les pictogrammes.
+  const motif = /<img[^>]+(?:data-src|data-lazy-src|src)=["']([^"']+)["']/gi;
+  let m: RegExpExecArray | null;
+  while ((m = motif.exec(html)) !== null && candidats.length < 120) {
+    candidats.push(m[1]);
+  }
+
+  const vues = new Set<string>();
+  const gardees: string[] = [];
+  for (const brut of candidats) {
+    if (REJETS.test(brut)) continue;
+    let abs: string;
+    try {
+      const u = new URL(brut, base);
+      if (u.protocol === "http:") u.protocol = "https:";
+      if (u.protocol !== "https:") continue;
+      abs = u.toString();
+    } catch {
+      continue;
+    }
+    if (vues.has(abs)) continue;
+    vues.add(abs);
+    gardees.push(abs);
+    if (gardees.length >= combien) break;
+  }
+  return gardees;
+}
+
+/**
+ * Le visuel d'une marque, par ordre de préférence.
+ *
+ * C'est la chaîne complète : on essaie du plus riche au plus pauvre, et on
+ * s'arrête au premier qui donne quelque chose. Une marque n'a qu'UNE chose à
+ * fournir — son adresse — et le reste se débrouille.
+ */
+export async function visuelsDeMarque(url: string): Promise<string[]> {
+  const catalogue = await photosProduit(url);
+  if (catalogue.length > 0) return catalogue;
+
+  const page = await imagesDeLaPage(url);
+  if (page.length > 0) return page;
+
+  return [];
+}

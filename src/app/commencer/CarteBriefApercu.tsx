@@ -36,13 +36,37 @@ export default function CarteBriefApercu({ carte }: { carte: CarteMarque }) {
 
   return (
     <div className="w-full overflow-hidden rounded-3xl border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,.04),0_24px_48px_-28px_rgba(0,0,0,.35)]">
-      {/* Bandeau sombre : la marque, en contexte. Pas de logo demandé dans le
-          questionnaire — même raison que la photo côté créateur, c'est le
-          téléversement qui fait abandonner. */}
-      <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-purple-950 to-zinc-900">
-        <p className="px-4 text-center font-display text-lg font-black leading-tight tracking-tight text-white">
-          {carte.nom || <span className="text-white/30">Ta marque</span>}
-        </p>
+      {/* Ce qui a été lu sur le site : une photo en fond, le logo par-dessus.
+          Rien n'est téléversé — la marque a donné son adresse, c'est tout. */}
+      <div
+        className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl"
+        style={{
+          background:
+            carte.couleur ??
+            "linear-gradient(135deg, #18181b, #3b0764)",
+        }}
+      >
+        {carte.photos.length > 0 && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url("${carte.photos[0]}")` }}
+            />
+            <div className="absolute inset-0 bg-black/35" />
+          </>
+        )}
+
+        <div className="relative flex items-center gap-2 px-4">
+          {carte.logo && (
+            <span
+              className="h-8 w-8 shrink-0 rounded-lg bg-white bg-contain bg-center bg-no-repeat"
+              style={{ backgroundImage: `url("${carte.logo}")` }}
+            />
+          )}
+          <p className="truncate text-center font-display text-lg font-black leading-tight tracking-tight text-white [text-shadow:0_2px_8px_rgba(0,0,0,.6)]">
+            {carte.nom || <span className="text-white/30">Ta marque</span>}
+          </p>
+        </div>
       </div>
 
       <div className="px-1 pb-1 pt-3">
