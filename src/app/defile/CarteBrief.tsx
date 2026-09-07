@@ -35,16 +35,6 @@ const LIBELLES_TYPE: Record<string, string> = {
   cpa_tiers: "Paliers",
 };
 
-/** Le signe du format, en filigrane géant derrière le contenu. */
-const SIGNE_TYPE: Record<string, string> = {
-  video: "▶",
-  ugc: "◉",
-  affiliation: "↗",
-  performance: "▲",
-  hybrid: "◈",
-  cpa_tiers: "≡",
-};
-
 /**
  * Une teinte par campagne, dérivée de son identifiant.
  *
