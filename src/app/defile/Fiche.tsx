@@ -3,6 +3,7 @@
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import type { BriefDefile } from "@/lib/defile";
+import { LIBELLES_TYPE } from "@/lib/collaboration";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 import { remunerationLisible } from "./CarteBrief";
 
@@ -81,6 +82,11 @@ export function FicheBrief({
       <h2 className="font-display mt-2 text-[26px] font-black leading-[1.12] tracking-tight text-ink">
         {brief.titre ?? "Collaboration"}
       </h2>
+      {/* Le type ne figure plus sur la carte — une affiche se voit, elle ne se
+          lit pas — mais il reste nécessaire pour comprendre ce qu'on signe. */}
+      <span className="mt-3 inline-block rounded-full bg-purple-50 px-3 py-1 text-[12px] font-semibold text-purple-700">
+        {LIBELLES_TYPE[brief.type] ?? brief.type}
+      </span>
 
       {remuneration && (
         <p className="mt-5 font-display text-4xl font-black leading-none tabular-nums tracking-tight text-ink">

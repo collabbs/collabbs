@@ -26,15 +26,6 @@ import type { BriefDefile } from "@/lib/defile";
 
 const SEUIL = 100;
 
-const LIBELLES_TYPE: Record<string, string> = {
-  video: "Vidéo postée",
-  ugc: "Contenu UGC",
-  affiliation: "Affiliation",
-  performance: "Performance",
-  hybrid: "Fixe + commission",
-  cpa_tiers: "Paliers",
-};
-
 /**
  * Une teinte par campagne, dérivée de son identifiant.
  *
@@ -51,32 +42,6 @@ function teinte(graine: string): { h: number } {
 }
 
 export type Direction = "gauche" | "droite";
-
-/**
- * Deux textes disent-ils la même chose ?
- *
- * Les campagnes s'intitulent souvent comme leur propre description
- * (« Forfait garanti + commission » / « Un forfait garanti, plus une
- * commission… »). Empiler les deux donne une carte remplie au kilomètre.
- * Comparaison volontairement grossière — sans accents, sans ponctuation, sans
- * mots vides : on cherche une redite évidente, pas une similarité fine.
- */
-function redit(a: string | null, b: string | null): boolean {
-  if (!a || !b) return false;
-  const nettoyer = (t: string) =>
-    t
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9 ]/g, " ")
-      .split(/\s+/)
-      .filter((m) => m.length > 3);
-  const motsA = new Set(nettoyer(a));
-  const motsB = nettoyer(b);
-  if (motsA.size === 0 || motsB.length === 0) return false;
-  const communs = motsB.filter((m) => motsA.has(m)).length;
-  return communs / motsB.length > 0.6;
-}
 
 export function remunerationLisible(brief: BriefDefile) {
   const c = brief.commission;
@@ -275,31 +240,34 @@ export default function CarteBrief({
       {/* Voile bas : le texte reste lisible quelle que soit la teinte tirée. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
 
+      {/* ─── UNE AFFICHE, PAS UNE FICHE ───
+
+          Le défilé n'est pas qu'une fonctionnalité : c'est ce qui se filme et
+          se capture pour faire venir du monde. Une carte couverte de texte ne
+          se partage pas.
+
+          Tout ce qui se lit a donc été retiré : la description, le nombre de
+          places, l'audience minimale, l'invitation à toucher. Ça n'est pas
+          perdu — c'est dans la fiche, qui s'ouvre d'une pression, et qui
+          existe précisément pour que la carte n'ait pas à tout porter.
+
+          Il ne reste que ce qui se voit en une seconde : QUI, COMBIEN, QUOI. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
-        {/* ─── La marque, en grand ───
-            Elle était réduite à une pastille de 12 px. Un créateur doit
-            RECONNAÎTRE la marque avant de décider : c'est la première chose
-            qu'il regarde, avant même le montant. Logo à 48 px sur fond blanc
-            (la plupart sont dessinés pour un fond clair), nom à côté. */}
+        {/* Qui. */}
         <div className="flex items-center gap-3">
           {brief.image ? (
             <span
-              className="h-12 w-12 shrink-0 rounded-2xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_4px_14px_-4px_rgba(0,0,0,.5)] ring-1 ring-white/50"
+              className="h-14 w-14 shrink-0 rounded-2xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_6px_18px_-4px_rgba(0,0,0,.55)] ring-1 ring-white/50"
               style={{ backgroundImage: `url("${brief.image}")` }}
             />
           ) : (
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 font-display text-xl font-black text-white backdrop-blur">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 font-display text-2xl font-black text-white backdrop-blur">
               {brief.marque.slice(0, 1).toUpperCase()}
             </span>
           )}
-          <div className="min-w-0">
-            <p className="truncate font-display text-[19px] font-black leading-tight tracking-tight text-white">
-              {brief.marque}
-            </p>
-            <p className="text-[12px] font-medium text-white/60">
-              {LIBELLES_TYPE[brief.type] ?? brief.type}
-            </p>
-          </div>
+          <p className="min-w-0 truncate font-display text-[22px] font-black leading-tight tracking-tight text-white">
+            {brief.marque}
+          </p>
           {brief.dejaInteressee && (
             <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
               T&apos;a repéré
@@ -307,82 +275,41 @@ export default function CarteBrief({
           )}
         </div>
 
-        {/* Le contenu est ancré EN BAS, pas centré. Centré, il laissait un
-            vide égal au-dessus et au-dessous, ce qui donnait une carte à
-            moitié remplie. En bas, le vide du haut devient une respiration
-            voulue — c'est la disposition de toutes les applications de ce
-            genre, et pour cette raison. */}
+        {/* Combien. Le chiffre est l'image de la carte : c'est lui qu'on
+            capture, c'est lui qui donne envie. */}
         <div className="flex flex-1 flex-col justify-end">
           {remuneration ? (
             <>
-              <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/55">
-                Tu gagnes
-              </p>
-              <p className="font-display mt-1 text-[68px] font-black leading-[0.88] tracking-[-0.04em] text-white [text-shadow:0_4px_24px_rgba(0,0,0,.35)] [overflow-wrap:anywhere]">
+              <p className="font-display text-[76px] font-black leading-[0.85] tracking-[-0.045em] text-white [text-shadow:0_6px_30px_rgba(0,0,0,.4)] [overflow-wrap:anywhere]">
                 {remuneration.gros}
               </p>
-              <p className="mt-1.5 text-[15px] font-semibold text-white/70">
-                {remuneration.petit}
-              </p>
+              <p className="mt-2 text-[16px] font-bold text-white/75">{remuneration.petit}</p>
             </>
           ) : (
-            <p className="font-display text-[40px] font-black leading-none tracking-tight text-white/70">
+            <p className="font-display text-[44px] font-black leading-none tracking-tight text-white/75">
               À négocier
             </p>
           )}
 
-          {/* La mission : ce qu'il y a à faire, en clair. Sans elle on sait
-              combien on gagne, mais pas ce qu'on doit livrer. */}
+          {/* Quoi. Une ligne, jamais deux. */}
           {brief.titre && (
-            <p className="mt-6 line-clamp-2 text-[19px] font-bold leading-snug text-white">
+            <p className="mt-5 line-clamp-2 text-[18px] font-semibold leading-snug text-white/90">
               {brief.titre}
             </p>
           )}
-          {/* On masque la description quand elle ne fait que redire le titre.
-              Trois formulations de la même chose empilées donnent l'impression
-              d'une carte remplie au kilomètre. */}
-          {brief.produit && !redit(brief.titre, brief.produit) && (
-            <p className="mt-2 line-clamp-3 text-[15px] leading-relaxed text-white/70">
-              {brief.produit}
-            </p>
-          )}
 
-          {/* Les niches visées : un créateur sait immédiatement si c'est pour
-              lui. C'est l'information qui manquait le plus. */}
           {brief.niches.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {brief.niches.slice(0, 4).map((n) => (
+              {brief.niches.slice(0, 3).map((n) => (
                 <span
                   key={n}
-                  className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold text-white/90 backdrop-blur"
+                  className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold text-white/90 backdrop-blur"
                 >
                   {n}
                 </span>
               ))}
             </div>
           )}
-        </div>
-
-        {/* Le contexte, en bas, discret : ce qui cadre sans détourner. */}
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-white/60">
-          {brief.echeance && (
-            <span>
-              Avant le{" "}
-              {new Date(brief.echeance).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-              })}
-            </span>
-          )}
-          {brief.spots !== null && (
-            <span>
-              {brief.spots} place{brief.spots > 1 ? "s" : ""}
-            </span>
-          )}
-          {brief.audienceMini !== null && (
-            <span>dès {brief.audienceMini.toLocaleString("fr-FR")} abonnés</span>
-          )}
-          <span className="ml-auto text-white/45">Touche pour en lire plus</span>
         </div>
       </div>
 
