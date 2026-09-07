@@ -26,21 +26,6 @@ import type { BriefDefile } from "@/lib/defile";
 
 const SEUIL = 100;
 
-/**
- * Une teinte par campagne, dérivée de son identifiant.
- *
- * Une marque n'a pas de logo dans le questionnaire — téléverser avant d'avoir
- * un compte fait abandonner. Un dégradé identique sur toutes les cartes donne
- * alors l'impression d'un gabarit vide. Deux campagnes n'ont donc jamais la
- * même couleur, et celle d'une campagne ne change jamais d'un chargement à
- * l'autre : une couleur aléatoire donnerait l'impression que rien n'est décidé.
- */
-function teinte(graine: string): { h: number } {
-  let somme = 0;
-  for (let i = 0; i < graine.length; i++) somme = (somme * 31 + graine.charCodeAt(i)) % 360;
-  return { h: somme };
-}
-
 export type Direction = "gauche" | "droite";
 
 export function remunerationLisible(brief: BriefDefile) {
@@ -130,7 +115,6 @@ export default function CarteBrief({
   const rotation = Math.max(-16, Math.min(16, dx / 14));
   const intensite = Math.min(1, Math.abs(dx) / SEUIL);
   const remuneration = remunerationLisible(brief);
-  const { h } = teinte(brief.id);
 
   const transform = sortieEffective
     ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
@@ -154,63 +138,51 @@ export default function CarteBrief({
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* ─── Le fond, en trois couches ───
+      {/* ─── L'IDENTITÉ COLLABBS, qui accueille celle de la marque ───
 
-          Une couleur plate ne fait pas vivre une carte, et un créateur qui
-          fait défiler vit ça comme une chance de gagner de l'argent : il faut
-          que ça respire.
+          Le fond reprenait la couleur de chaque marque : chaque carte était
+          donc différente, et aucune ne disait « Collabbs ». Or ces cartes sont
+          ce qu'on filme et ce qu'on partage — elles doivent se reconnaître
+          entre mille, comme une pochette de disque reconnaît son label.
 
-          1. La teinte, comme base — celle du site de la marque si elle en
-             déclare une, sinon celle de la campagne.
-          2. L'image de la marque, FLOUTÉE et agrandie. Le flou règle d'un coup
-             le problème du recadrage : une image de partage est un bandeau
-             large, illisible en portrait — mais floutée à 40 px, son cadrage
-             n'a plus aucune importance, et il en reste les couleurs et la
-             matière. C'est ce que font les lecteurs de musique derrière une
-             pochette.
-          3. Un grain fin. C'est LUI qui fait la différence entre un aplat qui
-             fait bon marché et une surface. Généré en SVG, aucun fichier à
-             charger. */}
+          Le fond est donc TOUJOURS le même : l'encre Collabbs, et l'orbe
+          violet-rose de la marque. Ce qui change d'une carte à l'autre, c'est
+          le logo au centre — et une touche de la couleur du site, en accent,
+          pour que la marque reste présente sans reprendre la main.
+
+          Le logo devient ainsi le sujet, au lieu d'être un pansement sur un
+          vide. Un logo en grand sur un carré blanc, c'est une icône
+          d'application : c'est la forme sous laquelle ils sont tous dessinés,
+          et la seule où ils sont tous beaux. */}
+      <div className="absolute inset-0 bg-ink" />
+
+      {/* L'orbe — la signature. Toujours la même, toujours au même endroit. */}
       <div
-        className="absolute inset-0"
+        aria-hidden
+        className="lueur-carte absolute left-1/2 top-[26%] h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-90"
         style={{
-          background: brief.couleurMarque
-            ? `linear-gradient(160deg, ${brief.couleurMarque}, hsl(${(h + 40) % 360} 62% 34%))`
-            : `linear-gradient(160deg, hsl(${h} 60% 24%), hsl(${(h + 40) % 360} 68% 46%))`,
+          background:
+            "radial-gradient(circle, rgba(168,85,247,.95) 0%, rgba(236,72,153,.55) 45%, transparent 72%)",
+          filter: "blur(30px)",
         }}
       />
 
-      {/* ⚠️ En FUSION, pas en superposition.
-          Posée par-dessus à 60 % d'opacité, l'image floutée écrasait la
-          couleur : un logo noir et blanc flouté donne de la bouillie grise, et
-          le bleu-vert de Gymshark disparaissait. Le flou marche pour une
-          photo, pas pour un logo — et on ne peut pas distinguer les deux à
-          l'avance. En `soft-light`, l'image apporte ses variations sans
-          remplacer la teinte : les photos donnent de la matière, les logos ne
-          font plus qu'un dégradé de lumière. */}
-      {brief.image && (
+      {/* La couleur du site, en accent bas : la marque reste là sans dominer. */}
+      {brief.couleurMarque && (
         <div
-          className="absolute -inset-16 bg-cover bg-center opacity-70 mix-blend-soft-light"
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-1/2 opacity-30"
           style={{
-            backgroundImage: `url("${brief.image}")`,
-            filter: "blur(44px) saturate(1.8)",
+            background: `linear-gradient(to top, ${brief.couleurMarque}, transparent)`,
           }}
         />
       )}
 
-      {/* Halo qui dérive lentement. Une couleur immobile reste un aplat ; une
-          couleur qui respire donne une surface. Voir `.lueur-carte`, coupée
-          pour qui a demandé moins d'animations. */}
+      {/* Grain : c'est lui qui fait la différence entre un aplat et une
+          surface. Généré en SVG, aucun fichier à charger. */}
       <div
         aria-hidden
-        className="lueur-carte absolute inset-0 bg-[radial-gradient(60%_45%_at_30%_18%,rgba(255,255,255,.34),transparent_70%)]"
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_55%_at_80%_5%,rgba(255,255,255,.14),transparent_60%)]" />
-
-      {/* Grain. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.16] mix-blend-overlay"
+        className="absolute inset-0 opacity-[0.14] mix-blend-overlay"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E\")",
@@ -253,57 +225,55 @@ export default function CarteBrief({
 
           Il ne reste que ce qui se voit en une seconde : QUI, COMBIEN, QUOI. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
-        {/* Qui. */}
-        <div className="flex items-center gap-3">
+        {/* ─── QUI : le logo est le sujet de la carte ─── */}
+        <div className="flex flex-1 flex-col items-center justify-center">
           {brief.image ? (
             <span
-              className="h-14 w-14 shrink-0 rounded-2xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_6px_18px_-4px_rgba(0,0,0,.55)] ring-1 ring-white/50"
+              className="h-28 w-28 rounded-[26px] bg-white bg-contain bg-center bg-no-repeat shadow-[0_18px_50px_-12px_rgba(0,0,0,.7)] ring-1 ring-white/25"
               style={{ backgroundImage: `url("${brief.image}")` }}
             />
           ) : (
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 font-display text-2xl font-black text-white backdrop-blur">
+            <span className="flex h-28 w-28 items-center justify-center rounded-[26px] bg-white/10 font-display text-5xl font-black text-white ring-1 ring-white/20 backdrop-blur">
               {brief.marque.slice(0, 1).toUpperCase()}
             </span>
           )}
-          <p className="min-w-0 truncate font-display text-[22px] font-black leading-tight tracking-tight text-white">
+          <p className="mt-4 max-w-full truncate px-2 font-display text-[26px] font-black leading-tight tracking-tight text-white">
             {brief.marque}
           </p>
           {brief.dejaInteressee && (
-            <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
+            <span className="mt-3 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
               T&apos;a repéré
             </span>
           )}
         </div>
 
-        {/* Combien. Le chiffre est l'image de la carte : c'est lui qu'on
-            capture, c'est lui qui donne envie. */}
-        <div className="flex flex-1 flex-col justify-end">
+        {/* ─── COMBIEN, et QUOI ─── */}
+        <div>
           {remuneration ? (
             <>
-              <p className="font-display text-[76px] font-black leading-[0.85] tracking-[-0.045em] text-white [text-shadow:0_6px_30px_rgba(0,0,0,.4)] [overflow-wrap:anywhere]">
+              <p className="font-display text-[68px] font-black leading-[0.85] tracking-[-0.045em] text-white [text-shadow:0_6px_30px_rgba(0,0,0,.5)] [overflow-wrap:anywhere]">
                 {remuneration.gros}
               </p>
-              <p className="mt-2 text-[16px] font-bold text-white/75">{remuneration.petit}</p>
+              <p className="mt-1.5 text-[15px] font-bold text-white/65">{remuneration.petit}</p>
             </>
           ) : (
-            <p className="font-display text-[44px] font-black leading-none tracking-tight text-white/75">
+            <p className="font-display text-[40px] font-black leading-none tracking-tight text-white/70">
               À négocier
             </p>
           )}
 
-          {/* Quoi. Une ligne, jamais deux. */}
           {brief.titre && (
-            <p className="mt-5 line-clamp-2 text-[18px] font-semibold leading-snug text-white/90">
+            <p className="mt-4 line-clamp-2 text-[17px] font-semibold leading-snug text-white/85">
               {brief.titre}
             </p>
           )}
 
           {brief.niches.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {brief.niches.slice(0, 3).map((n) => (
                 <span
                   key={n}
-                  className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold text-white/90 backdrop-blur"
+                  className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold text-white/85 backdrop-blur"
                 >
                   {n}
                 </span>
