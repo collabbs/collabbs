@@ -373,6 +373,7 @@ export default function QuizMarque() {
             photos={carte.photos}
             choisie={carte.visuel}
             onChoisir={(url) => maj({ visuel: url })}
+            enCours={lectureEnCours}
           />
           <button
             type="button"

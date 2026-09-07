@@ -27,10 +27,13 @@ export default function ChoixVisuel({
   photos,
   choisie,
   onChoisir,
+  enCours,
 }: {
   photos: string[];
   choisie: string | null;
   onChoisir: (url: string | null) => void;
+  /** La lecture du site tourne encore : ne PAS annoncer un échec. */
+  enCours?: boolean;
 }) {
   const [manuelle, setManuelle] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -51,7 +54,21 @@ export default function ChoixVisuel({
 
   return (
     <div>
-      {photos.length > 0 ? (
+      {/* ⚠️ L'attente d'abord. La lecture du site tourne en arrière-plan
+          pendant qu'on répond aux questions suivantes — c'est voulu, ça évite
+          d'immobiliser quiconque. Mais si on arrive ici avant qu'elle
+          finisse, annoncer « on n'a rien trouvé » serait FAUX : on n'a pas
+          encore cherché jusqu'au bout. */}
+      {enCours && photos.length === 0 ? (
+        <div className="rounded-xl bg-[#F4F1F5] p-5">
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="aspect-square animate-pulse rounded-xl bg-zinc-200" />
+            ))}
+          </div>
+          <p className="mt-3 text-[13px] text-zinc-500">On regarde ton site…</p>
+        </div>
+      ) : photos.length > 0 ? (
         <>
           <div className="grid grid-cols-3 gap-2">
             {photos.slice(0, 6).map((url) => (
