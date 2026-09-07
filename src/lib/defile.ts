@@ -40,7 +40,8 @@ export type BriefDefile = {
   /** Audience minimale demandée, s'il y en a une. */
   audienceMini: number | null;
   spots: number | null;
-  niches: number[];
+  /** Intitulés des niches visées, résolus côté serveur. */
+  niches: string[];
   /**
    * La marque a-t-elle déjà marqué son intérêt pour ce créateur ?
    *
@@ -72,11 +73,16 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const { data, error } = demoVisible()
-    ? await requete
-    : await requete.neq("brands.is_demo", true);
+  const [{ data, error }, { data: niches }] = await Promise.all([
+    demoVisible() ? requete : requete.neq("brands.is_demo", true),
+    // Les libellés, une fois pour toutes : la carte affiche « Sport », pas
+    // l'identifiant 4. Sans ça il n'y avait rien d'utile à montrer, et la
+    // carte restait vide aux deux tiers.
+    admin.from("niches").select("id, label"),
+  ]);
 
   if (error || !data) return [];
+  const libelle = new Map((niches ?? []).map((n) => [n.id, n.label]));
 
   return data.map((c) => ({
     id: c.id,
@@ -102,7 +108,9 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
       return { min: Math.min(...bornes), max: Math.max(...bornes) };
     })(),
     spots: c.spots ?? null,
-    niches: (c.campaign_niches ?? []).map((n) => n.niche_id),
+    niches: (c.campaign_niches ?? [])
+      .map((n) => libelle.get(n.niche_id))
+      .filter((l): l is string => Boolean(l)),
     dejaInteressee: false,
   }));
 }

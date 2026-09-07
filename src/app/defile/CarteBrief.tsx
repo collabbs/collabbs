@@ -62,6 +62,32 @@ function teinte(graine: string): { h: number } {
 
 export type Direction = "gauche" | "droite";
 
+/**
+ * Deux textes disent-ils la même chose ?
+ *
+ * Les campagnes s'intitulent souvent comme leur propre description
+ * (« Forfait garanti + commission » / « Un forfait garanti, plus une
+ * commission… »). Empiler les deux donne une carte remplie au kilomètre.
+ * Comparaison volontairement grossière — sans accents, sans ponctuation, sans
+ * mots vides : on cherche une redite évidente, pas une similarité fine.
+ */
+function redit(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  const nettoyer = (t: string) =>
+    t
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((m) => m.length > 3);
+  const motsA = new Set(nettoyer(a));
+  const motsB = nettoyer(b);
+  if (motsA.size === 0 || motsB.length === 0) return false;
+  const communs = motsB.filter((m) => motsA.has(m)).length;
+  return communs / motsB.length > 0.6;
+}
+
 export function remunerationLisible(brief: BriefDefile) {
   const c = brief.commission;
   const taux = c ? (c.min === c.max ? `${c.min} %` : `${c.min}–${c.max} %`) : null;
@@ -173,24 +199,15 @@ export default function CarteBrief({
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* Fond plein cadre, propre à la campagne. Pas de logo à afficher : on
-          dessine donc un objet qui tient sans image, plutôt que d'imiter une
-          photo absente. */}
+      {/* Fond propre à la campagne. Plus clair qu'avant : la carte servait de
+          faire-valoir à un grand vide sombre, alors qu'elle doit se lire. */}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(150deg, hsl(${h} 62% 16%), hsl(${(h + 46) % 360} 72% 34%))`,
+          background: `linear-gradient(160deg, hsl(${h} 58% 26%), hsl(${(h + 40) % 360} 66% 44%))`,
         }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(130%_85%_at_18%_6%,rgba(255,255,255,.22),transparent_58%)]" />
-      {/* Le signe du format, énorme et à peine visible : il donne de la matière
-          au fond sans jamais concurrencer le texte. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -right-8 top-4 select-none text-[210px] font-black leading-none text-white/[0.07]"
-      >
-        {SIGNE_TYPE[brief.type] ?? "●"}
-      </span>
+      <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_20%_0%,rgba(255,255,255,.24),transparent_55%)]" />
 
       {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher. */}
       {!enArriere && (
@@ -210,44 +227,110 @@ export default function CarteBrief({
         </>
       )}
 
-      {/* Le contenu vit en bas, sur un voile — comme un profil. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-6 pt-24">
-        {brief.dejaInteressee && (
-          <span className="mb-3 inline-block rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
-            Cette marque t&apos;a repéré
+      {/* ─── La hiérarchie, entièrement revue ───
+          Le nom de la marque était l'élément le plus GROS de la carte. Il ne
+          dit pourtant rien à un créateur — et tant qu'une seule marque publie,
+          toutes les cartes affichaient le même mot en géant. Le montant, lui,
+          était écrit petit, en bas.
+
+          C'est l'inverse : un créateur qui fait défiler se demande combien, et
+          pour quoi. Le montant devient donc le sujet, la mission vient juste
+          après, et la marque redescend au rang d'étiquette. */}
+      {/* Voile bas : le texte reste lisible quelle que soit la teinte tirée. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
+
+      <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
+        {/* Étiquette du haut : qui, et quel type de collaboration. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white backdrop-blur">
+            {brief.marque}
           </span>
-        )}
-
-        <p className="font-display text-4xl font-black leading-[1.05] tracking-tight text-white">
-          {brief.marque}
-        </p>
-
-        <span className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
-          {LIBELLES_TYPE[brief.type] ?? brief.type}
-        </span>
-
-        {brief.produit && (
-          <p className="mt-3 line-clamp-3 text-[15px] leading-snug text-white/80">
-            {brief.produit}
-          </p>
-        )}
-
-        {remuneration && (
-          <p className="mt-4 font-display text-3xl font-black leading-none tabular-nums tracking-tight text-white">
-            {remuneration.gros}
-            <span className="ml-2 align-middle text-xs font-medium text-white/60">
-              {remuneration.petit}
+          <span className="rounded-full bg-black/25 px-3 py-1 text-[12px] font-semibold text-white/85 backdrop-blur">
+            {LIBELLES_TYPE[brief.type] ?? brief.type}
+          </span>
+          {brief.dejaInteressee && (
+            <span className="rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
+              T&apos;a repéré
             </span>
-          </p>
-        )}
+          )}
+        </div>
 
-        {brief.spots !== null && (
-          <p className="mt-2 text-[11px] font-medium text-white/50">
-            {brief.spots} place{brief.spots > 1 ? "s" : ""} disponible
-            {brief.spots > 1 ? "s" : ""}
-          </p>
-        )}
+        {/* Le contenu est ancré EN BAS, pas centré. Centré, il laissait un
+            vide égal au-dessus et au-dessous, ce qui donnait une carte à
+            moitié remplie. En bas, le vide du haut devient une respiration
+            voulue — c'est la disposition de toutes les applications de ce
+            genre, et pour cette raison. */}
+        <div className="flex flex-1 flex-col justify-end">
+          {remuneration ? (
+            <>
+              <p className="font-display text-[68px] font-black leading-[0.88] tracking-[-0.04em] text-white [overflow-wrap:anywhere]">
+                {remuneration.gros}
+              </p>
+              <p className="mt-1.5 text-[15px] font-semibold text-white/70">
+                {remuneration.petit}
+              </p>
+            </>
+          ) : (
+            <p className="font-display text-[40px] font-black leading-none tracking-tight text-white/70">
+              À négocier
+            </p>
+          )}
+
+          {/* La mission : ce qu'il y a à faire, en clair. Sans elle on sait
+              combien on gagne, mais pas ce qu'on doit livrer. */}
+          {brief.titre && (
+            <p className="mt-6 line-clamp-2 text-[19px] font-bold leading-snug text-white">
+              {brief.titre}
+            </p>
+          )}
+          {/* On masque la description quand elle ne fait que redire le titre.
+              Trois formulations de la même chose empilées donnent l'impression
+              d'une carte remplie au kilomètre. */}
+          {brief.produit && !redit(brief.titre, brief.produit) && (
+            <p className="mt-2 line-clamp-3 text-[15px] leading-relaxed text-white/70">
+              {brief.produit}
+            </p>
+          )}
+
+          {/* Les niches visées : un créateur sait immédiatement si c'est pour
+              lui. C'est l'information qui manquait le plus. */}
+          {brief.niches.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {brief.niches.slice(0, 4).map((n) => (
+                <span
+                  key={n}
+                  className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold text-white/90 backdrop-blur"
+                >
+                  {n}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Le contexte, en bas, discret : ce qui cadre sans détourner. */}
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-medium text-white/60">
+          {brief.echeance && (
+            <span>
+              Avant le{" "}
+              {new Date(brief.echeance).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+              })}
+            </span>
+          )}
+          {brief.spots !== null && (
+            <span>
+              {brief.spots} place{brief.spots > 1 ? "s" : ""}
+            </span>
+          )}
+          {brief.audienceMini !== null && (
+            <span>dès {brief.audienceMini.toLocaleString("fr-FR")} abonnés</span>
+          )}
+          <span className="ml-auto text-white/45">Touche pour en lire plus</span>
+        </div>
       </div>
+
     </div>
   );
 }
