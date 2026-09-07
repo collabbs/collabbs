@@ -191,3 +191,29 @@ input[type="button"]:not(:disabled):active {
     animation: none;
   }
 }
+
+
+/*
+ * Lueur qui dérive lentement derrière une carte du défilé.
+ *
+ * Le seul levier de « vie » qui ne dépende pas d'une image : une couleur plate
+ * reste plate, mais une couleur qui respire donne l'impression d'une surface
+ * vivante. Douze secondes par cycle — assez lent pour ne jamais distraire de
+ * la décision, assez présent pour qu'on le sente.
+ *
+ * Coupé si la personne a demandé moins d'animations : un mouvement permanent
+ * en arrière-plan est exactement ce que ce réglage existe pour supprimer.
+ */
+@keyframes derive-lueur {
+  0%, 100% { transform: translate3d(-6%, -4%, 0) scale(1.15); }
+  50%      { transform: translate3d(6%, 4%, 0) scale(1.28); }
+}
+
+.lueur-carte {
+  animation: derive-lueur 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lueur-carte { animation: none; }
+}

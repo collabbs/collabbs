@@ -189,22 +189,68 @@ export default function CarteBrief({
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* Fond : la teinte de la campagne, toujours.
-          J'avais d'abord mis l'image du site en fond plein cadre. Mauvaise
-          idée : une image de partage social est un BANDEAU LARGE, et la caler
-          dans une carte verticale donne un recadrage bancal — chez Gymshark,
-          une bande grise coupée au milieu du logo. Un logo se met dans une
-          pastille, pas en fond. Il est donc remonté près du nom de la marque,
-          où il fait ce qu'un logo fait : identifier. */}
+      {/* ─── Le fond, en trois couches ───
+
+          Une couleur plate ne fait pas vivre une carte, et un créateur qui
+          fait défiler vit ça comme une chance de gagner de l'argent : il faut
+          que ça respire.
+
+          1. La teinte, comme base — celle du site de la marque si elle en
+             déclare une, sinon celle de la campagne.
+          2. L'image de la marque, FLOUTÉE et agrandie. Le flou règle d'un coup
+             le problème du recadrage : une image de partage est un bandeau
+             large, illisible en portrait — mais floutée à 40 px, son cadrage
+             n'a plus aucune importance, et il en reste les couleurs et la
+             matière. C'est ce que font les lecteurs de musique derrière une
+             pochette.
+          3. Un grain fin. C'est LUI qui fait la différence entre un aplat qui
+             fait bon marché et une surface. Généré en SVG, aucun fichier à
+             charger. */}
       <div
         className="absolute inset-0"
         style={{
           background: brief.couleurMarque
-            ? `linear-gradient(160deg, ${brief.couleurMarque}, hsl(${(h + 40) % 360} 62% 38%))`
-            : `linear-gradient(160deg, hsl(${h} 58% 26%), hsl(${(h + 40) % 360} 66% 44%))`,
+            ? `linear-gradient(160deg, ${brief.couleurMarque}, hsl(${(h + 40) % 360} 62% 34%))`
+            : `linear-gradient(160deg, hsl(${h} 60% 24%), hsl(${(h + 40) % 360} 68% 46%))`,
         }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_20%_0%,rgba(255,255,255,.24),transparent_55%)]" />
+
+      {/* ⚠️ En FUSION, pas en superposition.
+          Posée par-dessus à 60 % d'opacité, l'image floutée écrasait la
+          couleur : un logo noir et blanc flouté donne de la bouillie grise, et
+          le bleu-vert de Gymshark disparaissait. Le flou marche pour une
+          photo, pas pour un logo — et on ne peut pas distinguer les deux à
+          l'avance. En `soft-light`, l'image apporte ses variations sans
+          remplacer la teinte : les photos donnent de la matière, les logos ne
+          font plus qu'un dégradé de lumière. */}
+      {brief.image && (
+        <div
+          className="absolute -inset-16 bg-cover bg-center opacity-70 mix-blend-soft-light"
+          style={{
+            backgroundImage: `url("${brief.image}")`,
+            filter: "blur(44px) saturate(1.8)",
+          }}
+        />
+      )}
+
+      {/* Halo qui dérive lentement. Une couleur immobile reste un aplat ; une
+          couleur qui respire donne une surface. Voir `.lueur-carte`, coupée
+          pour qui a demandé moins d'animations. */}
+      <div
+        aria-hidden
+        className="lueur-carte absolute inset-0 bg-[radial-gradient(60%_45%_at_30%_18%,rgba(255,255,255,.34),transparent_70%)]"
+      />
+      <div className="absolute inset-0 bg-[radial-gradient(120%_55%_at_80%_5%,rgba(255,255,255,.14),transparent_60%)]" />
+
+      {/* Grain. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.16] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
 
       {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher.
           Supprimés par accident en réécrivant le fond — sans eux le geste perd
@@ -230,29 +276,32 @@ export default function CarteBrief({
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
-        {/* Étiquette du haut : qui, et quel type de collaboration. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/20 py-1 pl-1 pr-3 text-[12px] font-bold text-white backdrop-blur">
-            {/* Le logo, tiré du site de la marque. `bg-contain` pour ne jamais
-                le recadrer, sur blanc parce que la plupart sont dessinés pour
-                un fond clair. */}
-            {brief.image ? (
-              <span
-                className="h-6 w-6 shrink-0 rounded-full bg-white bg-contain bg-center bg-no-repeat ring-1 ring-white/40"
-                style={{ backgroundImage: `url("${brief.image}")` }}
-              />
-            ) : (
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-black">
-                {brief.marque.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            {brief.marque}
-          </span>
-          <span className="rounded-full bg-black/25 px-3 py-1 text-[12px] font-semibold text-white/85 backdrop-blur">
-            {LIBELLES_TYPE[brief.type] ?? brief.type}
-          </span>
+        {/* ─── La marque, en grand ───
+            Elle était réduite à une pastille de 12 px. Un créateur doit
+            RECONNAÎTRE la marque avant de décider : c'est la première chose
+            qu'il regarde, avant même le montant. Logo à 48 px sur fond blanc
+            (la plupart sont dessinés pour un fond clair), nom à côté. */}
+        <div className="flex items-center gap-3">
+          {brief.image ? (
+            <span
+              className="h-12 w-12 shrink-0 rounded-2xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_4px_14px_-4px_rgba(0,0,0,.5)] ring-1 ring-white/50"
+              style={{ backgroundImage: `url("${brief.image}")` }}
+            />
+          ) : (
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 font-display text-xl font-black text-white backdrop-blur">
+              {brief.marque.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate font-display text-[19px] font-black leading-tight tracking-tight text-white">
+              {brief.marque}
+            </p>
+            <p className="text-[12px] font-medium text-white/60">
+              {LIBELLES_TYPE[brief.type] ?? brief.type}
+            </p>
+          </div>
           {brief.dejaInteressee && (
-            <span className="rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
+            <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
               T&apos;a repéré
             </span>
           )}
@@ -266,7 +315,10 @@ export default function CarteBrief({
         <div className="flex flex-1 flex-col justify-end">
           {remuneration ? (
             <>
-              <p className="font-display text-[68px] font-black leading-[0.88] tracking-[-0.04em] text-white [overflow-wrap:anywhere]">
+              <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/55">
+                Tu gagnes
+              </p>
+              <p className="font-display mt-1 text-[68px] font-black leading-[0.88] tracking-[-0.04em] text-white [text-shadow:0_4px_24px_rgba(0,0,0,.35)] [overflow-wrap:anywhere]">
                 {remuneration.gros}
               </p>
               <p className="mt-1.5 text-[15px] font-semibold text-white/70">
