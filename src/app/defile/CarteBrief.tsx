@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { BriefDefile } from "@/lib/defile";
+import { LIBELLES_TYPE } from "@/lib/collaboration";
 
 /**
  * Une carte du défilé — pleine hauteur, qu'on attrape et qu'on jette.
@@ -138,54 +139,47 @@ export default function CarteBrief({
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* ─── L'IDENTITÉ COLLABBS, qui accueille celle de la marque ───
+      {/* ═══ LA DIRECTION ARTISTIQUE : UN BON DE COLLABORATION ═══
 
-          Le fond reprenait la couleur de chaque marque : chaque carte était
-          donc différente, et aucune ne disait « Collabbs ». Or ces cartes sont
-          ce qu'on filme et ce qu'on partage — elles doivent se reconnaître
-          entre mille, comme une pochette de disque reconnaît son label.
+          Un dégradé avec un logo posé dessus n'est pas une identité, c'est un
+          fond. Une identité, c'est une STRUCTURE qui revient : une grammaire
+          qu'on reconnaît avant même de lire.
 
-          Le fond est donc TOUJOURS le même : l'encre Collabbs, et l'orbe
-          violet-rose de la marque. Ce qui change d'une carte à l'autre, c'est
-          le logo au centre — et une touche de la couleur du site, en accent,
-          pour que la marque reste présente sans reprendre la main.
+          La carte est donc traitée comme un ticket — un bon à prendre. Ça dit
+          ce qu'elle est, et ça donne les éléments qui la rendent reconnaissable
+          d'un coup d'œil dans une vidéo :
 
-          Le logo devient ainsi le sujet, au lieu d'être un pansement sur un
-          vide. Un logo en grand sur un carré blanc, c'est une icône
-          d'application : c'est la forme sous laquelle ils sont tous dessinés,
-          et la seule où ils sont tous beaux. */}
+            · un rail en tête, avec le nom Collabbs en petites capitales
+              espacées et une règle pointillée qui le traverse ;
+            · une ENCOCHE de chaque côté, à la césure — le signe le plus
+              identifiable d'un ticket, et celui qu'aucun concurrent n'a ;
+            · une césure perforée qui sépare l'émetteur du montant ;
+            · le chiffre traité comme un objet graphique, pas comme du texte :
+              énorme, très resserré, calé sur la marge.
+
+          Fond ENCRE PLEINE, pas de dégradé : un aplat franc se capture mieux
+          et vieillit mieux. La couleur ne sert plus de décor, elle sert
+          d'accent — un seul trait, celui du site de la marque. */}
       <div className="absolute inset-0 bg-ink" />
 
-      {/* L'orbe — la signature. Toujours la même, toujours au même endroit. */}
+      {/* Trame fine en fond : de la matière, jamais du motif. */}
       <div
         aria-hidden
-        className="lueur-carte absolute left-1/2 top-[26%] h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-90"
+        className="absolute inset-0 opacity-[0.16]"
         style={{
-          background:
-            "radial-gradient(circle, rgba(168,85,247,.95) 0%, rgba(236,72,153,.55) 45%, transparent 72%)",
-          filter: "blur(30px)",
+          backgroundImage:
+            "repeating-linear-gradient(115deg, rgba(255,255,255,.09) 0px, rgba(255,255,255,.09) 1px, transparent 1px, transparent 7px)",
         }}
       />
 
-      {/* La couleur du site, en accent bas : la marque reste là sans dominer. */}
-      {brief.couleurMarque && (
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-1/2 opacity-30"
-          style={{
-            background: `linear-gradient(to top, ${brief.couleurMarque}, transparent)`,
-          }}
-        />
-      )}
-
-      {/* Grain : c'est lui qui fait la différence entre un aplat et une
-          surface. Généré en SVG, aucun fichier à charger. */}
+      {/* Halo sourd derrière le logo : une seule source de lumière. */}
       <div
         aria-hidden
-        className="absolute inset-0 opacity-[0.14] mix-blend-overlay"
+        className="lueur-carte absolute left-1/2 top-[30%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
         style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          background:
+            "radial-gradient(circle, rgba(168,85,247,.85) 0%, rgba(236,72,153,.35) 50%, transparent 72%)",
+          filter: "blur(46px)",
         }}
       />
 
@@ -224,62 +218,115 @@ export default function CarteBrief({
           existe précisément pour que la carte n'ait pas à tout porter.
 
           Il ne reste que ce qui se voit en une seconde : QUI, COMBIEN, QUOI. */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col p-6">
-        {/* ─── QUI : le logo est le sujet de la carte ─── */}
-        <div className="flex flex-1 flex-col items-center justify-center">
+      <div className="pointer-events-none absolute inset-0 flex flex-col">
+        {/* ── Le rail de tête ── */}
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.32em] text-white/50">
+            Collabbs
+          </span>
+          <span
+            className="h-px flex-1"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(to right, rgba(255,255,255,.28) 0 3px, transparent 3px 7px)",
+            }}
+          />
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white/50">
+            {LIBELLES_TYPE[brief.type] ?? brief.type}
+          </span>
+        </div>
+
+        {/* ── L'émetteur ── */}
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
           {brief.image ? (
             <span
-              className="h-28 w-28 rounded-[26px] bg-white bg-contain bg-center bg-no-repeat shadow-[0_18px_50px_-12px_rgba(0,0,0,.7)] ring-1 ring-white/25"
+              className="h-24 w-24 rounded-[22px] bg-white bg-contain bg-center bg-no-repeat shadow-[0_16px_44px_-12px_rgba(0,0,0,.8)]"
               style={{ backgroundImage: `url("${brief.image}")` }}
             />
           ) : (
-            <span className="flex h-28 w-28 items-center justify-center rounded-[26px] bg-white/10 font-display text-5xl font-black text-white ring-1 ring-white/20 backdrop-blur">
+            <span className="flex h-24 w-24 items-center justify-center rounded-[22px] bg-white/10 font-display text-4xl font-black text-white ring-1 ring-white/15">
               {brief.marque.slice(0, 1).toUpperCase()}
             </span>
           )}
-          <p className="mt-4 max-w-full truncate px-2 font-display text-[26px] font-black leading-tight tracking-tight text-white">
+          <p className="mt-4 max-w-full truncate font-display text-[24px] font-black leading-tight tracking-tight text-white">
             {brief.marque}
           </p>
           {brief.dejaInteressee && (
-            <span className="mt-3 rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-950">
+            <span className="mt-3 rounded-full bg-emerald-400 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-950">
               T&apos;a repéré
             </span>
           )}
         </div>
 
-        {/* ─── COMBIEN, et QUOI ─── */}
-        <div>
+        {/* ── La césure, avec ses encoches ──
+            Les encoches étaient posées à une hauteur devinée (47 %) et ne
+            tombaient donc jamais sur la césure. Elles vivent maintenant DANS
+            la même rangée : elles suivent, quelle que soit la hauteur de
+            l'écran. C'est le signe le plus reconnaissable de la carte, il ne
+            peut pas flotter à côté du trait qu'il est censé marquer. */}
+        <div aria-hidden className="relative mx-6 h-px">
+          <span className="absolute -left-9 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white" />
+          <span className="absolute -right-9 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white" />
+          <span
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(to right, rgba(255,255,255,.35) 0 5px, transparent 5px 11px)",
+            }}
+          />
+        </div>
+
+        {/* ── Le talon : ce qu'on gagne ── */}
+        <div className="px-6 pb-6 pt-5">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="h-1 w-10 shrink-0 rounded-full"
+              style={{ background: brief.couleurMarque ?? "rgb(168,85,247)" }}
+            />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
+              Tu gagnes
+            </span>
+          </div>
+
           {remuneration ? (
             <>
-              <p className="font-display text-[68px] font-black leading-[0.85] tracking-[-0.045em] text-white [text-shadow:0_6px_30px_rgba(0,0,0,.5)] [overflow-wrap:anywhere]">
+              {/* Le qualificatif SOUS le chiffre, pas en exposant : « de
+                  commission » se coupait en deux, « de » collé au nombre et
+                  « commission » rejeté à la ligne. */}
+              <p className="font-display mt-2 text-[66px] font-black leading-[0.82] tracking-[-0.05em] text-white [overflow-wrap:anywhere]">
                 {remuneration.gros}
               </p>
-              <p className="mt-1.5 text-[15px] font-bold text-white/65">{remuneration.petit}</p>
+              <p className="mt-2 text-[14px] font-bold text-white/55">{remuneration.petit}</p>
             </>
           ) : (
-            <p className="font-display text-[40px] font-black leading-none tracking-tight text-white/70">
+            <p className="font-display mt-2 text-[40px] font-black leading-none tracking-tight text-white/70">
               À négocier
             </p>
           )}
 
           {brief.titre && (
-            <p className="mt-4 line-clamp-2 text-[17px] font-semibold leading-snug text-white/85">
+            <p className="mt-4 line-clamp-2 text-[16px] font-semibold leading-snug text-white/85">
               {brief.titre}
             </p>
           )}
 
           {brief.niches.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
               {brief.niches.slice(0, 3).map((n) => (
                 <span
                   key={n}
-                  className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold text-white/85 backdrop-blur"
+                  className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/55"
                 >
-                  {n}
+                  · {n}
                 </span>
               ))}
             </div>
           )}
+
+          {/* Le trait de la marque : sa couleur, en accent, et rien de plus.
+              Remonté au-dessus du talon — en bas de carte il se faisait rogner
+              par le rayon de l'angle. */}
         </div>
       </div>
 
