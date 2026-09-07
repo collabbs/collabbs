@@ -206,6 +206,26 @@ export default function CarteBrief({
       />
       <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_20%_0%,rgba(255,255,255,.24),transparent_55%)]" />
 
+      {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher.
+          Supprimés par accident en réécrivant le fond — sans eux le geste perd
+          son retour, et on lâche sans savoir de quel côté on va. */}
+      {!enArriere && (
+        <>
+          <span
+            style={{ opacity: dx > 0 ? intensite : 0 }}
+            className="pointer-events-none absolute left-6 top-8 z-20 -rotate-[14deg] rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-emerald-400"
+          >
+            Intéressé
+          </span>
+          <span
+            style={{ opacity: dx < 0 ? intensite : 0 }}
+            className="pointer-events-none absolute right-6 top-8 z-20 rotate-[14deg] rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-rose-400"
+          >
+            Passer
+          </span>
+        </>
+      )}
+
       {/* Voile bas : le texte reste lisible quelle que soit la teinte tirée. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/55 to-transparent" />
 
