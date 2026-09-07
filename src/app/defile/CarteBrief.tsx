@@ -35,6 +35,31 @@ const LIBELLES_TYPE: Record<string, string> = {
   cpa_tiers: "Paliers",
 };
 
+/** Le signe du format, en filigrane géant derrière le contenu. */
+const SIGNE_TYPE: Record<string, string> = {
+  video: "▶",
+  ugc: "◉",
+  affiliation: "↗",
+  performance: "▲",
+  hybrid: "◈",
+  cpa_tiers: "≡",
+};
+
+/**
+ * Une teinte par campagne, dérivée de son identifiant.
+ *
+ * Une marque n'a pas de logo dans le questionnaire — téléverser avant d'avoir
+ * un compte fait abandonner. Un dégradé identique sur toutes les cartes donne
+ * alors l'impression d'un gabarit vide. Deux campagnes n'ont donc jamais la
+ * même couleur, et celle d'une campagne ne change jamais d'un chargement à
+ * l'autre : une couleur aléatoire donnerait l'impression que rien n'est décidé.
+ */
+function teinte(graine: string): { h: number } {
+  let somme = 0;
+  for (let i = 0; i < graine.length; i++) somme = (somme * 31 + graine.charCodeAt(i)) % 360;
+  return { h: somme };
+}
+
 export type Direction = "gauche" | "droite";
 
 export function remunerationLisible(brief: BriefDefile) {
@@ -54,6 +79,7 @@ export default function CarteBrief({
   brief,
   onDecision,
   onOuvrir,
+  sortirVers,
   /** Carte du dessous : visible mais inerte, elle donne l'épaisseur du paquet. */
   enArriere,
 }: {
@@ -61,6 +87,14 @@ export default function CarteBrief({
   onDecision?: (d: Direction) => void;
   /** Pression simple, sans glissement : on ouvre la fiche détaillée. */
   onOuvrir?: () => void;
+  /**
+   * Sortie commandée de l'extérieur, par les boutons ♥ et ✕.
+   *
+   * Sans ça, les boutons faisaient avancer la pile SANS que la carte parte :
+   * elle disparaissait d'un coup et on ne voyait pas de quel côté. Le geste
+   * animait, le bouton non — deux comportements pour une même décision.
+   */
+  sortirVers?: Direction | null;
   enArriere?: boolean;
 }) {
   const [dx, setDx] = useState(0);
@@ -71,7 +105,8 @@ export default function CarteBrief({
   // toucher déclencherait aussi une décision, et inversement.
   const aBouge = useRef(false);
 
-  const inerte = enArriere || sortie !== null;
+  const sortieEffective = sortie ?? sortirVers ?? null;
+  const inerte = enArriere || sortieEffective !== null;
 
   function commencer(e: React.PointerEvent) {
     if (inerte || !onDecision) return;
@@ -114,9 +149,10 @@ export default function CarteBrief({
   const rotation = Math.max(-16, Math.min(16, dx / 14));
   const intensite = Math.min(1, Math.abs(dx) / SEUIL);
   const remuneration = remunerationLisible(brief);
+  const { h } = teinte(brief.id);
 
-  const transform = sortie
-    ? `translateX(${sortie === "droite" ? 900 : -900}px) rotate(${sortie === "droite" ? 26 : -26}deg)`
+  const transform = sortieEffective
+    ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
     : enArriere
       ? "scale(0.95) translateY(10px)"
       : `translateX(${dx}px) rotate(${rotation}deg)`;
@@ -131,17 +167,30 @@ export default function CarteBrief({
         transform,
         transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
         touchAction: "none",
-        opacity: sortie ? 0 : 1,
+        opacity: sortieEffective ? 0 : 1,
       }}
       className={`absolute inset-0 select-none overflow-hidden rounded-[28px] shadow-[0_20px_60px_-24px_rgba(0,0,0,.55)] ${
         enArriere ? "pointer-events-none" : ""
       } ${inerte ? "" : "cursor-grab active:cursor-grabbing"}`}
     >
-      {/* Fond plein cadre. Pas de photo de marque demandée au questionnaire —
-          téléverser un logo avant d'avoir un compte, c'est le moment où l'on
-          abandonne. On dessine donc quelque chose qui tient sans image. */}
-      <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-purple-950 to-fuchsia-950" />
-      <div className="absolute inset-0 bg-[radial-gradient(130%_90%_at_15%_5%,rgba(168,85,247,.55),transparent_60%)]" />
+      {/* Fond plein cadre, propre à la campagne. Pas de logo à afficher : on
+          dessine donc un objet qui tient sans image, plutôt que d'imiter une
+          photo absente. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(150deg, hsl(${h} 62% 16%), hsl(${(h + 46) % 360} 72% 34%))`,
+        }}
+      />
+      <div className="absolute inset-0 bg-[radial-gradient(130%_85%_at_18%_6%,rgba(255,255,255,.22),transparent_58%)]" />
+      {/* Le signe du format, énorme et à peine visible : il donne de la matière
+          au fond sans jamais concurrencer le texte. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-8 top-4 select-none text-[210px] font-black leading-none text-white/[0.07]"
+      >
+        {SIGNE_TYPE[brief.type] ?? "●"}
+      </span>
 
       {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher. */}
       {!enArriere && (

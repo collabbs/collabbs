@@ -40,6 +40,9 @@ export default function DefileCreateurs({
   const [index, setIndex] = useState(0);
   const [fiche, setFiche] = useState<MarketplaceCreator | null>(null);
   const [match, setMatch] = useState<MarketplaceCreator | null>(null);
+  // Voir `Defile` : sans ça, les boutons faisaient disparaître la carte sans
+  // qu'on voie de quel côté elle partait.
+  const [sortieForcee, setSortieForcee] = useState<Direction | null>(null);
 
   const createur = createurs[index];
   const suivant = createurs[index + 1];
@@ -63,6 +66,16 @@ export default function DefileCreateurs({
   function decider(d: Direction) {
     if (d === "droite") reperer();
     else avancer();
+  }
+
+  /** Depuis les boutons : on anime, PUIS on décide. */
+  function deciderAvecSortie(d: Direction) {
+    if (sortieForcee) return;
+    setSortieForcee(d);
+    window.setTimeout(() => {
+      decider(d);
+      setSortieForcee(null);
+    }, 240);
   }
 
   if (fini) {
@@ -130,13 +143,14 @@ export default function DefileCreateurs({
           createur={createur}
           onDecision={decider}
           onOuvrir={() => setFiche(createur)}
+          sortirVers={sortieForcee}
         />
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-6">
         <button
           type="button"
-          onClick={avancer}
+          onClick={() => deciderAvecSortie("gauche")}
           aria-label="Passer"
           className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-200 bg-white text-2xl text-rose-500 shadow-[0_8px_20px_-10px_rgba(0,0,0,.4)] transition hover:scale-105 active:scale-95"
         >
@@ -144,7 +158,7 @@ export default function DefileCreateurs({
         </button>
         <button
           type="button"
-          onClick={reperer}
+          onClick={() => deciderAvecSortie("droite")}
           aria-label="Ce créateur m'intéresse"
           className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-3xl text-white shadow-[0_12px_28px_-10px_rgba(168,85,247,.8)] transition hover:scale-105 active:scale-95"
         >

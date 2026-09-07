@@ -19,6 +19,18 @@ import {
   type CarteCreateur,
   type TrancheId,
 } from "@/lib/quiz";
+import {
+  TITRE,
+  SECTION,
+  AIDE,
+  REPONSE,
+  REPONSE_ACTIVE,
+  PASTILLE,
+  PASTILLE_ACTIVE,
+  CHAMP,
+  PRINCIPAL,
+  DISCRET,
+} from "./styles";
 
 /**
  * Le questionnaire créateur.
@@ -68,24 +80,17 @@ function Reponse({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-[60px] w-full items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition ${
-        actif
-          ? "border-transparent bg-ink text-white shadow-[0_12px_28px_-18px_rgba(0,0,0,.7)]"
-          : "border-zinc-200 bg-white text-ink hover:border-ink hover:shadow-[0_12px_28px_-22px_rgba(0,0,0,.5)]"
-      }`}
+      className={actif ? REPONSE_ACTIVE : REPONSE}
     >
-      <span className="text-[15px] font-semibold leading-snug sm:text-base">{children}</span>
+      <span className="leading-snug">{children}</span>
       {suffixe && (
-        <span className={`shrink-0 text-xs font-bold ${actif ? "text-white/55" : "text-zinc-400"}`}>
+        <span className={`shrink-0 text-[13px] font-semibold ${actif ? "text-brand" : "text-zinc-400"}`}>
           {suffixe}
         </span>
       )}
     </button>
   );
 }
-
-const BOUTON_PRINCIPAL =
-  "min-h-[58px] w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90 disabled:opacity-30";
 
 export default function QuizCreateur() {
   const [carteBrute, setCarte] = useStockageLocal<CarteCreateur>(CLE_CARTE, carteCreateurVide());
@@ -145,10 +150,10 @@ export default function QuizCreateur() {
   if (revelee || (carteComplete && etapeChoisie === null)) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 text-center sm:py-14">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+        <p className={SECTION}>
           Ta carte
         </p>
-        <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-4xl">
+        <h1 className={`${TITRE} mt-3`}>
           Voilà ce qu&apos;une marque verra de toi.
         </h1>
 
@@ -168,7 +173,7 @@ export default function QuizCreateur() {
         </p>
         <Link
           href="/defile"
-          className={`${BOUTON_PRINCIPAL} mt-5 flex items-center justify-center`}
+          className={`${PRINCIPAL} mt-5 flex items-center justify-center`}
         >
           Voir les campagnes ouvertes
         </Link>
@@ -179,7 +184,7 @@ export default function QuizCreateur() {
             setRevelee(false);
             setEtape(0);
           }}
-          className="mt-5 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+          className={`${DISCRET} mt-5 underline underline-offset-2`}
         >
           Modifier mes réponses
         </button>
@@ -190,7 +195,7 @@ export default function QuizCreateur() {
         <button
           type="button"
           onClick={() => oublierStockageLocal(CLES_PARCOURS)}
-          className="mt-2 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+          className={`${DISCRET} mt-2 underline underline-offset-2`}
         >
           Tout recommencer
         </button>
@@ -212,11 +217,7 @@ export default function QuizCreateur() {
                 key={r}
                 type="button"
                 onClick={() => setReseauChoisi(reseauChoisi === r ? null : r)}
-                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-semibold transition ${
-                  reseauChoisi === r
-                    ? "border-transparent bg-ink text-white"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
-                }`}
+                className={`inline-flex items-center gap-2 ${reseauChoisi === r ? PASTILLE_ACTIVE : PASTILLE}`}
               >
                 <PlatformIcon slug={r} className="h-4 w-4" />
                 {NOMS_RESEAUX[r]}
@@ -233,7 +234,7 @@ export default function QuizCreateur() {
             }}
             onKeyDown={(e) => e.key === "Enter" && validerLien()}
             placeholder="tiktok.com/@ton.pseudo"
-            className="mt-4 min-h-[58px] w-full rounded-2xl border border-zinc-200 px-5 text-base outline-none transition focus:border-ink"
+            className={`${CHAMP} mt-4`}
           />
           {erreurLien && <p className="mt-2 text-sm text-red-600">{erreurLien}</p>}
 
@@ -241,7 +242,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={validerLien}
             disabled={!lien.trim()}
-            className={`${BOUTON_PRINCIPAL} mt-4`}
+            className={`${PRINCIPAL} mt-4`}
           >
             Continuer
           </button>
@@ -284,11 +285,7 @@ export default function QuizCreateur() {
                 key={n}
                 type="button"
                 onClick={() => maj({ niches: basculer(carte.niches, n) })}
-                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold transition ${
-                  carte.niches.includes(n)
-                    ? "border-transparent bg-ink text-white"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
-                }`}
+                className={carte.niches.includes(n) ? PASTILLE_ACTIVE : PASTILLE}
               >
                 {n}
               </button>
@@ -298,7 +295,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={() => setEtape(3)}
             disabled={carte.niches.length === 0}
-            className={`${BOUTON_PRINCIPAL} mt-6`}
+            className={`${PRINCIPAL} mt-6`}
           >
             Continuer
           </button>
@@ -338,7 +335,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={() => setEtape(4)}
             disabled={carte.offres.length === 0}
-            className={`${BOUTON_PRINCIPAL} mt-3`}
+            className={`${PRINCIPAL} mt-3`}
           >
             Continuer
           </button>
@@ -362,7 +359,7 @@ export default function QuizCreateur() {
                 maj({ prixMini: e.target.value === "" ? null : Number(e.target.value) })
               }
               placeholder="220"
-              className="min-h-[58px] w-full rounded-2xl border border-zinc-200 px-5 text-2xl font-bold tabular-nums outline-none transition focus:border-ink"
+              className={`${CHAMP} text-2xl font-bold tabular-nums`}
             />
             <span className="text-2xl font-bold text-zinc-300">€</span>
           </div>
@@ -382,7 +379,7 @@ export default function QuizCreateur() {
             type="button"
             onClick={() => setRevelee(true)}
             disabled={carte.prixMini === null}
-            className={`${BOUTON_PRINCIPAL} mt-5`}
+            className={`${PRINCIPAL} mt-5`}
           >
             Voir ma carte
           </button>
@@ -395,16 +392,14 @@ export default function QuizCreateur() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col px-5 py-8 sm:py-14">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+      <p className={SECTION}>
         {courante.section}
       </p>
 
-      <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-[34px]">
+      <h1 className={`${TITRE} mt-3`}>
         {courante.titre}
       </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-zinc-500 sm:text-base">
-        {courante.aide}
-      </p>
+      <p className={AIDE}>{courante.aide}</p>
 
       <div className="mt-8">{courante.contenu}</div>
 
@@ -412,7 +407,7 @@ export default function QuizCreateur() {
         <button
           type="button"
           onClick={() => setEtape(etape - 1)}
-          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+          className={`${DISCRET} mt-8 self-start`}
         >
           ← Retour
         </button>
@@ -423,7 +418,7 @@ export default function QuizCreateur() {
         <button
           type="button"
           onClick={() => oublierStockageLocal([CLE_COTE])}
-          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+          className={`${DISCRET} mt-8 self-start`}
         >
           ← Je ne suis pas créateur
         </button>

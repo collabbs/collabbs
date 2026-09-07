@@ -3,6 +3,7 @@ import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import Parcours from "./Parcours";
 import { SITE } from "@/lib/legal-entity";
+import { FOND } from "./styles";
 
 /**
  * Le parcours d'entrée — en construction, à sa propre adresse.
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function PageCommencer() {
   return (
-    <div className="min-h-dvh bg-white">
+    <div className={`min-h-dvh ${FOND}`}>
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
         <Link href="/decouvrir" aria-label="Collabbs">
           <Logo />

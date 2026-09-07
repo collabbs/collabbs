@@ -17,6 +17,16 @@ import {
   type CarteMarque,
   type ModeRemunerationId,
 } from "@/lib/quiz";
+import {
+  TITRE,
+  SECTION,
+  AIDE,
+  REPONSE,
+  REPONSE_ACTIVE,
+  CHAMP,
+  PRINCIPAL,
+  DISCRET,
+} from "./styles";
 
 /**
  * Le questionnaire marque.
@@ -31,12 +41,6 @@ import {
  * longtemps. Une marque écrit une demande — elle veut le résultat, pas le
  * formulaire. Chaque question de trop est un abandon.
  */
-
-const BOUTON_PRINCIPAL =
-  "min-h-[58px] w-full rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90 disabled:opacity-30";
-
-const CHAMP =
-  "min-h-[58px] w-full rounded-2xl border border-zinc-200 px-5 text-base outline-none transition focus:border-ink";
 
 function Reponse({
   actif,
@@ -53,15 +57,11 @@ function Reponse({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-[60px] w-full items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left transition ${
-        actif
-          ? "border-transparent bg-ink text-white shadow-[0_12px_28px_-18px_rgba(0,0,0,.7)]"
-          : "border-zinc-200 bg-white text-ink hover:border-ink hover:shadow-[0_12px_28px_-22px_rgba(0,0,0,.5)]"
-      }`}
+      className={actif ? REPONSE_ACTIVE : REPONSE}
     >
-      <span className="text-[15px] font-semibold leading-snug sm:text-base">{children}</span>
+      <span className="leading-snug">{children}</span>
       {suffixe && (
-        <span className={`shrink-0 text-xs font-bold ${actif ? "text-white/55" : "text-zinc-400"}`}>
+        <span className={`shrink-0 text-[13px] font-semibold ${actif ? "text-brand" : "text-zinc-400"}`}>
           {suffixe}
         </span>
       )}
@@ -110,10 +110,10 @@ export default function QuizMarque() {
   if (revelee || (briefComplet && etapeChoisie === null)) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 text-center sm:py-14">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+        <p className={SECTION}>
           Ton brief
         </p>
-        <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-4xl">
+        <h1 className={`${TITRE} mt-3`}>
           Voilà ce que les créateurs verront.
         </h1>
 
@@ -131,7 +131,7 @@ export default function QuizMarque() {
             dans une liste avec des filtres, elle reconnaît quelqu'un. */}
         <Link
           href="/defile?cote=marque"
-          className={`${BOUTON_PRINCIPAL} mt-5 flex items-center justify-center`}
+          className={`${PRINCIPAL} mt-5 flex items-center justify-center`}
         >
           Voir les créateurs
         </Link>
@@ -142,7 +142,7 @@ export default function QuizMarque() {
             setRevelee(false);
             setEtape(0);
           }}
-          className="mt-5 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+          className={`${DISCRET} mt-5 underline underline-offset-2`}
         >
           Modifier mes réponses
         </button>
@@ -153,7 +153,7 @@ export default function QuizMarque() {
         <button
           type="button"
           onClick={() => oublierStockageLocal(CLES_PARCOURS)}
-          className="mt-2 text-sm font-medium text-zinc-400 underline underline-offset-2 transition hover:text-ink"
+          className={`${DISCRET} mt-2 underline underline-offset-2`}
         >
           Tout recommencer
         </button>
@@ -187,7 +187,7 @@ export default function QuizMarque() {
             type="button"
             onClick={() => setEtape(1)}
             disabled={!carte.nom || !carte.produit}
-            className={`${BOUTON_PRINCIPAL} mt-1`}
+            className={`${PRINCIPAL} mt-1`}
           >
             Continuer
           </button>
@@ -226,7 +226,7 @@ export default function QuizMarque() {
             type="button"
             onClick={() => setEtape(2)}
             disabled={carte.formats.length === 0}
-            className={`${BOUTON_PRINCIPAL} mt-3`}
+            className={`${PRINCIPAL} mt-3`}
           >
             Continuer
           </button>
@@ -299,7 +299,7 @@ export default function QuizMarque() {
                 type="button"
                 onClick={() => setEtape(3)}
                 disabled={carte.montant === null && carte.commission === null}
-                className={BOUTON_PRINCIPAL}
+                className={PRINCIPAL}
               >
                 Continuer
               </button>
@@ -325,7 +325,7 @@ export default function QuizMarque() {
             type="button"
             onClick={() => setRevelee(true)}
             disabled={!carte.echeance}
-            className={`${BOUTON_PRINCIPAL} mt-5`}
+            className={`${PRINCIPAL} mt-5`}
           >
             Voir mon brief
           </button>
@@ -338,16 +338,14 @@ export default function QuizMarque() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col px-5 py-8 sm:py-14">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+      <p className={SECTION}>
         {courante.section}
       </p>
 
-      <h1 className="font-display mt-3 text-[26px] font-black leading-[1.12] tracking-tight text-ink sm:text-[34px]">
+      <h1 className={`${TITRE} mt-3`}>
         {courante.titre}
       </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-zinc-500 sm:text-base">
-        {courante.aide}
-      </p>
+      <p className={AIDE}>{courante.aide}</p>
 
       <div className="mt-8">{courante.contenu}</div>
 
@@ -355,7 +353,7 @@ export default function QuizMarque() {
         <button
           type="button"
           onClick={() => setEtape(etape - 1)}
-          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+          className={`${DISCRET} mt-8 self-start`}
         >
           ← Retour
         </button>
@@ -366,7 +364,7 @@ export default function QuizMarque() {
         <button
           type="button"
           onClick={() => oublierStockageLocal([CLE_COTE])}
-          className="mt-8 self-start text-sm font-medium text-zinc-400 transition hover:text-ink"
+          className={`${DISCRET} mt-8 self-start`}
         >
           ← Je ne suis pas une marque
         </button>

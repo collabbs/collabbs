@@ -23,12 +23,21 @@ export default function CarteCreateur({
   createur,
   onDecision,
   onOuvrir,
+  sortirVers,
   enArriere,
 }: {
   createur: MarketplaceCreator;
   onDecision?: (d: Direction) => void;
   /** Pression simple, sans glissement : on ouvre la fiche détaillée. */
   onOuvrir?: () => void;
+  /**
+   * Sortie commandée de l'extérieur, par les boutons ♥ et ✕.
+   *
+   * Sans ça, les boutons faisaient avancer la pile SANS que la carte parte :
+   * elle disparaissait d'un coup et on ne voyait pas de quel côté. Le geste
+   * animait, le bouton non — deux comportements pour une même décision.
+   */
+  sortirVers?: Direction | null;
   enArriere?: boolean;
 }) {
   const [dx, setDx] = useState(0);
@@ -39,7 +48,8 @@ export default function CarteCreateur({
   // toucher déclencherait aussi une décision, et inversement.
   const aBouge = useRef(false);
 
-  const inerte = enArriere || sortie !== null;
+  const sortieEffective = sortie ?? sortirVers ?? null;
+  const inerte = enArriere || sortieEffective !== null;
 
   function commencer(e: React.PointerEvent) {
     if (inerte || !onDecision) return;
@@ -83,8 +93,8 @@ export default function CarteCreateur({
   const intensite = Math.min(1, Math.abs(dx) / SEUIL);
   const offres = createur.offers.map((id) => OFFER_BY_ID[id]).filter(Boolean).slice(0, 3);
 
-  const transform = sortie
-    ? `translateX(${sortie === "droite" ? 900 : -900}px) rotate(${sortie === "droite" ? 26 : -26}deg)`
+  const transform = sortieEffective
+    ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
     : enArriere
       ? "scale(0.95) translateY(10px)"
       : `translateX(${dx}px) rotate(${rotation}deg)`;
@@ -99,7 +109,7 @@ export default function CarteCreateur({
         transform,
         transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
         touchAction: "none",
-        opacity: sortie ? 0 : 1,
+        opacity: sortieEffective ? 0 : 1,
       }}
       className={`absolute inset-0 select-none overflow-hidden rounded-[28px] bg-zinc-900 shadow-[0_20px_60px_-24px_rgba(0,0,0,.55)] ${
         enArriere ? "pointer-events-none" : ""
