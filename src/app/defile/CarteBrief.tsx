@@ -297,8 +297,8 @@ export default function CarteBrief({
     if (Math.abs(ecart) >= SEUIL) {
       const dir: Direction = ecart > 0 ? "droite" : "gauche";
       setSortie(dir);
-      // 340 ms : la durée de la course. Avancer avant, c'est escamoter le geste.
-      window.setTimeout(() => onDecision?.(dir), 340);
+      // 450 ms : la durée de la course. Avancer avant, c'est escamoter le geste.
+      window.setTimeout(() => onDecision?.(dir), 450);
     } else {
       // Le retour au centre est la SEULE animation du geste : on repose la
       // transition juste avant, sinon la carte reviendrait d'un coup sec.
@@ -393,7 +393,21 @@ export default function CarteBrief({
         // sortant. Un objet qu'on jette ne devient pas transparent en partant.
         transition: glisse
           ? "none"
-          : "transform .34s cubic-bezier(.22,.61,.36,1), opacity .16s ease-in .16s",
+          : sortieEffective
+            ? // ─── LA SORTIE S'ACCÉLÈRE, elle ne décélère pas ───
+              //
+              // La courbe était `cubic-bezier(.22,.61,.36,1)` : une
+              // décélération. Elle dépense l'essentiel de la distance dans les
+              // premières millisecondes — donc sur un téléphone de 390 px, la
+              // carte avait quitté l'écran en 70 ms. Le lancer était mesurable
+              // (657 px à 120 ms) et pourtant invisible : tout se passait hors
+              // du cadre.
+              //
+              // Une carte qu'on jette part de l'arrêt et prend de la vitesse.
+              // Cette courbe-là garde la carte visible le temps qu'on la voie
+              // partir, et la durée passe à 0,45 s.
+              "transform .45s cubic-bezier(.4,0,.85,.35), opacity .18s ease-in .27s"
+            : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
         // Prévient le navigateur : il prépare un calque, le geste ne repeint
         // plus la carte à chaque image.
         willChange: "transform",
@@ -510,18 +524,22 @@ export default function CarteBrief({
       {/* Tampons de décision : ils disent ce qui va se passer AVANT de lâcher.
           Supprimés par accident en réécrivant le fond — sans eux le geste perd
           son retour, et on lâche sans savoir de quel côté on va. */}
+      {/* Les tampons apparaissent aussi quand la sortie vient d'un BOUTON.
+          Ils ne servaient qu'au glissement — or c'est au bouton qu'on a le
+          plus besoin de dire ce qui vient de se passer, puisqu'il n'y a aucun
+          geste pour le raconter. */}
       {!enArriere && (
         <>
           <span
             ref={tamponOui}
-            style={{ opacity: 0 }}
+            style={{ opacity: sortirVers === "droite" ? 1 : 0 }}
             className="pointer-events-none absolute left-6 top-8 z-20 -rotate-[14deg] rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-emerald-400"
           >
             Intéressé
           </span>
           <span
             ref={tamponNon}
-            style={{ opacity: 0 }}
+            style={{ opacity: sortirVers === "gauche" ? 1 : 0 }}
             className="pointer-events-none absolute right-6 top-8 z-20 rotate-[14deg] rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-rose-400"
           >
             Passer
