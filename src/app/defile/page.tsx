@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
+import { createClient } from "@/lib/supabase/server";
 import { briefsDuDefile } from "@/lib/defile";
 import { getMarketplaceCreators } from "@/lib/creators-data";
 import Defile from "./Defile";
@@ -39,7 +40,11 @@ export default async function PageDefile({
   // créateurs, le créateur regarde des briefs. Si chacun défilait sur l'autre,
   // le créateur ouvrirait le défilé et verrait UNE marque.
   const cotéMarque = cote === "marque";
-  const briefs = cotéMarque ? [] : await briefsDuDefile();
+  const briefs = cotéMarque ? [] : await briefsDuDefile(
+        // Connecté, on peut savoir si une marque l'a déjà retenu : le match
+        // devient réel. Anonyme, il n'y a rien à croiser.
+        (await (await createClient()).auth.getUser()).data.user?.id,
+      );
   const createurs = cotéMarque ? await getMarketplaceCreators() : [];
 
   return (

@@ -124,13 +124,30 @@ export type BriefDefile = {
  * masquées en production. Une carte qui ne peut jamais répondre est pire
  * qu'une carte absente — le visiteur investit un geste dans le vide.
  */
-export async function briefsDuDefile(): Promise<BriefDefile[]> {
+/**
+ * Le paquet, avec la réciprocité RÉELLE quand on sait qui regarde.
+ *
+ * ─── Pourquoi ce paramètre ───
+ * `dejaInteressee` déclenche l'écran de match. Il était figé à `false` : la
+ * mécanique existait, câblée nulle part, donc aucun match n'a jamais eu lieu.
+ * On a longtemps hésité à en simuler un — c'eût été promettre une réponse qui
+ * ne viendrait pas.
+ *
+ * La vraie réciprocité existe pourtant : une marque qui a retenu un créateur
+ * l'a écrit dans `brand_creator_saves`. Si ce créateur aime ensuite une de ses
+ * campagnes, c'est un match, au sens plein — les deux se sont choisis.
+ *
+ * Ça ne peut se savoir qu'une fois connecté : un visiteur anonyme n'a pas
+ * d'identité à croiser. Le match devient donc une raison d'avoir un compte,
+ * au lieu d'un artifice pour en faire créer un.
+ */
+export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]> {
   const admin = createAdminClient();
 
   const requete = admin
     .from("campaigns")
     .select(
-      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
+      "id, brand_id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -164,6 +181,17 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
   const photos = new Map(
     await Promise.all(sites.map(async (site) => [site, await photosEnCache(site)] as const)),
   );
+
+  // Les marques qui ont déjà retenu CE créateur. Une seule lecture, et
+  // seulement si l'on sait de qui il s'agit.
+  const marquesInteressees = new Set<string>();
+  if (createurId) {
+    const { data: retenus } = await admin
+      .from("brand_creator_saves")
+      .select("brand_id")
+      .eq("creator_id", createurId);
+    for (const r of retenus ?? []) marquesInteressees.add(r.brand_id);
+  }
 
   const briefs: BriefDefile[] = data.map((c) => ({
     id: c.id,
@@ -237,7 +265,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
         : []),
       ...(c.brands?.website ? (photos.get(c.brands.website) ?? []) : []),
     ],
-    dejaInteressee: false,
+    dejaInteressee: marquesInteressees.has(c.brand_id ?? ""),
   }));
 
   /* ─── LES CARTES QUI PORTENT UNE PHOTO PASSENT DEVANT ───
