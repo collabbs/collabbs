@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { verifierMatch } from "@/lib/match";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import {
@@ -53,6 +54,12 @@ export async function toggleSavedCreator(
     .from("brand_creator_saves")
     .insert({ brand_id: user.id, creator_id: creatorId });
   if (error) return { ok: false, error: error.message };
+
+  // Le match se forme quand le SECOND des deux agit. C'est ici, pas à
+  // l'inscription : un créateur qui vient d'arriver n'a pas pu être repéré
+  // avant d'exister.
+  await verifierMatch(user.id, creatorId);
+
   revalidatePath("/shortlist");
   revalidatePath("/creators");
   return { ok: true, saved: true };

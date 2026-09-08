@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { verifierMatch } from "@/lib/match";
 
 /**
  * Ce qu'on a retenu pendant le défilé, rapatrié dans le compte.
@@ -71,12 +72,10 @@ export async function reprendreFavoris(
   const marques = [...new Set((vivantes ?? []).map((c) => c.brand_id).filter(Boolean))];
   let matchs = 0;
   if (marques.length > 0) {
-    const { data: reciproques } = await supabase
-      .from("brand_creator_saves")
-      .select("brand_id")
-      .eq("creator_id", user.id)
-      .in("brand_id", marques as string[]);
-    matchs = (reciproques ?? []).length;
+    const verdicts = await Promise.all(
+      (marques as string[]).map((b) => verifierMatch(b, user.id)),
+    );
+    matchs = verdicts.filter(Boolean).length;
   }
 
   revalidatePath("/favoris");
