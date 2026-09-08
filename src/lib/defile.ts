@@ -159,7 +159,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     await Promise.all(sites.map(async (site) => [site, await photosEnCache(site)] as const)),
   );
 
-  return data.map((c) => ({
+  const briefs: BriefDefile[] = data.map((c) => ({
     id: c.id,
     marque: c.brands?.name ?? "Une marque",
     // La carte n'en montre que deux lignes, mais la FICHE a besoin du texte
@@ -210,8 +210,8 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     modele:
       c.product_image_url ||
       (c.brands?.website && (photos.get(c.brands.website) ?? []).length > 0)
-        ? "photo"
-        : "logo",
+        ? ("photo" as const)
+        : ("logo" as const),
     /* ─── L'IMAGE CHOISIE PASSE DEVANT ───
 
        Le défilé ne lisait QUE le site de la marque. L'image qu'elle avait
@@ -233,4 +233,19 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     ],
     dejaInteressee: false,
   }));
+
+  /* ─── LES CARTES QUI PORTENT UNE PHOTO PASSENT DEVANT ───
+
+     Le paquet suivait l'ordre de création. Les six dernières campagnes créées
+     étaient celles de marques sans photo exploitable — donc les six premières
+     cartes du défilé étaient les plus pauvres, et on jugeait le produit
+     là-dessus : « y en a absolument aucune avec photo ».
+
+     Un paquet s'ouvre sur ce qu'il a de meilleur. Ça ne cache rien : les
+     cartes sans photo restent dans le paquet, elles passent après. */
+  return briefs.sort((a, b) => {
+    const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
+    const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
+    return forceB - forceA;
+  });
 }
