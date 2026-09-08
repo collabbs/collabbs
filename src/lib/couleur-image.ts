@@ -240,9 +240,6 @@ function hex(r: number, g: number, b: number): string {
   );
 }
 
-/** Part minimale du logo qu'une teinte doit occuper pour être « la » couleur. */
-const PART_MINIMALE = 0.04;
-
 /**
  * La couleur dominante d'un logo PNG.
  *
@@ -305,7 +302,19 @@ export function couleurDominante(octets: Uint8Array): CouleurLogo | null {
   let meilleur: { n: number; r: number; g: number; b: number } | null = null;
   for (const g of groupes.values()) if (!meilleur || g.n > meilleur.n) meilleur = g;
 
-  if (meilleur && meilleur.n / opaques >= PART_MINIMALE) {
+  // ⚠️ Une teinte MINORITAIRE reste la couleur de la marque.
+  //
+  // Le seuil de 4 % partait d'une bonne idée — ne pas prendre trois pixels
+  // parasites pour une identité. Mais il ratait le cas le plus courant : un
+  // logo dessiné sur un fond plein. Celui de Creatikk est un dégradé bleu et
+  // violet posé sur du noir ; le noir gagne largement en surface, donc on
+  // rendait « noir », et la carte devenait un aplat sombre sans vie.
+  //
+  // Le fond n'est pas l'identité, le SIGNE l'est. Dès qu'il existe assez de
+  // pixels colorés pour ne pas être du bruit (un demi pour cent), c'est eux
+  // qui décident.
+  const PART_BRUIT = 0.005;
+  if (meilleur && meilleur.n / opaques >= PART_BRUIT) {
     return {
       couleur: hex(meilleur.r / meilleur.n, meilleur.g / meilleur.n, meilleur.b / meilleur.n),
       vive: true,

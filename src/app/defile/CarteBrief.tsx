@@ -375,11 +375,16 @@ export default function CarteBrief({
               assombri en bas dans SA propre teinte. Plus de voile noir : il
               transformait chaque marque en la même bouillie grise. */}
           <div className="absolute inset-0" style={{ background: base }} />
+          {/* La lumière tombe SUR la marque, pas dans un coin.
+              Un aplat sombre avec un petit cadre au milieu, c'est un vide —
+              c'est ce que Julien a vu. Une source large et haute, dans la
+              teinte de la marque, donne à la carte une profondeur et fait
+              exister le cadre au lieu de le laisser flotter. */}
           <div
             aria-hidden
             className="absolute inset-0"
             style={{
-              background: `radial-gradient(120% 80% at 22% 10%, ${rgba(clair, 0.9)} 0%, ${rgba(clair, 0)} 62%)`,
+              background: `radial-gradient(90% 55% at 50% 20%, ${rgba(clair, 0.95)} 0%, ${rgba(clair, 0.35)} 45%, ${rgba(clair, 0)} 75%)`,
             }}
           />
           {/* Le monogramme n'est qu'un pis-aller : dès qu'on a l'enseigne
@@ -459,12 +464,12 @@ export default function CarteBrief({
              C'est sobre, mais c'est une carte — et surtout ça supprime le
              seul cas où il n'y avait rien à afficher du tout. */
           <div
-            className="flex h-[112px] items-center justify-center rounded-2xl px-6"
-            style={{ background: eclaircir(base, 0.95) }}
+            className="flex items-center justify-center rounded-3xl px-6 shadow-[0_18px_50px_-20px_rgba(0,0,0,.7)]"
+            style={{ height: "clamp(104px, 40cqw, 200px)", background: eclaircir(base, 0.95) }}
           >
             <span
-              className="font-display truncate text-[30px] font-black tracking-tight"
-              style={{ color: assombrir(base, 0.55) }}
+              className="font-display truncate font-black tracking-tight"
+              style={{ fontSize: "clamp(24px, 9cqw, 44px)", color: assombrir(base, 0.55) }}
             >
               {brief.marque}
             </span>
@@ -478,8 +483,10 @@ export default function CarteBrief({
              puisqu'une icône ne le dit pas. */
           <div className="flex items-center gap-4">
             <span
-              className="h-[92px] w-[92px] shrink-0 rounded-[22px] bg-contain bg-center bg-no-repeat shadow-[0_10px_30px_-10px_rgba(0,0,0,.55)]"
+              className="shrink-0 rounded-[24%] bg-contain bg-center bg-no-repeat shadow-[0_16px_40px_-14px_rgba(0,0,0,.65)]"
               style={{
+                height: "clamp(74px, 30cqw, 150px)",
+                width: "clamp(74px, 30cqw, 150px)",
                 backgroundImage: `url("${enseigne}")`,
                 // Un logo transparent a besoin d'un fond, et pas n'importe
                 // lequel : clair sous des traits sombres, sombre sous des
@@ -495,8 +502,8 @@ export default function CarteBrief({
               aria-label={brief.marque}
             />
             <span
-              className="font-display min-w-0 truncate text-[26px] font-black tracking-tight"
-              style={{ color: encreHaut }}
+              className="font-display min-w-0 truncate font-black tracking-tight"
+              style={{ fontSize: "clamp(20px, 8cqw, 40px)", color: encreHaut }}
             >
               {brief.marque}
             </span>
@@ -509,8 +516,9 @@ export default function CarteBrief({
         ) : enseigne ? (
           <div className="flex items-start justify-between gap-3">
             <div
-              className="flex h-[112px] flex-1 items-center justify-center rounded-2xl px-6 py-5"
+              className="flex flex-1 items-center justify-center rounded-3xl px-6 py-5 shadow-[0_18px_50px_-22px_rgba(0,0,0,.7)]"
               style={{
+                height: "clamp(104px, 40cqw, 200px)",
                 background: brief.enseigneSombre
                   ? eclaircir(base, 0.95)
                   : assombrir(base, 0.84),

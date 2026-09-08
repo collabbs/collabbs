@@ -153,7 +153,12 @@ export default function ChoixModele({
       {/* ─── Le modèle ─── */}
       <div className="mt-6 grid grid-cols-2 gap-2">
         {MODELES.map((m) => {
-          const dispo = m.id === "photo" ? aDesPhotos : true;
+          // Aucune option n'est jamais grisée. « Une photo » l'était tant
+          // qu'aucune image n'avait été trouvée — donc on ne pouvait pas la
+          // CHOISIR pour ensuite en ajouter une, ce qui est exactement le
+          // geste attendu. Choisir un modèle et le remplir sont deux actions
+          // distinctes ; les confondre bloquait la seconde.
+          const dispo = true;
           const actif = carte.modele === m.id;
           return (
             <button
@@ -173,6 +178,15 @@ export default function ChoixModele({
           );
         })}
       </div>
+
+      {/* Choisir « photo » sans en avoir : on demande, on ne bloque pas. */}
+      {carte.modele === "photo" && !aDesPhotos && (
+        <p className="mt-4 rounded-2xl bg-[#F4F1F5] p-4 text-[13px] leading-relaxed text-zinc-600">
+          Il te manque une photo. Ajoute-la ci-dessous — une photo de ton produit
+          ou de quelqu&apos;un qui l&apos;utilise. C&apos;est elle qui fera
+          s&apos;arrêter un créateur.
+        </p>
+      )}
 
       {/* ─── Les photos trouvées ─── */}
       {carte.photos.length > 0 && carte.modele === "photo" && (
