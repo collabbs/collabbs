@@ -49,13 +49,15 @@ export type IdentiteSite = {
   image: string | null;
   /** L'image de partage social — une bannière, pas un logo. Candidate photo. */
   partage: string | null;
+  /** Toutes les icônes déclarées, de la plus grande à la plus petite. */
+  icones: string[];
   /** Couleur de thème déclarée par le site, au format CSS. */
   couleur: string | null;
   /** Nom du site tel qu'il se présente (`og:site_name`). */
   nom: string | null;
 };
 
-const VIDE: IdentiteSite = { image: null, partage: null, couleur: null, nom: null };
+const VIDE: IdentiteSite = { image: null, partage: null, icones: [], couleur: null, nom: null };
 
 /** Voir le commentaire d'en-tête : un agent inconnu se fait refuser. */
 const AGENT =
@@ -138,6 +140,42 @@ function lien(html: string, rel: string): string | null {
     if (trouve?.[1]) return trouve[1].trim();
   }
   return null;
+}
+
+/**
+ * Toutes les icônes déclarées par la page, de la plus grande à la plus petite.
+ *
+ * ─── Pourquoi pas la première ───
+ * On prenait le premier `rel="icon"` rencontré. Chez creatikk.io c'est
+ * `favicon.svg` — un format qu'on ne décode pas — alors que la même page
+ * déclare un `android-chrome-512x512.png`. On se rabattait donc sur l'icône du
+ * service de domaines, qui rend du 256 px AGRANDI depuis une petite source :
+ * d'où le logo flou signalé.
+ *
+ * L'attribut `sizes` dit la taille. Quand il manque, le nom du fichier la
+ * contient presque toujours (`android-chrome-512x512.png`). À défaut on la
+ * suppose petite : mieux vaut sous-estimer un candidat que gonfler un mauvais.
+ */
+function iconesDeclarees(html: string): { url: string; taille: number }[] {
+  const trouvees: { url: string; taille: number }[] = [];
+  const motif = /<link\b[^>]*rel=["'][^"']*\bicon\b[^"']*["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = motif.exec(html)) !== null) {
+    const balise = m[0];
+    const href = /href=["']([^"']+)["']/i.exec(balise)?.[1];
+    if (!href) continue;
+    // Le SVG et l'ICO ne se mesurent pas : on ne peut pas décider s'ils sont
+    // assez nets pour être montrés en grand.
+    if (/\.(svg|ico)($|\?)/i.test(href)) continue;
+
+    const declaree = /sizes=["'](\d+)x\d+["']/i.exec(balise)?.[1];
+    const dansLeNom = /(\d{2,4})x\d{2,4}/.exec(href)?.[1];
+    trouvees.push({
+      url: href,
+      taille: Number(declaree ?? dansLeNom ?? 0),
+    });
+  }
+  return trouvees.sort((a, b) => b.taille - a.taille);
 }
 
 /** Une couleur CSS plausible, et rien d'autre : ce texte finit dans du style. */
@@ -240,10 +278,16 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
   // Les icônes déclarées, elles, SONT des logos : c'est leur seule raison
   // d'exister. `apple-touch-icon` fait 180 px avec un fond plein, c'est le
   // meilleur candidat ; l'icône classique suit ; la favicon ferme la marche.
-  const image =
-    absolu(lien(html, "apple-touch-icon")) ??
-    absolu(lien(html, "icon")) ??
-    (await faviconSeul(finale));
+  // Les icônes déclarées, de la plus grande à la plus petite, plus le chemin
+  // conventionnel de l'icône Apple — souvent présente sur le disque sans être
+  // déclarée dans la page, et toujours en 180 px.
+  const icones = [
+    ...iconesDeclarees(html).map((i) => absolu(i.url)),
+    absolu(lien(html, "apple-touch-icon")),
+    absolu(new URL("/apple-touch-icon.png", finale).toString()),
+  ].filter((u): u is string => u !== null);
+
+  const image = icones[0] ?? absolu(lien(html, "icon")) ?? (await faviconSeul(finale));
 
   // L'image de partage n'est pas perdue pour autant : elle rejoint les
   // candidates PHOTO, où elle est jugée sur ses dimensions comme les autres.
@@ -255,6 +299,7 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
   return {
     image,
     partage,
+    icones,
     couleur: couleurPlausible(meta(html, "theme-color")),
     nom: meta(html, "og:site_name"),
   };
@@ -691,15 +736,41 @@ export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
   let enseigneSombre = officiel?.sombre ?? false;
   let enseigneCarree = false;
 
-  for (const candidat of [logo, parDomaine]) {
-    if (enseigne || !candidat) continue;
-    const analyse = await analyserLogoDistant(candidat);
-    if (!analyse || analyse.largeur < 96) continue;
-    enseigne = candidat;
-    enseigneSombre = analyse.sombre;
-    // Au-delà de 2,5 fois plus large que haut, c'est une signature, pas une
-    // icône : elle se traite comme une enseigne officielle.
-    enseigneCarree = analyse.largeur / Math.max(1, analyse.hauteur) < 2.5;
+  if (!enseigne) {
+    // ⚠️ On garde la PLUS GRANDE, pas la première qui passe.
+    //
+    // La première suffisante était retenue, et c'était souvent l'icône du
+    // service de domaines — qui rend du 256 px agrandi depuis une petite
+    // source, donc flou une fois montré en grand. creatikk.io déclare pourtant
+    // un `android-chrome-512x512.png` : il fallait aller le chercher.
+    //
+    // Les candidates sont testées ensemble ; une seule sera affichée, mais on
+    // ne sait laquelle qu'après les avoir mesurées.
+    const candidates = [...site.icones, logo, parDomaine].filter(
+      (u): u is string => typeof u === "string" && u.length > 0,
+    );
+    const uniques = [...new Set(candidates)].slice(0, 6);
+
+    const mesurees = await Promise.all(
+      uniques.map(async (url) => ({ url, analyse: await analyserLogoDistant(url) })),
+    );
+
+    let meilleure: { url: string; analyse: NonNullable<AnalyseLogo> } | null = null;
+    for (const m of mesurees) {
+      if (!m.analyse || m.analyse.largeur < 96) continue;
+      if (!meilleure || m.analyse.largeur > meilleure.analyse.largeur) {
+        meilleure = { url: m.url, analyse: m.analyse };
+      }
+    }
+
+    if (meilleure) {
+      enseigne = meilleure.url;
+      enseigneSombre = meilleure.analyse.sombre;
+      // Au-delà de 2,5 fois plus large que haut, c'est une signature, pas une
+      // icône : elle se traite comme une enseigne officielle.
+      enseigneCarree =
+        meilleure.analyse.largeur / Math.max(1, meilleure.analyse.hauteur) < 2.5;
+    }
   }
 
   return { logo, couleur, enseigne, enseigneSombre, enseigneCarree };
