@@ -57,10 +57,18 @@ async function json(url: string): Promise<unknown> {
   return r.json();
 }
 
-/** Le nom enregistrable d'un domaine : `www.decathlon.fr` → `decathlon`. */
+/**
+ * Le nom enregistrable d'un domaine : `www.decathlon.fr` → `decathlon`.
+ *
+ * Les tirets sont retirés : une marque tape l'adresse qu'elle connaît, et
+ * Wikidata garde celle qu'elle a. Petit Bateau y déclare `petit-bateau.com`,
+ * Le Slip Français `leslipfrancais.fr` — deux écritures pour un même nom, qui
+ * ne se reconnaissaient pas. La comparaison reste stricte sur les lettres.
+ */
 export function nomDeDomaine(hote: string): string {
   const parts = hote.replace(/^www\./, "").toLowerCase().split(".");
-  return parts.length > 1 ? parts[parts.length - 2] : parts[0];
+  const nom = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+  return nom.replace(/-/g, "");
 }
 
 function hoteDe(url: string): string | null {
@@ -139,7 +147,11 @@ export async function logoOfficiel(url: string): Promise<LogoOfficiel | null> {
   if (nom.length < 3) return null;
 
   try {
-    const ids = await candidats(nom);
+    // Pour CHERCHER, les tirets valent des espaces : « le-slip-francais »
+    // ne ramène rien, « le slip francais » ramène la bonne fiche. Pour
+    // COMPARER, on garde le nom compacté — voir `nomDeDomaine`.
+    const brut = hote.replace(/^www\./, "").toLowerCase().split(".").slice(-2)[0] ?? nom;
+    const ids = await candidats(brut.replace(/-/g, " "));
     if (ids.length === 0) return null;
 
     const fiches = (await json(

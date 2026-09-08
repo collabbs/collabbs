@@ -498,10 +498,18 @@ export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
   const parDomaine = logoDuDomaine(url);
   const logo = site.image ?? parDomaine;
 
-  // La couleur déclarée par le site prime : c'est la marque qui l'a choisie.
-  // Vient ensuite celle du logo officiel — la plus fiable, elle sort d'un
-  // fichier vectoriel propre. Le favicon en dernier.
-  let couleur = site.couleur ?? officiel?.couleur ?? null;
+  // La couleur du logo officiel prime.
+  //
+  // J'avais mis `theme-color` en premier, en me disant que c'était la marque
+  // qui l'avait choisie. Mais `theme-color` teinte la barre du navigateur, pas
+  // l'identité : beaucoup de sites y mettent un gris neutre. Boulanger en est
+  // l'exemple — leur balise donne #434748 quand leur logo, et leur marque,
+  // sont orange. La carte devenait grise pour une marque qui ne l'est pas.
+  //
+  // Le logo officiel ne rend une couleur que lorsqu'il en porte VRAIMENT une
+  // (`vive`) : un logo noir ne renvoie rien, et `theme-color` reprend alors
+  // la main. L'ordre ne perd donc aucune information, il la hiérarchise.
+  let couleur = officiel?.couleur ?? site.couleur ?? null;
   if (!couleur && logo) couleur = (await couleurDuLogo(logo))?.couleur ?? null;
 
   // Second essai, sur le logo du service de domaines.
