@@ -48,7 +48,13 @@ export default async function PageDefile({
   const createurs = cotéMarque ? await getMarketplaceCreators() : [];
 
   return (
-    <div className="min-h-dvh bg-white">
+    /* ⚠️ `h-dvh` et non `min-h-dvh`, avec une colonne.
+       Le paquet mesurait DÉJÀ un écran entier, et le bandeau s'ajoutait
+       par-dessus : la page débordait donc toujours d'une soixantaine de
+       pixels, et l'on pouvait faire défiler derrière les cartes. Sur
+       téléphone c'est pire — le geste vertical entre en conflit avec le
+       glissement. La page tient un écran, le paquet prend ce qui reste. */
+    <div className="flex h-dvh flex-col overflow-hidden bg-white">
       {/* En-tête minuscule : la carte doit prendre l'écran, c'est elle
           l'interaction. Mais on garde une sortie visible — quelqu'un qui ne
           comprend pas ce qu'il regarde doit pouvoir aller lire. */}
@@ -71,11 +77,13 @@ export default async function PageDefile({
           {cotéMarque ? "Publier ma campagne" : "Créer mon profil"}
         </Link>
       </header>
+      <div className="min-h-0 flex-1">
       {cotéMarque ? (
         <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} />
       ) : (
         <Defile briefs={briefs} apercuMatch={apercu === "match"} />
       )}
+      </div>
     </div>
   );
 }

@@ -241,7 +241,7 @@ export default function Defile({
       )}
       {fiche && <FicheBrief brief={fiche} onFermer={() => setFiche(null)} />}
 
-      <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col px-4 pb-6">
         <div className="relative min-h-0 flex-1">
           {suivant && <CarteBrief key={suivant.id} brief={suivant} enArriere />}
           <CarteBrief

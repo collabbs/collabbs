@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 import type { Direction } from "./CarteBrief";
+import { useGesteDeCarte } from "./useGesteDeCarte";
 
 /**
  * Une carte de créateur, pour le défilé côté marque.
@@ -17,7 +17,6 @@ import type { Direction } from "./CarteBrief";
  * détaille les trois pièges du glissement.
  */
 
-const SEUIL = 100;
 
 export default function CarteCreateur({
   createur,
@@ -40,76 +39,45 @@ export default function CarteCreateur({
   sortirVers?: Direction | null;
   enArriere?: boolean;
 }) {
-  const [dx, setDx] = useState(0);
-  const [glisse, setGlisse] = useState(false);
-  const [sortie, setSortie] = useState<Direction | null>(null);
-  const depart = useRef(0);
-  // Distingue une PRESSION d'un GLISSEMENT : sans ça, ouvrir la fiche au
-  // toucher déclencherait aussi une décision, et inversement.
-  const aBouge = useRef(false);
-
-  const sortieEffective = sortie ?? sortirVers ?? null;
+  // Le geste vit dans `useGesteDeCarte`, partagé avec la carte campagne.
+  // Il en existait deux copies : les corrections — mouvement hors de React,
+  // sortie qui accélère, effacement retardé — n'avaient été portées que sur
+  // l'autre. Ce défilé accrochait donc depuis le début, et les cartes
+  // s'évaporaient sur place au lieu de partir sur le côté.
+  const geste = useGesteDeCarte({
+    actif: !enArriere && sortirVers == null,
+    onDecision,
+    onOuvrir,
+    sortirVers,
+  });
+  // Déstructuré : passer `geste.racine` en attribut fait croire à l'analyse
+  // statique qu'on lit une référence pendant le rendu.
+  const { racine, tamponOui, tamponNon, gestionnaires, transition, sortieEffective } =
+    geste;
   const inerte = enArriere || sortieEffective !== null;
 
-  function commencer(e: React.PointerEvent) {
-    if (inerte || !onDecision) return;
-    depart.current = e.clientX;
-    aBouge.current = false;
-    setGlisse(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      /* capture refusée : le geste marche quand même */
-    }
-  }
-
-  function bouger(e: React.PointerEvent) {
-    if (!glisse) return;
-    const ecart = e.clientX - depart.current;
-    // 6 px de tolérance : un doigt n'est jamais parfaitement immobile, et sans
-    // cette marge une pression normale passerait pour un micro-glissement.
-    if (Math.abs(ecart) > 6) aBouge.current = true;
-    setDx(ecart);
-  }
-
-  function relacher() {
-    if (!glisse) return;
-    setGlisse(false);
-    if (!aBouge.current) {
-      setDx(0);
-      onOuvrir?.();
-      return;
-    }
-    if (Math.abs(dx) >= SEUIL) {
-      const dir: Direction = dx > 0 ? "droite" : "gauche";
-      setSortie(dir);
-      window.setTimeout(() => onDecision?.(dir), 240);
-    } else {
-      setDx(0);
-    }
-  }
-
-  const rotation = Math.max(-16, Math.min(16, dx / 14));
-  const intensite = Math.min(1, Math.abs(dx) / SEUIL);
   const offres = createur.offers.map((id) => OFFER_BY_ID[id]).filter(Boolean).slice(0, 3);
 
+  // React ne décrit que les états STABLES : la sortie, la carte du dessous,
+  // le repos. Le mouvement du doigt s'écrit directement sur le nœud.
   const transform = sortieEffective
     ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
     : enArriere
       ? "scale(0.95) translateY(10px)"
-      : `translateX(${dx}px) rotate(${rotation}deg)`;
+      : undefined;
 
   return (
     <div
-      onPointerDown={commencer}
-      onPointerMove={bouger}
-      onPointerUp={relacher}
-      onPointerCancel={relacher}
+      ref={racine}
+      {...gestionnaires}
       style={{
         transform,
-        transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
+        transition,
         touchAction: "none",
         opacity: sortieEffective ? 0 : 1,
+        // Prévient le navigateur : il prépare un calque, le geste ne repeint
+        // plus la carte à chaque image.
+        willChange: "transform",
       }}
       className={`absolute inset-0 select-none overflow-hidden rounded-[28px] bg-zinc-900 shadow-[0_20px_60px_-24px_rgba(0,0,0,.55)] ${
         enArriere ? "pointer-events-none" : ""
@@ -123,13 +91,15 @@ export default function CarteCreateur({
       {!enArriere && (
         <>
           <span
-            style={{ opacity: dx > 0 ? intensite : 0 }}
+            ref={tamponOui}
+            style={{ opacity: sortirVers === "droite" ? 1 : 0 }}
             className="pointer-events-none absolute left-6 top-8 z-20 -rotate-[14deg] rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-emerald-400"
           >
             Intéressé
           </span>
           <span
-            style={{ opacity: dx < 0 ? intensite : 0 }}
+            ref={tamponNon}
+            style={{ opacity: sortirVers === "gauche" ? 1 : 0 }}
             className="pointer-events-none absolute right-6 top-8 z-20 rotate-[14deg] rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-rose-400"
           >
             Passer

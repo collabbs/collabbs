@@ -217,7 +217,7 @@ export default function DefileCreateurs({
           onContinuer={() => setRelance(false)}
         />
       )}
-      <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col px-4 pb-6">
       <div className="relative min-h-0 flex-1">
         {suivant && <CarteCreateur key={suivant.id} createur={suivant} enArriere />}
         <CarteCreateur
