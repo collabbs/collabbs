@@ -17,11 +17,24 @@ import { assombrir, eclaircir } from "@/lib/teinte";
  * ─── Pourquoi montrer les cartes, et pas un compteur ───
  * Première version : un gros chiffre sur un dégradé. Ça ne pesait rien —
  * « 5 » est une abstraction, on ne perd pas un nombre. On perd des CAMPAGNES,
- * avec leurs photos, leurs marques et leurs montants.
+ * avec leurs photos et leurs marques. On les remet donc sous les yeux.
  *
- * On les remet donc sous les yeux, en éventail, avec le total de ce qu'elles
- * proposent. Le total est le vrai argument : il est calculé, pas promis, et il
- * dit en un chiffre ce que représente le geste qu'on vient de faire.
+ * ─── Pourquoi PAS le total des montants ───
+ * Deuxième version : la somme de ce que ces campagnes proposent, en grand.
+ * Elle était fausse dans ce qu'elle laissait entendre. Ces campagnes n'ont
+ * rien accordé à personne : le créateur les a simplement retenues. Afficher
+ * « 1 180 € » comme un acquis, c'est le même mensonge que le match simulé,
+ * en plus discret — et il se paie de la même façon, à la déception.
+ *
+ * ─── Ce qui est vrai, et cohérent avec ce qu'il vient de faire ───
+ * Troisième version : « ces marques ne peuvent pas te voir tant que tu n'as
+ * pas de profil ». Faux aussi, d'une autre façon — il VIENT de créer sa carte
+ * au questionnaire. Lui dire qu'il n'a pas de profil nie son travail.
+ *
+ * Le vrai état des choses : sa carte existe, mais seulement dans son
+ * navigateur. Le compte n'est pas une inscription, c'est la PUBLICATION de ce
+ * qu'il a déjà fait. C'est vrai, ça respecte son geste, et ça donne au bouton
+ * un sens : « publier ma carte », pas « créer un compte ».
  *
  * ─── Pourquoi pas un « match » ───
  * Il a été question d'en simuler un. Annoncer un match quand aucune marque n'a
@@ -43,9 +56,6 @@ export default function EcranRelance({
   const estCreateur = cote === "createur";
   const nombre = retenus.length;
 
-  // Le total de ce que ces campagnes proposent. On additionne les forfaits :
-  // une commission dépend des ventes, l'annoncer comme un gain serait inventer.
-  const total = retenus.reduce((somme, b) => somme + (b.montant ?? 0), 0);
   const enEventail = retenus.slice(-3).reverse();
 
   return (
@@ -95,43 +105,26 @@ export default function EcranRelance({
           </div>
         )}
 
-        {/* Le total : calculé, pas promis. */}
-        {estCreateur && total > 0 ? (
-          <>
-            <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Ce que tu as retenu
-            </p>
-            <p className="font-display mt-2 text-[58px] font-black leading-none tabular-nums tracking-tight text-white">
-              {total.toLocaleString("fr-FR")} €
-            </p>
-            <p className="mt-1 text-[14px] font-semibold text-white/60">
-              sur {nombre} campagne{nombre > 1 ? "s" : ""}
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="font-display text-[58px] font-black leading-none tabular-nums text-white">
-              {nombre}
-            </p>
-            <p className="mt-1 text-[16px] font-bold text-white/80">
-              {estCreateur
-                ? `campagne${nombre > 1 ? "s" : ""} retenue${nombre > 1 ? "s" : ""}`
-                : `créateur${nombre > 1 ? "s" : ""} repéré${nombre > 1 ? "s" : ""}`}
-            </p>
-          </>
-        )}
+        <p className="font-display text-[58px] font-black leading-none tabular-nums text-white">
+          {nombre}
+        </p>
+        <p className="mt-1 text-[16px] font-bold text-white/80">
+          {estCreateur
+            ? `campagne${nombre > 1 ? "s" : ""} retenue${nombre > 1 ? "s" : ""}`
+            : `créateur${nombre > 1 ? "s" : ""} repéré${nombre > 1 ? "s" : ""}`}
+        </p>
 
         <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/70">
           {estCreateur
-            ? "Tout ça disparaît si tu fermes. Crée ton profil pour le garder — et pour que ces marques puissent te trouver."
-            : "Tout ça disparaît si tu fermes. Crée ton compte pour garder ta sélection et leur envoyer ton brief."}
+            ? "Ta carte n'existe que dans ce navigateur. Publie-la pour que ces marques puissent te répondre."
+            : "Ton brief n'existe que dans ce navigateur. Publie-le pour que ces créateurs puissent y répondre."}
         </p>
 
         <Link
           href={estCreateur ? "/signup?role=creator" : "/signup?role=brand"}
           className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white shadow-[0_14px_40px_-12px_rgba(168,85,247,.9)] transition hover:opacity-90"
         >
-          {estCreateur ? "Garder mes campagnes" : "Garder ma sélection"}
+          {estCreateur ? "Publier ma carte" : "Publier mon brief"}
         </Link>
 
         {/* On ne bloque pas. Interrompre deux fois ferait partir pour de bon. */}
