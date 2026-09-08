@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
 import { valider } from "@/lib/validation";
@@ -10,6 +11,69 @@ import { reportError } from "@/lib/report-error";
 import { capaciteCampagnes, messageCapaciteAtteinte } from "@/lib/limites";
 import { peutDecider } from "@/lib/invitations";
 import { fenetreValide } from "@/lib/attribution";
+
+/**
+ * Téléverser le visuel d'une campagne.
+ *
+ * ─── Pourquoi elle existe ───
+ * La carte d'une campagne se joue sur son image. On sait en récupérer une sur
+ * la plupart des sites, mais pas tous : mesuré sur dix petites boutiques,
+ * quatre bloquent tout accès automatisé — et contrairement aux grandes
+ * enseignes, elles n'ont pas de logo officiel référencé ailleurs pour
+ * compenser. Pour elles, l'image ne peut venir que de la marque.
+ *
+ * Or le formulaire ne proposait que de COLLER UNE ADRESSE. Sur un ordinateur
+ * c'est faisable ; sur un téléphone, c'est presque impossible — et c'est
+ * précisément là que se remplit un formulaire de campagne. Le filet censé
+ * garantir qu'aucune carte ne parte sans visuel était donc inutilisable par
+ * ceux qui en avaient besoin.
+ *
+ * ─── Sur la mise en œuvre ───
+ * Même schéma que `uploadAvatar`, pour les mêmes raisons : identité vérifiée
+ * avec le client de session, chemin verrouillé sur l'identifiant vérifié,
+ * écriture avec le client administrateur — le client de session ne propage
+ * pas toujours son jeton vers le stockage (constaté en production).
+ *
+ * Le nom de fichier est tiré au hasard, contrairement à l'avatar qui s'écrase :
+ * une marque a une campagne différente par visuel, ils doivent coexister.
+ */
+export async function televerserVisuelCampagne(
+  formData: FormData,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Aucun fichier reçu." };
+  if (file.size === 0) return { ok: false, error: "Fichier vide." };
+  if (file.size > 5 * 1024 * 1024) {
+    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "Format non supporté — utilise une image (JPG, PNG, WEBP)." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Non connecté." };
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const extSure = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  // Chemin verrouillé sur l'identifiant authentifié : impossible d'écrire
+  // dans le dossier de quelqu'un d'autre par cette action.
+  const chemin = `${user.id}/${crypto.randomUUID()}.${extSure}`;
+
+  const admin = createAdminClient();
+  const { error } = await admin.storage
+    .from("visuels-campagne")
+    .upload(chemin, file, { cacheControl: "3600", contentType: file.type });
+  if (error) {
+    await reportError("campagne/visuel", error);
+    return { ok: false, error: "Le téléversement a échoué. Réessaie." };
+  }
+
+  const { data } = admin.storage.from("visuels-campagne").getPublicUrl(chemin);
+  return { ok: true, url: data.publicUrl };
+}
 
 // Sprint B v2 — Refonte : le TYPE est le modèle de paiement créateur.
 // Les "assets" diffusables (code promo, concours) sont des FLAGS séparés

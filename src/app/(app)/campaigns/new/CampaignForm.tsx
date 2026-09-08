@@ -7,6 +7,7 @@ import Logo from "@/components/landing/Logo";
 import PlatformIcon from "@/components/PlatformIcon";
 import {
   createCampaign,
+  televerserVisuelCampagne,
   type CampaignType,
   type ProductKind,
   type CpaTier,
@@ -69,6 +70,8 @@ export default function CampaignForm({
   const [productName, setProductName] = useState("");
   const [productUrl, setProductUrl] = useState("");
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [televersement, setTeleversement] = useState(false);
+  const [erreurVisuel, setErreurVisuel] = useState<string | null>(null);
   const [productKind, setProductKind] = useState<ProductKind | null>(null);
   // Sprint B v2 — CPA
   const [cpaActionLabel, setCpaActionLabel] = useState("");
@@ -339,29 +342,81 @@ export default function CampaignForm({
               : "C'est où le créateur enverra ses abonnés."}
           </p>
         </div>
+        {/* ─── LE VISUEL ───
+
+            Il n'y avait qu'un champ d'adresse. Sur un ordinateur, coller
+            l'adresse d'une image se fait ; sur un téléphone — là où se
+            remplit un formulaire de campagne — c'est presque impossible.
+
+            Or c'est l'image qui fait la carte, et pour les marques dont on ne
+            sait rien lire (quatre petites boutiques sur dix bloquent tout
+            accès automatisé), elle ne peut venir que d'elles. Le filet censé
+            garantir qu'aucune carte ne parte sans visuel était inutilisable
+            par ceux qui en avaient besoin.
+
+            Le choix du fichier passe donc en premier, et l'adresse reste en
+            dessous pour ceux qui l'ont déjà sous la main. */}
         <div>
-          <label className="block text-sm font-medium text-ink">
-            Image produit{" "}
-            <span className="text-zinc-400">(URL)</span>
-          </label>
-          <input
-            value={productImageUrl}
-            onChange={(e) => setProductImageUrl(e.target.value)}
-            inputMode="url"
-            placeholder="https://ta-marque.com/img/produit.jpg"
-            className="mt-1.5 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
-          />
-          {productImageUrl.trim() && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={productImageUrl}
-              alt="Aperçu produit"
-              className="mt-2 h-24 w-24 rounded-lg border border-zinc-200 object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
-          )}
+          <label className="block text-sm font-medium text-ink">Image produit</label>
+          <p className="mt-1 text-xs text-zinc-400">
+            C&apos;est la première chose qu&apos;un créateur verra. Une photo du
+            produit vaut mieux qu&apos;un logo.
+          </p>
+
+          <div className="mt-2 flex items-start gap-3">
+            {productImageUrl.trim() ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={productImageUrl}
+                alt="Aperçu produit"
+                className="h-24 w-24 shrink-0 rounded-lg border border-zinc-200 object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-300 text-[11px] text-zinc-400">
+                Aperçu
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-ink transition hover:border-zinc-400">
+                {televersement ? "Envoi…" : "Choisir une image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={televersement}
+                  onChange={async (e) => {
+                    const fichier = e.target.files?.[0];
+                    // Le champ est vidé tout de suite : sans ça, rechoisir le
+                    // même fichier après une erreur ne déclenche rien.
+                    e.target.value = "";
+                    if (!fichier) return;
+                    setErreurVisuel(null);
+                    setTeleversement(true);
+                    const donnees = new FormData();
+                    donnees.append("file", fichier);
+                    const r = await televerserVisuelCampagne(donnees);
+                    setTeleversement(false);
+                    if (r.ok && r.url) setProductImageUrl(r.url);
+                    else setErreurVisuel(r.error ?? "Le téléversement a échoué.");
+                  }}
+                />
+              </label>
+              {erreurVisuel && (
+                <p className="mt-2 text-xs text-red-600">{erreurVisuel}</p>
+              )}
+              <input
+                value={productImageUrl}
+                onChange={(e) => setProductImageUrl(e.target.value)}
+                inputMode="url"
+                placeholder="…ou colle l'adresse d'une image"
+                className="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-400"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
