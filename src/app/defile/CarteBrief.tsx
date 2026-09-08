@@ -558,9 +558,28 @@ export default function CarteBrief({
           </div>
         ) : (
         <div className="flex items-center gap-2.5">
+          {/* ─── LA MARQUE, SOUS SA MEILLEURE FORME ───
+
+              La pastille lisait la petite icône du site. Chez cut by fred elle
+              fait 35 px : écartée, donc la carte affichait un « C » alors que
+              leur vraie signature venait d'être trouvée. Ce qui est bon pour
+              le grand format l'est aussi pour le petit.
+
+              Et une SIGNATURE ne rentre pas dans un carré de 44 px : elle s'y
+              écraserait. Large, elle se pose comme un bandeau ; carrée, comme
+              une pastille. */}
+          {brief.enseigne && !brief.enseigneCarree ? (
+            <span
+              className="h-6 max-w-[58%] flex-1 bg-contain bg-left bg-no-repeat drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]"
+              style={{ backgroundImage: `url("${brief.enseigne}")` }}
+              role="img"
+              aria-label={brief.marque}
+            />
+          ) : (
+          <>
           <Pastille
-            logo={brief.image}
-            net={logoNet}
+            logo={brief.enseigne ?? brief.image}
+            net={brief.enseigne !== null || logoNet}
             marque={brief.marque}
             encre={encreHaut}
           />
@@ -573,6 +592,8 @@ export default function CarteBrief({
           >
             {brief.marque}
           </span>
+          </>
+          )}
           {brief.dejaInteressee && (
             <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-950">
               T&apos;a repéré
