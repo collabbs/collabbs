@@ -168,7 +168,23 @@ export type CarteMarque = {
    * des marques il est déjà rempli, et l'étape se traverse sans y penser.
    */
   visuel: string | null;
+  /**
+   * Le modèle de carte retenu.
+   *
+   * « photo » met une vraie image en pleine carte ; « logo » présente la
+   * marque dans un grand encadré. Les deux marchent — ce qui ne marche pas,
+   * c'est une carte sans rien. On propose donc le choix plutôt que de le
+   * subir : une marque sans photo exploitable n'est pas une marque perdue.
+   */
+  modele: ModeleCarte;
+  /** L'enseigne lue sur le site, montrée en grand par le modèle « logo ». */
+  enseigne: string | null;
+  enseigneSombre: boolean;
+  enseigneCarree: boolean;
 };
+
+/** Les deux façons de présenter une campagne. */
+export type ModeleCarte = "photo" | "logo";
 
 export function carteMarqueVide(): CarteMarque {
   return {
@@ -185,6 +201,10 @@ export function carteMarqueVide(): CarteMarque {
     couleur: null,
     photos: [],
     visuel: null,
+    modele: "photo",
+    enseigne: null,
+    enseigneSombre: false,
+    enseigneCarree: false,
   };
 }
 
@@ -416,5 +436,9 @@ export function normaliserCarteMarque(v: unknown): CarteMarque {
     couleur: texteOuNull(o.couleur),
     photos: listeDeTextes(o.photos),
     visuel: texteOuNull(o.visuel),
+    modele: o.modele === "logo" ? "logo" : "photo",
+    enseigne: texteOuNull(o.enseigne),
+    enseigneSombre: o.enseigneSombre === true,
+    enseigneCarree: o.enseigneCarree === true,
   };
 }

@@ -48,6 +48,7 @@ function briefExemple(
     enseigne,
     enseigneSombre,
     enseigneCarree,
+    modele: photos.length > 0 ? "photo" : "logo",
     dejaInteressee: false,
   };
 }

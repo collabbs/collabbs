@@ -6,7 +6,7 @@ import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import CarteBriefApercu from "./CarteBriefApercu";
 import { lireIdentiteMarque } from "./actions";
-import ChoixVisuel from "./ChoixVisuel";
+import ChoixModele from "./ChoixModele";
 import {
   CLES_PARCOURS,
   CLE_COTE,
@@ -97,9 +97,17 @@ export default function QuizMarque() {
         logo: lu.logo,
         couleur: lu.couleur,
         photos: lu.photos,
-        // Pré-choisie : pour la plupart des marques, l'étape du visuel se
-        // traversera sans qu'elles aient rien à faire.
-        visuel: lu.photos[0] ?? lu.logo ?? null,
+        enseigne: lu.enseigne,
+        enseigneSombre: lu.enseigneSombre,
+        enseigneCarree: lu.enseigneCarree,
+        // Pré-choisis : pour la plupart des marques, l'étape du visuel se
+        // traverse sans qu'elles aient rien à faire.
+        //
+        // Le logo N'EST PLUS un repli de visuel : une image de carte est une
+        // photo, pas une icône étirée. Sans photo, c'est le modèle « marque
+        // encadrée » qui prend le relais — il est fait pour ça.
+        visuel: lu.photos[0] ?? null,
+        modele: lu.photos.length > 0 ? "photo" : "logo",
       });
     } finally {
       setLectureEnCours(false);
@@ -364,21 +372,19 @@ export default function QuizMarque() {
     },
 
     {
-      section: "Ton visuel",
-      titre: "Un créateur regarde une image avant de lire un montant.",
-      aide: "C'est ce qui décide s'il s'arrête sur ta campagne ou s'il passe.",
+      section: "Ta carte",
+      titre: "Voilà ce qu'un créateur verra.",
+      aide: "Choisis comment ta campagne se présente. L'image décide s'il s'arrête ou s'il passe.",
       contenu: (
         <div>
-          <ChoixVisuel
-            photos={carte.photos}
-            choisie={carte.visuel}
-            onChoisir={(url) => maj({ visuel: url })}
-            enCours={lectureEnCours}
-          />
+          <ChoixModele carte={carte} maj={maj} lectureEnCours={lectureEnCours} />
           <button
             type="button"
             onClick={() => setEtape(4)}
-            disabled={!carte.visuel}
+            // Une carte « photo » a besoin de sa photo ; une carte « marque »
+            // a besoin d'une marque à montrer. Sans l'un ni l'autre, on ne
+            // laisse pas partir : c'est le seul cas qui donne une carte vide.
+            disabled={carte.modele === "photo" ? !carte.visuel : !(carte.enseigne ?? carte.logo)}
             className={`${PRINCIPAL} mt-5`}
           >
             Continuer

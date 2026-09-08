@@ -1,6 +1,7 @@
 "use server";
 
 import { identiteDeMarque, visuelsDeMarque } from "@/lib/identite-site";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type IdentiteLue = {
   logo: string | null;
@@ -79,5 +80,53 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
     };
   } catch {
     return VIDE;
+  }
+}
+
+/**
+ * Téléverser une image depuis le questionnaire, avant tout compte.
+ *
+ * ─── Pourquoi ici, et pas après l'inscription ───
+ * Le visuel se décide au moment où la marque voit sa carte. Lui dire « tu
+ * ajouteras ton image plus tard » revient à la laisser partir sur une carte
+ * qui ne lui plaît pas — et à ce stade elle n'a encore rien investi, donc
+ * elle ne revient pas.
+ *
+ * Coller une adresse d'image marche sur un ordinateur, pas sur un téléphone.
+ * Or le questionnaire se remplit surtout au téléphone.
+ *
+ * ─── Ce que ça coûte, en clair ───
+ * C'est un dépôt SANS authentification : il n'y a pas de compte à ce stade,
+ * c'est tout l'intérêt. Le garde-fou est étroit — une image, 5 Mo au plus,
+ * un nom tiré au hasard dans un dossier à part. Ça reste une porte ouverte,
+ * et il faut le savoir plutôt que le découvrir.
+ */
+export async function televerserVisuelAnonyme(
+  formData: FormData,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "Aucun fichier reçu." };
+  if (file.size === 0) return { ok: false, error: "Fichier vide." };
+  if (file.size > 5 * 1024 * 1024) {
+    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "Format non supporté — une image (JPG, PNG, WEBP)." };
+  }
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const extSure = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  const chemin = `anonymes/${crypto.randomUUID()}.${extSure}`;
+
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.storage
+      .from("visuels-campagne")
+      .upload(chemin, file, { cacheControl: "3600", contentType: file.type });
+    if (error) return { ok: false, error: "Le téléversement a échoué. Réessaie." };
+    const { data } = admin.storage.from("visuels-campagne").getPublicUrl(chemin);
+    return { ok: true, url: data.publicUrl };
+  } catch {
+    return { ok: false, error: "Le téléversement a échoué. Réessaie." };
   }
 }

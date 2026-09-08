@@ -50,7 +50,10 @@ export async function creerCampagneDepuisCarte(
   // `normaliserCarteMarque` est la même réparation que celle du questionnaire.
   const carte = normaliserCarteMarque(brute);
   if (!carte) return { ok: false, error: "Questionnaire illisible." };
-  if (!carte.visuel) return { ok: false, error: "Il manque le visuel." };
+  // Le modèle « marque » se passe de photo : c'est le logo qui porte la carte.
+  if (carte.modele === "photo" && !carte.visuel) {
+    return { ok: false, error: "Il manque le visuel." };
+  }
 
   const supabase = await createClient();
   const {
@@ -92,7 +95,7 @@ export async function creerCampagneDepuisCarte(
     platforms: [],
     productName: carte.nom ?? "",
     productUrl: carte.site ?? "",
-    productImageUrl: carte.visuel,
+    productImageUrl: carte.modele === "photo" ? (carte.visuel ?? "") : "",
     productKind: null,
     cpaActionLabel: "",
     cpaValuePerAction: null,

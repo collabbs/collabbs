@@ -88,6 +88,8 @@ export type BriefDefile = {
   enseigneSombre: boolean;
   /** Icône carrée (posée seule) plutôt que signature large (posée sur panneau). */
   enseigneCarree: boolean;
+  /** Le modèle choisi par la marque : photo pleine carte, ou marque encadrée. */
+  modele: "photo" | "logo";
   /**
    * Photos produit de la marque, quand sa boutique les publie.
    *
@@ -195,6 +197,10 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     enseigneCarree: c.brands?.website
       ? (identites.get(c.brands.website)?.enseigneCarree ?? false)
       : false,
+    // Une campagne qui porte son propre visuel a choisi la photo ; sinon on
+    // présente la marque. Le choix explicite du questionnaire prime au moment
+    // de la création, et se traduit ici par la présence ou non d'une image.
+    modele: c.product_image_url ? "photo" : "logo",
     /* ─── L'IMAGE CHOISIE PASSE DEVANT ───
 
        Le défilé ne lisait QUE le site de la marque. L'image qu'elle avait

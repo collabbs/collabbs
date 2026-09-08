@@ -246,8 +246,16 @@ export default function CarteBrief({
   // Une photo par campagne, toujours la même : on tire dans la liste à partir
   // de l'identifiant plutôt qu'au hasard. Une carte qui change d'image d'un
   // chargement à l'autre donne l'impression que rien n'est décidé.
+  // ─── LE MODÈLE COMMANDE ───
+  //
+  // La marque choisit comment sa campagne se présente : une photo en pleine
+  // carte, ou sa marque dans un grand encadré. Sans ce choix, une marque dont
+  // on avait extrait une image médiocre la subissait — et une marque qui
+  // n'avait qu'un beau logo se retrouvait avec une lettre.
   const photo =
-    brief.photos.length > 0
+    brief.modele === "logo"
+      ? null
+      : brief.photos.length > 0
       ? brief.photos[
           [...brief.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7) %
             brief.photos.length
@@ -279,10 +287,21 @@ export default function CarteBrief({
   // Le montant est le sujet de la carte sans photo : il occupe la place que
   // l'image occupait. Mais « 12 000 € » et « 400 € » n'ont pas la même
   // longueur — une taille fixe déborderait ou flotterait.
+  // ⚠️ En unités de CONTENEUR, pas en pixels.
+  //
+  // Les tailles étaient fixes. Ça tient tant que la carte occupe l'écran, et
+  // ça casse partout ailleurs : dans l'aperçu du questionnaire, large de 280 px,
+  // « 400 € » passait à la ligne et le montant se coupait en deux. Une carte
+  // qui ne supporte qu'une seule taille n'est pas une carte, c'est une capture.
+  //
+  // `cqw` = 1 % de la largeur de la carte. Les bornes évitent qu'elle devienne
+  // illisible en très petit ou grotesque en très grand.
   const tailleMontant = (() => {
-    if (photo) return 62;
+    if (photo) return "clamp(30px, 16cqw, 64px)";
     const n = remuneration?.gros.length ?? 0;
-    return n > 7 ? 64 : n > 5 ? 78 : 92;
+    if (n > 7) return "clamp(28px, 16cqw, 66px)";
+    if (n > 5) return "clamp(32px, 20cqw, 80px)";
+    return "clamp(36px, 24cqw, 94px)";
   })();
 
   const transform = sortieEffective
@@ -302,6 +321,8 @@ export default function CarteBrief({
         transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
         touchAction: "none",
         opacity: sortieEffective ? 0 : 1,
+        // C'est CETTE largeur que les tailles en `cqw` mesurent.
+        containerType: "inline-size",
       }}
       className={`absolute inset-0 select-none overflow-hidden rounded-[28px] shadow-[0_20px_60px_-24px_rgba(0,0,0,.55)] ${
         enArriere ? "pointer-events-none" : ""
@@ -543,7 +564,7 @@ export default function CarteBrief({
               <p
                 className="font-display font-black leading-[0.85] tracking-[-0.05em] [overflow-wrap:anywhere]"
                 style={{
-                  fontSize: `${tailleMontant}px`,
+                  fontSize: tailleMontant,
                   color: encre,
                   textShadow: photo ? "0 4px 24px rgba(0,0,0,.7)" : "none",
                 }}
