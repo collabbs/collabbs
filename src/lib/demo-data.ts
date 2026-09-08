@@ -39,6 +39,29 @@ export function demoCreatorsVisible(): boolean {
  * Marques et campagnes de démonstration : visibles en développement,
  * invisibles en production. Un créateur ne doit pas candidater dans le vide.
  */
+/**
+ * Les marques de démonstration dans le DÉFILÉ, et nulle part ailleurs.
+ *
+ * ─── Pourquoi un troisième commutateur ───
+ * Le défilé est la vitrine : un créateur qui arrive d'une publicité doit
+ * trouver un paquet plein, sinon il repart. Il y est visible.
+ *
+ * Mais `demoVisible()` gouverne AUSSI la liste des opportunités dans
+ * l'application — celle où l'on CANDIDATE. Tout ouvrir d'un coup laisserait un
+ * créateur postuler à une campagne qui n'existe pas, et attendre une réponse
+ * qui ne viendrait jamais. Faire défiler une carte n'engage rien ; postuler
+ * engage du temps.
+ *
+ * Le défilé montre, l'application engage. Les deux ne peuvent pas partager le
+ * même interrupteur.
+ */
+export function demoDansLeDefile(): boolean {
+  const forcage = process.env.NEXT_PUBLIC_SHOW_DEMO_DATA;
+  if (forcage === "1") return true;
+  if (forcage === "0") return false;
+  return true;
+}
+
 export function demoVisible(): boolean {
   const forcage = process.env.NEXT_PUBLIC_SHOW_DEMO_DATA;
   if (forcage === "1") return true;

@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
-import { demoVisible } from "./demo-data";
+import { demoDansLeDefile } from "./demo-data";
 import { identiteDeMarque, visuelsDeMarque } from "./identite-site";
 import { unstable_cache } from "next/cache";
 
@@ -131,7 +131,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     .limit(50);
 
   const [{ data, error }, { data: niches }] = await Promise.all([
-    demoVisible() ? requete : requete.neq("brands.is_demo", true),
+    demoDansLeDefile() ? requete : requete.neq("brands.is_demo", true),
     // Les libellés, une fois pour toutes : la carte affiche « Sport », pas
     // l'identifiant 4. Sans ça il n'y avait rien d'utile à montrer, et la
     // carte restait vide aux deux tiers.
