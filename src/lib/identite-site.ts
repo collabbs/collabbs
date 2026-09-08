@@ -2,6 +2,7 @@ import "server-only";
 import { verifierUrlPublique, MAX_REDIRECTIONS } from "./url-publique";
 import { analyserLogo, couleurDominante, type AnalyseLogo, type CouleurLogo } from "./couleur-image";
 import { logoOfficiel } from "./logo-officiel";
+import { convientAUneCarte, dimensionsImage } from "./dimensions-image";
 
 /**
  * Récupérer l'identité visuelle d'une marque depuis son site.
@@ -419,14 +420,82 @@ export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]
  * s'arrête au premier qui donne quelque chose. Une marque n'a qu'UNE chose à
  * fournir — son adresse — et le reste se débrouille.
  */
+/**
+ * Lit les premiers octets d'une image — juste son en-tête.
+ *
+ * On ne rapatrie pas le fichier : les dimensions vivent dans les tout premiers
+ * octets. On demande un intervalle, et si le serveur l'ignore on lit le flux
+ * par morceaux en s'arrêtant dès qu'on en a assez.
+ */
+async function enteteImage(url: string, maximum = 65_536): Promise<Uint8Array | null> {
+  const controle = await verifierUrlPublique(url);
+  if (!controle.ok) return null;
+  try {
+    const r = await fetch(controle.url, {
+      redirect: "follow",
+      headers: { "User-Agent": AGENT, Range: `bytes=0-${maximum - 1}` },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok || !r.body) return null;
+
+    const lecteur = r.body.getReader();
+    const morceaux: Uint8Array[] = [];
+    let total = 0;
+    while (total < maximum) {
+      const { done, value } = await lecteur.read();
+      if (done || !value) break;
+      morceaux.push(value);
+      total += value.length;
+    }
+    // Couper la lecture évite de laisser filer le reste du fichier.
+    await lecteur.cancel().catch(() => {});
+
+    const assemble = new Uint8Array(total);
+    let o = 0;
+    for (const m of morceaux) {
+      assemble.set(m, o);
+      o += m.length;
+    }
+    return assemble;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ne garde que les images qui peuvent réellement porter une carte.
+ *
+ * ─── Ce que ça corrige ───
+ * On affichait n'importe quoi en grand : un pixel de traçage Facebook sur la
+ * carte de creatikk.io, `blue_header.png` sur bobochic, `Header_12.png` sur
+ * lemlist et pennylane. Tout comptait comme « une photo trouvée » — et la
+ * carte était vide ou floue.
+ *
+ * Filtrer sur le NOM ne pouvait pas marcher : `facebook.com/tr?id=…` ne
+ * contient aucun mot suspect, et `Header_12.png` est un nom banal. Les
+ * dimensions tranchent : un mouchard fait 1×1, une bannière est trois fois
+ * plus large que haute, une photo produit est carrée ou portrait.
+ *
+ * Les vérifications partent ensemble : une par une, six images feraient six
+ * allers-retours en série.
+ */
+async function garderLesVraiesPhotos(urls: string[], combien: number): Promise<string[]> {
+  const verdicts = await Promise.all(
+    urls.map(async (u) => {
+      const entete = await enteteImage(u);
+      return entete && convientAUneCarte(dimensionsImage(entete)) ? u : null;
+    }),
+  );
+  return verdicts.filter((u): u is string => u !== null).slice(0, combien);
+}
+
 export async function visuelsDeMarque(url: string): Promise<string[]> {
-  const catalogue = await photosProduit(url);
+  // On demande plus de candidats qu'il n'en faut : le tri en écarte beaucoup,
+  // et six candidats ne donneraient pas six photos.
+  const catalogue = await garderLesVraiesPhotos(await photosProduit(url, 12), 6);
   if (catalogue.length > 0) return catalogue;
 
-  const page = await imagesDeLaPage(url);
-  if (page.length > 0) return page;
-
-  return [];
+  return garderLesVraiesPhotos(await imagesDeLaPage(url, 16), 6);
 }
 
 /**
