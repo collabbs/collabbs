@@ -51,6 +51,17 @@ export default function RepriseDuDefile({ role }: { role: string | null }) {
       // On ne vide qu'en cas de succès : un échec réseau ne doit pas coûter à
       // quelqu'un les campagnes qu'il vient de retenir.
       window.localStorage.removeItem(cle);
+
+      // ─── UN MATCH NE SE DÉCOUVRE PAS DANS UNE LISTE ───
+      //
+      // Les deux côtés font défiler avant d'avoir un compte : la réciprocité
+      // ne peut donc se constater qu'ici, au moment où l'identité existe. Si
+      // elle existe, on ne laisse pas la personne tomber dessus par hasard
+      // trois écrans plus loin — on l'y amène.
+      if (r.matchs > 0) {
+        router.push(`/favoris?match=${r.matchs}`);
+        return;
+      }
       if (r.ajoutes > 0) router.refresh();
     });
   }, [role, router]);

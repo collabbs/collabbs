@@ -19,7 +19,13 @@ const eur = (n: number) => `${n.toLocaleString("fr-FR")} €`;
  * La marque a déjà `/shortlist`, qui lit la même table que celle où sa reprise
  * écrit. Une seconde page pour la même liste finirait par la contredire.
  */
-export default async function FavorisPage() {
+export default async function FavorisPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const matchs = Number(typeof params.match === "string" ? params.match : 0);
   const supabase = await createClient();
   const {
     data: { user },
@@ -61,6 +67,27 @@ export default async function FavorisPage() {
 
   return (
     <>
+      {/* ─── LE MATCH, ANNONCÉ ───
+          Il vient d'être découvert en croisant ce qu'on a retenu avec ce que
+          les marques avaient retenu de nous. C'est la première chose à voir en
+          arrivant, pas une ligne au milieu d'une liste. */}
+      {matchs > 0 && (
+        <div className="mb-6 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#5b21b6_0%,#7c3aed_50%,#06b6d4_100%)] p-5 text-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+            {matchs > 1 ? `${matchs} matchs` : "Un match"}
+          </p>
+          <p className="font-display mt-1.5 text-[24px] font-black leading-tight">
+            {matchs > 1
+              ? `${matchs} marques t'avaient déjà repéré.`
+              : "Une marque t'avait déjà repéré."}
+          </p>
+          <p className="mt-2 text-[14px] leading-relaxed text-white/80">
+            Vous vous êtes choisis sans vous voir. Ouvre la campagne pour lui
+            répondre.
+          </p>
+        </div>
+      )}
+
       <h1 className="font-display text-3xl font-black tracking-tight text-ink">Mes favoris</h1>
       <p className="mt-2 text-[15px] text-zinc-500">
         Les campagnes que tu as retenues en faisant défiler.

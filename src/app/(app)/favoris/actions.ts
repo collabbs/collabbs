@@ -17,33 +17,45 @@ import { createClient } from "@/lib/supabase/server";
  * première visite de l'espace, comme pour le questionnaire des marques.
  */
 
-/** Rapatrie les campagnes aimées. Ne lève jamais : rien n'est perdu en cas d'échec. */
+/**
+ * Rapatrie les campagnes aimées, et repère les MATCHS au passage.
+ *
+ * ─── Pourquoi ici ───
+ * Les deux côtés font défiler AVANT d'avoir un compte. Rien n'atteint donc la
+ * base pendant le geste, et aucune réciprocité ne peut se former : c'est
+ * pourquoi aucun match n'a jamais eu lieu.
+ *
+ * L'inscription est le premier instant où l'identité existe. C'est donc là, et
+ * seulement là, qu'on peut croiser ce que la personne vient de retenir avec ce
+ * que les marques avaient déjà retenu d'elle. Un match trouvé à ce moment est
+ * vrai : les deux se sont choisis sans se voir.
+ */
 export async function reprendreFavoris(
   ids: string[],
-): Promise<{ ok: boolean; ajoutes: number }> {
-  if (ids.length === 0) return { ok: true, ajoutes: 0 };
+): Promise<{ ok: boolean; ajoutes: number; matchs: number }> {
+  if (ids.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, ajoutes: 0 };
+  if (!user) return { ok: false, ajoutes: 0, matchs: 0 };
 
   // On borne : la liste vient du navigateur, elle a pu être bricolée.
   const propres = [...new Set(ids)]
     .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
     .slice(0, 200);
-  if (propres.length === 0) return { ok: true, ajoutes: 0 };
+  if (propres.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   // Les campagnes qui n'existent plus sont ignorées plutôt que de faire
   // échouer toute la reprise : une campagne close ne doit pas coûter les sept
   // autres.
   const { data: vivantes } = await supabase
     .from("campaigns")
-    .select("id")
+    .select("id, brand_id")
     .in("id", propres);
   const valides = (vivantes ?? []).map((c) => c.id);
-  if (valides.length === 0) return { ok: true, ajoutes: 0 };
+  if (valides.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   const { error } = await supabase
     .from("campagnes_favorites")
@@ -51,32 +63,46 @@ export async function reprendreFavoris(
       valides.map((campaign_id) => ({ creator_id: user.id, campaign_id })),
       { onConflict: "creator_id,campaign_id", ignoreDuplicates: true },
     );
-  if (error) return { ok: false, ajoutes: 0 };
+  if (error) return { ok: false, ajoutes: 0, matchs: 0 };
+
+  // ─── LE CROISEMENT ───
+  // Parmi les marques dont il vient de retenir une campagne, lesquelles
+  // l'avaient déjà retenu ? Chacune est un match au sens plein.
+  const marques = [...new Set((vivantes ?? []).map((c) => c.brand_id).filter(Boolean))];
+  let matchs = 0;
+  if (marques.length > 0) {
+    const { data: reciproques } = await supabase
+      .from("brand_creator_saves")
+      .select("brand_id")
+      .eq("creator_id", user.id)
+      .in("brand_id", marques as string[]);
+    matchs = (reciproques ?? []).length;
+  }
 
   revalidatePath("/favoris");
-  return { ok: true, ajoutes: valides.length };
+  return { ok: true, ajoutes: valides.length, matchs };
 }
 
 /** Rapatrie les créateurs repérés par une marque. */
 export async function reprendreReperages(
   ids: string[],
-): Promise<{ ok: boolean; ajoutes: number }> {
-  if (ids.length === 0) return { ok: true, ajoutes: 0 };
+): Promise<{ ok: boolean; ajoutes: number; matchs: number }> {
+  if (ids.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, ajoutes: 0 };
+  if (!user) return { ok: false, ajoutes: 0, matchs: 0 };
 
   const propres = [...new Set(ids)]
     .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
     .slice(0, 200);
-  if (propres.length === 0) return { ok: true, ajoutes: 0 };
+  if (propres.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   const { data: vivants } = await supabase.from("creators").select("id").in("id", propres);
   const valides = (vivants ?? []).map((c) => c.id);
-  if (valides.length === 0) return { ok: true, ajoutes: 0 };
+  if (valides.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
   // ⚠️ On réutilise `brand_creator_saves`, qui existait déjà.
   //
@@ -91,10 +117,27 @@ export async function reprendreReperages(
       valides.map((creator_id) => ({ brand_id: user.id, creator_id })),
       { onConflict: "brand_id,creator_id", ignoreDuplicates: true },
     );
-  if (error) return { ok: false, ajoutes: 0 };
+  if (error) return { ok: false, ajoutes: 0, matchs: 0 };
+
+  // Le croisement symétrique : parmi les créateurs qu'elle vient de repérer,
+  // lesquels avaient déjà retenu une de ses campagnes ?
+  const { data: sesCampagnes } = await supabase
+    .from("campaigns")
+    .select("id")
+    .eq("brand_id", user.id);
+  let matchs = 0;
+  const idsCampagnes = (sesCampagnes ?? []).map((c) => c.id);
+  if (idsCampagnes.length > 0) {
+    const { data: reciproques } = await supabase
+      .from("campagnes_favorites")
+      .select("creator_id")
+      .in("campaign_id", idsCampagnes)
+      .in("creator_id", valides);
+    matchs = new Set((reciproques ?? []).map((r) => r.creator_id)).size;
+  }
 
   revalidatePath("/favoris");
-  return { ok: true, ajoutes: valides.length };
+  return { ok: true, ajoutes: valides.length, matchs };
 }
 
 /** Retirer un favori depuis la liste. */
