@@ -3,6 +3,7 @@ import { verifierUrlPublique, MAX_REDIRECTIONS } from "./url-publique";
 import { analyserLogo, couleurDominante, type AnalyseLogo, type CouleurLogo } from "./couleur-image";
 import { logoOfficiel } from "./logo-officiel";
 import { convientAUneCarte, dimensionsImage } from "./dimensions-image";
+import { luminance, saturation } from "./teinte";
 
 /**
  * Récupérer l'identité visuelle d'une marque depuis son site.
@@ -646,51 +647,50 @@ export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
   const parDomaine = logoDuDomaine(url);
   const logo = site.image ?? parDomaine;
 
-  // La couleur du logo officiel prime.
+  // ─── UNE COULEUR DE MARQUE, PAS UNE COULEUR DE BARRE ───
   //
-  // J'avais mis `theme-color` en premier, en me disant que c'était la marque
-  // qui l'avait choisie. Mais `theme-color` teinte la barre du navigateur, pas
-  // l'identité : beaucoup de sites y mettent un gris neutre. Boulanger en est
-  // l'exemple — leur balise donne #434748 quand leur logo, et leur marque,
-  // sont orange. La carte devenait grise pour une marque qui ne l'est pas.
+  // `theme-color` teinte la barre du navigateur. Beaucoup de sites y mettent
+  // du noir ou du gris parce que ça va avec leur interface — creatikk.io
+  // déclare #070509. Tant qu'elle passait devant, leur carte restait noire
+  // alors que leur logo est un dégradé violet. C'est l'exact defaut signalé :
+  // « un gros fond noir, ça donne tout sauf envie ».
   //
-  // Le logo officiel ne rend une couleur que lorsqu'il en porte VRAIMENT une
-  // (`vive`) : un logo noir ne renvoie rien, et `theme-color` reprend alors
-  // la main. L'ordre ne perd donc aucune information, il la hiérarchise.
-  let couleur = officiel?.couleur ?? site.couleur ?? null;
-  if (!couleur && logo) couleur = (await couleurDuLogo(logo))?.couleur ?? null;
+  // On ne la jette pas pour autant : quand un site déclare une VRAIE teinte,
+  // c'est un choix délibéré et il vaut mieux que ce qu'on devine. On la retient
+  // donc seulement si elle est colorée — sinon c'est le logo qui parle.
+  const declaree = site.couleur;
+  const declareeUtile =
+    declaree !== null &&
+    saturation(declaree) >= 0.2 &&
+    luminance(declaree) > 0.03 &&
+    luminance(declaree) < 0.9;
 
-  // Second essai, sur le logo du service de domaines.
-  //
-  // Le logo que le site expose lui-même est souvent un `.ico` ou un `.svg` —
-  // deux formats qu'on ne décode pas. Sans ce rattrapage, Sephora ressortait
-  // sans couleur alors que son logo était parfaitement lisible ailleurs : on
-  // butait sur le format, pas sur la marque. Le service, lui, rend un PNG.
-  if (!couleur && parDomaine && parDomaine !== logo) {
-    couleur = (await couleurDuLogo(parDomaine))?.couleur ?? null;
+  const duLogo = officiel?.couleur ?? null;
+  let couleur = duLogo ?? (declareeUtile ? declaree : null);
+
+  // Faute des deux, on lit les pixels du logo du site.
+  for (const candidat of [logo, parDomaine]) {
+    if (couleur || !candidat) continue;
+    const teinte = await couleurDuLogo(candidat);
+    if (teinte?.vive) couleur = teinte.couleur;
   }
+
+  // En dernier recours, la balise même terne : un gris choisi vaut mieux que
+  // le gris par défaut de la carte.
+  couleur = couleur ?? declaree;
 
   // ─── Ce qu'on montre EN GRAND ───
   //
-  // L'enseigne officielle d'abord. À défaut, le logo du site lui-même : dans
-  // la moitié des cas il fait 180 px ou plus (faguo 256, sezane 194, angarde
-  // 800×204) et se montre donc parfaitement. On affichait pourtant une simple
-  // lettre à sa place — on avait le vrai logo sous la main et on ne s'en
-  // servait pas.
+  // L'enseigne officielle d'abord. À défaut, le logo du site : dans la moitié
+  // des cas il fait 180 px ou plus et se montre parfaitement. En dessous de
+  // 96 px on s'abstient — agrandi, un logo devient une tache.
   //
-  // En dessous de 96 px, on s'abstient : agrandi, un logo devient une tache,
-  // et une lettre nette vaut mieux qu'un logo sale.
+  // Deux candidats, car on ne décode que le PNG : un logo en JPEG, ICO ou SVG
+  // n'est pas mesurable. Le service de domaines, lui, rend toujours du PNG.
   let enseigne = officiel?.url ?? null;
   let enseigneSombre = officiel?.sombre ?? false;
   let enseigneCarree = false;
 
-  //
-  // Deux candidats, dans l'ordre : le logo que le site expose, puis celui du
-  // service de domaines. Le premier est le plus juste, mais on ne sait décoder
-  // que le PNG — un logo en JPEG, en ICO ou en SVG n'est pas mesurable, donc
-  // pas montrable en grand. C'est ce qui écartait Petit Bateau, dont l'icône
-  // de domaine fait pourtant 180 px. Le second candidat rattrape ces cas : le
-  // service rend toujours du PNG.
   for (const candidat of [logo, parDomaine]) {
     if (enseigne || !candidat) continue;
     const analyse = await analyserLogoDistant(candidat);

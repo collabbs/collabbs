@@ -267,7 +267,6 @@ export default function CarteBrief({
      la lueur, l'assombrissement et l'encre. Rien n'est fixé en dur, sinon la
      carte irait bien avec une marque et mal avec les vingt autres. */
   const base = brief.couleurMarque ?? "#1b1b21";
-  const clair = eclaircir(base, 0.36);
   const sombre = assombrir(base, 0.62);
   // Sur une photo, le blanc s'impose : on ne sait pas ce qu'elle contient.
   // Sur un aplat, l'encre se déduit de la luminance — une marque au jaune vif
@@ -374,27 +373,46 @@ export default function CarteBrief({
               Le fond est donc un aplat de cette couleur, éclairé en haut et
               assombri en bas dans SA propre teinte. Plus de voile noir : il
               transformait chaque marque en la même bouillie grise. */}
-          <div className="absolute inset-0" style={{ background: base }} />
-          {/* La lumière tombe SUR la marque, pas dans un coin.
-              Un aplat sombre avec un petit cadre au milieu, c'est un vide —
-              c'est ce que Julien a vu. Une source large et haute, dans la
-              teinte de la marque, donne à la carte une profondeur et fait
-              exister le cadre au lieu de le laisser flotter. */}
+          {/* ═══ UNE MATIÈRE, PAS UN APLAT ═══
+
+              Un fond d'une seule couleur avec un cadre posé dessus, ça reste
+              un rectangle : c'est ce que Julien a vu, et il avait raison de le
+              refuser. Ce qui fait « premium », c'est la PROFONDEUR — plusieurs
+              sources de lumière dans la même teinte, qui se recouvrent et
+              donnent un relief.
+
+              Trois couches, toutes tirées de la couleur de la marque : un
+              champ profond, une lumière haute à gauche, un rappel saturé en
+              bas à droite. Rien n'est inventé, tout est une déclinaison de sa
+              teinte — la carte reste la sienne. */}
+          <div className="absolute inset-0" style={{ background: assombrir(base, 0.42) }} />
           <div
             aria-hidden
             className="absolute inset-0"
             style={{
-              background: `radial-gradient(90% 55% at 50% 20%, ${rgba(clair, 0.95)} 0%, ${rgba(clair, 0.35)} 45%, ${rgba(clair, 0)} 75%)`,
+              background: `radial-gradient(88% 62% at 20% 8%, ${rgba(eclaircir(base, 0.5), 0.98)} 0%, ${rgba(eclaircir(base, 0.3), 0.45)} 42%, ${rgba(base, 0)} 74%)`,
             }}
           />
-          {/* Le monogramme n'est qu'un pis-aller : dès qu'on a l'enseigne
-              officielle, c'est elle qu'on montre, et en grand. */}
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(72% 52% at 92% 72%, ${rgba(base, 0.95)} 0%, ${rgba(base, 0)} 70%)`,
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(130% 85% at 50% 118%, ${rgba(assombrir(base, 0.78), 0.98)} 0%, ${rgba(assombrir(base, 0.78), 0)} 62%)`,
+            }}
+          />
           {!enseigne && <GrandSigne marque={brief.marque} encre={encreHaut} />}
           <div
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-[68%]"
             style={{
-              background: `linear-gradient(to top, ${rgba(sombre, 0.96)} 0%, ${rgba(sombre, 0.6)} 38%, ${rgba(sombre, 0)} 100%)`,
+              background: `linear-gradient(to top, ${rgba(sombre, 0.82)} 0%, ${rgba(sombre, 0.3)} 45%, ${rgba(sombre, 0)} 100%)`,
             }}
           />
         </>
@@ -463,13 +481,14 @@ export default function CarteBrief({
              n'est disponible, l'encadré porte le NOM de la marque en grand.
              C'est sobre, mais c'est une carte — et surtout ça supprime le
              seul cas où il n'y avait rien à afficher du tout. */
-          <div
-            className="flex items-center justify-center rounded-3xl px-6 shadow-[0_18px_50px_-20px_rgba(0,0,0,.7)]"
-            style={{ height: "clamp(104px, 40cqw, 200px)", background: eclaircir(base, 0.95) }}
-          >
+          /* Le nom seul, posé sur la matière — PAS dans un cadre blanc.
+             Une boîte blanche au milieu d'une carte, ça se lit comme un
+             emplacement vide en attente d'image. Le nom en grand, lui, EST le
+             sujet : c'est le traitement d'une affiche, pas d'un gabarit. */
+          <div className="flex items-center">
             <span
-              className="font-display truncate font-black tracking-tight"
-              style={{ fontSize: "clamp(24px, 9cqw, 44px)", color: assombrir(base, 0.55) }}
+              className="font-display truncate font-black leading-[0.95] tracking-[-0.03em]"
+              style={{ fontSize: "clamp(30px, 13cqw, 62px)", color: encreHaut }}
             >
               {brief.marque}
             </span>
@@ -516,9 +535,9 @@ export default function CarteBrief({
         ) : enseigne ? (
           <div className="flex items-start justify-between gap-3">
             <div
-              className="flex flex-1 items-center justify-center rounded-3xl px-6 py-5 shadow-[0_18px_50px_-22px_rgba(0,0,0,.7)]"
+              className="flex flex-1 items-center justify-center rounded-2xl px-5 py-4 shadow-[0_14px_36px_-16px_rgba(0,0,0,.65)]"
               style={{
-                height: "clamp(104px, 40cqw, 200px)",
+                height: "clamp(78px, 26cqw, 132px)",
                 background: brief.enseigneSombre
                   ? eclaircir(base, 0.95)
                   : assombrir(base, 0.84),
