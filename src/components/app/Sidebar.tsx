@@ -12,6 +12,7 @@ type NavItem = { href: string; label: string; icon: string };
 const CREATOR_NAV: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: "🏠" },
   { href: "/opportunities", label: "Opportunités", icon: "🎯" },
+  { href: "/favoris", label: "Mes favoris", icon: "⭐" },
   { href: "/activity", label: "Mon activité", icon: "⚡" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
   { href: "/contracts", label: "Contrats", icon: "📄" },

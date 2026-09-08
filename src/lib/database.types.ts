@@ -256,6 +256,18 @@ export type Database = {
           },
         ]
       }
+      // ⚠️ Ajoutée à la main, pas par la génération de types.
+      //
+      // Ce fichier est normalement produit depuis la base. Sans cette entrée,
+      // rien ne compile tant que les types n'ont pas été régénérés — et cette
+      // régénération demande un accès que l'assemblage n'a pas. À remplacer
+      // par la version générée au prochain passage.
+      campagnes_favorites: {
+        Row: { campaign_id: string; created_at: string; creator_id: string }
+        Insert: { campaign_id: string; created_at?: string; creator_id: string }
+        Update: { campaign_id?: string; created_at?: string; creator_id?: string }
+        Relationships: []
+      }
       brand_creator_saves: {
         Row: {
           brand_id: string
