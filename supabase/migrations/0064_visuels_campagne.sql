@@ -11,15 +11,35 @@
 -- pour tout le monde, y compris hors connexion), écriture limitée au dossier
 -- de son propre identifiant.
 
-insert into storage.buckets (id, name, public)
-values ('visuels-campagne', 'visuels-campagne', true)
-on conflict (id) do nothing;
+-- Le plafond de taille et la liste de types sont posés SUR LE SEAU, pas
+-- seulement dans le code : le dépôt depuis le questionnaire se fait avant
+-- toute inscription, donc sans utilisateur à qui demander des comptes. Une
+-- vérification côté serveur peut être contournée si une autre voie d'écriture
+-- apparaît un jour ; celle-ci tient au niveau du stockage.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'visuels-campagne',
+  'visuels-campagne',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
+-- ⚠️ Le seau a été créé directement en production le 08/09/2026, pour
+-- débloquer un test en cours : sans lui, le téléversement échouait. Cette
+-- migration reste la source de vérité et rattrape tout environnement neuf.
+
+drop policy if exists "visuels_campagne_public_read" on storage.objects;
 create policy "visuels_campagne_public_read"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'visuels-campagne');
 
+drop policy if exists "visuels_campagne_insert_own" on storage.objects;
 create policy "visuels_campagne_insert_own"
   on storage.objects for insert
   to authenticated
@@ -28,6 +48,7 @@ create policy "visuels_campagne_insert_own"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "visuels_campagne_update_own" on storage.objects;
 create policy "visuels_campagne_update_own"
   on storage.objects for update
   to authenticated
@@ -40,6 +61,7 @@ create policy "visuels_campagne_update_own"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "visuels_campagne_delete_own" on storage.objects;
 create policy "visuels_campagne_delete_own"
   on storage.objects for delete
   to authenticated
