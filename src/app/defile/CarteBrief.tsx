@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BriefDefile } from "@/lib/defile";
 import { assombrir, eclaircir, encreLisible, versRvb } from "@/lib/teinte";
+import { objetDuMontant } from "@/lib/collaboration";
 
 /**
  * Une carte du défilé — pleine hauteur, qu'on attrape et qu'on jette.
@@ -35,16 +36,27 @@ function rgba(couleur: string, opacite: number): string {
 
 export type Direction = "gauche" | "droite";
 
+/**
+ * Le montant, et surtout CE QU'IL ACHÈTE.
+ *
+ * « 300 € par créateur » ne veut rien dire : par créateur pour une vidéo ? une
+ * story ? un contenu à réutiliser ? Un créateur ne peut pas juger s'il est
+ * bien payé sans savoir ce qu'on lui demande — et c'est exactement la décision
+ * qu'on lui demande de prendre en une seconde.
+ *
+ * Le type de la campagne le disait depuis le début. On l'écrit.
+ */
 export function remunerationLisible(brief: BriefDefile) {
   const c = brief.commission;
   const taux = c ? (c.min === c.max ? `${c.min} %` : `${c.min}–${c.max} %`) : null;
-  if (brief.montant !== null && taux) {
-    return { gros: `${brief.montant.toLocaleString("fr-FR")} €`, petit: `+ ${taux} sur les ventes` };
+  const montant = brief.montant !== null ? `${brief.montant.toLocaleString("fr-FR")} €` : null;
+
+  if (montant && taux) {
+    // Les deux : on dit d'abord ce que le forfait paie, puis la part variable.
+    return { gros: montant, petit: `${objetDuMontant(brief.type)}, + ${taux} sur les ventes` };
   }
-  if (brief.montant !== null) {
-    return { gros: `${brief.montant.toLocaleString("fr-FR")} €`, petit: "par créateur" };
-  }
-  if (taux) return { gros: taux, petit: "de commission" };
+  if (montant) return { gros: montant, petit: objetDuMontant(brief.type) };
+  if (taux) return { gros: taux, petit: "de commission sur les ventes" };
   return null;
 }
 

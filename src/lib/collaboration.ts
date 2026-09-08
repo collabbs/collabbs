@@ -16,3 +16,29 @@ export const LIBELLES_TYPE: Record<string, string> = {
   hybrid: "Fixe + commission",
   cpa_tiers: "Paliers de commission",
 };
+
+/**
+ * Ce que le montant ACHÈTE, dit en clair sous le chiffre.
+ *
+ * ─── Le manque ───
+ * La carte annonçait « 300 € par créateur ». Par créateur pour quoi ? Une
+ * vidéo ? une story ? un contenu à réutiliser ? Un montant sans objet ne se
+ * compare a rien, et un créateur ne peut pas décider s'il est bien payé sans
+ * savoir ce qu'on lui demande.
+ *
+ * Le type de la campagne portait déjà l'information depuis le début ; la carte
+ * ne s'en servait pas.
+ */
+export const OBJET_DU_MONTANT: Record<string, string> = {
+  video: "pour une vidéo postée",
+  ugc: "pour du contenu UGC",
+  hybrid: "par vidéo",
+  performance: "selon les résultats",
+  cpa_flat: "par inscription",
+  cpa_tiers: "selon les paliers",
+};
+
+/** Le libellé du montant fixe, avec un repli honnête quand le type est inconnu. */
+export function objetDuMontant(type: string): string {
+  return OBJET_DU_MONTANT[type] ?? "par créateur";
+}
