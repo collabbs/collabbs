@@ -4,7 +4,7 @@ import { useState } from "react";
 import CarteBrief from "@/app/defile/CarteBrief";
 import type { BriefDefile } from "@/lib/defile";
 import type { CarteMarque, ModeleCarte } from "@/lib/quiz";
-import { televerserVisuelAnonyme } from "./actions";
+import { lireIdentiteMarque, televerserVisuelAnonyme } from "./actions";
 import { CHAMP } from "./styles";
 
 /**
@@ -71,6 +71,8 @@ export default function ChoixModele({
   lectureEnCours?: boolean;
 }) {
   const [manuelle, setManuelle] = useState("");
+  const [autreSite, setAutreSite] = useState("");
+  const [relecture, setRelecture] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
 
@@ -103,19 +105,29 @@ export default function ChoixModele({
     setErreur(null);
     if (carte.modele === "logo") {
       const img = new window.Image();
-      img.onload = () =>
+      const poser = (carree: boolean) =>
         maj({
           enseigne: url,
-          enseigneCarree: img.naturalWidth / Math.max(1, img.naturalHeight) < 2.5,
+          // ⚠️ Le logo remplit AUSSI la pastille.
+          //
+          // Sans ça, une marque qui déposait son logo puis basculait sur
+          // « Une photo » perdait son logo : la carte photo affiche la
+          // pastille, qui lisait un autre champ. Les deux modèles doivent
+          // partager ce que la marque a donné, sinon changer d'avis efface.
+          logo: url,
+          enseigneCarree: carree,
           // On ne sait pas lire le ton d'une image déposée. Un panneau clair
           // est le pari le plus sûr : la grande majorité des logos sont
           // dessinés en traits sombres, et un logo opaque le recouvre.
           enseigneSombre: true,
         });
-      img.onerror = () => maj({ enseigne: url, enseigneCarree: true, enseigneSombre: true });
+      img.onload = () => poser(img.naturalWidth / Math.max(1, img.naturalHeight) < 2.5);
+      img.onerror = () => poser(true);
       img.src = url;
       return;
     }
+    // La photo ne touche NI au logo NI à l'enseigne : revenir sur « Ta marque »
+    // doit retrouver la marque intacte.
     maj({ visuel: url, modele: "photo" });
   }
 
@@ -123,6 +135,33 @@ export default function ChoixModele({
   function choisirImage(url: string) {
     maj({ visuel: url, modele: "photo" });
     setErreur(null);
+  }
+
+  /** Relit une autre adresse et remplace ce que la carte affiche. */
+  async function relire() {
+    const v = autreSite.trim();
+    if (!v || relecture) return;
+    setRelecture(true);
+    setErreur(null);
+    try {
+      const lu = await lireIdentiteMarque(v);
+      maj({
+        site: v,
+        logo: lu.logo,
+        couleur: lu.couleur,
+        photos: lu.photos,
+        enseigne: lu.enseigne,
+        enseigneSombre: lu.enseigneSombre,
+        enseigneCarree: lu.enseigneCarree,
+        visuel: lu.photos[0] ?? null,
+        modele: lu.photos.length > 0 ? "photo" : "logo",
+      });
+      if (lu.photos.length === 0 && !lu.enseigne) {
+        setErreur("Rien à récupérer sur cette adresse. Essaie une page produit.");
+      }
+    } finally {
+      setRelecture(false);
+    }
   }
 
   function collerAdresse() {
@@ -228,6 +267,39 @@ export default function ChoixModele({
           </p>
         </div>
       )}
+
+      {/* ─── Essayer une autre adresse, sans quitter l'étape ───
+
+          Le banc d'essai vivait sur une page à part : pour comparer deux
+          adresses il fallait sortir du questionnaire, donc perdre ses réponses.
+          Le plus utile est de pouvoir taper une adresse ICI et voir la carte
+          changer sous les yeux — la page produit plutôt que l'accueil, par
+          exemple, qui rend souvent de bien meilleures photos. */}
+      <div className="mt-5 rounded-2xl border border-zinc-200 p-3">
+        <p className="text-[12px] font-semibold text-zinc-500">
+          Essaie une autre adresse — une page produit donne souvent mieux que
+          l&apos;accueil.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            inputMode="url"
+            value={autreSite}
+            onChange={(e) => setAutreSite(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && relire()}
+            placeholder={carte.site ?? "ta-marque.com/un-produit"}
+            className={`${CHAMP} flex-1`}
+          />
+          <button
+            type="button"
+            onClick={relire}
+            disabled={relecture || !autreSite.trim()}
+            className="shrink-0 rounded-xl bg-ink px-4 text-[14px] font-semibold text-white disabled:opacity-40"
+          >
+            {relecture ? "…" : "Voir"}
+          </button>
+        </div>
+      </div>
 
       {/* ─── Sa propre image ─── */}
       <div className="mt-4">
