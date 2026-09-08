@@ -158,7 +158,15 @@ export default function DefileCreateurs({
       )}
       {relance && !match && (
         <EcranRelance
-          retenus={[]}
+          // Elle vient de choisir cinq personnes : elle doit les revoir.
+          retenus={createurs
+            .filter((c) => reperages.includes(c.id))
+            .map((c) => ({
+              id: c.id,
+              image: c.photo,
+              legende: c.name,
+              couleur: "#3b2a52",
+            }))}
           nombre={reperages.length}
           restants={Math.max(0, createurs.length - index - 1)}
           cote="marque"

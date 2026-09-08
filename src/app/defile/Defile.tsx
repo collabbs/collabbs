@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
 import { CLE_INTERETS, listeDeTextes } from "@/lib/quiz";
 import type { BriefDefile } from "@/lib/defile";
-import CarteBrief, { type Direction } from "./CarteBrief";
+import CarteBrief, { photoDuBrief, remunerationLisible, type Direction } from "./CarteBrief";
 import EcranMatch from "./EcranMatch";
 import EcranRelance from "./EcranRelance";
 import { FicheBrief } from "./Fiche";
@@ -160,7 +160,14 @@ export default function Defile({
         <EcranRelance
           // Les briefs retenus, pas leur nombre : c'est en les revoyant qu'on
           // mesure ce qu'on perdrait.
-          retenus={briefs.filter((b) => interets.includes(b.id))}
+          retenus={briefs
+            .filter((b) => interets.includes(b.id))
+            .map((b) => ({
+              id: b.id,
+              image: photoDuBrief(b),
+              legende: remunerationLisible(b)?.gros ?? b.marque,
+              couleur: b.couleurMarque ?? "#1b1b21",
+            }))}
           nombre={interets.length}
           // Ce qui reste VRAIMENT à voir : la taille du paquet moins ce qui
           // a déjà défilé. Une abondance annoncée au hasard se dément vite.

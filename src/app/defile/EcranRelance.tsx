@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { photoDuBrief, remunerationLisible } from "./CarteBrief";
-import type { BriefDefile } from "@/lib/defile";
 import { assombrir, eclaircir } from "@/lib/teinte";
+
+/** Une vignette de ce qu'on a retenu : une photo, une légende, une teinte. */
+export type Vignette = {
+  id: string;
+  image: string | null;
+  legende: string;
+  couleur: string;
+};
 
 /**
  * L'interruption au 5ᵉ intérêt — le moment où l'on demande le compte.
@@ -46,8 +52,13 @@ export default function EcranRelance({
   restants,
   onContinuer,
 }: {
-  /** Ce qui a été retenu, dans l'ordre. Vide côté marque. */
-  retenus: BriefDefile[];
+  /**
+   * Ce qui a été retenu, en vignettes.
+   *
+   * Le côté marque n'en recevait pas — son écran était donc plus pauvre, sans
+   * raison : elle vient de choisir cinq personnes, elle doit les revoir.
+   */
+  retenus: Vignette[];
   nombre: number;
   /** Ce qui reste à découvrir dans le paquet. Vrai, pas décoratif. */
   restants: number;
@@ -74,32 +85,27 @@ export default function EcranRelance({
             soient déjà réelles. Elles apportent la couleur, on n'en rajoute pas. */}
         {enEventail.length > 0 && (
           <div className="relative mb-8 h-[184px] w-[146px]">
-            {enEventail.map((b, i) => {
-              const photo = photoDuBrief(b);
-              const base = b.couleurMarque ?? "#1b1b21";
-              const r = remunerationLisible(b);
-              return (
-                <div
-                  key={b.id}
-                  className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_16px_40px_-16px_rgba(24,16,40,.45)] ring-1 ring-black/5"
-                  style={{
-                    transform: `rotate(${(i - 1) * 10}deg) translateY(${Math.abs(i - 1) * 5}px)`,
-                    zIndex: 3 - i,
-                    backgroundColor: assombrir(base, 0.3),
-                    backgroundImage: photo
-                      ? `url("${photo}")`
-                      : `radial-gradient(90% 65% at 30% 15%, ${eclaircir(base, 0.4)} 0%, ${assombrir(base, 0.5)} 75%)`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                >
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 to-transparent" />
-                  <p className="font-display absolute bottom-2 left-2.5 right-2 truncate text-left text-[15px] font-black text-white">
-                    {r?.gros ?? b.marque}
-                  </p>
-                </div>
-              );
-            })}
+            {enEventail.map((v, i) => (
+              <div
+                key={v.id}
+                className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_16px_40px_-16px_rgba(24,16,40,.45)] ring-1 ring-black/5"
+                style={{
+                  transform: `rotate(${(i - 1) * 10}deg) translateY(${Math.abs(i - 1) * 5}px)`,
+                  zIndex: 3 - i,
+                  backgroundColor: assombrir(v.couleur, 0.3),
+                  backgroundImage: v.image
+                    ? `url("${v.image}")`
+                    : `radial-gradient(90% 65% at 30% 15%, ${eclaircir(v.couleur, 0.4)} 0%, ${assombrir(v.couleur, 0.5)} 75%)`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              >
+                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 to-transparent" />
+                <p className="font-display absolute bottom-2 left-2.5 right-2 truncate text-left text-[15px] font-black text-white">
+                  {v.legende}
+                </p>
+              </div>
+            ))}
           </div>
         )}
 
