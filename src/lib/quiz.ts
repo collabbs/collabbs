@@ -1,5 +1,5 @@
 import { extractHandleFromUrl } from "./social-handle";
-import type { OfferId } from "@/components/landing/creators";
+import { OFFER_BY_ID, type OfferId } from "@/components/landing/creators";
 
 /**
  * Le questionnaire d'entrée, et la carte qu'il fabrique.
@@ -136,6 +136,46 @@ export const MODES_REMUNERATION = [
 ] as const;
 
 export type ModeRemunerationId = (typeof MODES_REMUNERATION)[number]["id"];
+
+/**
+ * Le modèle de paiement se DÉDUIT des formats, il ne se demande pas.
+ *
+ * ─── Ce qui n'allait pas ───
+ * On demandait le format (UGC, affiliation, performance…), puis on posait une
+ * question séparée sur la rémunération — la même quel que soit le format
+ * choisi. Une marque pouvait donc répondre « Affiliation 1 clic » puis « un
+ * montant fixe », et la carte affichait un forfait pour une campagne qui n'en
+ * a pas. Deux réponses pour une seule réalité, avec le droit de se contredire.
+ *
+ * Or chaque format PORTE son modèle : l'UGC et la story se paient au forfait,
+ * l'affiliation à la commission, la performance au résultat. C'est écrit dans
+ * la liste des offres depuis toujours (`tag`) — on ne s'en servait pas.
+ *
+ * On croise donc les formats retenus : une campagne qui mélange de l'UGC et de
+ * l'affiliation demande légitimement les deux montants, et une campagne qui
+ * n'est que de l'affiliation ne demande plus de forfait.
+ */
+export function modeleDePaiement(formats: OfferId[]): {
+  fixe: boolean;
+  commission: boolean;
+} {
+  const tags = formats.map((id) => OFFER_BY_ID[id]?.tag).filter(Boolean);
+  return {
+    fixe: tags.includes("Paiement fixe"),
+    // « Variable » (performance) et « Commission » (affiliation) se règlent
+    // tous deux sur les ventes : une seule question suffit pour les deux.
+    commission: tags.includes("Commission") || tags.includes("Variable"),
+  };
+}
+
+/** Le mode de rémunération correspondant, pour la carte et la campagne. */
+export function remunerationDeduite(formats: OfferId[]): ModeRemunerationId | null {
+  const { fixe, commission } = modeleDePaiement(formats);
+  if (fixe && commission) return "les-deux";
+  if (commission) return "commission";
+  if (fixe) return "fixe";
+  return null;
+}
 
 export type CarteMarque = {
   cote: "brand";

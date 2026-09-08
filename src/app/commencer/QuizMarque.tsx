@@ -7,18 +7,18 @@ import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import CarteBrief from "@/app/defile/CarteBrief";
 import { apercuDeLaCarte } from "./apercu-carte";
 import { lireIdentiteMarque } from "./actions";
+import { OFFER_BY_ID } from "@/components/landing/creators";
 import ChoixModele from "./ChoixModele";
 import {
   CLES_PARCOURS,
   CLE_COTE,
   CLE_BRIEF,
-  MODES_REMUNERATION,
+  remunerationDeduite,
   avancementMarque,
   carteMarqueVide,
   premiereEtapeIncompleteMarque,
   normaliserCarteMarque,
   type CarteMarque,
-  type ModeRemunerationId,
 } from "@/lib/quiz";
 import {
   TITRE,
@@ -274,7 +274,12 @@ export default function QuizMarque() {
               key={o.id}
               actif={carte.formats.includes(o.id as OfferId)}
               suffixe={o.tag}
-              onClick={() => maj({ formats: basculer(carte.formats, o.id as OfferId) })}
+              onClick={() => {
+                const formats = basculer(carte.formats, o.id as OfferId);
+                // La rémunération suit le format : on ne la demande plus à
+                // part, elle ne pouvait que le contredire.
+                maj({ formats, remuneration: remunerationDeduite(formats) });
+              }}
             >
               {o.emoji} {o.label}
             </Reponse>
@@ -308,17 +313,29 @@ export default function QuizMarque() {
       aide: "Les créateurs filtrent d'abord sur la rémunération.",
       contenu: (
         <div>
-          <div className="grid gap-2.5">
-            {MODES_REMUNERATION.map((m) => (
-              <Reponse
-                key={m.id}
-                actif={carte.remuneration === m.id}
-                onClick={() => maj({ remuneration: m.id as ModeRemunerationId })}
-              >
-                {m.label}
-              </Reponse>
-            ))}
-          </div>
+          {/* ─── PLUS DE QUESTION SUR LE MODE ───
+
+              Elle était posée séparément, identique quel que soit le format.
+              Une marque pouvait donc choisir « Affiliation 1 clic » puis « un
+              montant fixe », et sa carte annonçait un forfait pour une
+              campagne qui n'en a pas. Deux réponses pour une seule réalité,
+              avec le droit de se contredire.
+
+              Chaque format porte son modèle. On l'annonce, et on ne demande
+              que les montants qui en découlent. */}
+          <p className="rounded-2xl bg-[#F4F1F5] px-4 py-3 text-[14px] leading-relaxed text-zinc-600">
+            {(() => {
+              const noms = carte.formats
+                .map((id) => OFFER_BY_ID[id]?.short)
+                .filter(Boolean)
+                .join(" + ");
+              if (veutFixe && veutCommission) {
+                return `${noms} : un forfait garanti, plus une part sur les ventes.`;
+              }
+              if (veutCommission) return `${noms} : le créateur est payé sur les ventes qu'il génère.`;
+              return `${noms} : un montant fixe par créateur.`;
+            })()}
+          </p>
 
           {carte.remuneration && (
             <div className="mt-5 grid gap-4">
