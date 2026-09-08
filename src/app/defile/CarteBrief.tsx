@@ -174,6 +174,21 @@ function GrandSigne({ marque, encre }: { marque: string; encre: string }) {
   );
 }
 
+/**
+ * La photo d'un brief — toujours la même pour une campagne donnée.
+ *
+ * On tire dans la liste à partir de l'identifiant plutôt qu'au hasard : une
+ * carte qui change d'image d'un chargement à l'autre donne l'impression que
+ * rien n'est décidé. Exportée pour que la fiche détaillée s'ouvre sur LA photo
+ * de la carte qu'on vient de toucher, et pas sur une autre.
+ */
+export function photoDuBrief(brief: BriefDefile): string | null {
+  if (brief.modele === "logo" || brief.photos.length === 0) return null;
+  const rang =
+    [...brief.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7) % brief.photos.length;
+  return brief.photos[rang];
+}
+
 export default function CarteBrief({
   brief,
   onDecision,
@@ -196,10 +211,46 @@ export default function CarteBrief({
   sortirVers?: Direction | null;
   enArriere?: boolean;
 }) {
-  const [dx, setDx] = useState(0);
   const [glisse, setGlisse] = useState(false);
+  /* ⚠️ Le geste ne peut pas dépendre d'un état React.
+     `glisse` sert à couper la transition pendant le mouvement, et ça, c'est
+     du rendu. Mais les gestionnaires d'évènements le LISAIENT aussi pour
+     savoir si un geste était en cours — or entre `pointerdown` et `pointerup`,
+     sur un tap rapide, React n'a pas encore validé le changement : le
+     relâchement voyait `false` et ne faisait rien. Toucher une carte pour
+     ouvrir sa fiche échouait une fois sur deux, sans rien dans la console.
+     Une référence est à jour immédiatement ; c'est elle qui décide. */
+  const enCours = useRef(false);
   const [sortie, setSortie] = useState<Direction | null>(null);
   const depart = useRef(0);
+
+  /* ═══ LE GLISSEMENT NE PASSE PLUS PAR REACT ═══
+
+     `dx` était un état : chaque pixel parcouru par le doigt déclenchait un
+     rendu complet de la carte — quatre calques de dégradé, des unités de
+     conteneur, une image de fond. À soixante images par seconde c'est
+     intenable, et ça se voyait : « ça lag, c'est pas fluide du tout, ça va
+     pas sur le côté ».
+
+     Le décalage vit maintenant dans une référence, et le mouvement s'écrit
+     directement sur le nœud du DOM. React ne rend plus rien pendant le geste ;
+     il reprend la main au relâchement, quand il y a vraiment une décision à
+     enregistrer. C'est la seule façon de tenir le rythme du doigt. */
+  const racine = useRef<HTMLDivElement>(null);
+  const tamponOui = useRef<HTMLSpanElement>(null);
+  const tamponNon = useRef<HTMLSpanElement>(null);
+  const dx = useRef(0);
+
+  /** Écrit la position du doigt sur la carte, sans passer par un rendu. */
+  function peindre(ecart: number) {
+    const el = racine.current;
+    if (!el) return;
+    const rotation = Math.max(-16, Math.min(16, ecart / 14));
+    el.style.transform = `translateX(${ecart}px) rotate(${rotation}deg)`;
+    const intensite = Math.min(1, Math.abs(ecart) / SEUIL);
+    if (tamponOui.current) tamponOui.current.style.opacity = String(ecart > 0 ? intensite : 0);
+    if (tamponNon.current) tamponNon.current.style.opacity = String(ecart < 0 ? intensite : 0);
+  }
   // Distingue une PRESSION d'un GLISSEMENT : sans ça, ouvrir la fiche au
   // toucher déclencherait aussi une décision, et inversement.
   const aBouge = useRef(false);
@@ -210,7 +261,9 @@ export default function CarteBrief({
   function commencer(e: React.PointerEvent) {
     if (inerte || !onDecision) return;
     depart.current = e.clientX;
+    dx.current = 0;
     aBouge.current = false;
+    enCours.current = true;
     setGlisse(true);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -220,33 +273,42 @@ export default function CarteBrief({
   }
 
   function bouger(e: React.PointerEvent) {
-    if (!glisse) return;
+    if (!enCours.current) return;
     const ecart = e.clientX - depart.current;
     // 6 px de tolérance : un doigt n'est jamais parfaitement immobile, et sans
     // cette marge une pression normale passerait pour un micro-glissement.
     if (Math.abs(ecart) > 6) aBouge.current = true;
-    setDx(ecart);
+    dx.current = ecart;
+    peindre(ecart);
   }
 
   function relacher() {
-    if (!glisse) return;
+    if (!enCours.current) return;
+    enCours.current = false;
     setGlisse(false);
+    const ecart = dx.current;
+    dx.current = 0;
+
     if (!aBouge.current) {
-      setDx(0);
+      peindre(0);
       onOuvrir?.();
       return;
     }
-    if (Math.abs(dx) >= SEUIL) {
-      const dir: Direction = dx > 0 ? "droite" : "gauche";
+    if (Math.abs(ecart) >= SEUIL) {
+      const dir: Direction = ecart > 0 ? "droite" : "gauche";
       setSortie(dir);
       window.setTimeout(() => onDecision?.(dir), 240);
     } else {
-      setDx(0);
+      // Le retour au centre est la SEULE animation du geste : on repose la
+      // transition juste avant, sinon la carte reviendrait d'un coup sec.
+      const el = racine.current;
+      if (el) el.style.transition = "transform .24s cubic-bezier(.22,.61,.36,1)";
+      peindre(0);
+      if (tamponOui.current) tamponOui.current.style.opacity = "0";
+      if (tamponNon.current) tamponNon.current.style.opacity = "0";
     }
   }
 
-  const rotation = Math.max(-16, Math.min(16, dx / 14));
-  const intensite = Math.min(1, Math.abs(dx) / SEUIL);
   const remuneration = remunerationLisible(brief);
   // Une photo par campagne, toujours la même : on tire dans la liste à partir
   // de l'identifiant plutôt qu'au hasard. Une carte qui change d'image d'un
@@ -257,15 +319,7 @@ export default function CarteBrief({
   // carte, ou sa marque dans un grand encadré. Sans ce choix, une marque dont
   // on avait extrait une image médiocre la subissait — et une marque qui
   // n'avait qu'un beau logo se retrouvait avec une lettre.
-  const photo =
-    brief.modele === "logo"
-      ? null
-      : brief.photos.length > 0
-      ? brief.photos[
-          [...brief.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 9973, 7) %
-            brief.photos.length
-        ]
-      : null;
+  const photo = photoDuBrief(brief);
 
   /* ─── La palette de CETTE marque ───
      Tout ce qui suit se calcule à partir d'une seule couleur reçue : le fond,
@@ -288,9 +342,6 @@ export default function CarteBrief({
   // toujours plus qu'un logo, aussi beau soit-il.
   const enseigne = photo ? null : brief.enseigne;
 
-  // Le montant est le sujet de la carte sans photo : il occupe la place que
-  // l'image occupait. Mais « 12 000 € » et « 400 € » n'ont pas la même
-  // longueur — une taille fixe déborderait ou flotterait.
   // ⚠️ En unités de CONTENEUR, pas en pixels.
   //
   // Les tailles étaient fixes. Ça tient tant que la carte occupe l'écran, et
@@ -308,21 +359,29 @@ export default function CarteBrief({
     return "clamp(36px, 24cqw, 94px)";
   })();
 
+  // React ne décrit plus que les états STABLES : la sortie, la carte du
+  // dessous, le repos. Le mouvement du doigt, lui, s'écrit dans `peindre`.
   const transform = sortieEffective
     ? `translateX(${sortieEffective === "droite" ? 900 : -900}px) rotate(${sortieEffective === "droite" ? 26 : -26}deg)`
     : enArriere
       ? "scale(0.95) translateY(10px)"
-      : `translateX(${dx}px) rotate(${rotation}deg)`;
+      : undefined;
 
   return (
     <div
+      ref={racine}
       onPointerDown={commencer}
       onPointerMove={bouger}
       onPointerUp={relacher}
       onPointerCancel={relacher}
       style={{
         transform,
+        // Aucune transition PENDANT le geste : sinon la carte suit le doigt
+        // avec du retard. Elle ne s'anime qu'au relâchement et à la sortie.
         transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
+        // Prévient le navigateur : il prépare un calque, le geste ne repeint
+        // plus la carte à chaque image.
+        willChange: "transform",
         touchAction: "none",
         opacity: sortieEffective ? 0 : 1,
         // C'est CETTE largeur que les tailles en `cqw` mesurent.
@@ -439,13 +498,15 @@ export default function CarteBrief({
       {!enArriere && (
         <>
           <span
-            style={{ opacity: dx > 0 ? intensite : 0 }}
+            ref={tamponOui}
+            style={{ opacity: 0 }}
             className="pointer-events-none absolute left-6 top-8 z-20 -rotate-[14deg] rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-emerald-400"
           >
             Intéressé
           </span>
           <span
-            style={{ opacity: dx < 0 ? intensite : 0 }}
+            ref={tamponNon}
+            style={{ opacity: 0 }}
             className="pointer-events-none absolute right-6 top-8 z-20 rotate-[14deg] rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black uppercase tracking-wider text-rose-400"
           >
             Passer

@@ -48,14 +48,22 @@ export default async function PageDefile({
           l'interaction. Mais on garde une sortie visible — quelqu'un qui ne
           comprend pas ce qu'il regarde doit pouvoir aller lire. */}
       <header className="mx-auto flex max-w-md items-center justify-between px-5 py-3">
+        {/* Le logo EST la sortie : qui ne comprend pas ce qu'il regarde clique
+            dessus et arrive sur la page qui l'explique. */}
         <Link href="/decouvrir" aria-label="Collabbs">
           <Logo size={26} />
         </Link>
+        {/* ─── UN VRAI APPEL, PAS UNE INVITATION À LIRE ───
+
+            Il y avait « C'est quoi Collabbs ? ». C'est une question, pas un
+            appel : elle propose de PARTIR LIRE à quelqu'un qui est en train de
+            faire défiler des campagnes. Le seul geste qui compte ici, c'est
+            créer son profil — sans lui, aucun match ne mène nulle part. */}
         <Link
-          href="/decouvrir"
-          className="text-xs font-medium text-zinc-400 transition hover:text-ink"
+          href={cotéMarque ? "/signup?role=brand" : "/signup?role=creator"}
+          className="rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
         >
-          C&apos;est quoi Collabbs&nbsp;?
+          {cotéMarque ? "Publier ma campagne" : "Créer mon profil"}
         </Link>
       </header>
       {cotéMarque ? (

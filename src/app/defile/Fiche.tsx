@@ -5,7 +5,8 @@ import { OFFER_BY_ID } from "@/components/landing/creators";
 import type { BriefDefile } from "@/lib/defile";
 import { LIBELLES_TYPE } from "@/lib/collaboration";
 import type { MarketplaceCreator } from "@/lib/creators-data";
-import { remunerationLisible } from "./CarteBrief";
+import { photoDuBrief, remunerationLisible } from "./CarteBrief";
+import { assombrir, eclaircir } from "@/lib/teinte";
 
 /**
  * La fiche détaillée, ouverte en tapant sur une carte.
@@ -45,7 +46,7 @@ function Enveloppe({
         <button
           type="button"
           onClick={onFermer}
-          className="sticky top-4 z-10 mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-lg text-zinc-500 backdrop-blur transition hover:text-ink"
+          className="sticky top-4 z-20 mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-black/45 text-lg text-white backdrop-blur transition hover:bg-black/65"
           aria-label="Fermer"
         >
           ✕
@@ -74,28 +75,68 @@ export function FicheBrief({
       })
     : null;
 
+  const photo = photoDuBrief(brief);
+  const base = brief.couleurMarque ?? "#1b1b21";
+
   return (
     <Enveloppe onFermer={onFermer}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
-        {brief.marque}
-      </p>
-      <h2 className="font-display mt-2 text-[26px] font-black leading-[1.12] tracking-tight text-ink">
+      {/* ═══ LA FICHE S'OUVRE SUR LE VISUEL ═══
+
+          C'était une page blanche avec du texte : on touchait une carte pleine
+          d'image et de couleur, et on atterrissait sur un document. La rupture
+          était totale — « terriblement éloigné d'un site premium ».
+
+          On repart donc de ce qu'on vient de toucher : la même photo, la même
+          couleur, le même montant en grand. Le détail vient dessous, sur du
+          blanc, parce que ça se LIT — mais on ne perd pas la marque en route. */}
+      <div
+        className="relative -mx-5 -mt-5 mb-6 aspect-[5/4] overflow-hidden"
+        style={{ backgroundColor: assombrir(base, 0.42) }}
+      >
+        {photo ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url("${photo}")` }}
+          />
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(90% 65% at 25% 12%, ${eclaircir(base, 0.45)} 0%, ${assombrir(base, 0.5)} 72%)`,
+            }}
+          />
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+
+        <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 p-5">
+          {brief.image && (
+            <span
+              className="h-11 w-11 shrink-0 rounded-xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_6px_18px_-6px_rgba(0,0,0,.7)]"
+              style={{ backgroundImage: `url("${brief.image}")` }}
+            />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-white/80">{brief.marque}</p>
+            {remuneration && (
+              <p className="font-display text-[38px] font-black leading-[0.9] tabular-nums tracking-tight text-white">
+                {remuneration.gros}
+                <span className="ml-2 align-middle text-[13px] font-semibold text-white/75">
+                  {remuneration.petit}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <h2 className="font-display text-[26px] font-black leading-[1.12] tracking-tight text-ink">
         {brief.titre ?? "Collaboration"}
       </h2>
-      {/* Le type ne figure plus sur la carte — une affiche se voit, elle ne se
+      {/* Le type ne figure pas sur la carte — une affiche se voit, elle ne se
           lit pas — mais il reste nécessaire pour comprendre ce qu'on signe. */}
       <span className="mt-3 inline-block rounded-full bg-purple-50 px-3 py-1 text-[12px] font-semibold text-purple-700">
         {LIBELLES_TYPE[brief.type] ?? brief.type}
       </span>
-
-      {remuneration && (
-        <p className="mt-5 font-display text-4xl font-black leading-none tabular-nums tracking-tight text-ink">
-          {remuneration.gros}
-          <span className="ml-2 align-middle text-sm font-medium text-zinc-500">
-            {remuneration.petit}
-          </span>
-        </p>
-      )}
 
       <div className="mt-6 space-y-5">
         {brief.produit && <Bloc titre="Ce que la marque cherche">{brief.produit}</Bloc>}
