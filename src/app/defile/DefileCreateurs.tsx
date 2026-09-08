@@ -158,6 +158,7 @@ export default function DefileCreateurs({
       )}
       {relance && !match && (
         <EcranRelance
+          retenus={[]}
           nombre={reperages.length}
           cote="marque"
           onContinuer={() => setRelance(false)}

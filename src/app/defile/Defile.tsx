@@ -158,6 +158,9 @@ export default function Defile({
       )}
       {relance && !match && (
         <EcranRelance
+          // Les briefs retenus, pas leur nombre : c'est en les revoyant qu'on
+          // mesure ce qu'on perdrait.
+          retenus={briefs.filter((b) => interets.includes(b.id))}
           nombre={interets.length}
           cote="createur"
           onContinuer={() => setRelance(false)}
