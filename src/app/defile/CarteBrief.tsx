@@ -70,16 +70,21 @@ function useLogoNet(logo: string | null): boolean {
   useEffect(() => {
     if (!logo) return;
     const img = new window.Image();
-    // Le seuil est la taille D'AFFICHAGE, 44 px : en dessous, on agrandit
-    // vraiment, et ça se voit (Sephora ne rend que 16 px, ça faisait une
-    // tache). Au-dessus, l'image reste au pire un peu douce sur un écran à
-    // haute densité — et pour un logo, être reconnu vaut mieux qu'être net.
+    // 32 px, et pas 44.
     //
-    // Essayé d'abord à 64 px : ça écartait le logo de Leroy Merlin, qui fait
-    // 48 px et s'affichait très correctement. Un garde-fou trop strict jette
-    // ce qu'il devait protéger.
+    // Le seuil a baissé deux fois, chaque fois pour la même raison : il
+    // jetait des logos parfaitement montrables. À 64 px il écartait Leroy
+    // Merlin (48 px) ; à 44 px il écartait Loom et Respire, qui ne publient
+    // que du 32 px — partout, y compris chez le service de domaines.
+    //
+    // Un logo de 32 px affiché à 44 est légèrement doux. Une lettre, elle, ne
+    // dit rien de la marque. Pour une pastille de reconnaissance, être reconnu
+    // vaut mieux qu'être parfaitement net.
+    //
+    // En dessous de 32 px on s'arrête : 16 px agrandis presque trois fois font
+    // une tache, et là c'est la lettre qui est la meilleure carte.
     img.onload = () => {
-      if (img.naturalWidth < 44) setEcarte(logo);
+      if (img.naturalWidth < 32) setEcarte(logo);
     };
     img.onerror = () => setEcarte(logo);
     img.src = logo;

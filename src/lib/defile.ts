@@ -13,7 +13,13 @@ import { unstable_cache } from "next/cache";
  */
 const identiteEnCache = unstable_cache(
   async (site: string) => identiteDeMarque(site),
-  ["identite-site"],
+  // La clé porte une version.
+  //
+  // Les lectures sont gardées 24 h. Sans changer de clé, une correction
+  // d'extraction reste invisible une journée entière — on croit avoir livré,
+  // et rien ne bouge. Incrémenter la version à chaque correction de lecture
+  // écarte les anciennes réponses immédiatement.
+  ["identite-site", "v2"],
   { revalidate: 86_400 },
 );
 
@@ -27,7 +33,7 @@ const identiteEnCache = unstable_cache(
  */
 const photosEnCache = unstable_cache(
   async (site: string) => visuelsDeMarque(site),
-  ["visuels-marque"],
+  ["visuels-marque", "v2"],
   { revalidate: 86_400 },
 );
 
