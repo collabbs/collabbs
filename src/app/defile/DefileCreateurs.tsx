@@ -160,6 +160,7 @@ export default function DefileCreateurs({
         <EcranRelance
           retenus={[]}
           nombre={reperages.length}
+          restants={Math.max(0, createurs.length - index - 1)}
           cote="marque"
           onContinuer={() => setRelance(false)}
         />

@@ -162,6 +162,9 @@ export default function Defile({
           // mesure ce qu'on perdrait.
           retenus={briefs.filter((b) => interets.includes(b.id))}
           nombre={interets.length}
+          // Ce qui reste VRAIMENT à voir : la taille du paquet moins ce qui
+          // a déjà défilé. Une abondance annoncée au hasard se dément vite.
+          restants={Math.max(0, briefs.length - index - 1)}
           cote="createur"
           onContinuer={() => setRelance(false)}
         />
