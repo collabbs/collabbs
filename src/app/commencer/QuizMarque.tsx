@@ -381,10 +381,10 @@ export default function QuizMarque() {
           <button
             type="button"
             onClick={() => setEtape(4)}
-            // Une carte « photo » a besoin de sa photo ; une carte « marque »
-            // a besoin d'une marque à montrer. Sans l'un ni l'autre, on ne
-            // laisse pas partir : c'est le seul cas qui donne une carte vide.
-            disabled={carte.modele === "photo" ? !carte.visuel : !(carte.enseigne ?? carte.logo)}
+            // Une carte « photo » a besoin de sa photo. Le modèle « marque »
+            // n'exige rien : à défaut de logo, l'encadré porte le nom. Il n'y
+            // a donc plus de situation sans issue.
+            disabled={carte.modele === "photo" && !carte.visuel}
             className={`${PRINCIPAL} mt-5`}
           >
             Continuer

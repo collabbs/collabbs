@@ -452,7 +452,24 @@ export default function CarteBrief({
             aussi. Le logo Fnac, jaune sur une carte jaune, avait quasiment
             disparu. Ce qui compte n'est pas clair ou sombre dans l'absolu,
             c'est le contraste avec ce qu'il y a dessous. */}
-        {enseigne && brief.enseigneCarree ? (
+        {!enseigne && brief.modele === "logo" ? (
+          /* ─── LE NOM, FAUTE DE LOGO ───
+             Le modèle « marque » ne peut jamais échouer : quand aucun logo
+             n'est disponible, l'encadré porte le NOM de la marque en grand.
+             C'est sobre, mais c'est une carte — et surtout ça supprime le
+             seul cas où il n'y avait rien à afficher du tout. */
+          <div
+            className="flex h-[112px] items-center justify-center rounded-2xl px-6"
+            style={{ background: eclaircir(base, 0.95) }}
+          >
+            <span
+              className="font-display truncate text-[30px] font-black tracking-tight"
+              style={{ color: assombrir(base, 0.55) }}
+            >
+              {brief.marque}
+            </span>
+          </div>
+        ) : enseigne && brief.enseigneCarree ? (
           /* ─── UNE ICÔNE CARRÉE ───
              Elle porte déjà son propre fond : l'étaler sur toute la largeur
              la déforme, et lui coller un panneau derrière donne un

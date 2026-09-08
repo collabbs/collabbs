@@ -75,8 +75,51 @@ export default function ChoixModele({
   const [envoi, setEnvoi] = useState(false);
 
   const aDesPhotos = carte.photos.length > 0 || Boolean(carte.visuel);
-  const aUneMarque = Boolean(carte.enseigne ?? carte.logo);
 
+  // ⚠️ « Ta marque » n'est JAMAIS indisponible.
+  //
+  // Elle l'était quand aucun logo n'avait été trouvé. Combinée à l'absence de
+  // photo, ça donnait deux options grisées et un bouton bloqué : la marque
+  // était dans un cul-de-sac, sans aucune carte possible. Le pire endroit pour
+  // se retrouver coincé, c'est la dernière étape.
+  //
+  // Or on a toujours quelque chose à montrer : son NOM. Sans logo, l'encadré
+  // le porte en grand — c'est une carte sobre, mais c'en est une, et elle se
+  // lit. Le logo l'améliore, il ne la conditionne pas.
+
+  /**
+   * L'image ajoutée nourrit le modèle EN COURS.
+   *
+   * Elle basculait systématiquement en « photo ». Conséquence : une marque qui
+   * choisissait « Ta marque » puis déposait son logo se retrouvait avec ce logo
+   * étalé en pleine carte — son choix écrasé par son propre geste.
+   *
+   * En modèle « marque », l'image devient l'enseigne : elle se pose dans
+   * l'encadré, à sa taille. On mesure ses proportions pour savoir la traiter
+   * comme une icône ou comme une signature large — la même règle que pour les
+   * logos qu'on extrait.
+   */
+  function ajouterImage(url: string) {
+    setErreur(null);
+    if (carte.modele === "logo") {
+      const img = new window.Image();
+      img.onload = () =>
+        maj({
+          enseigne: url,
+          enseigneCarree: img.naturalWidth / Math.max(1, img.naturalHeight) < 2.5,
+          // On ne sait pas lire le ton d'une image déposée. Un panneau clair
+          // est le pari le plus sûr : la grande majorité des logos sont
+          // dessinés en traits sombres, et un logo opaque le recouvre.
+          enseigneSombre: true,
+        });
+      img.onerror = () => maj({ enseigne: url, enseigneCarree: true, enseigneSombre: true });
+      img.src = url;
+      return;
+    }
+    maj({ visuel: url, modele: "photo" });
+  }
+
+  /** Choisir une photo proposée, c'est vouloir le modèle photo. */
   function choisirImage(url: string) {
     maj({ visuel: url, modele: "photo" });
     setErreur(null);
@@ -88,7 +131,7 @@ export default function ChoixModele({
     try {
       const u = new URL(v.startsWith("http") ? v : `https://${v}`);
       if (u.protocol !== "https:") throw new Error("protocole");
-      choisirImage(u.toString());
+      ajouterImage(u.toString());
       setManuelle("");
     } catch {
       setErreur("Colle l'adresse d'une image, en https.");
@@ -110,7 +153,7 @@ export default function ChoixModele({
       {/* ─── Le modèle ─── */}
       <div className="mt-6 grid grid-cols-2 gap-2">
         {MODELES.map((m) => {
-          const dispo = m.id === "photo" ? aDesPhotos : aUneMarque;
+          const dispo = m.id === "photo" ? aDesPhotos : true;
           const actif = carte.modele === m.id;
           return (
             <button
@@ -155,7 +198,7 @@ export default function ChoixModele({
       )}
 
       {/* ─── Quand on n'a rien trouvé, on dit ce que ça coûte ─── */}
-      {!lectureEnCours && !aDesPhotos && !aUneMarque && (
+      {!lectureEnCours && !aDesPhotos && !carte.enseigne && (
         <div className="mt-4 rounded-2xl bg-[#F4F1F5] p-4">
           <p className="text-[14px] font-bold text-ink">Ajoute une image, ça change tout.</p>
           <p className="mt-1 text-[13px] leading-relaxed text-zinc-600">
@@ -165,13 +208,21 @@ export default function ChoixModele({
             créateur s&apos;arrête ou passe son chemin. Trente secondes ici valent
             tout le reste du questionnaire.
           </p>
+          <p className="mt-2 text-[13px] font-semibold text-ink">
+            Ajoute une photo de ton produit, ou ton logo si tu préfères la carte
+            « Ta marque ».
+          </p>
         </div>
       )}
 
       {/* ─── Sa propre image ─── */}
       <div className="mt-4">
         <label className="inline-flex cursor-pointer items-center rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-[14px] font-semibold text-ink transition hover:border-zinc-400">
-          {envoi ? "Envoi…" : aDesPhotos ? "Utiliser ma photo" : "Ajouter ma photo"}
+          {envoi
+            ? "Envoi…"
+            : carte.modele === "logo"
+              ? "Ajouter mon logo"
+              : "Ajouter ma photo"}
           <input
             type="file"
             accept="image/*"
@@ -189,7 +240,7 @@ export default function ChoixModele({
               donnees.append("file", fichier);
               const r = await televerserVisuelAnonyme(donnees);
               setEnvoi(false);
-              if (r.ok && r.url) choisirImage(r.url);
+              if (r.ok && r.url) ajouterImage(r.url);
               else setErreur(r.error ?? "Le téléversement a échoué.");
             }}
           />
@@ -204,7 +255,11 @@ export default function ChoixModele({
             setErreur(null);
           }}
           onKeyDown={(e) => e.key === "Enter" && collerAdresse()}
-          placeholder="…ou colle l'adresse d'une image"
+          placeholder={
+            carte.modele === "logo"
+              ? "…ou colle l'adresse de ton logo"
+              : "…ou colle l'adresse d'une image"
+          }
           className={`${CHAMP} mt-3`}
         />
         {manuelle.trim() && (
