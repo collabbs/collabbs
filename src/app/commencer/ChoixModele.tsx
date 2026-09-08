@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import CarteBrief from "@/app/defile/CarteBrief";
-import type { BriefDefile } from "@/lib/defile";
 import type { CarteMarque, ModeleCarte } from "@/lib/quiz";
+import { apercuDeLaCarte } from "./apercu-carte";
 import { lireIdentiteMarque, televerserVisuelAnonyme } from "./actions";
 import { CHAMP } from "./styles";
 
@@ -32,33 +32,6 @@ const MODELES: { id: ModeleCarte; titre: string; detail: string }[] = [
   { id: "photo", titre: "Une photo", detail: "Ton produit en pleine carte." },
   { id: "logo", titre: "Ta marque", detail: "Ton logo, en grand, sur ta couleur." },
 ];
-
-/** Construit l'aperçu exact : le même objet que celui du défilé. */
-function apercu(carte: CarteMarque): BriefDefile {
-  const taux = carte.commission;
-  return {
-    id: "apercu",
-    marque: carte.nom?.trim() || "Ta marque",
-    produit: carte.produit,
-    titre: carte.produit?.slice(0, 70) ?? null,
-    exigences: null,
-    echeance: carte.echeance,
-    audienceMini: null,
-    type: carte.remuneration === "commission" ? "affiliation" : carte.remuneration === "les-deux" ? "hybrid" : "video",
-    montant: carte.montant,
-    commission: taux !== null ? { min: taux, max: taux } : null,
-    spots: null,
-    niches: [],
-    image: carte.logo,
-    couleurMarque: carte.couleur,
-    photos: carte.visuel ? [carte.visuel] : [],
-    enseigne: carte.enseigne,
-    enseigneSombre: carte.enseigneSombre,
-    enseigneCarree: carte.enseigneCarree,
-    modele: carte.modele,
-    dejaInteressee: false,
-  };
-}
 
 /**
  * Un dépôt d'image : depuis l'appareil, ou par adresse.
@@ -235,7 +208,7 @@ export default function ChoixModele({
       {/* ═══ LA CARTE, PAS SES INGRÉDIENTS ═══
           En grand, et dans son vrai format : c'est ce qu'un créateur verra. */}
       <div className="relative mx-auto aspect-[3/4] w-full max-w-[280px]">
-        <CarteBrief brief={apercu(carte)} />
+        <CarteBrief brief={apercuDeLaCarte(carte)} />
       </div>
 
       {lectureEnCours && !aDesPhotos && (

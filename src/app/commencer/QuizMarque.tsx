@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
-import CarteBriefApercu from "./CarteBriefApercu";
+import CarteBrief from "@/app/defile/CarteBrief";
+import { apercuDeLaCarte } from "./apercu-carte";
 import { lireIdentiteMarque } from "./actions";
 import ChoixModele from "./ChoixModele";
 import {
@@ -155,7 +156,12 @@ export default function QuizMarque() {
         </h1>
 
         <div className="mt-8 w-full max-w-[280px]">
-          <CarteBriefApercu carte={carte} />
+          {/* Le VRAI composant, pas un aperçu maison : c'est la carte que le
+              créateur verra, à l'identique. Deux dessins pour une même chose
+              finissent par diverger — celui-ci l'avait fait. */}
+          <div className="relative mx-auto aspect-[3/4] w-full max-w-[260px]">
+            <CarteBrief brief={apercuDeLaCarte(carte)} />
+          </div>
         </div>
 
         {/* Même règle que côté créateur : on ne demande pas de compte à
