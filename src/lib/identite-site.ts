@@ -368,7 +368,17 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
   // Les icônes déclarées, de la plus grande à la plus petite, plus le chemin
   // conventionnel de l'icône Apple — souvent présente sur le disque sans être
   // déclarée dans la page, et toujours en 180 px.
-  const icones = [
+  // ⚠️ Les icônes DÉCLARÉES d'abord, les devinées ensuite.
+  //
+  // `/apple-touch-icon.png` est un chemin conventionnel qu'on tente à
+  // l'aveugle : chez respire.co il répond 404. Il devenait pourtant le logo
+  // retenu et écrasait l'icône du service de domaines, qui fonctionne — la
+  // carte affichait donc l'initiale alors qu'un logo existait.
+  //
+  // Un chemin deviné reste utile pour l'enseigne, où chaque candidate est
+  // téléchargée et mesurée : une adresse morte y est écartée d'elle-même.
+  // Mais il ne peut pas servir de logo sans avoir été vérifié.
+  const declarees = [
     // ⚠️ Absolu D'ABORD, agrandissement ensuite : `versionPlusGrande` analyse
     // une adresse complète, et échouerait en silence sur `/cdn/shop/...`.
     ...iconesDeclarees(html).map((i) => {
@@ -376,16 +386,21 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
       return abs === null ? null : versionPlusGrande(abs);
     }),
     absolu(lien(html, "apple-touch-icon")),
-    absolu(new URL("/apple-touch-icon.png", finale).toString()),
-    // Le logo affiché dans la page, en dernier : une icône déclarée est plus
-    // sûre, mais quand elle est minuscule c'est lui qui sauve la carte.
+    // Le logo affiché dans la page : une icône déclarée est plus sûre, mais
+    // quand elle est minuscule c'est lui qui sauve la carte.
     ...logosDeLaPage(html).map((u) => {
       const abs = absolu(u);
       return abs === null ? null : versionPlusGrande(abs);
     }),
   ].filter((u): u is string => u !== null);
 
-  const image = icones[0] ?? absolu(lien(html, "icon")) ?? (await faviconSeul(finale));
+  const devinees = [absolu(new URL("/apple-touch-icon.png", finale).toString())].filter(
+    (u): u is string => u !== null,
+  );
+  const icones = [...declarees, ...devinees];
+
+  // Le logo ne se choisit que parmi ce que le site a DÉCLARÉ.
+  const image = declarees[0] ?? (await faviconSeul(finale));
 
   // L'image de partage n'est pas perdue pour autant : elle rejoint les
   // candidates PHOTO, où elle est jugée sur ses dimensions comme les autres.

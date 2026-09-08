@@ -322,6 +322,16 @@ export default function CarteBrief({
         opacity: sortieEffective ? 0 : 1,
         // C'est CETTE largeur que les tailles en `cqw` mesurent.
         containerType: "inline-size",
+        // ⚠️ Un fond OPAQUE sur la carte elle-même.
+        //
+        // Les fonds étaient posés sur des calques intérieurs. Quand une photo
+        // ne chargeait pas — adresse morte, hébergeur qui refuse — son calque
+        // restait transparent et la carte du DESSOUS apparaissait au travers :
+        // deux marques superposées, illisibles. Vu sur Anker et Gymshark.
+        //
+        // Une carte doit cacher ce qu'il y a derrière elle, même quand tout ce
+        // qu'elle devait afficher a échoué.
+        backgroundColor: assombrir(base, 0.42),
       }}
       className={`absolute inset-0 select-none overflow-hidden rounded-[28px] shadow-[0_20px_60px_-24px_rgba(0,0,0,.55)] ${
         enArriere ? "pointer-events-none" : ""
