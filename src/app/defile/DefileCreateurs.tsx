@@ -9,6 +9,7 @@ import CarteCreateur from "./CarteCreateur";
 import type { Direction } from "./CarteBrief";
 import { FicheCreateur } from "./Fiche";
 import EcranMatchCreateur from "./EcranMatchCreateur";
+import EcranRelance from "./EcranRelance";
 
 /**
  * Le défilé, côté marque : on fait défiler des créateurs.
@@ -25,6 +26,13 @@ import EcranMatchCreateur from "./EcranMatchCreateur";
  * une marque tant qu'il n'a pas de compte. Marquer un créateur ici, c'est donc
  * du REPÉRAGE, et on ne promet rien de plus.
  */
+/** Nombre d'intérêts au bout duquel on demande le compte.
+ *
+ * Cinq, pas trois ni dix. Trois, c'est trop tôt : on n'a pas encore assez à
+ * perdre pour que la demande pèse. Dix, c'est après la lassitude — la moitié
+ * des gens ont déjà refermé. */
+const RELANCE_AU = 5;
+
 export default function DefileCreateurs({
   createurs,
   apercuMatch,
@@ -39,6 +47,9 @@ export default function DefileCreateurs({
   const reperages = listeDeTextes(reperagesBrut);
   const [index, setIndex] = useState(0);
   const [fiche, setFiche] = useState<MarketplaceCreator | null>(null);
+  // Une seule interruption : la reproposer ferait partir pour de bon.
+  const [relance, setRelance] = useState(false);
+  const [dejaRelance, setDejaRelance] = useState(false);
   const [match, setMatch] = useState<MarketplaceCreator | null>(null);
   // Voir `Defile` : sans ça, les boutons faisaient disparaître la carte sans
   // qu'on voie de quel côté elle partait.
@@ -54,7 +65,17 @@ export default function DefileCreateurs({
 
   function reperer() {
     if (!createur) return;
-    if (!reperages.includes(createur.id)) setReperages([...reperages, createur.id]);
+    const nouveaux = reperages.includes(createur.id)
+      ? reperages
+      : [...reperages, createur.id];
+    if (nouveaux.length !== reperages.length) setReperages(nouveaux);
+
+    // Même règle que côté créateur : on demande le compte quand la personne a
+    // quelque chose à perdre, pas quand elle s'est lassée.
+    if (!dejaRelance && nouveaux.length >= RELANCE_AU) {
+      setDejaRelance(true);
+      setRelance(true);
+    }
     // Aucun match spontané de ce côté : un match suppose que le créateur ait
     // AUSSI marqué son intérêt, ce qu'il ne peut pas faire sans compte. On ne
     // fabrique pas de réciprocité — une marque à qui on annonce un match et
@@ -133,6 +154,13 @@ export default function DefileCreateurs({
           createur={match}
           apercu={apercuMatch}
           onContinuer={() => setMatch(null)}
+        />
+      )}
+      {relance && !match && (
+        <EcranRelance
+          nombre={reperages.length}
+          cote="marque"
+          onContinuer={() => setRelance(false)}
         />
       )}
       <div className="mx-auto flex h-dvh w-full max-w-md flex-col px-4 pb-6">

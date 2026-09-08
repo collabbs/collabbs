@@ -1,46 +1,18 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import Logo from "@/components/landing/Logo";
-import Parcours from "./Parcours";
-import { SITE } from "@/lib/legal-entity";
-import { FOND } from "./styles";
+import { redirect } from "next/navigation";
 
 /**
- * Le parcours d'entrée — en construction, à sa propre adresse.
+ * L'ancienne adresse du questionnaire.
  *
- * ⚠️ `/` n'est PAS touchée. Tant que ce parcours n'est pas validé, la page
- * d'accueil reste exactement ce qu'elle est. On bascule en un seul geste, à la
- * fin, quand il n'y aura plus de doute — pas en cassant l'existant en chemin.
- *
- * Les deux côtés sont construits. Celui de la marque produit un BRIEF et non
- * une fiche d'entreprise : un créateur ne fait pas défiler des logos, il fait
- * défiler des propositions.
+ * Il vit maintenant à la racine. On redirige plutôt que de dupliquer : deux
+ * adresses pour un même parcours, ce sont deux versions qui finissent par
+ * diverger — et tous les liens deja partages continuent de fonctionner.
  */
-export const metadata: Metadata = {
-  title: "Crée ta carte — Collabbs",
-  description:
-    "Cinq questions, et les marques peuvent te trouver. Sans compte, sans engagement.",
-  alternates: { canonical: `${SITE.url}/commencer` },
-  // Page de parcours, pas de contenu : rien à indexer, et surtout pas pendant
-  // qu'elle se construit.
-  robots: { index: false, follow: false },
-};
-
-export default function PageCommencer() {
-  return (
-    <div className={`min-h-dvh ${FOND}`}>
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
-        <Link href="/decouvrir" aria-label="Collabbs">
-          <Logo />
-        </Link>
-        <Link
-          href="/login"
-          className="text-sm font-medium text-zinc-500 transition hover:text-ink"
-        >
-          J&apos;ai déjà un compte
-        </Link>
-      </header>
-      <Parcours />
-    </div>
-  );
+export default async function CommencerPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const cote = typeof params.cote === "string" ? `?cote=${params.cote}` : "";
+  redirect(`/${cote}`);
 }

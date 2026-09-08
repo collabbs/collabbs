@@ -7,6 +7,7 @@ import { CLE_INTERETS, listeDeTextes } from "@/lib/quiz";
 import type { BriefDefile } from "@/lib/defile";
 import CarteBrief, { type Direction } from "./CarteBrief";
 import EcranMatch from "./EcranMatch";
+import EcranRelance from "./EcranRelance";
 import { FicheBrief } from "./Fiche";
 
 /**
@@ -28,6 +29,13 @@ import { FicheBrief } from "./Fiche";
  * ce qui fait qu'un catalogue de 25 fiches paraît vide alors que les mêmes 25
  * font défiler longtemps.
  */
+/** Nombre d'intérêts au bout duquel on demande le compte.
+ *
+ * Cinq, pas trois ni dix. Trois, c'est trop tôt : on n'a pas encore assez à
+ * perdre pour que la demande pèse. Dix, c'est après la lassitude — la moitié
+ * des gens ont déjà refermé. */
+const RELANCE_AU = 5;
+
 export default function Defile({
   briefs,
   apercuMatch,
@@ -41,6 +49,9 @@ export default function Defile({
   // page. On répare, on ne fait pas confiance.
   const interets = listeDeTextes(interetsBrut);
   const [index, setIndex] = useState(0);
+  // Une seule interruption : la reproposer ferait partir pour de bon.
+  const [relance, setRelance] = useState(false);
+  const [dejaRelance, setDejaRelance] = useState(false);
   const [match, setMatch] = useState<BriefDefile | null>(null);
   const [fiche, setFiche] = useState<BriefDefile | null>(null);
   // Sortie commandée par les boutons : la carte doit partir du bon côté avant
@@ -57,7 +68,19 @@ export default function Defile({
 
   function interesse() {
     if (!brief) return;
-    if (!interets.includes(brief.id)) setInterets([...interets, brief.id]);
+    const nouveaux = interets.includes(brief.id) ? interets : [...interets, brief.id];
+    if (nouveaux.length !== interets.length) setInterets(nouveaux);
+
+    // ─── On demande le compte au moment du DÉSIR ───
+    //
+    // Il n'était proposé qu'après un match ou une fois le paquet vide.
+    // Quelqu'un qui retenait six campagnes puis refermait n'était jamais
+    // sollicité, alors qu'il venait de faire exactement ce qu'on espérait.
+    // On demandait au moment de la lassitude, pas au moment de l'envie.
+    if (!dejaRelance && nouveaux.length >= RELANCE_AU) {
+      setDejaRelance(true);
+      setRelance(true);
+    }
     // Match SEULEMENT si la marque avait déjà marqué son intérêt. On ne
     // fabrique pas de réciprocité : annoncer un match à quelqu'un que personne
     // n'attend, c'est promettre une réponse qui ne viendra pas — et c'est pire
@@ -132,6 +155,13 @@ export default function Defile({
     <>
       {match && (
         <EcranMatch brief={match} apercu={apercuMatch} onContinuer={() => setMatch(null)} />
+      )}
+      {relance && !match && (
+        <EcranRelance
+          nombre={interets.length}
+          cote="createur"
+          onContinuer={() => setRelance(false)}
+        />
       )}
       {fiche && <FicheBrief brief={fiche} onFermer={() => setFiche(null)} />}
 
