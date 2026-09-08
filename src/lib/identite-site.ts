@@ -143,6 +143,84 @@ function lien(html: string, rel: string): string | null {
 }
 
 /**
+ * Demande une version PLUS GRANDE quand l'hébergeur sait en servir une.
+ *
+ * ─── Le cas qui l'a rendue nécessaire ───
+ * cutbyfred.com déclare son logo ainsi :
+ *   `/cdn/shop/files/Favicon__Light_mode.png?crop=center&height=32&width=32`
+ *
+ * La taille est DANS l'adresse. On récupérait donc 32 px, trop petit pour être
+ * montré, et la carte tombait sur l'initiale — « le logo ne se met pas tout
+ * seul ». Le fichier d'origine est pourtant en haute définition : il suffisait
+ * de demander.
+ *
+ * Shopify accepte `width` et `height` sur toutes ses images. Ça vaut pour une
+ * grande partie des boutiques — la plateforme la plus répandue chez les
+ * marques qui nous intéressent.
+ *
+ * Sur les autres hébergeurs on ne touche à rien : inventer des paramètres
+ * ferait échouer une adresse qui marchait.
+ */
+export function versionPlusGrande(url: string, taille = 512): string {
+  try {
+    const u = new URL(url);
+    const estShopify = u.hostname.includes("cdn.shopify.com") || u.pathname.includes("/cdn/shop/");
+    if (!estShopify) return url;
+    const largeur = Number(u.searchParams.get("width") ?? 0);
+    const hauteur = Number(u.searchParams.get("height") ?? 0);
+    if (!largeur && !hauteur) return url;
+
+    // ⚠️ On agrandit, on ne déforme pas.
+    //
+    // Premier essai : `width=512&height=512` sur tout. Ça écrasait la
+    // signature de cut by fred, qui fait 1392×223 — et, effet de bord plus
+    // sournois, les proportions lues DANS l'adresse devenaient carrées, donc
+    // la carte la traitait comme une icône. Un agrandissement doit multiplier,
+    // pas imposer.
+    if (largeur && hauteur) {
+      const facteur = taille / Math.max(largeur, hauteur);
+      if (facteur <= 1) return url;
+      u.searchParams.set("width", String(Math.round(largeur * facteur)));
+      u.searchParams.set("height", String(Math.round(hauteur * facteur)));
+    } else {
+      u.searchParams.set(largeur ? "width" : "height", String(taille));
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Les images de la page qui se présentent comme le logo de la marque.
+ *
+ * ─── Pourquoi chercher là ───
+ * On ne regardait que les icônes déclarées (`<link rel="icon">`). Or beaucoup
+ * de boutiques y mettent une favicon minuscule — cut by fred en a une de
+ * 35 px — tout en affichant leur vrai logo dans l'en-tête ou le pied de page.
+ * Le logo était sous nos yeux et on ne le cherchait pas.
+ *
+ * Le mot « logo » dans l'adresse, la classe ou le texte alternatif est ici un
+ * signal POSITIF — l'exact inverse du tri des photos, où il sert à écarter.
+ * Le même mot ne veut pas dire la même chose selon ce qu'on cherche.
+ */
+function logosDeLaPage(html: string): string[] {
+  const trouves: string[] = [];
+  const motif = /<img\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = motif.exec(html)) !== null && trouves.length < 8) {
+    const balise = m[0];
+    if (!/logo/i.test(balise)) continue;
+    const src =
+      /(?:data-src|src)=["']([^"']+)["']/i.exec(balise)?.[1] ??
+      // Certains thèmes ne mettent l'adresse que dans `srcset`.
+      /srcset=["']([^"'\s,]+)/i.exec(balise)?.[1];
+    if (src) trouves.push(src.replace(/&amp;/g, "&"));
+  }
+  return trouves;
+}
+
+/**
  * Toutes les icônes déclarées par la page, de la plus grande à la plus petite.
  *
  * ─── Pourquoi pas la première ───
@@ -242,7 +320,16 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
     // On ne lit que l'en-tête du document : tout ce qui nous intéresse est
     // dans le `<head>`, et une page de plusieurs mégaoctets n'a aucune raison
     // de traverser le réseau pour trois balises.
-    html = (await reponse.text()).slice(0, 120_000);
+    // 600 ko, et pas 120.
+    //
+    // Les métadonnées tiennent dans les premiers kilo-octets, d'où la borne
+    // initiale. Mais le LOGO affiché vit souvent dans le pied de page : celui
+    // de cutbyfred.com est à l'octet 539 000 d'une page qui en fait 565 000.
+    // On le cherchait dans une portion où il ne pouvait pas être.
+    //
+    // La page est de toute façon déjà téléchargée ; la borne ne limite que le
+    // travail des expressions régulières, qui est négligeable à cette taille.
+    html = (await reponse.text()).slice(0, 600_000);
   } catch {
     const icone = await faviconSeul(verdict.url);
     return icone ? { ...VIDE, image: icone } : VIDE;
@@ -282,9 +369,20 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
   // conventionnel de l'icône Apple — souvent présente sur le disque sans être
   // déclarée dans la page, et toujours en 180 px.
   const icones = [
-    ...iconesDeclarees(html).map((i) => absolu(i.url)),
+    // ⚠️ Absolu D'ABORD, agrandissement ensuite : `versionPlusGrande` analyse
+    // une adresse complète, et échouerait en silence sur `/cdn/shop/...`.
+    ...iconesDeclarees(html).map((i) => {
+      const abs = absolu(i.url);
+      return abs === null ? null : versionPlusGrande(abs);
+    }),
     absolu(lien(html, "apple-touch-icon")),
     absolu(new URL("/apple-touch-icon.png", finale).toString()),
+    // Le logo affiché dans la page, en dernier : une icône déclarée est plus
+    // sûre, mais quand elle est minuscule c'est lui qui sauve la carte.
+    ...logosDeLaPage(html).map((u) => {
+      const abs = absolu(u);
+      return abs === null ? null : versionPlusGrande(abs);
+    }),
   ].filter((u): u is string => u !== null);
 
   const image = icones[0] ?? absolu(lien(html, "icon")) ?? (await faviconSeul(finale));
@@ -770,6 +868,26 @@ export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
       // icône : elle se traite comme une enseigne officielle.
       enseigneCarree =
         meilleure.analyse.largeur / Math.max(1, meilleure.analyse.hauteur) < 2.5;
+    } else {
+      // ─── Le vectoriel, faute de mieux ───
+      //
+      // On écartait les SVG parce qu'on ne sait pas les décoder. C'était
+      // confondre deux choses : la mesure sert à savoir si une image sera
+      // NETTE une fois agrandie. Un vectoriel l'est toujours — la question ne
+      // se pose pas. cut by fred n'a qu'une favicon de 35 px, mais affiche sa
+      // signature en SVG dans son pied de page : c'est elle qu'il faut prendre.
+      //
+      // Ce qu'on ignore, c'est son TON. On la pose donc sur un panneau clair,
+      // le pari sûr : la plupart des logos sont dessinés en traits sombres.
+      const vectoriel = candidates.find((u) => /\.svg($|\?)/i.test(u));
+      if (vectoriel) {
+        enseigne = vectoriel;
+        enseigneSombre = true;
+        // Les proportions se lisent parfois dans l'adresse elle-même.
+        const l = Number(/[?&]width=(\d+)/.exec(vectoriel)?.[1] ?? 0);
+        const h = Number(/[?&]height=(\d+)/.exec(vectoriel)?.[1] ?? 0);
+        enseigneCarree = l > 0 && h > 0 ? l / h < 2.5 : false;
+      }
     }
   }
 
