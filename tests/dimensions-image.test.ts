@@ -33,7 +33,7 @@ function jpeg(largeur: number, hauteur: number): Uint8Array {
   o[0] = 0xff; o[1] = 0xd8; // début d'image
   o[2] = 0xff; o[3] = 0xe0; // APP0, à sauter
   v.setUint16(4, 16);
-  let p = 4 + 16;
+  const p = 4 + 16;
   o[p] = 0xff; o[p + 1] = 0xc0; // SOF0
   v.setUint16(p + 2, 17);
   o[p + 4] = 8; // précision
