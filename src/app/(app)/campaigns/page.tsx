@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 import { capaciteCampagnes } from "@/lib/limites";
+import ReprendreQuestionnaire from "./ReprendreQuestionnaire";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -123,6 +124,8 @@ export default async function MyCampaignsPage() {
 
   return (
     <>
+      {/* Le questionnaire d'avant-compte devient une vraie campagne ici. */}
+      <ReprendreQuestionnaire />
       <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-3xl font-black tracking-tight text-ink">
             Mes campagnes
