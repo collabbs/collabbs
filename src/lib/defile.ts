@@ -197,10 +197,21 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     enseigneCarree: c.brands?.website
       ? (identites.get(c.brands.website)?.enseigneCarree ?? false)
       : false,
-    // Une campagne qui porte son propre visuel a choisi la photo ; sinon on
-    // présente la marque. Le choix explicite du questionnaire prime au moment
-    // de la création, et se traduit ici par la présence ou non d'une image.
-    modele: c.product_image_url ? "photo" : "logo",
+    // ⚠️ Une photo trouvée vaut choix de la photo.
+    //
+    // La règle était : modèle photo SEULEMENT si la marque avait téléversé son
+    // image. Conséquence — quarante cartes de démo avaient de vraies photos
+    // extraites de leur site, et pas une seule ne les affichait : le modèle
+    // « logo » les jetait. Les photos étaient bien dans la page, invisibles.
+    //
+    // Le modèle dit quel est le SUJET quand il y a le choix. S'il y a une
+    // image, quelle que soit sa provenance, c'est elle le sujet — une photo
+    // dit toujours plus qu'un logo.
+    modele:
+      c.product_image_url ||
+      (c.brands?.website && (photos.get(c.brands.website) ?? []).length > 0)
+        ? "photo"
+        : "logo",
     /* ─── L'IMAGE CHOISIE PASSE DEVANT ───
 
        Le défilé ne lisait QUE le site de la marque. L'image qu'elle avait
