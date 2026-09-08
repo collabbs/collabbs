@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
-import { CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
+import { CLE_REPERAGES, CLE_VUES, listeDeTextes } from "@/lib/quiz";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 import CarteCreateur from "./CarteCreateur";
 import type { Direction } from "./CarteBrief";
@@ -33,6 +33,15 @@ import EcranRelance from "./EcranRelance";
  * des gens ont déjà refermé. */
 const RELANCE_AU = 5;
 
+/** Taille du paquet du jour.
+ *
+ * Douze, pas quarante. Un paquet qui ne finit jamais n'a aucune raison de vous
+ * faire revenir : on l'abandonne en cours, et on n'y repense pas. Un paquet
+ * qu'on TERMINE se referme sur une promesse — « d'autres demain » — et c'est
+ * elle qui fait le rendez-vous. */
+const PAQUET_DU_JOUR = 12;
+
+
 export default function DefileCreateurs({
   createurs,
   apercuMatch,
@@ -45,6 +54,30 @@ export default function DefileCreateurs({
   // Une valeur qui n'est pas un tableau ferait lever `.includes` et tomber la
   // page. On répare, on ne fait pas confiance.
   const reperages = listeDeTextes(reperagesBrut);
+  const [vuesBrut, setVues] = useStockageLocal<string[]>(CLE_VUES, []);
+  const vues = listeDeTextes(vuesBrut);
+
+  // Même règle que côté créateur : un paquet borné, sans ce qui a déjà défilé.
+  // Figé au montage, sinon il bougerait sous les doigts à chaque décision.
+  /* ⚠️ Le paquet ne peut PAS être figé au montage.
+     Le stockage local n'est lu qu'APRÈS l'hydratation : au premier rendu la
+     mémoire est vide, donc un paquet figé là n'exclut rien et remontre les
+     mêmes douze cartes. Mesuré — un second passage ne mémorisait rien, parce
+     qu'il revoyait exactement ce qu'il avait déjà vu.
+
+     Il se recalcule donc, mais sans jamais retirer une carte DÉJÀ EN COURS de
+     lecture : sinon la pile se dérobe sous les doigts à chaque décision. */
+  // Un ÉTAT, pas une référence : il est lu pendant le rendu pour composer
+  // le paquet, donc React doit en être informé.
+  const [enCoursDeLecture, setEnCoursDeLecture] = useState<string[]>([]);
+  const paquet = useMemo(
+    () =>
+      createurs
+        .filter((c) => !vues.includes(c.id) || enCoursDeLecture.includes(c.id))
+        .slice(0, PAQUET_DU_JOUR),
+    [createurs, vues, enCoursDeLecture],
+  );
+
   const [index, setIndex] = useState(0);
   const [fiche, setFiche] = useState<MarketplaceCreator | null>(null);
   // Une seule interruption : la reproposer ferait partir pour de bon.
@@ -55,11 +88,22 @@ export default function DefileCreateurs({
   // qu'on voie de quel côté elle partait.
   const [sortieForcee, setSortieForcee] = useState<Direction | null>(null);
 
-  const createur = createurs[index];
-  const suivant = createurs[index + 1];
-  const fini = index >= createurs.length;
+  const createur = paquet[index];
+  const suivant = paquet[index + 1];
+  const fini = index >= paquet.length;
 
   function avancer() {
+    // ⚠️ Forme FONCTIONNELLE, pas `[...vues, id]`.
+    //
+    // `vues` est figé par la fermeture de ce rendu. En enchaînant les
+    // décisions, chaque écriture repartait de la même base et écrasait la
+    // précédente : mesuré, un second paquet de douze cartes ne mémorisait
+    // rien du tout, et les mêmes revenaient le lendemain.
+    if (createur) {
+      const id = createur.id;
+      setEnCoursDeLecture((liste) => (liste.includes(id) ? liste : [...liste, id]));
+      setVues((v) => (Array.isArray(v) && v.includes(id) ? v : [...listeDeTextes(v), id]));
+    }
     setIndex((i) => i + 1);
   }
 
@@ -168,7 +212,7 @@ export default function DefileCreateurs({
               couleur: "#3b2a52",
             }))}
           nombre={reperages.length}
-          restants={Math.max(0, createurs.length - index - 1)}
+          restants={Math.max(0, createurs.length - vues.length - index - 1)}
           cote="marque"
           onContinuer={() => setRelance(false)}
         />

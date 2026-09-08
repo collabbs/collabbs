@@ -10,6 +10,12 @@ import { logout } from "@/app/auth/actions";
 type NavItem = { href: string; label: string; icon: string };
 
 const CREATOR_NAV: NavItem[] = [
+  // ⚠️ « Découvrir » en PREMIER, avant le tableau de bord.
+  //
+  // Le paquet du jour est ce qui fait revenir : il se termine, donc il donne
+  // rendez-vous. Un tableau de bord ne donne rendez-vous à personne. Et sans
+  // ce geste répété, la réciprocité ne se forme jamais — donc pas de match.
+  { href: "/defile", label: "Découvrir", icon: "🔥" },
   { href: "/dashboard", label: "Tableau de bord", icon: "🏠" },
   { href: "/opportunities", label: "Opportunités", icon: "🎯" },
   { href: "/favoris", label: "Mes favoris", icon: "⭐" },
@@ -25,6 +31,7 @@ const CREATOR_NAV: NavItem[] = [
 ];
 
 const BRAND_NAV: NavItem[] = [
+  { href: "/defile?cote=marque", label: "Découvrir", icon: "🔥" },
   { href: "/dashboard", label: "Tableau de bord", icon: "🏠" },
   { href: "/campaigns", label: "Mes campagnes", icon: "📊" },
   { href: "/campaigns/new", label: "Créer une campagne", icon: "➕" },

@@ -25,6 +25,14 @@ export type Cote = "creator" | "brand";
 
 /** Clés de stockage navigateur. Versionnées : la forme changera. */
 export const CLE_CARTE = "collabbs.carte.v1";
+
+/**
+ * Ce qui a déjà défilé, avant même d'avoir un compte.
+ *
+ * Sans cette mémoire, le paquet repart de zéro à chaque visite et « 12
+ * nouvelles demain » devient un mensonge que l'utilisateur constate lui-même.
+ */
+export const CLE_VUES = "collabbs.vues.v1";
 export const CLE_BRIEF = "collabbs.brief.v1";
 /**
  * Le côté choisi. Gardé séparément pour qu'un visiteur qui revient ne

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
-import { CLE_INTERETS, listeDeTextes } from "@/lib/quiz";
+import { CLE_INTERETS, CLE_VUES, listeDeTextes } from "@/lib/quiz";
 import type { BriefDefile } from "@/lib/defile";
 import CarteBrief, { photoDuBrief, remunerationLisible, type Direction } from "./CarteBrief";
 import EcranMatch from "./EcranMatch";
@@ -36,6 +36,15 @@ import { FicheBrief } from "./Fiche";
  * des gens ont déjà refermé. */
 const RELANCE_AU = 5;
 
+/** Taille du paquet du jour.
+ *
+ * Douze, pas quarante. Un paquet qui ne finit jamais n'a aucune raison de vous
+ * faire revenir : on l'abandonne en cours, et on n'y repense pas. Un paquet
+ * qu'on TERMINE se referme sur une promesse — « d'autres demain » — et c'est
+ * elle qui fait le rendez-vous. */
+const PAQUET_DU_JOUR = 12;
+
+
 export default function Defile({
   briefs,
   apercuMatch,
@@ -48,6 +57,38 @@ export default function Defile({
   // Une valeur qui n'est pas un tableau ferait lever `.includes` et tomber la
   // page. On répare, on ne fait pas confiance.
   const interets = listeDeTextes(interetsBrut);
+  const [vuesBrut, setVues] = useStockageLocal<string[]>(CLE_VUES, []);
+  const vues = listeDeTextes(vuesBrut);
+
+  /* ═══ LE PAQUET DU JOUR ═══
+
+     On recevait TOUT le catalogue et on le faisait défiler sans fin. Deux
+     conséquences : le paquet remontrait les mêmes cartes à chaque visite, et
+     il ne se terminait jamais — donc il n'y avait aucun moment où l'on puisse
+     dire « reviens demain ».
+
+     On écarte ce qui a déjà défilé, et on borne. Le calcul est figé au
+     montage : recalculer à chaque like ferait bouger le paquet sous les
+     doigts. */
+  /* ⚠️ Le paquet ne peut PAS être figé au montage.
+     Le stockage local n'est lu qu'APRÈS l'hydratation : au premier rendu la
+     mémoire est vide, donc un paquet figé là n'exclut rien et remontre les
+     mêmes douze cartes. Mesuré — un second passage ne mémorisait rien, parce
+     qu'il revoyait exactement ce qu'il avait déjà vu.
+
+     Il se recalcule donc, mais sans jamais retirer une carte DÉJÀ EN COURS de
+     lecture : sinon la pile se dérobe sous les doigts à chaque décision. */
+  // Un ÉTAT, pas une référence : il est lu pendant le rendu pour composer
+  // le paquet, donc React doit en être informé.
+  const [enCoursDeLecture, setEnCoursDeLecture] = useState<string[]>([]);
+  const paquet = useMemo(
+    () =>
+      briefs
+        .filter((b) => !vues.includes(b.id) || enCoursDeLecture.includes(b.id))
+        .slice(0, PAQUET_DU_JOUR),
+    [briefs, vues, enCoursDeLecture],
+  );
+
   const [index, setIndex] = useState(0);
   // Une seule interruption : la reproposer ferait partir pour de bon.
   const [relance, setRelance] = useState(false);
@@ -58,11 +99,24 @@ export default function Defile({
   // que la pile n'avance, exactement comme au glissement.
   const [sortieForcee, setSortieForcee] = useState<Direction | null>(null);
 
-  const brief = briefs[index];
-  const suivant = briefs[index + 1];
-  const fini = index >= briefs.length;
+  const brief = paquet[index];
+  const suivant = paquet[index + 1];
+  const fini = index >= paquet.length;
 
   function avancer() {
+    // Vue veut dire vue : qu'on l'ait aimée ou passée, elle ne doit pas
+    // revenir demain. C'est ce qui rend « nouvelles » vrai.
+    // ⚠️ Forme FONCTIONNELLE, pas `[...vues, id]`.
+    //
+    // `vues` est figé par la fermeture de ce rendu. En enchaînant les
+    // décisions, chaque écriture repartait de la même base et écrasait la
+    // précédente : mesuré, un second paquet de douze cartes ne mémorisait
+    // rien du tout, et les mêmes revenaient le lendemain.
+    if (brief) {
+      const id = brief.id;
+      setEnCoursDeLecture((liste) => (liste.includes(id) ? liste : [...liste, id]));
+      setVues((v) => (Array.isArray(v) && v.includes(id) ? v : [...listeDeTextes(v), id]));
+    }
     setIndex((i) => i + 1);
   }
 
@@ -106,46 +160,55 @@ export default function Defile({
 
   /* ──────────────────────────────────────────── fin du paquet, ou le mur ── */
   if (fini) {
+    /* ═══ LA FIN DU PAQUET EST UN RENDEZ-VOUS ═══
+
+       Cet écran disait « rien ne t'a parlé ? » — il traitait la fin comme un
+       échec. Or on vient de terminer quelque chose : c'est le seul moment où
+       l'on peut annoncer la suite sans forcer.
+
+       Le nombre restant est CALCULÉ sur ce que le catalogue contient et ce
+       qu'on a déjà vu. Une promesse chiffrée qui ne se vérifie pas se retourne
+       au deuxième jour. */
+    const restants = Math.max(0, briefs.length - vues.length);
+
     return (
       <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-6 py-12 text-center">
-        {interets.length > 0 ? (
-          <>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
-              {interets.length === 1 ? "1 coup de cœur" : `${interets.length} coups de cœur`}
-            </p>
-            <h1 className="font-display mt-3 text-[28px] font-black leading-[1.12] tracking-tight text-ink sm:text-4xl">
-              {interets.length === 1
-                ? "Cette marque ne sait pas encore que tu es intéressé."
-                : "Ces marques ne savent pas encore que tu es intéressé."}
-            </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-zinc-500">
-              Crée ton profil pour qu&apos;elles le voient. C&apos;est gratuit, et
-              tu gardes 100 % de ce qui est convenu.
-            </p>
-            <Link
-              href="/signup?role=creator"
-              className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90"
-            >
-              Me faire connaître
-            </Link>
-          </>
-        ) : (
-          <>
-            <h1 className="font-display text-[28px] font-black leading-[1.12] tracking-tight text-ink sm:text-4xl">
-              Rien ne t&apos;a parlé&nbsp;?
-            </h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-zinc-500">
-              Tu ne sais peut-être pas encore ce que Collabbs peut faire pour toi.
-              Deux minutes pour comprendre, et tu reviendras avec un autre œil.
-            </p>
-            <Link
-              href="/decouvrir"
-              className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90"
-            >
-              Découvrir Collabbs
-            </Link>
-          </>
-        )}
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+          Paquet terminé
+        </p>
+        <h1 className="font-display mt-3 text-[28px] font-black leading-[1.12] tracking-tight text-ink sm:text-[34px]">
+          {restants > 0 ? (
+            <>
+              <span className="bg-[linear-gradient(135deg,#5b21b6_0%,#7c3aed_50%,#06b6d4_100%)] bg-clip-text text-transparent">
+                {restants} autres
+              </span>{" "}
+              t&apos;attendent demain.
+            </>
+          ) : (
+            <>
+              Tu as tout vu.
+              <br />
+              D&apos;autres arrivent chaque semaine.
+            </>
+          )}
+        </h1>
+
+        <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500">
+          {interets.length > 0
+            ? `Tu en as retenu ${interets.length}. Crée ton compte pour les garder et monétiser tes vidéos avec des collaborations.`
+            : "Crée ton compte pour monétiser tes vidéos avec des collaborations — et être prévenu des prochaines."}
+        </p>
+
+        <Link
+          href="/signup?role=creator"
+          className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-xl bg-ink px-6 text-[16px] font-semibold text-white transition hover:opacity-90"
+        >
+          Créer mon compte
+        </Link>
+
+        <Link href="/decouvrir" className="mt-4 text-[14px] font-medium text-zinc-400 transition hover:text-ink">
+          C&apos;est quoi Collabbs&nbsp;?
+        </Link>
       </div>
     );
   }
@@ -171,7 +234,7 @@ export default function Defile({
           nombre={interets.length}
           // Ce qui reste VRAIMENT à voir : la taille du paquet moins ce qui
           // a déjà défilé. Une abondance annoncée au hasard se dément vite.
-          restants={Math.max(0, briefs.length - index - 1)}
+          restants={Math.max(0, briefs.length - vues.length - index - 1)}
           cote="createur"
           onContinuer={() => setRelance(false)}
         />
