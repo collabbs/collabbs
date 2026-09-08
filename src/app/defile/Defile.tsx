@@ -78,7 +78,7 @@ export default function Defile({
     window.setTimeout(() => {
       decider(d);
       setSortieForcee(null);
-    }, 240);
+    }, 340);
   }
 
   /* ──────────────────────────────────────────── fin du paquet, ou le mur ── */

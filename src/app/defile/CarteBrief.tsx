@@ -297,7 +297,8 @@ export default function CarteBrief({
     if (Math.abs(ecart) >= SEUIL) {
       const dir: Direction = ecart > 0 ? "droite" : "gauche";
       setSortie(dir);
-      window.setTimeout(() => onDecision?.(dir), 240);
+      // 340 ms : la durée de la course. Avancer avant, c'est escamoter le geste.
+      window.setTimeout(() => onDecision?.(dir), 340);
     } else {
       // Le retour au centre est la SEULE animation du geste : on repose la
       // transition juste avant, sinon la carte reviendrait d'un coup sec.
@@ -378,7 +379,21 @@ export default function CarteBrief({
         transform,
         // Aucune transition PENDANT le geste : sinon la carte suit le doigt
         // avec du retard. Elle ne s'anime qu'au relâchement et à la sortie.
-        transition: glisse ? "none" : "transform .24s cubic-bezier(.22,.61,.36,1), opacity .2s",
+        //
+        // ⚠️ L'opacité part APRÈS le mouvement, pas en même temps.
+        //
+        // Les deux duraient 240 et 200 ms, lancées ensemble : mesuré, la carte
+        // n'était plus qu'à 19 % d'opacité au bout de 100 ms et invisible à
+        // 170 — alors que son déplacement en prenait 240. Elle s'évaporait sur
+        // place au lieu de partir. C'est le défaut signalé : « pas de mouvement
+        // vers la droite comme Tinder ».
+        //
+        // Le retard de 160 ms laisse la carte PLEINEMENT visible pendant la
+        // moitié de sa course. On voit le lancer, puis elle s'efface en
+        // sortant. Un objet qu'on jette ne devient pas transparent en partant.
+        transition: glisse
+          ? "none"
+          : "transform .34s cubic-bezier(.22,.61,.36,1), opacity .16s ease-in .16s",
         // Prévient le navigateur : il prépare un calque, le geste ne repeint
         // plus la carte à chaque image.
         willChange: "transform",
