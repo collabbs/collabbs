@@ -227,8 +227,19 @@ export default function ChoixModele({
         </p>
       )}
 
-      {/* ─── Les photos trouvées ─── */}
-      {carte.photos.length > 0 && carte.modele === "photo" && (
+      {/* ─── Les photos trouvées ───
+
+          Visibles dans LES DEUX modèles, et c'est le point.
+
+          Elles n'apparaissaient qu'en modèle photo. En passant sur « Ta
+          marque » pour ajouter un logo, elles disparaissaient de l'écran — et
+          la carte cessait de les montrer. Tout indiquait qu'on venait de
+          perdre sa photo, alors qu'elle était intacte en mémoire.
+
+          Rien n'est detruit en changeant de modèle : les garder à l'écran le
+          dit sans avoir à l'écrire. Cliquer une photo rebascule sur le modèle
+          photo, ce qui rend l'aller-retour immédiat. */}
+      {carte.photos.length > 0 && (
         <>
           <div className="mt-4 grid grid-cols-3 gap-2">
             {carte.photos.slice(0, 6).map((url) => (
@@ -245,7 +256,9 @@ export default function ChoixModele({
             ))}
           </div>
           <p className="mt-2 text-[12px] text-zinc-500">
-            Trouvées sur ton site. Choisis celle qui donne le plus envie.
+            {carte.modele === "logo"
+              ? "Tes photos sont gardées — clique l'une d'elles pour revenir au modèle photo."
+              : "Trouvées sur ton site. Choisis celle qui donne le plus envie."}
           </p>
         </>
       )}
