@@ -60,6 +60,98 @@ function apercu(carte: CarteMarque): BriefDefile {
   };
 }
 
+/**
+ * Un dépôt d'image : depuis l'appareil, ou par adresse.
+ *
+ * Écrit deux fois plutôt qu'une : la photo et le logo se donnent séparément,
+ * et chacun doit avoir son propre bouton. Les confondre était le défaut.
+ */
+function Depot({
+  titre,
+  aide,
+  bouton,
+  rempli,
+  onImage,
+}: {
+  titre: string;
+  aide: string;
+  bouton: string;
+  rempli: boolean;
+  onImage: (url: string) => void;
+}) {
+  const [adresse, setAdresse] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  function coller() {
+    const v = adresse.trim();
+    if (!v) return;
+    try {
+      const u = new URL(v.startsWith("http") ? v : `https://${v}`);
+      if (u.protocol !== "https:") throw new Error("protocole");
+      onImage(u.toString());
+      setAdresse("");
+      setErreur(null);
+    } catch {
+      setErreur("Colle l'adresse d'une image, en https.");
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 p-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[14px] font-bold text-ink">{titre}</span>
+        {rempli && (
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+            ajouté
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 text-[12px] leading-snug text-zinc-500">{aide}</p>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="inline-flex cursor-pointer items-center rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[13px] font-semibold text-ink transition hover:border-zinc-400">
+          {envoi ? "Envoi…" : bouton}
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={envoi}
+            onChange={async (e) => {
+              const fichier = e.target.files?.[0];
+              // Vidé tout de suite : sans ça, rechoisir le même fichier après
+              // une erreur ne déclenche rien.
+              e.target.value = "";
+              if (!fichier) return;
+              setErreur(null);
+              setEnvoi(true);
+              const donnees = new FormData();
+              donnees.append("file", fichier);
+              const r = await televerserVisuelAnonyme(donnees);
+              setEnvoi(false);
+              if (r.ok && r.url) onImage(r.url);
+              else setErreur(r.error ?? "Le téléversement a échoué.");
+            }}
+          />
+        </label>
+        <input
+          type="text"
+          inputMode="url"
+          value={adresse}
+          onChange={(e) => {
+            setAdresse(e.target.value);
+            setErreur(null);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && coller()}
+          placeholder="ou colle une adresse"
+          className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-[#F7F5F8] px-3 py-2 text-[13px] outline-none focus:border-zinc-400"
+        />
+      </div>
+      {erreur && <p className="mt-2 text-[12px] text-red-600">{erreur}</p>}
+    </div>
+  );
+}
+
 export default function ChoixModele({
   carte,
   maj,
@@ -70,11 +162,9 @@ export default function ChoixModele({
   /** La lecture du site tourne encore : ne PAS annoncer un échec. */
   lectureEnCours?: boolean;
 }) {
-  const [manuelle, setManuelle] = useState("");
   const [autreSite, setAutreSite] = useState("");
   const [relecture, setRelecture] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [envoi, setEnvoi] = useState(false);
 
   const aDesPhotos = carte.photos.length > 0 || Boolean(carte.visuel);
 
@@ -90,51 +180,27 @@ export default function ChoixModele({
   // lit. Le logo l'améliore, il ne la conditionne pas.
 
   /**
-   * L'image ajoutée nourrit le modèle EN COURS.
+   * Un logo donné remplit la pastille ET l'enseigne.
    *
-   * Elle basculait systématiquement en « photo ». Conséquence : une marque qui
-   * choisissait « Ta marque » puis déposait son logo se retrouvait avec ce logo
-   * étalé en pleine carte — son choix écrasé par son propre geste.
-   *
-   * En modèle « marque », l'image devient l'enseigne : elle se pose dans
-   * l'encadré, à sa taille. On mesure ses proportions pour savoir la traiter
-   * comme une icône ou comme une signature large — la même règle que pour les
-   * logos qu'on extrait.
+   * La pastille apparaît sur la carte photo, l'enseigne sur la carte marque.
+   * C'est le même logo : n'en remplir qu'un revenait à le perdre en changeant
+   * de modèle.
    */
-  function ajouterImage(url: string) {
-    setErreur(null);
-    if (carte.modele === "logo") {
-      const img = new window.Image();
-      const poser = (carree: boolean) =>
-        maj({
-          enseigne: url,
-          // ⚠️ Le logo remplit AUSSI la pastille.
-          //
-          // Sans ça, une marque qui déposait son logo puis basculait sur
-          // « Une photo » perdait son logo : la carte photo affiche la
-          // pastille, qui lisait un autre champ. Les deux modèles doivent
-          // partager ce que la marque a donné, sinon changer d'avis efface.
-          logo: url,
-          enseigneCarree: carree,
-          // On ne sait pas lire le ton d'une image déposée. Un panneau clair
-          // est le pari le plus sûr : la grande majorité des logos sont
-          // dessinés en traits sombres, et un logo opaque le recouvre.
-          enseigneSombre: true,
-        });
-      img.onload = () => poser(img.naturalWidth / Math.max(1, img.naturalHeight) < 2.5);
-      img.onerror = () => poser(true);
-      img.src = url;
-      return;
-    }
-    // La photo ne touche NI au logo NI à l'enseigne : revenir sur « Ta marque »
-    // doit retrouver la marque intacte.
-    maj({ visuel: url, modele: "photo" });
-  }
-
-  /** Choisir une photo proposée, c'est vouloir le modèle photo. */
-  function choisirImage(url: string) {
-    maj({ visuel: url, modele: "photo" });
-    setErreur(null);
+  function poserLogo(url: string) {
+    const img = new window.Image();
+    const poser = (carree: boolean) =>
+      maj({
+        logo: url,
+        enseigne: url,
+        enseigneCarree: carree,
+        // On ne sait pas lire le ton d'une image déposée. Un fond clair est le
+        // pari le plus sûr : la plupart des logos sont en traits sombres, et
+        // un logo opaque le recouvre de toute façon.
+        enseigneSombre: true,
+      });
+    img.onload = () => poser(img.naturalWidth / Math.max(1, img.naturalHeight) < 2.5);
+    img.onerror = () => poser(true);
+    img.src = url;
   }
 
   /** Relit une autre adresse et remplace ce que la carte affiche. */
@@ -161,19 +227,6 @@ export default function ChoixModele({
       }
     } finally {
       setRelecture(false);
-    }
-  }
-
-  function collerAdresse() {
-    const v = manuelle.trim();
-    if (!v) return;
-    try {
-      const u = new URL(v.startsWith("http") ? v : `https://${v}`);
-      if (u.protocol !== "https:") throw new Error("protocole");
-      ajouterImage(u.toString());
-      setManuelle("");
-    } catch {
-      setErreur("Colle l'adresse d'une image, en https.");
     }
   }
 
@@ -246,7 +299,7 @@ export default function ChoixModele({
               <button
                 key={url}
                 type="button"
-                onClick={() => choisirImage(url)}
+                onClick={() => maj({ visuel: url, modele: "photo" })}
                 className={`aspect-square overflow-hidden rounded-xl border-2 bg-zinc-100 bg-cover bg-center transition ${
                   carte.visuel === url ? "border-brand" : "border-transparent hover:border-zinc-300"
                 }`}
@@ -312,61 +365,37 @@ export default function ChoixModele({
             {relecture ? "…" : "Voir"}
           </button>
         </div>
+        {erreur && <p className="mt-2 text-[12px] text-red-600">{erreur}</p>}
       </div>
 
-      {/* ─── Sa propre image ─── */}
-      <div className="mt-4">
-        <label className="inline-flex cursor-pointer items-center rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-[14px] font-semibold text-ink transition hover:border-zinc-400">
-          {envoi
-            ? "Envoi…"
-            : carte.modele === "logo"
-              ? "Ajouter mon logo"
-              : "Ajouter ma photo"}
-          <input
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            disabled={envoi}
-            onChange={async (e) => {
-              const fichier = e.target.files?.[0];
-              // Vidé tout de suite : sinon, rechoisir le même fichier après
-              // une erreur ne déclenche rien.
-              e.target.value = "";
-              if (!fichier) return;
-              setErreur(null);
-              setEnvoi(true);
-              const donnees = new FormData();
-              donnees.append("file", fichier);
-              const r = await televerserVisuelAnonyme(donnees);
-              setEnvoi(false);
-              if (r.ok && r.url) ajouterImage(r.url);
-              else setErreur(r.error ?? "Le téléversement a échoué.");
-            }}
-          />
-        </label>
+      {/* ═══ DEUX DÉPÔTS, PAS UN ═══
 
-        <input
-          type="text"
-          inputMode="url"
-          value={manuelle}
-          onChange={(e) => {
-            setManuelle(e.target.value);
-            setErreur(null);
-          }}
-          onKeyDown={(e) => e.key === "Enter" && collerAdresse()}
-          placeholder={
-            carte.modele === "logo"
-              ? "…ou colle l'adresse de ton logo"
-              : "…ou colle l'adresse d'une image"
-          }
-          className={`${CHAMP} mt-3`}
+          Il n'y en avait qu'un, et il alimentait le modèle en cours. Pour
+          ajouter un logo il fallait donc passer sur « Ta marque » — ce qui
+          retirait la photo de la carte. Impossible d'avoir les deux.
+
+          C'est une erreur de conception, pas d'affichage : une photo et un
+          logo ne sont pas deux versions d'une même chose. La photo remplit la
+          carte, le logo signe la marque, et une bonne carte photo porte les
+          DEUX — l'image en grand, la pastille dans le coin.
+
+          Le modèle ne décide plus que du sujet principal. Ce qu'on donne à la
+          carte se donne indépendamment. */}
+      <div className="mt-5 space-y-3">
+        <Depot
+          titre="La photo"
+          aide="Elle remplit la carte."
+          bouton={carte.visuel ? "Remplacer la photo" : "Ajouter une photo"}
+          rempli={Boolean(carte.visuel)}
+          onImage={(url) => maj({ visuel: url, modele: "photo" })}
         />
-        {manuelle.trim() && (
-          <button type="button" onClick={collerAdresse} className="mt-2 text-[13px] font-semibold text-brand">
-            Utiliser cette image
-          </button>
-        )}
-        {erreur && <p className="mt-2 text-[13px] text-red-600">{erreur}</p>}
+        <Depot
+          titre="Le logo"
+          aide="Il signe la marque, y compris sur la carte photo."
+          bouton={carte.logo ? "Remplacer le logo" : "Ajouter mon logo"}
+          rempli={Boolean(carte.logo)}
+          onImage={poserLogo}
+        />
       </div>
     </div>
   );
