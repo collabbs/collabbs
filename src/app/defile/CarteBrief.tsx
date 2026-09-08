@@ -49,40 +49,37 @@ export function remunerationLisible(brief: BriefDefile) {
 }
 
 /**
- * La pastille de marque : son logo, ou son initiale.
+ * Le logo est-il assez défini pour être affiché ?
  *
- * ─── Pourquoi mesurer ───
+ * ─── Pourquoi une mesure ───
  * Le service de logos annonce 256 px mais rend ce qu'il a. Pour Sephora, c'est
- * une icône de 16 px — étirée à 44, elle devient une tache floue, et rien ne
- * dit « bâclé » aussi vite qu'un logo flou sur une carte qu'on veut premium.
+ * une icône de 16 px — étirée, elle devient une tache, et rien ne dit
+ * « bâclé » aussi vite qu'un logo flou sur une carte qu'on veut premium.
  *
- * La taille réelle ne se connaît qu'une fois l'image chargée. On la charge
- * donc à part pour la mesurer, et on retombe sur l'initiale quand elle est
- * trop petite : une lettre nette vaut mieux qu'un logo sale.
+ * La taille réelle ne se connaît qu'une fois l'image chargée : on la charge
+ * donc à part pour la mesurer. La réponse sert deux fois — la pastille du haut
+ * et le grand signe du fond — d'où un crochet plutôt qu'un état local.
  */
-function Pastille({
-  logo,
-  marque,
-  encre,
-}: {
-  logo: string | null;
-  marque: string;
-  encre: string;
-}) {
+function useLogoNet(logo: string | null): boolean {
   // On retient l'adresse ÉCARTÉE, pas un booléen : un booléen devrait être
   // remis à vrai à chaque changement de logo, donc modifié depuis l'effet —
   // ce qui déclenche un rendu en cascade. Comparer deux adresses se lit sans
   // état intermédiaire, et une carte qui change de marque repart juste.
   const [ecarte, setEcarte] = useState<string | null>(null);
-  const utilisable = logo !== null && logo !== ecarte;
 
   useEffect(() => {
     if (!logo) return;
     const img = new window.Image();
-    // 64 px : il en faut le double des 44 px affichés pour rester net sur un
-    // écran à haute densité, ce qu'est tout téléphone.
+    // Le seuil est la taille D'AFFICHAGE, 44 px : en dessous, on agrandit
+    // vraiment, et ça se voit (Sephora ne rend que 16 px, ça faisait une
+    // tache). Au-dessus, l'image reste au pire un peu douce sur un écran à
+    // haute densité — et pour un logo, être reconnu vaut mieux qu'être net.
+    //
+    // Essayé d'abord à 64 px : ça écartait le logo de Leroy Merlin, qui fait
+    // 48 px et s'affichait très correctement. Un garde-fou trop strict jette
+    // ce qu'il devait protéger.
     img.onload = () => {
-      if (img.naturalWidth < 64) setEcarte(logo);
+      if (img.naturalWidth < 44) setEcarte(logo);
     };
     img.onerror = () => setEcarte(logo);
     img.src = logo;
@@ -92,7 +89,22 @@ function Pastille({
     };
   }, [logo]);
 
-  if (logo && utilisable) {
+  return logo !== null && logo !== ecarte;
+}
+
+/** La pastille d'identification, en haut : le logo, ou l'initiale à défaut. */
+function Pastille({
+  logo,
+  net,
+  marque,
+  encre,
+}: {
+  logo: string | null;
+  net: boolean;
+  marque: string;
+  encre: string;
+}) {
+  if (logo && net) {
     return (
       <span
         className="h-11 w-11 shrink-0 rounded-xl bg-white bg-contain bg-center bg-no-repeat shadow-[0_4px_16px_-4px_rgba(0,0,0,.6)]"
@@ -100,7 +112,6 @@ function Pastille({
       />
     );
   }
-
   return (
     <span
       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-display text-lg font-black backdrop-blur"
@@ -108,6 +119,53 @@ function Pastille({
     >
       {marque.slice(0, 1).toUpperCase()}
     </span>
+  );
+}
+
+/**
+ * Le grand signe du fond — ce qui remplace la photo au lieu de laisser un vide.
+ *
+ * ─── Ce qui n'allait pas ───
+ * La carte sans photo gardait la mise en page de la carte AVEC photo : tout en
+ * bas, et un grand vide au-dessus. C'est le vide qu'on voyait, pas la couleur.
+ * Une carte photo à qui il manque la photo ne peut pas être belle ; il fallait
+ * qu'elle cesse d'en être une et devienne une affiche.
+ *
+ * ─── Le parti ───
+ * Le signe est ÉNORME et COUPÉ par le bord. Un logo entier posé au milieu,
+ * c'est ce qui a déjà été refusé deux fois — et à raison : ça reste une
+ * vignette sur un fond. Débordant, il devient une matière.
+ *
+ * ─── Pourquoi l'initiale et pas le logo ───
+ * Le logo agrandi a été essayé et jeté : les icônes de domaine sont dessinées
+ * sur un carré plein, et à cette taille c'est ce CARRÉ qu'on voit — un bord
+ * net en travers de la carte, qui passe pour un défaut d'affichage. Une lettre
+ * n'a pas de fond, se met à l'échelle sans jamais se pixelliser, et vaut pour
+ * toutes les marques y compris celles dont le logo est illisible.
+ *
+ * Elle est dessinée en SVG parce qu'un texte SVG se met exactement à l'échelle
+ * de sa boîte, sans dépendre de la taille de l'écran ni de celle de la carte.
+ */
+function GrandSigne({ marque, encre }: { marque: string; encre: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMaxYMin meet"
+      className="absolute -right-[10%] top-[1%] h-[52%] w-[86%]"
+    >
+      <text
+        x="100"
+        y="82"
+        textAnchor="end"
+        className="font-display"
+        fontSize="112"
+        fontWeight="900"
+        fill={rgba(encre, 0.13)}
+      >
+        {marque.slice(0, 1).toUpperCase()}
+      </text>
+    </svg>
   );
 }
 
@@ -213,6 +271,7 @@ export default function CarteBrief({
   // devenait illisible en haut. L'encre se décide donc pour chaque zone, sur
   // le fond qu'elle a réellement sous elle.
   const encreHaut = photo ? "#ffffff" : encreLisible(base);
+  const logoNet = useLogoNet(brief.image);
 
   // Le montant est le sujet de la carte sans photo : il occupe la place que
   // l'image occupait. Mais « 12 000 € » et « 400 € » n'ont pas la même
@@ -299,6 +358,7 @@ export default function CarteBrief({
               background: `radial-gradient(120% 80% at 22% 10%, ${rgba(clair, 0.9)} 0%, ${rgba(clair, 0)} 62%)`,
             }}
           />
+          <GrandSigne marque={brief.marque} encre={encreHaut} />
           <div
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-[68%]"
@@ -351,7 +411,12 @@ export default function CarteBrief({
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-5">
         {/* Le logo en haut, petit : il identifie, il n'occupe plus la carte. */}
         <div className="flex items-center gap-2.5">
-          <Pastille logo={brief.image} marque={brief.marque} encre={encreHaut} />
+          <Pastille
+            logo={brief.image}
+            net={logoNet}
+            marque={brief.marque}
+            encre={encreHaut}
+          />
           <span
             className="font-display truncate text-[18px] font-black tracking-tight"
             style={{
@@ -368,10 +433,16 @@ export default function CarteBrief({
           )}
         </div>
 
-        {/* Ce qu'on gagne. Sur une carte sans photo, c'est LE sujet : le
-            montant prend la place que l'image aurait prise, précédé d'une
-            règle et d'un mot qui en font une offre plutôt qu'un nombre. */}
-        <div>
+        {/* ─── L'OFFRE ───
+
+            Avec une photo, tout se pose en bas : l'image occupe la carte et le
+            texte se range sous elle. Sans photo, ce même empilement laissait un
+            grand vide au-dessus — et c'est le vide qu'on voyait.
+
+            L'offre prend donc toute la hauteur libre et se centre dedans. La
+            carte n'a plus un trou en haut et un tas en bas : elle a un haut,
+            un milieu et un pied. */}
+        <div className={photo ? "" : "flex flex-1 flex-col justify-center"}>
           {!photo && (
             <>
               <div className="h-px w-14" style={{ background: attenue(0.45) }} />
@@ -409,7 +480,9 @@ export default function CarteBrief({
             </p>
           )}
 
-          {brief.titre && (
+          {/* Sous une photo, la mission reste collée au montant : le bas de la
+              carte est la seule zone lisible. */}
+          {photo && brief.titre && (
             <p
               className="mt-3 line-clamp-2 text-[16px] font-semibold leading-snug"
               style={{ color: attenue(0.9) }}
@@ -417,8 +490,7 @@ export default function CarteBrief({
               {brief.titre}
             </p>
           )}
-
-          {brief.niches.length > 0 && (
+          {photo && brief.niches.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {brief.niches.slice(0, 3).map((n) => (
                 <span
@@ -432,6 +504,33 @@ export default function CarteBrief({
             </div>
           )}
         </div>
+
+        {/* Le pied, seulement sans photo : ce qu'on fait pour cet argent. */}
+        {!photo && (
+          <div>
+            {brief.titre && (
+              <p
+                className="line-clamp-2 text-[16px] font-semibold leading-snug"
+                style={{ color: attenue(0.9) }}
+              >
+                {brief.titre}
+              </p>
+            )}
+            {brief.niches.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {brief.niches.slice(0, 3).map((n) => (
+                  <span
+                    key={n}
+                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur"
+                    style={{ background: attenue(0.18), color: encre }}
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
     </div>
