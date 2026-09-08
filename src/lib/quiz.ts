@@ -169,6 +169,30 @@ export function modeleDePaiement(formats: OfferId[]): {
 }
 
 /** Le mode de rémunération correspondant, pour la carte et la campagne. */
+/**
+ * Le montant qu'on met en avant quand plusieurs formats ont leur prix.
+ *
+ * Le plus BAS, pas le plus haut : la carte annonce un plancher, et une marque
+ * ne doit jamais promettre plus que ce qu'elle paiera pour le format le moins
+ * cher. Gonfler le chiffre ferait cliquer davantage et décevrait autant.
+ */
+export function montantMisEnAvant(prix: Partial<Record<OfferId, number>>): number | null {
+  const valeurs = Object.values(prix).filter((v): v is number => typeof v === "number" && v > 0);
+  return valeurs.length > 0 ? Math.min(...valeurs) : null;
+}
+
+/** Répare la table des prix venue du navigateur. */
+export function prixParFormat(brut: unknown): Partial<Record<OfferId, number>> {
+  if (!brut || typeof brut !== "object") return {};
+  const sortie: Partial<Record<OfferId, number>> = {};
+  for (const [cle, valeur] of Object.entries(brut as Record<string, unknown>)) {
+    if (!(cle in OFFER_BY_ID)) continue;
+    const n = typeof valeur === "number" ? valeur : Number(valeur);
+    if (Number.isFinite(n) && n > 0) sortie[cle as OfferId] = n;
+  }
+  return sortie;
+}
+
 export function remunerationDeduite(formats: OfferId[]): ModeRemunerationId | null {
   const { fixe, commission } = modeleDePaiement(formats);
   if (fixe && commission) return "les-deux";
@@ -184,7 +208,19 @@ export type CarteMarque = {
   produit: string | null;
   formats: OfferId[];
   remuneration: ModeRemunerationId | null;
-  /** Montant fixe en euros. */
+  /**
+   * Un montant par FORMAT, en euros.
+   *
+   * Il n'y avait qu'un montant global. Une marque qui demandait une story ET
+   * une vidéo UGC ne pouvait donner qu'un seul prix — alors que les deux ne se
+   * paient pas pareil, ni ne demandent le même travail. Le créateur recevait
+   * un chiffre qui ne correspondait à rien de précis.
+   *
+   * Le côté créateur tarife déjà par format ; le côté marque le fait
+   * maintenant aussi, et les deux se répondent.
+   */
+  prix: Partial<Record<OfferId, number>>;
+  /** Le montant mis en avant sur la carte — dérivé de `prix`, jamais saisi. */
   montant: number | null;
   /** Pourcentage de commission. */
   commission: number | null;
@@ -241,6 +277,7 @@ export function carteMarqueVide(): CarteMarque {
     couleur: null,
     photos: [],
     visuel: null,
+    prix: {},
     modele: "photo",
     enseigne: null,
     enseigneSombre: false,
@@ -468,7 +505,8 @@ export function normaliserCarteMarque(v: unknown): CarteMarque {
       typeof o.remuneration === "string" && modes.includes(o.remuneration)
         ? (o.remuneration as ModeRemunerationId)
         : null,
-    montant: nombreOuNull(o.montant),
+    prix: prixParFormat(o.prix),
+    montant: montantMisEnAvant(prixParFormat(o.prix)) ?? nombreOuNull(o.montant),
     commission: nombreOuNull(o.commission),
     echeance: texteOuNull(o.echeance),
     site: texteOuNull(o.site),

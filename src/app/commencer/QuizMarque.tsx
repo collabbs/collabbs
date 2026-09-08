@@ -14,6 +14,7 @@ import {
   CLE_COTE,
   CLE_BRIEF,
   remunerationDeduite,
+  montantMisEnAvant,
   avancementMarque,
   carteMarqueVide,
   premiereEtapeIncompleteMarque,
@@ -339,25 +340,47 @@ export default function QuizMarque() {
 
           {carte.remuneration && (
             <div className="mt-5 grid gap-4">
-              {veutFixe && (
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-600">Montant par créateur</span>
-                  <div className="mt-2 flex items-center gap-3">
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={carte.montant ?? ""}
-                      onChange={(e) =>
-                        maj({ montant: e.target.value === "" ? null : Number(e.target.value) })
-                      }
-                      placeholder="400"
-                      className={`${CHAMP} text-2xl font-bold tabular-nums`}
-                    />
-                    <span className="text-2xl font-bold text-zinc-300">€</span>
-                  </div>
-                </label>
-              )}
+              {/* ─── UN PRIX PAR FORMAT ───
+
+                  Il n'y avait qu'un montant global. Une marque qui demandait
+                  une story ET une vidéo UGC ne pouvait donner qu'un seul prix,
+                  alors que les deux ne demandent ni le même travail ni le même
+                  tarif. Le créateur recevait un chiffre qui ne correspondait à
+                  rien de précis.
+
+                  Chaque format au forfait a donc son champ. Les formats payés
+                  au résultat (affiliation, performance) se règlent tous sur les
+                  ventes : un seul pourcentage les couvre. */}
+              {carte.formats
+                .filter((id) => OFFER_BY_ID[id]?.tag === "Paiement fixe")
+                .map((id) => (
+                  <label key={id} className="block">
+                    <span className="text-sm font-medium text-zinc-600">
+                      {OFFER_BY_ID[id]?.emoji} {OFFER_BY_ID[id]?.label} — par créateur
+                    </span>
+                    <div className="mt-2 flex items-center gap-3">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={carte.prix[id] ?? ""}
+                        onChange={(e) => {
+                          const prix = { ...carte.prix };
+                          if (e.target.value === "") delete prix[id];
+                          else prix[id] = Number(e.target.value);
+                          // Le montant de la carte se recalcule à chaque
+                          // saisie : il n'est plus une réponse, c'est un
+                          // résultat.
+                          maj({ prix, montant: montantMisEnAvant(prix) });
+                        }}
+                        placeholder="400"
+                        className={`${CHAMP} text-2xl font-bold tabular-nums`}
+                      />
+                      <span className="text-2xl font-bold text-zinc-300">€</span>
+                    </div>
+                  </label>
+                ))}
+
               {veutCommission && (
                 <label className="block">
                   <span className="text-sm font-medium text-zinc-600">
@@ -380,10 +403,24 @@ export default function QuizMarque() {
                   </div>
                 </label>
               )}
+
+              {/* Plusieurs formats au forfait : on dit ce que la carte
+                  affichera, plutôt que de laisser découvrir. */}
+              {Object.keys(carte.prix).length > 1 && carte.montant !== null && (
+                <p className="text-[13px] leading-relaxed text-zinc-500">
+                  Ta carte annoncera {carte.montant.toLocaleString("fr-FR")} € — le
+                  plus bas de tes formats. Promettre plus ferait cliquer davantage
+                  et décevrait autant.
+                </p>
+              )}
+
               <button
                 type="button"
                 onClick={() => setEtape(3)}
-                disabled={carte.montant === null && carte.commission === null}
+                disabled={
+                  (!veutFixe || carte.montant === null) &&
+                  (!veutCommission || carte.commission === null)
+                }
                 className={PRINCIPAL}
               >
                 Continuer
