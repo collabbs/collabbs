@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CLE_INTERETS, CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
+import { CLE_CARTE, CLE_INTERETS, CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
 import { reprendreFavoris, reprendreReperages } from "./favoris/actions";
+import { creerProfilDepuisCarte } from "./profile/depuis-questionnaire";
 
 /**
  * Ramène dans le compte ce qui a été retenu pendant le défilé.
@@ -31,6 +32,38 @@ export default function RepriseDuDefile({ role }: { role: string | null }) {
   useEffect(() => {
     if (lance.current) return;
     lance.current = true;
+
+    // ─── LA CARTE D'ABORD, LES FAVORIS ENSUITE ───
+    //
+    // Un créateur remplissait son questionnaire — pseudo, plateforme,
+    // audience, niches, tarifs par format — puis tout était jeté et on lui
+    // redemandait la même chose. Deux fois le même travail, et le second est
+    // celui qu'on abandonne.
+    //
+    // Plus grave : sans profil il n'est visible d'aucune marque, donc aucune
+    // ne peut le repérer, donc aucun match ne peut se former. Ce pont ne
+    // manquait pas de confort, il bloquait la boucle.
+    //
+    // Côté marque, la reprise vit dans la liste des campagnes : c'est là que
+    // le résultat se voit. Côté créateur, c'est son profil, donc ici.
+    if (role !== "brand") {
+      const carte = window.localStorage.getItem(CLE_CARTE);
+      if (carte) {
+        try {
+          const objet = JSON.parse(carte);
+          if (objet?.cote === "creator") {
+            creerProfilDepuisCarte(objet).then((r) => {
+              if (r.ok) {
+                window.localStorage.removeItem(CLE_CARTE);
+                router.refresh();
+              }
+            });
+          }
+        } catch {
+          window.localStorage.removeItem(CLE_CARTE);
+        }
+      }
+    }
 
     const cle = role === "brand" ? CLE_REPERAGES : CLE_INTERETS;
     const brut = window.localStorage.getItem(cle);
