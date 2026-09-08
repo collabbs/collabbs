@@ -5,6 +5,7 @@ import { countsAsEarning } from "@/lib/affiliate-earnings";
 
 import { capaciteCampagnes } from "@/lib/limites";
 import ReprendreQuestionnaire from "./ReprendreQuestionnaire";
+import Arrivee from "./Arrivee";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -40,6 +41,12 @@ export default async function MyCampaignsPage() {
     .order("created_at", { ascending: false });
   const campaigns = campaignsRes.data ?? [];
   const capacite = await capaciteCampagnes(user.id);
+
+  // Ce qu'elle a retenu en faisant défiler, avant même d'avoir un compte.
+  const { count: reperes } = await supabase
+    .from("brand_creator_saves")
+    .select("creator_id", { count: "exact", head: true })
+    .eq("brand_id", user.id);
   const campaignIds = campaigns.map((c) => c.id);
 
   const [linksRes, appsRes] = await Promise.all([
@@ -126,6 +133,11 @@ export default async function MyCampaignsPage() {
     <>
       {/* Le questionnaire d'avant-compte devient une vraie campagne ici. */}
       <ReprendreQuestionnaire />
+      {/* Le guide d'arrivée disparaît dès qu'il a été suivi : un guide qui
+          persiste après coup devient du décor. */}
+      {(capacite.actives === 0 || (reperes ?? 0) === 0) && (
+        <Arrivee campagnesActives={capacite.actives} reperes={reperes ?? 0} />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-3xl font-black tracking-tight text-ink">
             Mes campagnes
