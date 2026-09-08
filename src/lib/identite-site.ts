@@ -1,6 +1,6 @@
 import "server-only";
 import { verifierUrlPublique, MAX_REDIRECTIONS } from "./url-publique";
-import { couleurDominante, type CouleurLogo } from "./couleur-image";
+import { analyserLogo, couleurDominante, type AnalyseLogo, type CouleurLogo } from "./couleur-image";
 import { logoOfficiel } from "./logo-officiel";
 
 /**
@@ -462,6 +462,31 @@ export function logoDuDomaine(url: string): string | null {
  * Ne lève jamais et ne bloque jamais : sans couleur, la carte garde son
  * traitement neutre, exactement comme avant.
  */
+export async function analyserLogoDistant(url: string): Promise<AnalyseLogo | null> {
+  const octets = await octetsDuLogo(url);
+  return octets ? analyserLogo(octets) : null;
+}
+
+/** Rapatrie les octets d'un logo, avec les mêmes garde-fous que partout. */
+async function octetsDuLogo(urlLogo: string): Promise<Uint8Array | null> {
+  const controle = await verifierUrlPublique(urlLogo);
+  if (!controle.ok) return null;
+  try {
+    const r = await fetch(controle.url, {
+      redirect: "follow",
+      headers: { "User-Agent": AGENT },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    const type = r.headers.get("content-type") ?? "";
+    if (!type.startsWith("image/")) return null;
+    const octets = new Uint8Array(await r.arrayBuffer());
+    return octets.length > 400_000 ? null : octets;
+  } catch {
+    return null;
+  }
+}
+
 export async function couleurDuLogo(urlLogo: string): Promise<CouleurLogo | null> {
   const controle = await verifierUrlPublique(urlLogo);
   if (!controle.ok) return null;
@@ -493,6 +518,19 @@ export async function couleurDuLogo(urlLogo: string): Promise<CouleurLogo | null
  * service de logos, donc une marque injoignable y perdait son logo alors que
  * le questionnaire le trouvait. Une seule fonction, un seul comportement.
  */
+/**
+ * Rend ce que la promesse donne, ou le repli passé le délai.
+ *
+ * La promesse n'est pas annulée — on cesse de l'attendre. Sans conséquence
+ * ici : rien n'est écrit, et les requêtes portent déjà leur propre expiration.
+ */
+async function avecPlafond<T>(promesse: Promise<T>, ms: number, repli: T): Promise<T> {
+  return Promise.race([
+    promesse.catch(() => repli),
+    new Promise<T>((resoudre) => setTimeout(() => resoudre(repli), ms)),
+  ]);
+}
+
 export type IdentiteMarque = {
   /** Petit, carré : la pastille d'identification. */
   logo: string | null;
@@ -502,13 +540,28 @@ export type IdentiteMarque = {
   enseigne: string | null;
   /** Les traits de l'enseigne sont-ils sombres ? Décide du fond qu'on lui met. */
   enseigneSombre: boolean;
+  /**
+   * L'enseigne est-elle une icône carrée plutôt qu'une signature large ?
+   *
+   * Les deux ne se posent pas pareil. Une signature (« DECATHLON ») a besoin
+   * d'un panneau clair derrière elle pour se lire. Une icône carrée porte déjà
+   * son propre fond : lui ajouter un panneau donne un autocollant collé sur
+   * une feuille. Elle se pose donc seule, comme une icône d'application.
+   */
+  enseigneCarree: boolean;
 };
 
 export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
   // En parallèle : le site peut être lent ou muet, Wikidata n'en dépend pas.
+  //
+  // ⏱ La lecture du site a son PROPRE plafond, plus court que celui de
+  // l'ensemble. Sans lui, un site lent consommait tout le budget et le reste
+  // n'avait plus le temps de s'exécuter : petitbateau.fr ressortait sans
+  // logo alors que son icône de domaine répond en 200 ms. Un garde-fou qui
+  // fait échouer ce qu'il devait protéger.
   const [site, officiel] = await Promise.all([
-    identiteDuSite(url),
-    logoOfficiel(url).catch(() => null),
+    avecPlafond(identiteDuSite(url), 4500, VIDE),
+    avecPlafond(logoOfficiel(url), 6000, null),
   ]);
 
   // Deux logos, deux usages. La pastille est un carré de 44 px : un favicon y
@@ -541,10 +594,37 @@ export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
     couleur = (await couleurDuLogo(parDomaine))?.couleur ?? null;
   }
 
-  return {
-    logo,
-    couleur,
-    enseigne: officiel?.url ?? null,
-    enseigneSombre: officiel?.sombre ?? false,
-  };
+  // ─── Ce qu'on montre EN GRAND ───
+  //
+  // L'enseigne officielle d'abord. À défaut, le logo du site lui-même : dans
+  // la moitié des cas il fait 180 px ou plus (faguo 256, sezane 194, angarde
+  // 800×204) et se montre donc parfaitement. On affichait pourtant une simple
+  // lettre à sa place — on avait le vrai logo sous la main et on ne s'en
+  // servait pas.
+  //
+  // En dessous de 96 px, on s'abstient : agrandi, un logo devient une tache,
+  // et une lettre nette vaut mieux qu'un logo sale.
+  let enseigne = officiel?.url ?? null;
+  let enseigneSombre = officiel?.sombre ?? false;
+  let enseigneCarree = false;
+
+  //
+  // Deux candidats, dans l'ordre : le logo que le site expose, puis celui du
+  // service de domaines. Le premier est le plus juste, mais on ne sait décoder
+  // que le PNG — un logo en JPEG, en ICO ou en SVG n'est pas mesurable, donc
+  // pas montrable en grand. C'est ce qui écartait Petit Bateau, dont l'icône
+  // de domaine fait pourtant 180 px. Le second candidat rattrape ces cas : le
+  // service rend toujours du PNG.
+  for (const candidat of [logo, parDomaine]) {
+    if (enseigne || !candidat) continue;
+    const analyse = await analyserLogoDistant(candidat);
+    if (!analyse || analyse.largeur < 96) continue;
+    enseigne = candidat;
+    enseigneSombre = analyse.sombre;
+    // Au-delà de 2,5 fois plus large que haut, c'est une signature, pas une
+    // icône : elle se traite comme une enseigne officielle.
+    enseigneCarree = analyse.largeur / Math.max(1, analyse.hauteur) < 2.5;
+  }
+
+  return { logo, couleur, enseigne, enseigneSombre, enseigneCarree };
 }

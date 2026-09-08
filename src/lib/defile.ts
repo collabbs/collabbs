@@ -86,6 +86,8 @@ export type BriefDefile = {
   enseigne: string | null;
   /** Ses traits sont-ils sombres ? Décide du fond sur lequel on la pose. */
   enseigneSombre: boolean;
+  /** Icône carrée (posée seule) plutôt que signature large (posée sur panneau). */
+  enseigneCarree: boolean;
   /**
    * Photos produit de la marque, quand sa boutique les publie.
    *
@@ -189,6 +191,9 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     enseigne: c.brands?.website ? (identites.get(c.brands.website)?.enseigne ?? null) : null,
     enseigneSombre: c.brands?.website
       ? (identites.get(c.brands.website)?.enseigneSombre ?? false)
+      : false,
+    enseigneCarree: c.brands?.website
+      ? (identites.get(c.brands.website)?.enseigneCarree ?? false)
       : false,
     /* ─── L'IMAGE CHOISIE PASSE DEVANT ───
 

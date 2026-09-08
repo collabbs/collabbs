@@ -431,7 +431,44 @@ export default function CarteBrief({
             aussi. Le logo Fnac, jaune sur une carte jaune, avait quasiment
             disparu. Ce qui compte n'est pas clair ou sombre dans l'absolu,
             c'est le contraste avec ce qu'il y a dessous. */}
-        {enseigne ? (
+        {enseigne && brief.enseigneCarree ? (
+          /* ─── UNE ICÔNE CARRÉE ───
+             Elle porte déjà son propre fond : l'étaler sur toute la largeur
+             la déforme, et lui coller un panneau derrière donne un
+             autocollant sur une feuille. Elle se pose donc seule, à sa
+             taille, comme une icône d'application — et le nom l'accompagne,
+             puisqu'une icône ne le dit pas. */
+          <div className="flex items-center gap-4">
+            <span
+              className="h-[92px] w-[92px] shrink-0 rounded-[22px] bg-contain bg-center bg-no-repeat shadow-[0_10px_30px_-10px_rgba(0,0,0,.55)]"
+              style={{
+                backgroundImage: `url("${enseigne}")`,
+                // Un logo transparent a besoin d'un fond, et pas n'importe
+                // lequel : clair sous des traits sombres, sombre sous des
+                // traits clairs. Un logo opaque le recouvre de toute façon.
+                //
+                // `backgroundColor` et non `background` : la forme courte
+                // efface l'image posée juste au-dessus.
+                backgroundColor: brief.enseigneSombre
+                  ? eclaircir(base, 0.95)
+                  : assombrir(base, 0.84),
+              }}
+              role="img"
+              aria-label={brief.marque}
+            />
+            <span
+              className="font-display min-w-0 truncate text-[26px] font-black tracking-tight"
+              style={{ color: encreHaut }}
+            >
+              {brief.marque}
+            </span>
+            {brief.dejaInteressee && (
+              <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-950">
+                T&apos;a repéré
+              </span>
+            )}
+          </div>
+        ) : enseigne ? (
           <div className="flex items-start justify-between gap-3">
             <div
               className="flex h-[112px] flex-1 items-center justify-center rounded-2xl px-6 py-5"

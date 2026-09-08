@@ -9,6 +9,7 @@ export type IdentiteLue = {
   /** L'enseigne officielle, en haute définition, quand la marque en a une. */
   enseigne: string | null;
   enseigneSombre: boolean;
+  enseigneCarree: boolean;
 };
 
 /**
@@ -42,6 +43,7 @@ const VIDE: IdentiteLue = {
   photos: [],
   enseigne: null,
   enseigneSombre: false,
+  enseigneCarree: false,
 };
 
 export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
@@ -63,6 +65,7 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
         couleur: null,
         enseigne: null,
         enseigneSombre: false,
+        enseigneCarree: false,
       }),
       avecPlafond(visuelsDeMarque(url), 8000, [] as string[]),
     ]);
@@ -72,6 +75,7 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
       photos,
       enseigne: identite.enseigne,
       enseigneSombre: identite.enseigneSombre,
+      enseigneCarree: identite.enseigneCarree,
     };
   } catch {
     return VIDE;

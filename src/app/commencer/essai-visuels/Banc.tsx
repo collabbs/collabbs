@@ -27,6 +27,7 @@ function briefExemple(
   photos: string[],
   enseigne: string | null,
   enseigneSombre: boolean,
+  enseigneCarree: boolean,
 ): BriefDefile {
   return {
     id: site,
@@ -46,6 +47,7 @@ function briefExemple(
     photos,
     enseigne,
     enseigneSombre,
+    enseigneCarree,
     dejaInteressee: false,
   };
 }
@@ -83,7 +85,7 @@ export default function Banc() {
         ...r,
         {
           site,
-          brief: briefExemple(site, lu.logo, lu.couleur, lu.photos, lu.enseigne, lu.enseigneSombre),
+          brief: briefExemple(site, lu.logo, lu.couleur, lu.photos, lu.enseigne, lu.enseigneSombre, lu.enseigneCarree),
           ms: Math.round(performance.now() - t0),
           nbPhotos: lu.photos.length,
           aLogo: Boolean(lu.logo),

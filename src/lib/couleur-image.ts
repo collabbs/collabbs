@@ -31,6 +31,48 @@ const SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 /** Canaux par pixel selon le type de couleur PNG. */
 const CANAUX: Record<number, number> = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
 
+/** Tout ce qu'on sait tirer d'un logo, en une seule lecture. */
+export type AnalyseLogo = {
+  couleur: string | null;
+  /** Le logo porte-t-il une vraie teinte, ou est-il noir/blanc ? */
+  vive: boolean;
+  /** Ses traits sont-ils majoritairement sombres ? Décide du fond qu'on lui met. */
+  sombre: boolean;
+  largeur: number;
+  hauteur: number;
+};
+
+/**
+ * Analyse complète d'un logo PNG : couleur, ton, dimensions.
+ *
+ * Une seule lecture pour les trois. La taille décide si le logo peut être
+ * montré EN GRAND — une icône de 32 px ne peut pas — et le ton décide du fond
+ * sur lequel on le pose. Les deviner séparément voudrait dire décoder deux
+ * fois la même image.
+ */
+export function analyserLogo(octets: Uint8Array): AnalyseLogo | null {
+  const img = decoderPng(octets);
+  if (!img) return null;
+  const teinte = couleurDominante(octets);
+
+  let clairs = 0;
+  let sombres = 0;
+  for (let i = 0; i < img.pixels.length; i += 4) {
+    if (img.pixels[i + 3] < 128) continue;
+    const moyenne = (img.pixels[i] + img.pixels[i + 1] + img.pixels[i + 2]) / 3;
+    if (moyenne > 128) clairs++;
+    else sombres++;
+  }
+
+  return {
+    couleur: teinte?.vive ? teinte.couleur : null,
+    vive: teinte?.vive ?? false,
+    sombre: sombres >= clairs,
+    largeur: img.largeur,
+    hauteur: img.hauteur,
+  };
+}
+
 export type CouleurLogo = {
   /** `#rrggbb`. */
   couleur: string;
