@@ -10,40 +10,31 @@ import { assombrir, eclaircir } from "@/lib/teinte";
  *
  * ─── Pourquoi là, et pas à la fin ───
  * Le compte n'était proposé qu'après un match, ou une fois le paquet vide.
- * Quelqu'un qui retenait six campagnes puis refermait n'était jamais sollicité
- * — alors qu'il venait de faire exactement ce qu'on espérait. On demandait au
+ * Quelqu'un qui retenait six campagnes puis refermait n'était jamais sollicité,
+ * alors qu'il venait de faire exactement ce qu'on espérait. On demandait au
  * moment de la lassitude, pas au moment de l'envie.
  *
- * ─── Pourquoi montrer les cartes, et pas un compteur ───
- * Première version : un gros chiffre sur un dégradé. Ça ne pesait rien —
- * « 5 » est une abstraction, on ne perd pas un nombre. On perd des CAMPAGNES,
- * avec leurs photos et leurs marques. On les remet donc sous les yeux.
+ * ─── Trois cadrages faux, corrigés ───
+ * 1. Un gros « 5 » sur un dégradé. On ne perd pas un nombre.
+ * 2. « Ce que tu as retenu : 1 180 € ». Ces campagnes n'ont rien accordé à
+ *    personne — afficher un total comme un acquis, c'est le mensonge du match
+ *    simulé en plus discret.
+ * 3. « Tu n'as pas de profil ». Il VIENT de créer sa carte au questionnaire :
+ *    le lui nier efface son travail.
  *
- * ─── Pourquoi PAS le total des montants ───
- * Deuxième version : la somme de ce que ces campagnes proposent, en grand.
- * Elle était fausse dans ce qu'elle laissait entendre. Ces campagnes n'ont
- * rien accordé à personne : le créateur les a simplement retenues. Afficher
- * « 1 180 € » comme un acquis, c'est le même mensonge que le match simulé,
- * en plus discret — et il se paie de la même façon, à la déception.
+ * Ce qui est vrai : sa carte existe, mais seulement dans son navigateur. Le
+ * compte n'est pas une inscription, c'est la PUBLICATION de ce qu'il a fait.
  *
- * ─── Ce qui est vrai, et cohérent avec ce qu'il vient de faire ───
- * Troisième version : « ces marques ne peuvent pas te voir tant que tu n'as
- * pas de profil ». Faux aussi, d'une autre façon — il VIENT de créer sa carte
- * au questionnaire. Lui dire qu'il n'a pas de profil nie son travail.
- *
- * Le vrai état des choses : sa carte existe, mais seulement dans son
- * navigateur. Le compte n'est pas une inscription, c'est la PUBLICATION de ce
- * qu'il a déjà fait. C'est vrai, ça respecte son geste, et ça donne au bouton
- * un sens : « publier ma carte », pas « créer un compte ».
- *
- * ─── Pourquoi pas un « match » ───
- * Il a été question d'en simuler un. Annoncer un match quand aucune marque n'a
- * marqué d'intérêt, c'est promettre une réponse qui ne viendra pas — et le
- * créateur le découvre au silence qui suit. On garde l'interruption et sa
- * force ; on ne fabrique pas une réciprocité qui n'existe pas.
+ * ─── Sur la direction artistique ───
+ * Cet écran était un plein écran NOIR avec un dégradé violet/rose. Ça ne
+ * venait de nulle part : la DA Collabbs est claire et tiède — fond #FCFAFB
+ * jamais blanc pur, halos violet et cyan très flous, surfaces douces #F4F1F5,
+ * bouton noir. Un écran inventé au milieu d'un parcours cohérent se remarque
+ * comme une pièce rapportée, et il fait douter du reste.
  */
 export default function EcranRelance({
   retenus,
+  nombre,
   cote,
   onContinuer,
 }: {
@@ -54,38 +45,35 @@ export default function EcranRelance({
   onContinuer: () => void;
 }) {
   const estCreateur = cote === "createur";
-  const nombre = retenus.length;
-
   const enEventail = retenus.slice(-3).reverse();
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-ink px-6 text-center">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#FCFAFB] px-6 text-center">
+      {/* Les halos du Hero, à l'identique : c'est la signature de fond du site. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(85% 55% at 50% 12%, rgba(168,85,247,.5) 0%, rgba(236,72,153,.16) 45%, transparent 74%)",
-        }}
+        className="pointer-events-none absolute -right-40 -top-32 h-[560px] w-[560px] rounded-full bg-gradient-to-br from-purple-300/40 to-pink-300/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-40 top-40 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-cyan-200/30 to-purple-200/20 blur-3xl"
       />
 
       <div className="relative flex w-full max-w-sm flex-col items-center">
-        {/* ═══ CE QU'ON PERD, EN ÉVENTAIL ═══
-            Les trois dernières retenues, empilées comme un jeu de cartes qu'on
-            tient en main. C'est ce qui rend la perte concrète. */}
+        {/* Ce qu'il a retenu, en éventail : les seules choses de cet écran qui
+            soient déjà réelles. Elles apportent la couleur, on n'en rajoute pas. */}
         {enEventail.length > 0 && (
-          <div className="relative mb-7 h-[190px] w-[150px]">
+          <div className="relative mb-8 h-[184px] w-[146px]">
             {enEventail.map((b, i) => {
               const photo = photoDuBrief(b);
               const base = b.couleurMarque ?? "#1b1b21";
               const r = remunerationLisible(b);
-              const angle = (i - 1) * 11;
               return (
                 <div
                   key={b.id}
-                  className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_44px_-16px_rgba(0,0,0,.9)]"
+                  className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_16px_40px_-16px_rgba(24,16,40,.45)] ring-1 ring-black/5"
                   style={{
-                    transform: `rotate(${angle}deg) translateY(${Math.abs(i - 1) * 6}px)`,
+                    transform: `rotate(${(i - 1) * 10}deg) translateY(${Math.abs(i - 1) * 5}px)`,
                     zIndex: 3 - i,
                     backgroundColor: assombrir(base, 0.3),
                     backgroundImage: photo
@@ -95,7 +83,7 @@ export default function EcranRelance({
                     backgroundPosition: "center",
                   }}
                 >
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/85 to-transparent" />
                   <p className="font-display absolute bottom-2 left-2.5 right-2 truncate text-left text-[15px] font-black text-white">
                     {r?.gros ?? b.marque}
                   </p>
@@ -105,33 +93,37 @@ export default function EcranRelance({
           </div>
         )}
 
-        <p className="font-display text-[58px] font-black leading-none tabular-nums text-white">
-          {nombre}
-        </p>
-        <p className="mt-1 text-[16px] font-bold text-white/80">
-          {estCreateur
-            ? `campagne${nombre > 1 ? "s" : ""} retenue${nombre > 1 ? "s" : ""}`
-            : `créateur${nombre > 1 ? "s" : ""} repéré${nombre > 1 ? "s" : ""}`}
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">
+          {nombre} {estCreateur ? "campagnes retenues" : "créateurs repérés"}
         </p>
 
-        <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/70">
+        {/* Le dégradé signature du site sur le mot qui porte l'action. */}
+        <h2 className="font-display mt-3 text-[34px] font-black leading-[1.05] tracking-tight text-ink">
+          <span className="bg-[linear-gradient(135deg,#5b21b6_0%,#7c3aed_50%,#06b6d4_100%)] bg-clip-text text-transparent">
+            {estCreateur ? "Publie ta carte" : "Publie ton brief"}
+          </span>
+          <br />
+          pour aller plus loin.
+        </h2>
+
+        <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-zinc-500">
           {estCreateur
-            ? "Ta carte n'existe que dans ce navigateur. Publie-la pour que ces marques puissent te répondre."
-            : "Ton brief n'existe que dans ce navigateur. Publie-le pour que ces créateurs puissent y répondre."}
+            ? "Elle n'existe que dans ce navigateur. Publiée, ces marques peuvent te répondre — et tu gardes ta sélection."
+            : "Il n'existe que dans ce navigateur. Publié, ces créateurs peuvent y répondre — et tu gardes ta sélection."}
         </p>
 
         <Link
           href={estCreateur ? "/signup?role=creator" : "/signup?role=brand"}
-          className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white shadow-[0_14px_40px_-12px_rgba(168,85,247,.9)] transition hover:opacity-90"
+          className="mt-7 flex min-h-[58px] w-full items-center justify-center rounded-xl bg-ink px-6 text-[16px] font-semibold text-white transition hover:opacity-90"
         >
           {estCreateur ? "Publier ma carte" : "Publier mon brief"}
         </Link>
 
-        {/* On ne bloque pas. Interrompre deux fois ferait partir pour de bon. */}
+        {/* On ne bloque pas : interrompre deux fois ferait partir pour de bon. */}
         <button
           type="button"
           onClick={onContinuer}
-          className="mt-4 text-[14px] font-medium text-white/45 underline underline-offset-4 transition hover:text-white/80"
+          className="mt-4 text-[14px] font-medium text-zinc-400 transition hover:text-ink"
         >
           Continuer à regarder
         </button>
