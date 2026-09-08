@@ -1,6 +1,7 @@
 import "server-only";
 import { verifierUrlPublique, MAX_REDIRECTIONS } from "./url-publique";
 import { couleurDominante, type CouleurLogo } from "./couleur-image";
+import { logoOfficiel } from "./logo-officiel";
 
 /**
  * Récupérer l'identité visuelle d'une marque depuis son site.
@@ -54,7 +55,33 @@ const VIDE: IdentiteSite = { image: null, couleur: null, nom: null };
 
 /** Voir le commentaire d'en-tête : un agent inconnu se fait refuser. */
 const AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+
+/**
+ * Les en-têtes d'un vrai navigateur, pas seulement son nom.
+ *
+ * Mesuré : avec le seul `User-Agent`, sephora.fr renvoyait 403 — j'en avais
+ * conclu un peu vite que le refus était définitif. Avec la panoplie complète
+ * (langue, `Sec-Fetch-*`, `sec-ch-ua`), le même site a répondu 200. Les
+ * protections regardent la COHÉRENCE des en-têtes, pas l'agent seul.
+ *
+ * Ça ne rend pas tout accessible : Decathlon et Leroy Merlin refusent quand
+ * même, et Sephora répond une fois sur deux. Mais c'était gratuit, et ça
+ * ouvre des sites qu'on croyait fermés.
+ */
+const ENTETES: Record<string, string> = {
+  "User-Agent": AGENT,
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+  "sec-ch-ua": '"Chromium";v="128", "Not)A;Brand";v="99"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"macOS"',
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
+};
 
 /**
  * Dernier recours : le favicon, demandé directement.
@@ -146,10 +173,7 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
     for (let saut = 0; saut <= MAX_REDIRECTIONS; saut++) {
       const r = await fetch(courante, {
         redirect: "manual",
-        headers: {
-          "User-Agent": AGENT,
-          Accept: "text/html",
-        },
+        headers: ENTETES,
         signal: AbortSignal.timeout(6000),
       });
 
@@ -316,7 +340,7 @@ export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]
   try {
     const r = await fetch(verdict.url, {
       redirect: "follow",
-      headers: { "User-Agent": AGENT, Accept: "text/html" },
+      headers: ENTETES,
       signal: AbortSignal.timeout(6000),
     });
     if (!r.ok) return [];
@@ -334,6 +358,18 @@ export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]
   let m: RegExpExecArray | null;
   while ((m = motif.exec(html)) !== null && candidats.length < 120) {
     candidats.push(m[1]);
+  }
+
+  // `srcset` et `<source>` : sur les sites récents, `src` ne contient souvent
+  // qu'un pixel transparent et TOUTES les vraies adresses sont là. Mesuré sur
+  // veja-store.com — cinquante-quatre photos qu'on ne voyait pas.
+  const motifJeu = /(?:data-srcset|srcset)=["']([^"']+)["']/gi;
+  while ((m = motifJeu.exec(html)) !== null && candidats.length < 240) {
+    for (const morceau of m[1].split(",")) {
+      // « adresse 2x » ou « adresse 640w » : l'adresse est le premier mot.
+      const adresse = morceau.trim().split(/\s+/)[0];
+      if (adresse) candidats.push(adresse);
+    }
   }
 
   const vues = new Set<string>();
@@ -438,16 +474,34 @@ export async function couleurDuLogo(urlLogo: string): Promise<CouleurLogo | null
  * service de logos, donc une marque injoignable y perdait son logo alors que
  * le questionnaire le trouvait. Une seule fonction, un seul comportement.
  */
-export async function identiteDeMarque(
-  url: string,
-): Promise<{ logo: string | null; couleur: string | null }> {
-  const site = await identiteDuSite(url);
+export type IdentiteMarque = {
+  /** Petit, carré : la pastille d'identification. */
+  logo: string | null;
+  /** La couleur de la marque, au format CSS. */
+  couleur: string | null;
+  /** Grand, officiel : l'enseigne, montrée en grand faute de photo. */
+  enseigne: string | null;
+  /** Les traits de l'enseigne sont-ils sombres ? Décide du fond qu'on lui met. */
+  enseigneSombre: boolean;
+};
+
+export async function identiteDeMarque(url: string): Promise<IdentiteMarque> {
+  // En parallèle : le site peut être lent ou muet, Wikidata n'en dépend pas.
+  const [site, officiel] = await Promise.all([
+    identiteDuSite(url),
+    logoOfficiel(url).catch(() => null),
+  ]);
+
+  // Deux logos, deux usages. La pastille est un carré de 44 px : un favicon y
+  // va bien, une enseigne large y serait illisible. L'enseigne, elle, se
+  // montre en grand — c'est elle qui remplace la photo absente.
   const parDomaine = logoDuDomaine(url);
   const logo = site.image ?? parDomaine;
 
   // La couleur déclarée par le site prime : c'est la marque qui l'a choisie.
-  // Faute de quoi on la lit dans les pixels de son logo.
-  let couleur = site.couleur;
+  // Vient ensuite celle du logo officiel — la plus fiable, elle sort d'un
+  // fichier vectoriel propre. Le favicon en dernier.
+  let couleur = site.couleur ?? officiel?.couleur ?? null;
   if (!couleur && logo) couleur = (await couleurDuLogo(logo))?.couleur ?? null;
 
   // Second essai, sur le logo du service de domaines.
@@ -460,5 +514,10 @@ export async function identiteDeMarque(
     couleur = (await couleurDuLogo(parDomaine))?.couleur ?? null;
   }
 
-  return { logo, couleur };
+  return {
+    logo,
+    couleur,
+    enseigne: officiel?.url ?? null,
+    enseigneSombre: officiel?.sombre ?? false,
+  };
 }

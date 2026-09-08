@@ -272,6 +272,9 @@ export default function CarteBrief({
   // le fond qu'elle a réellement sous elle.
   const encreHaut = photo ? "#ffffff" : encreLisible(base);
   const logoNet = useLogoNet(brief.image);
+  // L'enseigne officielle ne sert que faute de photo : une photo produit dit
+  // toujours plus qu'un logo, aussi beau soit-il.
+  const enseigne = photo ? null : brief.enseigne;
 
   // Le montant est le sujet de la carte sans photo : il occupe la place que
   // l'image occupait. Mais « 12 000 € » et « 400 € » n'ont pas la même
@@ -358,7 +361,9 @@ export default function CarteBrief({
               background: `radial-gradient(120% 80% at 22% 10%, ${rgba(clair, 0.9)} 0%, ${rgba(clair, 0)} 62%)`,
             }}
           />
-          <GrandSigne marque={brief.marque} encre={encreHaut} />
+          {/* Le monogramme n'est qu'un pis-aller : dès qu'on a l'enseigne
+              officielle, c'est elle qu'on montre, et en grand. */}
+          {!enseigne && <GrandSigne marque={brief.marque} encre={encreHaut} />}
           <div
             aria-hidden
             className="absolute inset-x-0 bottom-0 h-[68%]"
@@ -409,7 +414,47 @@ export default function CarteBrief({
 
           Il ne reste que ce qui se voit en une seconde : QUI, COMBIEN, QUOI. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-5">
-        {/* Le logo en haut, petit : il identifie, il n'occupe plus la carte. */}
+        {/* ─── L'IDENTITÉ ───
+
+            Avec l'enseigne officielle, elle prend toute la largeur : c'est le
+            vrai logo de la marque, en haute définition, et il dit son nom
+            mieux qu'une ligne de texte. La pastille et le nom écrit
+            deviendraient alors une redite, donc ils disparaissent.
+
+            Elle est toujours posée sur un PANNEAU, comme un fond de studio,
+            et c'est le panneau qui s'adapte : clair sous une enseigne sombre,
+            sombre sous une enseigne claire.
+
+            Premier essai : pas de panneau du tout quand l'enseigne est claire,
+            « puisqu'elle ressort sur du foncé ». Faux — le fond de la carte
+            est la couleur de la MARQUE, et l'enseigne est de cette couleur
+            aussi. Le logo Fnac, jaune sur une carte jaune, avait quasiment
+            disparu. Ce qui compte n'est pas clair ou sombre dans l'absolu,
+            c'est le contraste avec ce qu'il y a dessous. */}
+        {enseigne ? (
+          <div className="flex items-start justify-between gap-3">
+            <div
+              className="flex h-[112px] flex-1 items-center justify-center rounded-2xl px-6 py-5"
+              style={{
+                background: brief.enseigneSombre
+                  ? eclaircir(base, 0.95)
+                  : assombrir(base, 0.84),
+              }}
+            >
+              <div
+                className="h-full w-full bg-contain bg-center bg-no-repeat"
+                style={{ backgroundImage: `url("${enseigne}")` }}
+                role="img"
+                aria-label={brief.marque}
+              />
+            </div>
+            {brief.dejaInteressee && (
+              <span className="shrink-0 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-950">
+                T&apos;a repéré
+              </span>
+            )}
+          </div>
+        ) : (
         <div className="flex items-center gap-2.5">
           <Pastille
             logo={brief.image}
@@ -432,6 +477,7 @@ export default function CarteBrief({
             </span>
           )}
         </div>
+        )}
 
         {/* ─── L'OFFRE ───
 

@@ -6,6 +6,9 @@ export type IdentiteLue = {
   logo: string | null;
   couleur: string | null;
   photos: string[];
+  /** L'enseigne officielle, en haute définition, quand la marque en a une. */
+  enseigne: string | null;
+  enseigneSombre: boolean;
 };
 
 /**
@@ -20,16 +23,30 @@ export type IdentiteLue = {
  * continuer : la carte retombe sur son traitement graphique, et personne
  * n'est bloqué par un site lent.
  */
+const VIDE: IdentiteLue = {
+  logo: null,
+  couleur: null,
+  photos: [],
+  enseigne: null,
+  enseigneSombre: false,
+};
+
 export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
-  if (!site.trim()) return { logo: null, couleur: null, photos: [] };
+  if (!site.trim()) return VIDE;
   const url = site.startsWith("http") ? site : `https://${site.trim()}`;
   try {
     const [identite, photos] = await Promise.all([
       identiteDeMarque(url),
       visuelsDeMarque(url),
     ]);
-    return { logo: identite.logo, couleur: identite.couleur, photos };
+    return {
+      logo: identite.logo,
+      couleur: identite.couleur,
+      photos,
+      enseigne: identite.enseigne,
+      enseigneSombre: identite.enseigneSombre,
+    };
   } catch {
-    return { logo: null, couleur: null, photos: [] };
+    return VIDE;
   }
 }

@@ -25,6 +25,8 @@ function briefExemple(
   logo: string | null,
   couleur: string | null,
   photos: string[],
+  enseigne: string | null,
+  enseigneSombre: boolean,
 ): BriefDefile {
   return {
     id: site,
@@ -42,6 +44,8 @@ function briefExemple(
     image: logo,
     couleurMarque: couleur,
     photos,
+    enseigne,
+    enseigneSombre,
     dejaInteressee: false,
   };
 }
@@ -52,6 +56,7 @@ type Resultat = {
   ms: number;
   nbPhotos: number;
   aLogo: boolean;
+  aEnseigne: boolean;
 };
 
 export default function Banc() {
@@ -78,10 +83,11 @@ export default function Banc() {
         ...r,
         {
           site,
-          brief: briefExemple(site, lu.logo, lu.couleur, lu.photos),
+          brief: briefExemple(site, lu.logo, lu.couleur, lu.photos, lu.enseigne, lu.enseigneSombre),
           ms: Math.round(performance.now() - t0),
           nbPhotos: lu.photos.length,
           aLogo: Boolean(lu.logo),
+          aEnseigne: Boolean(lu.enseigne),
         },
       ]);
     }
@@ -128,9 +134,11 @@ export default function Banc() {
               <span className="text-[13px] text-zinc-500">
                 {r.nbPhotos > 0
                   ? `${r.nbPhotos} photos`
-                  : r.aLogo
-                    ? "logo seul"
-                    : "rien"}
+                  : r.aEnseigne
+                    ? "enseigne officielle"
+                    : r.aLogo
+                      ? "logo seul"
+                      : "rien"}
               </span>
               <span className="ml-auto font-mono text-[11px] text-zinc-400">{r.ms} ms</span>
             </div>

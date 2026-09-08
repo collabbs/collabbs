@@ -82,6 +82,10 @@ export type BriefDefile = {
   image: string | null;
   /** Couleur de thème du site, quand il en déclare une. */
   couleurMarque: string | null;
+  /** L'enseigne officielle, en grand : ce qui remplace la photo quand il n'y en a pas. */
+  enseigne: string | null;
+  /** Ses traits sont-ils sombres ? Décide du fond sur lequel on la pose. */
+  enseigneSombre: boolean;
   /**
    * Photos produit de la marque, quand sa boutique les publie.
    *
@@ -182,6 +186,10 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     couleurMarque: c.brands?.website
       ? (identites.get(c.brands.website)?.couleur ?? null)
       : null,
+    enseigne: c.brands?.website ? (identites.get(c.brands.website)?.enseigne ?? null) : null,
+    enseigneSombre: c.brands?.website
+      ? (identites.get(c.brands.website)?.enseigneSombre ?? false)
+      : false,
     photos: c.brands?.website ? (photos.get(c.brands.website) ?? []) : [],
     dejaInteressee: false,
   }));
