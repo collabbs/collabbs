@@ -331,6 +331,24 @@ export async function photosProduit(url: string, combien = 6): Promise<string[]>
  */
 const REJETS = /sprite|icon|logo|favicon|badge|flag|payment|placeholder|pixel|1x1|blank|avatar|arrow|chevron|social|\.svg($|\?)/i;
 
+/*
+ * ─── Pourquoi `og:image` ne sert PAS de photo de repli ───
+ *
+ * Essayé, mesuré, retiré. L'idée semblait bonne : `og:image` est choisie par
+ * la marque pour se représenter, et angarde.com n'a que celle-là. Une fois en
+ * place, sa carte est devenue MOINS bonne que sans — son image de partage est
+ * une bannière large avec le nom en gros ; recadrée au format portrait de la
+ * carte, il n'en restait qu'un flou gris illisible.
+ *
+ * C'est le pire cas possible : ne rien trouver, la carte le gère avec son
+ * traitement typographique. Trouver une mauvaise image et la mettre en grand,
+ * personne ne le rattrape.
+ *
+ * Ce qui rendrait ce repli utilisable, c'est de connaître les PROPORTIONS de
+ * l'image avant de la poser : une bannière 1200×630 se recadre mal, une photo
+ * carrée non. Tant qu'on ne les mesure pas, s'abstenir vaut mieux.
+ */
+
 export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]> {
   const verdict = await verifierUrlPublique(url);
   if (!verdict.ok) return [];
@@ -390,6 +408,7 @@ export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]
     gardees.push(abs);
     if (gardees.length >= combien) break;
   }
+
   return gardees;
 }
 

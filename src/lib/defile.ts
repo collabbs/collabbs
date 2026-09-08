@@ -120,7 +120,7 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
   const requete = admin
     .from("campaigns")
     .select(
-      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
+      "id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -190,7 +190,25 @@ export async function briefsDuDefile(): Promise<BriefDefile[]> {
     enseigneSombre: c.brands?.website
       ? (identites.get(c.brands.website)?.enseigneSombre ?? false)
       : false,
-    photos: c.brands?.website ? (photos.get(c.brands.website) ?? []) : [],
+    /* ─── L'IMAGE CHOISIE PASSE DEVANT ───
+
+       Le défilé ne lisait QUE le site de la marque. L'image qu'elle avait
+       elle-même retenue au questionnaire — obligatoire pour publier, stockée
+       dans `product_image_url` — n'arrivait jamais jusqu'ici : la carte
+       re-scrutait le site et ignorait le choix.
+
+       Conséquence : la règle « pas de campagne sans visuel » ne servait à
+       rien pour les marques dont on ne sait rien lire. Elles donnaient une
+       photo, et la carte affichait quand même son repli. C'est exactement le
+       cas qu'elle devait couvrir.
+
+       Sa photo d'abord, donc, puis celles du site en renfort. */
+    photos: [
+      ...(typeof c.product_image_url === "string" && c.product_image_url.trim()
+        ? [c.product_image_url.trim()]
+        : []),
+      ...(c.brands?.website ? (photos.get(c.brands.website) ?? []) : []),
+    ],
     dejaInteressee: false,
   }));
 }
