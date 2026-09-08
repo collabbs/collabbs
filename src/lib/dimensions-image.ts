@@ -61,6 +61,27 @@ export function dimensionsImage(octets: Uint8Array): Dimensions | null {
     return null;
   }
 
+  // ── AVIF / HEIF : les dimensions sont dans une boîte « ispe » ──
+  //
+  // Ajouté après coup : lemlist.com sert TOUTES ses images en AVIF, et faute
+  // de savoir le lire on les rejetait en bloc — le site paraissait vide alors
+  // qu'il est plein de photos. Le format gagne du terrain, l'ignorer revenait
+  // à condamner les sites les plus modernes.
+  //
+  // On ne parcourt pas l'arbre de boîtes : on cherche « ispe » dans l'en-tête.
+  // Douze octets plus loin viennent la largeur et la hauteur.
+  if (texte(octets, 4, 8) === "ftyp") {
+    for (let i = 0; i + 20 < octets.length; i++) {
+      if (texte(octets, i, i + 4) !== "ispe") continue;
+      const largeur = vue.getUint32(i + 8);
+      const hauteur = vue.getUint32(i + 12);
+      if (largeur > 0 && hauteur > 0 && largeur < 100_000 && hauteur < 100_000) {
+        return { largeur, hauteur };
+      }
+    }
+    return null;
+  }
+
   // ── JPEG : il faut parcourir les segments jusqu'au cadre (SOF) ──
   if (octets[0] === 0xff && octets[1] === 0xd8) {
     let p = 2;

@@ -44,15 +44,17 @@ import { convientAUneCarte, dimensionsImage } from "./dimensions-image";
  */
 
 export type IdentiteSite = {
-  /** URL absolue d'une image représentative, ou `null`. */
+  /** URL absolue du LOGO déclaré par le site, ou `null`. */
   image: string | null;
+  /** L'image de partage social — une bannière, pas un logo. Candidate photo. */
+  partage: string | null;
   /** Couleur de thème déclarée par le site, au format CSS. */
   couleur: string | null;
   /** Nom du site tel qu'il se présente (`og:site_name`). */
   nom: string | null;
 };
 
-const VIDE: IdentiteSite = { image: null, couleur: null, nom: null };
+const VIDE: IdentiteSite = { image: null, partage: null, couleur: null, nom: null };
 
 /** Voir le commentaire d'en-tête : un agent inconnu se fait refuser. */
 const AGENT =
@@ -195,7 +197,7 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
     if (!reponse || !reponse.ok) {
       // La page est refusée : l'icône passe peut-être quand même.
       const icone = await faviconSeul(verdict.url);
-      return icone ? { image: icone, couleur: null, nom: null } : VIDE;
+      return icone ? { ...VIDE, image: icone } : VIDE;
     }
     finale = courante;
     // On ne lit que l'en-tête du document : tout ce qui nous intéresse est
@@ -204,7 +206,7 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
     html = (await reponse.text()).slice(0, 120_000);
   } catch {
     const icone = await faviconSeul(verdict.url);
-    return icone ? { image: icone, couleur: null, nom: null } : VIDE;
+    return icone ? { ...VIDE, image: icone } : VIDE;
   }
 
   const absolu = (chemin: string | null): string | null => {
@@ -226,18 +228,32 @@ export async function identiteDuSite(url: string): Promise<IdentiteSite> {
     }
   };
 
+  // ─── LE LOGO N'EST PAS L'IMAGE DE PARTAGE ───
+  //
+  // `og:image` venait en premier. C'était une erreur de nature : cette balise
+  // porte l'image de PARTAGE, celle qui s'affiche quand on colle un lien sur
+  // un réseau. C'est presque toujours une bannière ou une illustration — pas
+  // un logo. Résultat visible : lemlist se présentait avec un graphique
+  // (« Home - Graph URL.png ») et creatikk avec sa bannière d'accueil.
+  //
+  // Les icônes déclarées, elles, SONT des logos : c'est leur seule raison
+  // d'exister. `apple-touch-icon` fait 180 px avec un fond plein, c'est le
+  // meilleur candidat ; l'icône classique suit ; la favicon ferme la marche.
   const image =
-    // `og:image:secure_url` d'abord : quand il existe, c'est la version https
-    // que le site déclare lui-même.
-    absolu(meta(html, "og:image:secure_url")) ??
-    absolu(meta(html, "og:image")) ??
-    absolu(meta(html, "twitter:image")) ??
     absolu(lien(html, "apple-touch-icon")) ??
     absolu(lien(html, "icon")) ??
     (await faviconSeul(finale));
 
+  // L'image de partage n'est pas perdue pour autant : elle rejoint les
+  // candidates PHOTO, où elle est jugée sur ses dimensions comme les autres.
+  const partage =
+    absolu(meta(html, "og:image:secure_url")) ??
+    absolu(meta(html, "og:image")) ??
+    absolu(meta(html, "twitter:image"));
+
   return {
     image,
+    partage,
     couleur: couleurPlausible(meta(html, "theme-color")),
     nom: meta(html, "og:site_name"),
   };
@@ -332,23 +348,6 @@ export async function photosProduit(url: string, combien = 6): Promise<string[]>
  */
 const REJETS = /sprite|icon|logo|favicon|badge|flag|payment|placeholder|pixel|1x1|blank|avatar|arrow|chevron|social|\.svg($|\?)/i;
 
-/*
- * ─── Pourquoi `og:image` ne sert PAS de photo de repli ───
- *
- * Essayé, mesuré, retiré. L'idée semblait bonne : `og:image` est choisie par
- * la marque pour se représenter, et angarde.com n'a que celle-là. Une fois en
- * place, sa carte est devenue MOINS bonne que sans — son image de partage est
- * une bannière large avec le nom en gros ; recadrée au format portrait de la
- * carte, il n'en restait qu'un flou gris illisible.
- *
- * C'est le pire cas possible : ne rien trouver, la carte le gère avec son
- * traitement typographique. Trouver une mauvaise image et la mettre en grand,
- * personne ne le rattrape.
- *
- * Ce qui rendrait ce repli utilisable, c'est de connaître les PROPORTIONS de
- * l'image avant de la poser : une bannière 1200×630 se recadre mal, une photo
- * carrée non. Tant qu'on ne les mesure pas, s'abstenir vaut mieux.
- */
 
 export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]> {
   const verdict = await verifierUrlPublique(url);
@@ -390,6 +389,14 @@ export async function imagesDeLaPage(url: string, combien = 6): Promise<string[]
       if (adresse) candidats.push(adresse);
     }
   }
+
+  // L'image de partage rejoint les candidates. Elle avait été essayée puis
+  // retirée parce qu'elle produisait des cartes floues — mais c'était avant
+  // qu'on sache mesurer : une bannière est désormais écartée sur ses
+  // proportions, et une vraie photo de partage passe comme les autres.
+  const partage =
+    meta(html, "og:image:secure_url") ?? meta(html, "og:image") ?? meta(html, "twitter:image");
+  if (partage) candidats.push(partage);
 
   const vues = new Set<string>();
   const gardees: string[] = [];
