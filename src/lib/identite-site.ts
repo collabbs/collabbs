@@ -600,7 +600,10 @@ async function enteteImage(url: string, maximum = 65_536): Promise<Uint8Array | 
     const r = await fetch(controle.url, {
       redirect: "follow",
       headers: { "User-Agent": AGENT, Range: `bytes=0-${maximum - 1}` },
-      signal: AbortSignal.timeout(4000),
+      // 2,5 s : on ne lit qu'un en-tête. Au-delà, ce n'est plus une lenteur,
+      // c'est un refus — et douze attentes de quatre secondes épuisaient le
+      // budget de la lecture entière.
+      signal: AbortSignal.timeout(2500),
     });
     if (!r.ok || !r.body) return null;
 
@@ -649,10 +652,34 @@ async function garderLesVraiesPhotos(urls: string[], combien: number): Promise<s
   const verdicts = await Promise.all(
     urls.map(async (u) => {
       const entete = await enteteImage(u);
-      return entete && convientAUneCarte(dimensionsImage(entete)) ? u : null;
+      // ⚠️ « Pas pu mesurer » n'est PAS « mesuré et mauvais ».
+      //
+      // Le filtre rejetait les deux de la même façon. Depuis un centre de
+      // données, où les requêtes échouent bien plus souvent que depuis une
+      // connexion domestique, ça vidait des catalogues entiers : Julien a
+      // testé une dizaine de sites en production et n'a eu que des logos,
+      // alors que les mêmes rendaient cinq à six photos en local.
+      //
+      // On distingue donc trois issues : retenue, écartée sur preuve,
+      // inconnue. Une inconnue n'est pas une condamnation.
+      if (!entete) return { url: u, verdict: "inconnue" as const };
+      return convientAUneCarte(dimensionsImage(entete))
+        ? { url: u, verdict: "retenue" as const }
+        : { url: u, verdict: "ecartee" as const };
     }),
   );
-  return verdicts.filter((u): u is string => u !== null).slice(0, combien);
+
+  const retenues = verdicts.filter((v) => v.verdict === "retenue").map((v) => v.url);
+  if (retenues.length > 0) return retenues.slice(0, combien);
+
+  // Rien n'a pu être retenu. Si c'est faute d'avoir pu MESURER — et non parce
+  // que les images étaient mauvaises — on rend les candidates telles quelles :
+  // une photo de catalogue est presque toujours bonne, et une carte avec une
+  // image incertaine vaut mieux qu'une carte sans image.
+  const inconnues = verdicts.filter((v) => v.verdict === "inconnue").map((v) => v.url);
+  if (inconnues.length === urls.length && urls.length > 0) return inconnues.slice(0, combien);
+
+  return [];
 }
 
 export async function visuelsDeMarque(url: string): Promise<string[]> {

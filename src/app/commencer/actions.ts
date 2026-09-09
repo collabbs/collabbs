@@ -68,7 +68,10 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
         enseigneSombre: false,
         enseigneCarree: false,
       }),
-      avecPlafond(visuelsDeMarque(url), 8000, [] as string[]),
+      // Les photos coûtent plus cher que l'identité : une requête par image
+      // candidate pour lire ses dimensions. Le même plafond que l'identité les
+      // coupait en cours de route, et une lecture coupée ne rend rien.
+      avecPlafond(visuelsDeMarque(url), 14000, [] as string[]),
     ]);
     return {
       logo: identite.logo,

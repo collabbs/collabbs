@@ -101,3 +101,18 @@ describe("convientAUneCarte", () => {
     expect(convientAUneCarte(null)).toBe(false);
   });
 });
+
+describe("le repli quand rien n'est mesurable", () => {
+  it("ne confond pas « pas pu mesurer » et « mesuré et mauvais »", () => {
+    // Le filtre rejetait les deux de la même façon. Depuis un centre de
+    // données, où les requêtes échouent bien plus souvent que depuis une
+    // connexion domestique, ça vidait des catalogues entiers.
+    //
+    // Une bannière mesurée est écartée sur PREUVE.
+    expect(convientAUneCarte({ largeur: 1920, hauteur: 400 })).toBe(false);
+    // Une image qu'on n'a pas su lire est une inconnue, pas une condamnation :
+    // `convientAUneCarte` répond non, et c'est l'appelant qui doit faire la
+    // différence entre les deux.
+    expect(convientAUneCarte(null)).toBe(false);
+  });
+});
