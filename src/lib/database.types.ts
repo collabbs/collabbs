@@ -263,6 +263,60 @@ export type Database = {
         Update: { session?: string; etape?: string; cote?: string | null; created_at?: string }
         Relationships: []
       }
+      contrats_archives: {
+        Row: {
+          id: string
+          partie_id: string
+          partie_role: "brand" | "creator"
+          contrepartie_nom: string | null
+          reference: string
+          genre: "deal" | "affiliate"
+          intitule: string | null
+          montant: number | null
+          terms_snapshot: Json | null
+          statut: string | null
+          brand_signed_at: string | null
+          creator_signed_at: string | null
+          terminated_at: string | null
+          archive_le: string
+          motif: string
+        }
+        Insert: {
+          id?: string
+          partie_id: string
+          partie_role: "brand" | "creator"
+          contrepartie_nom?: string | null
+          reference: string
+          genre?: "deal" | "affiliate"
+          intitule?: string | null
+          montant?: number | null
+          terms_snapshot?: Json | null
+          statut?: string | null
+          brand_signed_at?: string | null
+          creator_signed_at?: string | null
+          terminated_at?: string | null
+          archive_le?: string
+          motif?: string
+        }
+        Update: {
+          id?: string
+          partie_id?: string
+          partie_role?: "brand" | "creator"
+          contrepartie_nom?: string | null
+          reference?: string
+          genre?: "deal" | "affiliate"
+          intitule?: string | null
+          montant?: number | null
+          terms_snapshot?: Json | null
+          statut?: string | null
+          brand_signed_at?: string | null
+          creator_signed_at?: string | null
+          terminated_at?: string | null
+          archive_le?: string
+          motif?: string
+        }
+        Relationships: []
+      }
       cartes_vues: {
         Row: { viewer_id: string; cible_id: string; created_at: string }
         Insert: { viewer_id: string; cible_id: string; created_at?: string }

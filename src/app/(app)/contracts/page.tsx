@@ -78,6 +78,18 @@ export default async function ContractsPage({
 
   const cadreRows = cadres ?? [];
 
+  // Contrats dont l'autre partie a supprimé son compte. Le deal a disparu avec
+  // elle — sans cette liste, le contrat signé s'évaporerait pour quelqu'un qui
+  // n'a rien demandé. C'est une preuve à deux exemplaires ; on garde le sien.
+  const { data: archivesRaw } = await supabase
+    .from("contrats_archives")
+    .select(
+      "id, reference, genre, intitule, montant, statut, contrepartie_nom, brand_signed_at, creator_signed_at, archive_le",
+    )
+    .eq("partie_id", user.id)
+    .order("archive_le", { ascending: false });
+  const archives = archivesRaw ?? [];
+
   // Contreparties liées uniquement par de l'affiliation : elles n'apparaissent
   // dans aucune collaboration, et c'est précisément le cas qu'on ratait.
   const affiliatePartnerIds: string[] = [];
@@ -413,7 +425,7 @@ export default async function ContractsPage({
           {rows.length} contrat{rows.length > 1 ? "s" : ""}
         </h2>
 
-        {rows.length === 0 && cadreRows.length === 0 ? (
+        {rows.length === 0 && cadreRows.length === 0 && archives.length === 0 ? (
           <div className="mt-3">
             <EmptyState
               variant="card"
@@ -535,6 +547,53 @@ export default async function ContractsPage({
                         )}
                       </div>
                     </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
+        {archives.length > 0 && (
+          <>
+            <h2 className="mt-8 font-display text-lg font-black text-ink">
+              Contrats conservés
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              L&apos;autre partie a supprimé son compte. Le contrat que vous aviez
+              signé reste consultable et téléchargeable : il vous engageait tous
+              les deux, il ne disparaît pas parce que l&apos;un des deux s&apos;en va.
+            </p>
+            <ul className="mt-3 divide-y divide-zinc-100">
+              {archives.map((a) => {
+                const signeLe = a.creator_signed_at ?? a.brand_signed_at;
+                return (
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {a.intitule || (a.genre === "affiliate" ? "Affiliation" : "Collaboration")}
+                        <span className="font-normal text-zinc-500">
+                          {" "}
+                          · {a.contrepartie_nom || "Compte supprimé"}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs text-zinc-400">
+                        {a.reference}
+                        {a.montant !== null ? ` · ${eurExact(Number(a.montant))}` : ""}
+                        {signeLe ? ` · signé le ${dateFr(signeLe)}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
+                        Compte supprimé
+                      </span>
+                      <a
+                        href={`/contracts/archives/${a.id}/pdf`}
+                        className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-ink transition hover:bg-zinc-50"
+                      >
+                        PDF
+                      </a>
+                    </div>
                   </li>
                 );
               })}
