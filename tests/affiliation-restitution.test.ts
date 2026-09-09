@@ -19,7 +19,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const from = vi.fn();
-const rpc = vi.fn(async () => ({ data: null, error: null }));
+// Typé : sans les paramètres, `tsc` voit un tuple vide et `c[0]` ne compile pas.
+const rpc = vi.fn(async (_nom: string, _args: Record<string, unknown>) => ({ data: null, error: null }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from, rpc }) }));
 vi.mock("@/lib/notifications", () => ({ notify: vi.fn(), notifyOnce: vi.fn() }));
 vi.mock("@/lib/report-error", () => ({ reportError: vi.fn(), normalizeMessage: (m: string) => m }));
@@ -70,7 +71,7 @@ describe("vente remboursée après versement de la commission", () => {
 
     const credits = rpc.mock.calls.filter((c) => c[0] === "credit_balance");
     expect(credits).toHaveLength(1);
-    expect(credits[0][1]).toMatchObject({
+    expect(credits[0]![1]).toMatchObject({
       p_brand: MARQUE,
       p_amount: 8,
       p_kind: "reserve_release",
@@ -84,7 +85,7 @@ describe("vente remboursée après versement de la commission", () => {
     await releaseReservation({ eventId: VENTE, status: "refunded" });
     const montants = rpc.mock.calls
       .filter((c) => c[0] === "credit_balance")
-      .map((c) => (c[1] as { p_amount: number }).p_amount);
+      .map((c) => (c[1] as unknown as { p_amount: number }).p_amount);
     expect(montants).not.toContain(40);
     expect(montants).not.toContain(48);
   });

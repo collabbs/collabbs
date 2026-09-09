@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { creerLienAffilie } from "@/lib/lien-affilie";
 
 /**
  * Bouton "Devenir affilié" depuis la page publique d'une campagne.
@@ -37,20 +38,11 @@ export async function joinAffiliationFromPublic(campaignId: string) {
     redirect(`/c/${campaignId}?bad_campaign=1`);
   if (campaign.status !== "active") redirect(`/c/${campaignId}?inactive=1`);
 
-  // Lien déjà actif ?
-  const { data: existing } = await supabase
-    .from("affiliate_links")
-    .select("id")
-    .eq("creator_id", user.id)
-    .eq("campaign_id", campaignId)
-    .maybeSingle();
-  if (existing) redirect(`/opportunities?activated=1&existing=1`);
+  // Même fabrique que depuis les opportunités. Cette entrée-ci ne posait
+  // AUCUN code promo, même sur une campagne qui en demande un : les ventes de
+  // ces créateurs n'étaient attribuables à personne.
+  const lien = await creerLienAffilie(user.id, campaignId);
+  if (!lien.ok) redirect(`/c/${campaignId}?error=activation`);
 
-  const code = crypto.randomUUID().replace(/-/g, "").slice(0, 10);
-  const { error } = await supabase
-    .from("affiliate_links")
-    .insert({ campaign_id: campaignId, creator_id: user.id, code });
-  if (error) redirect(`/c/${campaignId}?error=activation`);
-
-  redirect(`/opportunities?activated=1`);
+  redirect(`/opportunities?activated=1${lien.existait ? "&existing=1" : ""}`);
 }

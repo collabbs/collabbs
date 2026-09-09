@@ -410,7 +410,11 @@ export async function recordManualPromoSale(input: {
   // Au centime : on manipule désormais de l'argent réellement versé.
   const commission = Math.round(input.amount * pct) / 100;
 
-  const { data: inserted, error } = await supabase
+  // Client de service : depuis 0071, le navigateur n'écrit plus dans
+  // `affiliate_events` — c'est la table qui porte les montants et les
+  // commissions. L'appartenance de la campagne à la marque connectée vient
+  // d'être vérifiée ci-dessus.
+  const { data: inserted, error } = await createAdminClient()
     .from("affiliate_events")
     .insert({
       link_id: link.id,

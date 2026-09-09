@@ -128,8 +128,86 @@ async function handle(p: Payload) {
     .select("id")
     .single();
   if (error) {
-    // Unique violation → vente déjà enregistrée pour ce order_id → succès idempotent.
     if ((error as { code?: string }).code === "23505") {
+      // ─── Une vente porte déjà ce numéro de commande ───
+      //
+      // Deux cas très différents derrière la même erreur.
+      //
+      // 1. Le même postback rejoué : succès idempotent, rien à faire.
+      //
+      // 2. Le navigateur a pris les devants. Le pixel accepte un montant
+      //    choisi dans l'URL ; quelqu'un qui devine des numéros de commande
+      //    pouvait donc déposer une vente à l'avance, avec le montant qu'il
+      //    voulait. Le postback légitime de la marque — authentifié par son
+      //    secret — se voyait alors répondre « déjà enregistrée », et elle
+      //    croyait sa vente réglée sur des chiffres qui n'étaient pas les
+      //    siens.
+      //
+      // Entre une déclaration signée par la marque et une déclaration faite
+      // par un navigateur, il n'y a pas à hésiter : la première fait autorité.
+      // On reprend la ligne au lieu de la laisser mentir.
+      // L'index unique ne porte que sur les ventes AVEC numéro de commande :
+      // sans lui, cette erreur ne peut pas venir de là, et il n'y a rien à
+      // reprendre.
+      const { data: existante } = p.externalRef
+        ? await supabase
+            .from("affiliate_events")
+            .select("id, source, status, needs_review")
+            .eq("link_id", link.id)
+            .eq("external_ref", p.externalRef)
+            .eq("type", "sale")
+            .maybeSingle()
+        : { data: null };
+
+      const declareeParLeNavigateur =
+        existante?.source === "pixel" && existante.status === "unfunded";
+
+      if (existante && declareeParLeNavigateur) {
+        const { error: errReprise } = await supabase
+          .from("affiliate_events")
+          .update({
+            source: "postback",
+            sale_amount: amount,
+            commission_amount: commission,
+            needs_review: aRevoir,
+          })
+          .eq("id", existante.id)
+          .eq("source", "pixel")
+          .eq("status", "unfunded");
+        if (errReprise) {
+          return NextResponse.json({ ok: false, error: errReprise.message }, { status: 500 });
+        }
+
+        // Hors fenêtre d'attribution, la marque tranche — comme pour une vente
+        // authentifiée arrivée trop tard. Sinon, on règle : la vente est
+        // désormais adossée à une déclaration signée.
+        if (!aRevoir) {
+          const reglement = await settleSale({
+            eventId: existante.id,
+            brandId: link.campaigns!.brand_id,
+            creatorId: link.creator_id,
+            commission,
+            saleAmount: amount,
+          });
+          return NextResponse.json({
+            ok: true,
+            reprise: true,
+            sale_amount: amount,
+            rate,
+            commission,
+            status: reglement,
+          });
+        }
+        return NextResponse.json({
+          ok: true,
+          reprise: true,
+          needs_review: true,
+          sale_amount: amount,
+          rate,
+          commission,
+        });
+      }
+
       return NextResponse.json({
         ok: true,
         deduplicated: true,

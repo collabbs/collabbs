@@ -535,10 +535,22 @@ export async function reserveOutstanding(
   const linkIds = ((links ?? []) as { id: string }[]).map((l) => l.id);
   if (linkIds.length === 0) return { reserved: 0, total: 0 };
 
+  // ⚠️ `needs_review` EXCLU — et c'est tout le sujet.
+  //
+  // Une vente déclarée par le pixel n'est pas prouvée : le navigateur l'annonce,
+  // et le seul contrôle possible est le `Referer`, falsifiable en une ligne de
+  // commande. Elle naît donc `unfunded` + `needs_review`, exprès, pour que la
+  // marque — seule à avoir la commande sous les yeux — tranche.
+  //
+  // Cette fonction repêchait TOUTES les `unfunded`. Le prochain
+  // approvisionnement finançait donc silencieusement des ventes que personne
+  // n'avait confirmées : le portillon existait, et le versement passait à côté.
+  // Une vente en revue ne se finance que par `confirmerVente`.
   const { data: dues } = await admin
     .from("affiliate_events")
     .select("id, commission_amount, platform_fee")
     .eq("status", "unfunded")
+    .eq("needs_review", false)
     .in("link_id", linkIds)
     .order("occurred_at", { ascending: true });
 
