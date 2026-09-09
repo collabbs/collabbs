@@ -633,6 +633,8 @@ export async function setDeliverableSubmission(
       submission_notes: notes.trim() || null,
       submitted_at: new Date().toISOString(),
       done: true,
+      // La nouvelle version est là : l'attente s'arrête ici.
+      ...RETOUCHE_TRAITEE,
     })
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
@@ -658,6 +660,31 @@ export async function setDeliverableSubmission(
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
 }
+
+/**
+ * Ce que « la demande de retouche est traitée » veut dire, partout où elle
+ * l'est.
+ *
+ * ─── Le défaut que ça répare ───
+ * `revision_requested` passait à vrai dans `requestRevision` et **aucun code
+ * ne le remettait à faux**. Deux fichiers affirmaient pourtant le contraire :
+ * `lib/remboursement.ts` écrit noir sur blanc « dès que le créateur redépose,
+ * `revision_requested` retombe à faux et le remboursement se referme ». Il ne
+ * retombait jamais.
+ *
+ * Deux conséquences, opposées et toutes deux fausses :
+ *   • la marque pouvait se faire rembourser l'INTÉGRALITÉ 14 jours après une
+ *     retouche, même si le créateur avait redéposé et que la vidéo était en
+ *     ligne — le code la lisait comme un abandon ;
+ *   • et la libération automatique du séquestre était définitivement morte sur
+ *     toute collaboration ayant connu une seule retouche, puisque le cron
+ *     `escrow-sla` refuse de libérer tant qu'une retouche est en cours.
+ *
+ * Le drapeau veut dire « on attend une nouvelle version ». Dès qu'elle arrive
+ * — ou que la marque valide — l'attente est finie. Le message part avec :
+ * le garder afficherait à jamais un reproche déjà traité.
+ */
+const RETOUCHE_TRAITEE = { revision_requested: false, revision_message: null };
 
 type SubmissionFile = { path: string; name: string; size: number; mime: string };
 
@@ -697,6 +724,7 @@ export async function recordDeliverableFiles(
       submission_files: merged,
       submitted_at: new Date().toISOString(),
       done: true,
+      ...RETOUCHE_TRAITEE,
     })
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
@@ -777,7 +805,12 @@ export async function setDeliverableDone(
 
   const { error } = await supabase
     .from("deliverables")
-    .update({ done })
+    .update(
+      // Cocher « terminé » vaut dépôt : c'est le cas de la story qui a expiré
+      // ou du post déjà en ligne, où la preuve est ailleurs. Décocher, en
+      // revanche, ne referme rien — la retouche reste due.
+      done ? { done, ...RETOUCHE_TRAITEE } : { done },
+    )
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
 
@@ -805,7 +838,12 @@ export async function setDeliverableApproved(
 
   const { error } = await supabase
     .from("deliverables")
-    .update({ approved })
+    .update(
+      // Valider clôt la discussion, y compris une retouche qui traînait. Le
+      // retrait de validation ne la ressuscite pas : si la marque veut une
+      // nouvelle version, elle la redemande, et c'est un acte daté et notifié.
+      approved ? { approved, ...RETOUCHE_TRAITEE } : { approved },
+    )
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
 
