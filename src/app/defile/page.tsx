@@ -58,10 +58,14 @@ export default async function PageDefile({
       {/* En-tête minuscule : la carte doit prendre l'écran, c'est elle
           l'interaction. Mais on garde une sortie visible — quelqu'un qui ne
           comprend pas ce qu'il regarde doit pouvoir aller lire. */}
-      <header className="mx-auto flex max-w-md items-center justify-between px-5 py-3">
+      {/* ⚠️ Le bandeau était contraint à 448 px sur une page qui peut en faire
+          deux mille : le logo et le bouton se chevauchaient sur ordinateur.
+          Il occupe maintenant la largeur, avec son contenu centré. */}
+      <header className="w-full border-b border-zinc-100">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
         {/* Le logo EST la sortie : qui ne comprend pas ce qu'il regarde clique
             dessus et arrive sur la page qui l'explique. */}
-        <Link href="/decouvrir" aria-label="Collabbs">
+        <Link href="/decouvrir" aria-label="Collabbs" className="shrink-0">
           <Logo size={26} />
         </Link>
         {/* ─── UN VRAI APPEL, PAS UNE INVITATION À LIRE ───
@@ -72,10 +76,11 @@ export default async function PageDefile({
             créer son profil — sans lui, aucun match ne mène nulle part. */}
         <Link
           href={cotéMarque ? "/signup?role=brand" : "/signup?role=creator"}
-          className="rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
+          className="shrink-0 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
         >
           {cotéMarque ? "Publier ma campagne" : "Créer mon profil"}
         </Link>
+        </div>
       </header>
       <div className="min-h-0 flex-1">
       {cotéMarque ? (

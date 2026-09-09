@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useClavier } from "./useClavier";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
 import { CLE_REPERAGES, CLE_VUES, listeDeTextes } from "@/lib/quiz";
@@ -133,6 +134,14 @@ export default function DefileCreateurs({
     else avancer();
   }
 
+  // Sur ordinateur, les flèches font le même travail que le doigt : gauche
+  // pour passer, droite pour garder. Rien de nouveau à apprendre.
+  useClavier({
+    actif: !fini && !match && !relance && !fiche,
+    onGauche: () => deciderAvecSortie("gauche"),
+    onDroite: () => deciderAvecSortie("droite"),
+  });
+
   /** Depuis les boutons : on anime, PUIS on décide. */
   function deciderAvecSortie(d: Direction) {
     if (sortieForcee) return;
@@ -249,9 +258,13 @@ export default function DefileCreateurs({
       </div>
 
       <p className="mt-4 text-center text-[11px] font-medium text-zinc-400">
-        Fais glisser — à droite si le profil te plaît. Touche la carte pour voir
-        le détail.
-      </p>
+          {/* Le clavier n'existe que sur grand écran : l'annoncer sur téléphone
+              serait proposer un geste impossible. */}
+          <span className="sm:hidden">Fais glisser. Touche la carte pour en lire plus.</span>
+          <span className="hidden sm:inline">
+            Fais glisser, ou utilise ← et →. Clique la carte pour en lire plus.
+          </span>
+        </p>
       </div>
     </>
   );
