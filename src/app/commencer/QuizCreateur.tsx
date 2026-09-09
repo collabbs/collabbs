@@ -1,5 +1,7 @@
 "use client";
 
+import Trace from "@/components/Trace";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
@@ -151,6 +153,7 @@ export default function QuizCreateur() {
   if (revelee || (carteComplete && etapeChoisie === null)) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 text-center sm:py-14">
+        <Trace etape="questionnaire_fini" cote="createur" />
         <p className={SECTION}>
           Ta carte
         </p>

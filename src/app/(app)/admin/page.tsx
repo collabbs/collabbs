@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
+import Tunnel from "./Tunnel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { eurExact } from "@/lib/deal";
 import {
@@ -55,6 +56,8 @@ function Stat({
       <p className={`font-display text-2xl font-black tabular-nums ${color}`}>{value}</p>
       <p className="text-xs font-medium text-zinc-600">{label}</p>
       {hint && <p className="mt-0.5 text-[11px] text-zinc-400">{hint}</p>}
+      <Tunnel />
+
     </div>
   );
 }

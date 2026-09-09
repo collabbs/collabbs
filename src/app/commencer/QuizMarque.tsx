@@ -7,6 +7,7 @@ import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import CarteBrief from "@/app/defile/CarteBrief";
 import { apercuDeLaCarte } from "./apercu-carte";
 import { lireIdentiteMarque } from "./actions";
+import Trace from "@/components/Trace";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import ChoixModele from "./ChoixModele";
 import {
@@ -149,6 +150,7 @@ export default function QuizMarque() {
   if (revelee || (briefComplet && etapeChoisie === null)) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 text-center sm:py-14">
+        <Trace etape="questionnaire_fini" cote="marque" />
         <p className={SECTION}>
           Ton brief
         </p>

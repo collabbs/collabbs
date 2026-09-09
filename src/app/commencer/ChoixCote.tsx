@@ -1,5 +1,8 @@
 "use client";
 
+import { tracerEtape } from "@/lib/tunnel";
+import { jetonDeSession } from "@/lib/session-tunnel";
+
 import type { Cote } from "@/lib/quiz";
 import { TITRE, SECTION, AIDE } from "./styles";
 
@@ -33,7 +36,11 @@ export default function ChoixCote({ onChoix }: { onChoix: (c: Cote) => void }) {
       <div className="mt-8 grid gap-3">
         <button
           type="button"
-          onClick={() => onChoix("creator")}
+          onClick={() => {
+            const jeton = jetonDeSession();
+            if (jeton) void tracerEtape("cote_choisi", jeton, "createur");
+            onChoix("creator");
+          }}
           className="group flex items-center gap-4 rounded-xl border-2 border-transparent bg-[#F4F1F5] p-5 text-left transition hover:border-brand hover:bg-white focus-visible:border-brand"
         >
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-xl">
@@ -54,7 +61,11 @@ export default function ChoixCote({ onChoix }: { onChoix: (c: Cote) => void }) {
 
         <button
           type="button"
-          onClick={() => onChoix("brand")}
+          onClick={() => {
+            const jeton = jetonDeSession();
+            if (jeton) void tracerEtape("cote_choisi", jeton, "marque");
+            onChoix("brand");
+          }}
           className="group flex items-center gap-4 rounded-xl border-2 border-transparent bg-[#F4F1F5] p-5 text-left transition hover:border-brand hover:bg-white focus-visible:border-brand"
         >
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-zinc-800 to-purple-900 text-xl">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
+import Trace from "@/components/Trace";
 import { createClient } from "@/lib/supabase/server";
 import { briefsDuDefile } from "@/lib/defile";
 import { getMarketplaceCreators } from "@/lib/creators-data";
@@ -82,6 +83,7 @@ export default async function PageDefile({
         </Link>
         </div>
       </header>
+      <Trace etape="defile_ouvert" cote={cotéMarque ? "marque" : "createur"} />
       <div className="min-h-0 flex-1">
       {cotéMarque ? (
         <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} />

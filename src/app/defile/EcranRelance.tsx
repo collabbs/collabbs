@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Trace from "@/components/Trace";
+import { tracerEtape } from "@/lib/tunnel";
+import { jetonDeSession } from "@/lib/session-tunnel";
 import { assombrir, eclaircir } from "@/lib/teinte";
 
 /** Une vignette de ce qu'on a retenu : une photo, une légende, une teinte. */
@@ -70,6 +73,7 @@ export default function EcranRelance({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#FCFAFB] px-6 text-center">
+      <Trace etape="relance_vue" cote={estCreateur ? "createur" : "marque"} />
       {/* Les halos du Hero, à l'identique : c'est la signature de fond du site. */}
       <div
         aria-hidden
@@ -141,10 +145,16 @@ export default function EcranRelance({
         </p>
 
         <Link
+          // On compte le CLIC, pas seulement l'affichage : entre voir l'écran
+          // et cliquer, il y a tout ce qu'on cherche à mesurer.
+          onClick={() => {
+            const jeton = jetonDeSession();
+            if (jeton) void tracerEtape("inscription_cliquee", jeton, estCreateur ? "createur" : "marque");
+          }}
           href={estCreateur ? "/signup?role=creator" : "/signup?role=brand"}
           className="mt-7 flex min-h-[58px] w-full items-center justify-center rounded-xl bg-ink px-6 text-[16px] font-semibold text-white transition hover:opacity-90"
         >
-          {estCreateur ? "Créer mon compte" : "Créer mon compte"}
+          Créer mon compte
         </Link>
 
         {/* On ne bloque pas : interrompre deux fois ferait partir pour de bon. */}

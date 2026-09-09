@@ -256,6 +256,19 @@ export type Database = {
           },
         ]
       }
+      // ⚠️ Ajoutées à la main, comme `campagnes_favorites` ci-dessous.
+      tunnel_evenements: {
+        Row: { id: number; session: string; etape: string; cote: string | null; created_at: string }
+        Insert: { session: string; etape: string; cote?: string | null; created_at?: string }
+        Update: { session?: string; etape?: string; cote?: string | null; created_at?: string }
+        Relationships: []
+      }
+      cartes_vues: {
+        Row: { viewer_id: string; cible_id: string; created_at: string }
+        Insert: { viewer_id: string; cible_id: string; created_at?: string }
+        Update: { viewer_id?: string; cible_id?: string; created_at?: string }
+        Relationships: []
+      }
       // ⚠️ Ajoutée à la main, pas par la génération de types.
       //
       // Ce fichier est normalement produit depuis la base. Sans cette entrée,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import Parcours from "./commencer/Parcours";
+import Trace from "@/components/Trace";
 import { SITE } from "@/lib/legal-entity";
 import { FOND } from "./commencer/styles";
 
@@ -46,6 +47,7 @@ export default function PageCommencer() {
           J&apos;ai déjà un compte
         </Link>
       </header>
+      <Trace etape="tunnel_ouvert" />
       <Parcours />
     </div>
   );
