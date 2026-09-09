@@ -15,7 +15,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 lire() { grep -h "^$1=" .env.local .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'"'"'\r'; }
 URL=$(lire NEXT_PUBLIC_SUPABASE_URL)
-ANON=$(lire NEXT_PUBLIC_SUPABASE_ANON_KEY)
+ANON=$(lire NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
 if [ -z "${URL:-}" ] || [ -z "${ANON:-}" ]; then
   echo "Cles introuvables dans .env.local — lance ce script depuis le depot collabbs."
   exit 1
