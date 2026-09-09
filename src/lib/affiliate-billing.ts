@@ -218,10 +218,33 @@ export async function releaseReservation(params: {
   const brandOf = linkRow?.campaigns?.brand_id as string | undefined;
 
   if (ev.status === "paid") {
-    // L'argent est parti chez le créateur : on ne le reprend pas. On inscrit
-    // une dette qui sera déduite de son prochain versement — c'est la pratique
-    // du secteur, et c'est la seule honnête : reprendre un virement déjà reçu
-    // n'est ni possible techniquement, ni acceptable pour le créateur.
+    // ─── La vente est remboursée APRÈS que le créateur a été payé ───
+    //
+    // On ne reprend pas un virement déjà reçu : ce n'est ni possible
+    // techniquement, ni acceptable. On inscrit une dette, déduite du prochain
+    // versement — c'est la pratique du secteur.
+    //
+    // On prend le verrou D'ABORD, comme dans la branche du dessous. Sans ça,
+    // deux appels concurrents inscrivaient DEUX dettes pour la même vente :
+    // le créateur se voyait retirer le double.
+    const { data: pris, error: errPrise } = await admin
+      .from("affiliate_events")
+      .update({
+        status,
+        refunded_at: status === "refunded" ? new Date().toISOString() : null,
+        reject_reason: reason ?? null,
+      })
+      .eq("id", eventId)
+      .eq("status", "paid")
+      .select("id");
+    if (errPrise) {
+      void reportError("affiliate/release-statut-paye", errPrise, {
+        detail: `événement ${eventId}`,
+      });
+      return { ok: false, message: "La vente n'a pas pu être mise à jour. Réessaie." };
+    }
+    if (!pris || pris.length === 0) return { ok: true, message: "Déjà traitée." };
+
     const owed = round2(Number(ev.commission_amount ?? 0));
     if (owed > 0 && linkRow?.creator_id) {
       await admin.from("affiliate_clawbacks").insert({
@@ -242,14 +265,43 @@ export async function releaseReservation(params: {
         link: "/payouts",
       });
     }
-    await admin
-      .from("affiliate_events")
-      .update({
-        status,
-        refunded_at: status === "refunded" ? new Date().toISOString() : null,
-        reject_reason: reason ?? null,
-      })
-      .eq("id", eventId);
+
+    // ─── Ce qui manquait : la part de Collabbs revient à la marque ───
+    //
+    // À la vente, la provision de la marque est débitée de la commission ET
+    // des frais de plateforme. La commission est partie chez le créateur — on
+    // ne peut que l'inscrire en dette. Mais les FRAIS, eux, n'ont jamais quitté
+    // Collabbs : c'était le prix d'une vente qui n'a pas eu lieu.
+    //
+    // Ils restaient chez nous. La marque perdait donc commission ET frais,
+    // définitivement, et le déséquilibre grandissait à chaque retour produit.
+    // La branche du dessous — remboursement AVANT versement — rend pourtant
+    // les deux depuis toujours : la même vente remboursée ne peut pas nous
+    // enrichir selon la date à laquelle elle l'est.
+    //
+    // La commission suivra quand elle sera réellement récupérée sur un
+    // versement du créateur (voir `runMonthlyAffiliatePayouts`). La rendre
+    // maintenant reviendrait à la payer de notre poche sans rien avoir repris.
+    const frais = round2(Number(ev.platform_fee ?? 0));
+    if (brandOf && frais > 0) {
+      const { error } = await admin.rpc("credit_balance", {
+        p_brand: brandOf,
+        p_amount: frais,
+        p_kind: "reserve_release",
+        p_event: eventId,
+        p_stripe_ref: undefined,
+        p_label: "Frais rendus — vente remboursée après versement",
+      });
+      if (error) {
+        // On ne remet PAS la vente dans son état d'origine : la dette du
+        // créateur est déjà inscrite, et la rejouer la doublerait. On signale,
+        // et la somme se régularise à la main.
+        void reportError("affiliate/release-frais", error, {
+          detail: `événement ${eventId}, ${frais} € de frais à rendre à la marque ${brandOf}`,
+        });
+      }
+    }
+
     return { ok: true, message: "Régularisation inscrite sur le prochain versement." };
   }
 
@@ -698,7 +750,7 @@ export async function runAffiliatePayouts(): Promise<{
     // un virement déjà reçu.
     const { data: clawbacks } = await admin
       .from("affiliate_clawbacks")
-      .select("id, amount")
+      .select("id, amount, brand_id")
       .eq("creator_id", creatorId)
       .is("settled_at", null);
     const owed = round2(
@@ -848,11 +900,51 @@ export async function runAffiliatePayouts(): Promise<{
 
       // La dette est soldée seulement maintenant : si le virement avait échoué,
       // elle serait restée ouverte pour le mois suivant.
+      //
+      // `.is("settled_at", null)` n'est pas décoratif : sans lui, deux
+      // exécutions concurrentes solderaient la même dette deux fois et
+      // rendraient l'argent deux fois à la marque plus bas.
       if (owed > 0) {
-        await admin
+        const { data: soldees } = await admin
           .from("affiliate_clawbacks")
           .update({ settled_at: new Date().toISOString(), settled_by_tx: tx.id })
-          .in("id", (clawbacks ?? []).map((c) => c.id));
+          .in("id", (clawbacks ?? []).map((c) => c.id))
+          .is("settled_at", null)
+          .select("id, amount, brand_id");
+
+        // ─── La commission récupérée revient à la marque ───
+        //
+        // Jusqu'ici elle s'arrêtait chez nous. La marque avait payé la
+        // commission d'une vente qu'elle a remboursée à son client ; on la
+        // reprenait au créateur — et on la gardait. C'est le moment, et le
+        // seul : avant cette ligne, rien n'avait été récupéré, et rendre
+        // l'argent aurait été le sortir de notre poche.
+        //
+        // Une dette peut couvrir plusieurs marques : on regroupe.
+        const parMarque = new Map<string, number>();
+        for (const c of soldees ?? []) {
+          if (!c.brand_id) continue;
+          parMarque.set(c.brand_id, round2((parMarque.get(c.brand_id) ?? 0) + Number(c.amount ?? 0)));
+        }
+        for (const [brandId, montant] of parMarque) {
+          if (montant <= 0) continue;
+          const { error } = await admin.rpc("credit_balance", {
+            p_brand: brandId,
+            p_amount: montant,
+            p_kind: "reserve_release",
+            p_event: undefined,
+            p_stripe_ref: tx.id,
+            p_label: "Commission récupérée — vente remboursée",
+          });
+          if (error) {
+            // La dette est soldée et l'argent repris au créateur : on ne
+            // revient pas en arrière, on signale. Le contraire remettrait une
+            // dette déjà déduite d'un virement parti.
+            void reportError("affiliate/clawback-restitution", error, {
+              detail: `${montant} € récupérés à rendre à la marque ${brandId} (transaction ${tx.id})`,
+            });
+          }
+        }
       }
 
       await notify({
