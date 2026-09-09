@@ -50,6 +50,25 @@ export async function creerProfilDepuisCarte(
 
   const admin = createAdminClient();
 
+  /* ⚠️ ON NE RECOUVRE JAMAIS UN PROFIL DÉJÀ RENSEIGNÉ.
+     Depuis que le questionnaire occupe la page d'accueil, un créateur déjà
+     inscrit qui répond par curiosité voyait, à sa visite suivante, sa bio, sa
+     ville, ses réseaux et ses offres REMPLACÉS par ses réponses — sans
+     confirmation, sans message, sans retour arrière.
+     La reprise ne sert qu'à installer un profil qui n'existe pas encore. */
+  const { data: existant } = await admin
+    .from("creators")
+    .select("handle, bio, city")
+    .eq("id", user.id)
+    .maybeSingle();
+  const dejaRenseigne = Boolean(
+    existant && (existant.bio?.trim() || existant.city?.trim() || existant.handle?.trim()),
+  );
+  if (dejaRenseigne) {
+    // Ce n'est pas un échec : il a déjà son profil, il n'y a rien à reprendre.
+    return { ok: true };
+  }
+
   // Les niches du questionnaire sont des LIBELLÉS, la base attend des
   // identifiants. On traduit sur le libellé exact, sans rapprochement flou :
   // ranger quelqu'un dans une niche qu'il n'a pas choisie serait pire que de

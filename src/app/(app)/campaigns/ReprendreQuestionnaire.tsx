@@ -2,7 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CLE_CARTE } from "@/lib/quiz";
+/* ⚠️ CLE_BRIEF, et surtout pas CLE_CARTE.
+   Le questionnaire MARQUE écrit sous `collabbs.brief.v1`, celui du créateur
+   sous `collabbs.carte.v1`. Je lisais la seconde des deux côtés : une marque
+   remplissait cinq étapes, s'inscrivait, arrivait sur ses campagnes — et il
+   n'y avait rien, sans le moindre message. Le pont existait et ne raccordait
+   rien. Trouvé par l'audit, jamais par moi : je n'avais pas pu jouer ce
+   parcours faute de compte marque, et je l'avais annoncé sans le vérifier. */
+import { CLE_BRIEF } from "@/lib/quiz";
 import { creerCampagneDepuisCarte } from "./depuis-questionnaire";
 
 /**
@@ -34,14 +41,14 @@ export default function ReprendreQuestionnaire() {
     if (lance.current) return;
     lance.current = true;
 
-    const brut = window.localStorage.getItem(CLE_CARTE);
+    const brut = window.localStorage.getItem(CLE_BRIEF);
     if (!brut) return;
 
     let carte: unknown;
     try {
       carte = JSON.parse(brut);
     } catch {
-      window.localStorage.removeItem(CLE_CARTE);
+      window.localStorage.removeItem(CLE_BRIEF);
       return;
     }
     // Seule une carte de marque nous concerne : un créateur qui aurait fait
@@ -52,7 +59,7 @@ export default function ReprendreQuestionnaire() {
 
     creerCampagneDepuisCarte(carte).then((r) => {
       if (!r.ok) return;
-      window.localStorage.removeItem(CLE_CARTE);
+      window.localStorage.removeItem(CLE_BRIEF);
       router.refresh();
     });
   }, [router]);

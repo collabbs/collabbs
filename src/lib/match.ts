@@ -53,12 +53,18 @@ export async function verifierMatch(brandId: string, creatorId: string): Promise
     const ids = (campagnes ?? []).map((c) => c.id);
     if (ids.length === 0) return false;
 
-    const { data: favori } = await admin
+    /* ⚠️ `limit(1)` et non `maybeSingle()`.
+       `maybeSingle` lève dès qu'il y a PLUSIEURS lignes — et un créateur qui
+       retient deux campagnes de la même marque est le cas normal, pas le cas
+       rare. Le match échouait donc précisément quand il avait le plus de
+       raisons de se produire. */
+    const { data: favoris } = await admin
       .from("campagnes_favorites")
       .select("campaign_id")
       .eq("creator_id", creatorId)
       .in("campaign_id", ids)
-      .maybeSingle();
+      .limit(1);
+    const favori = favoris?.[0];
     if (!favori) return false;
 
     // Les deux se sont choisis. On le dit — aux deux.

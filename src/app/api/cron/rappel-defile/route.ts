@@ -45,7 +45,22 @@ export async function GET(request: Request) {
   let envoyes = 0;
   let ignores = 0;
 
+  /* ⚠️ Jamais aux comptes de DÉMONSTRATION.
+     Ils portent des adresses en `@collabbs.test`, un domaine qui n'existe pas.
+     Le premier envoi aurait produit vingt-quatre rebonds durs d'un coup sur un
+     domaine d'expédition tout neuf — c'est exactement ainsi qu'on brûle sa
+     réputation avant d'avoir écrit à un seul vrai utilisateur. */
+  const { data: comptes } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const adresses = new Map(
+    (comptes?.users ?? []).map((u) => [u.id, (u.email ?? "").toLowerCase()]),
+  );
+
   for (const c of createurs ?? []) {
+    const adresse = adresses.get(c.id) ?? "";
+    if (!adresse || adresse.endsWith("@collabbs.test") || adresse.includes("+demo")) {
+      ignores++;
+      continue;
+    }
     // Ce qu'il a vu, et quand il a regardé pour la dernière fois.
     const { data: vues } = await admin
       .from("cartes_vues")

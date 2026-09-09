@@ -23,16 +23,19 @@ import { FOND } from "./commencer/styles";
  * une fiche d'entreprise : un créateur ne fait pas défiler des logos, il fait
  * défiler des propositions.
  */
+/* La page d'accueil s'adresse aux DEUX côtés : c'est elle qui trie. Un titre
+   qui ne parle qu'au créateur (« Crée ta carte ») laissait la moitié des
+   arrivants dehors dès l'onglet du navigateur.
+   Et elle n'est plus masquée aux moteurs : le questionnaire a été caché le
+   temps de vivre sur une adresse d'essai, mais garder ce `noindex` une fois
+   remonté à la racine éteignait tout le trafic naturel du domaine — pendant
+   que le plan du site déclarait cette même adresse en priorité 1. */
 export const metadata: Metadata = {
-  title: "Crée ta carte — Collabbs",
+  title: "Collabbs — marques et créateurs se trouvent",
   description:
-    "Cinq questions, et les marques peuvent te trouver. Sans compte, sans engagement.",
-  alternates: { canonical: `${SITE.url}/commencer` },
-  // Page de parcours, pas de contenu : rien à indexer, et surtout pas pendant
-  // qu'elle se construit.
-  robots: { index: false, follow: false },
+    "Cinq questions, et vous êtes visible. Marques comme créateurs, sans compte et sans engagement.",
+  alternates: { canonical: SITE.url },
 };
-
 export default function PageCommencer() {
   return (
     <div className={`min-h-dvh ${FOND}`}>
