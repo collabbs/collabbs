@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import CampaignForm from "./CampaignForm";
 import { reperesPourOffre } from "@/lib/benchmark-data";
 
@@ -18,7 +19,9 @@ export default async function NewCampaignPage() {
     supabase.from("profiles").select("role").eq("id", user.id).single(),
     supabase.from("niches").select("id, label").order("label"),
     supabase.from("platforms").select("id, label, slug").order("id"),
-    supabase
+    // Taux de commission : retires au navigateur par 0068 — une marque
+    // pouvait lire, et surtout ecrire, les siens.
+    createAdminClient()
       .from("brands")
       .select("commission_nano, commission_micro, commission_mid, commission_macro")
       .eq("id", user.id)

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import PlatformIcon from "@/components/PlatformIcon";
 import { CAMPAIGN_TYPE_LABEL, TONE_LABEL, campaignReward, eur, typeDeCampagne, besoinCandidature, besoinLienDeSuivi } from "@/lib/campaign";
 import { ApplicationDecision, StatusToggle } from "./ManageControls";
@@ -77,7 +78,8 @@ export default async function CampaignManagePage({
       .select("id, creator_id, code, promo_code, created_at")
       .eq("campaign_id", id),
     supabase.from("deals").select("id, creator_id").eq("campaign_id", id),
-    supabase
+    // Secret de postback : client de service depuis 0068 (voir /tracking).
+    createAdminClient()
       .from("brands")
       .select("postback_secret, website, tracking_verified_at")
       .eq("id", user.id)

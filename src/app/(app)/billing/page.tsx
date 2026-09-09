@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { eurExact as eur } from "@/lib/deal";
 import { stripeConfigured } from "@/lib/stripe";
 import { VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
@@ -105,7 +106,11 @@ export default async function BillingPage({
     .single();
   if (profile?.role !== "brand") redirect("/dashboard");
 
-  const { data: brand } = await supabase
+  // Provision, moyen de paiement et abonnement ne sont plus lisibles depuis le
+  // navigateur (0068) : n'importe qui pouvait lire le solde et le plan de
+  // n'importe quelle marque. On les relit par le client de service, sur la
+  // seule ligne de l'utilisateur.
+  const { data: brand } = await createAdminClient()
     .from("brands")
     .select(
       "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at, plan, plan_expires_at",

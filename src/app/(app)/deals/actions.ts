@@ -49,12 +49,15 @@ function contractRef(): string {
  * `deal_id` est également unique : une erreur portant sur cette contrainte
  * signifie que le contrat existe déjà, ce qui est le résultat recherché.
  */
-async function ensureContractRow(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  dealId: string,
-): Promise<{ ok: boolean; error?: string }> {
+async function ensureContractRow(dealId: string): Promise<{ ok: boolean; error?: string }> {
+  // Client de service, et non celui de l'utilisateur : depuis 0068, le
+  // navigateur n'a plus AUCUN droit d'écriture sur `contracts`. Un contrat
+  // qu'une des parties peut réécrire après signature n'est pas un contrat —
+  // et le PDF « figé » que l'autre télécharge afficherait les termes modifiés,
+  // sans laisser de trace. L'appelant a déjà vérifié qui il est.
+  const admin = createAdminClient();
   for (let essai = 0; essai < 5; essai++) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("contracts")
       .insert({ deal_id: dealId, reference: contractRef(), status: "draft" });
     if (!error) return { ok: true };
@@ -195,7 +198,7 @@ export async function createDealFromApplication(applicationId: string) {
   }
 
   // Contrat (brouillon) — figé et signé à l'acceptation du créateur.
-  const contrat = await ensureContractRow(supabase, deal.id);
+  const contrat = await ensureContractRow(deal.id);
   if (!contrat.ok) {
     // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
     // laisse pas exister à moitié.
@@ -272,7 +275,7 @@ export async function createDirectDeal(creatorId: string) {
     redirect(`/creators?error=${encodeURIComponent(livrablesDirect.error ?? "Livrables impossibles à créer.")}`);
   }
 
-  const contrat = await ensureContractRow(supabase, deal.id);
+  const contrat = await ensureContractRow(deal.id);
   if (!contrat.ok) {
     // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
     // laisse pas exister à moitié.
@@ -472,7 +475,11 @@ export async function acceptDeal(dealId: string): Promise<Result> {
 
   // Le contrat est figé : copie complète des termes ET des coordonnées légales
   // des deux parties, signée par les deux simultanément.
-  const { data: signes } = await supabase
+  // Voir `ensureContractRow` : l'écriture d'un contrat ne passe plus par le
+  // navigateur. `acceptDeal` a vérifié plus haut que l'appelant est bien le
+  // créateur de cette collaboration.
+  const admin = createAdminClient();
+  const { data: signes } = await admin
     .from("contracts")
     .update(signature)
     .eq("deal_id", dealId)
@@ -482,11 +489,11 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   // référence, collaboration créée hors de l'application — la mise à jour
   // ci-dessus ne touche AUCUNE ligne, et sans erreur. On la rattrape.
   if (!signes || signes.length === 0) {
-    const rattrapage = await ensureContractRow(supabase, dealId);
+    const rattrapage = await ensureContractRow(dealId);
     if (!rattrapage.ok) {
       return { ok: false, error: "Le contrat n'a pas pu être établi. Réessaie." };
     }
-    const { data: rejoue } = await supabase
+    const { data: rejoue } = await admin
       .from("contracts")
       .update(signature)
       .eq("deal_id", dealId)
@@ -553,7 +560,9 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
-  const { error: errContrat } = await supabase
+  // Idem : l'écriture du contrat passe par le serveur. `cancelDeal` a vérifié
+  // que l'appelant est l'une des deux parties.
+  const { error: errContrat } = await createAdminClient()
     .from("contracts")
     .update({ status: "terminated", terminated_at: new Date().toISOString() })
     .eq("deal_id", dealId);

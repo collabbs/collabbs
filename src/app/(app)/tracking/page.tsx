@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import PostbackPanel from "../campaigns/[id]/PostbackPanel";
 
 export const metadata = { title: "Tracking des ventes — Collabbs" };
@@ -20,7 +21,10 @@ export default async function TrackingPage() {
     .single();
   if (profile?.role !== "brand") redirect("/dashboard");
 
-  const { data: brand } = await supabase
+  // Le secret de postback etait lisible par n'importe qui : c'est la cle qui
+  // autorise a declarer une vente, donc a faire payer une marque. Il ne sort
+  // plus que par le client de service, pour la marque elle-meme (0068).
+  const { data: brand } = await createAdminClient()
     .from("brands")
     .select("postback_secret, website, tracking_verified_at")
     .eq("id", user.id)
