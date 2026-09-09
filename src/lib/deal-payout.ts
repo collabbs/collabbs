@@ -23,6 +23,11 @@ export type PayoutReason =
   | "no_account"
   /** Il en a un, mais Stripe ne l'autorise pas encore à recevoir. */
   | "account_not_ready"
+  /**
+   * Notre trace dit « payé et séquestré », mais le paiement correspondant est
+   * introuvable chez Stripe. On ne verse pas : il faut un humain.
+   */
+  | "paiement_introuvable"
   /** Tout autre échec : Stripe, provision, état incohérent. */
   | "other";
 
@@ -90,13 +95,46 @@ export async function attemptDealPayout(
         error: "Le compte du créateur n'est pas encore prêt à recevoir.",
       };
 
+    // ─── Le paiement d'origine ───
+    //
+    // `source_transaction` rattache le virement au paiement de la marque : il
+    // autorise le transfert avant que le solde ne soit consolidé. C'est un
+    // confort, pas une obligation — un séquestre sans référence se verse
+    // depuis le solde de la plateforme.
+    //
+    // MAIS : une référence PRÉSENTE et INTROUVABLE n'est pas la même chose
+    // qu'une référence absente. C'est une incohérence — notre base affirme
+    // qu'une marque a payé, et Stripe ne connaît pas ce paiement. C'est
+    // exactement l'état des 1 260 € restés bloqués depuis le 30 août : une
+    // référence de test dans une base branchée sur le compte réel.
+    //
+    // Dans ce cas on ne verse SURTOUT pas. Verser quand même reviendrait à
+    // payer un créateur avec l'argent de Collabbs pour une somme peut-être
+    // jamais encaissée. On s'arrête, et on le dit — c'est ce silence-là qui a
+    // laissé la situation durer dix jours.
     let sourceCharge: string | undefined;
     if (tx.reference) {
-      const pi = await stripe.paymentIntents.retrieve(tx.reference);
-      sourceCharge =
-        typeof pi.latest_charge === "string"
-          ? pi.latest_charge
-          : (pi.latest_charge?.id ?? undefined);
+      try {
+        const pi = await stripe.paymentIntents.retrieve(tx.reference);
+        sourceCharge =
+          typeof pi.latest_charge === "string"
+            ? pi.latest_charge
+            : (pi.latest_charge?.id ?? undefined);
+      } catch (e) {
+        await reportError("deal/paiement-introuvable", e, {
+          detail:
+            `La transaction ${tx.id} (deal ${dealId}) porte la référence « ${tx.reference} », ` +
+            `que Stripe ne connaît pas. Le versement est refusé tant que personne n'a tranché : ` +
+            `soit le paiement existe sous une autre référence, soit il n'a jamais eu lieu.`,
+        });
+        return {
+          released: false,
+          reason: "paiement_introuvable",
+          error:
+            "Le paiement d'origine est introuvable chez Stripe. Le versement est suspendu : " +
+            "contacte le support avec la référence de la collaboration.",
+        };
+      }
     }
 
     // Clé d'idempotence : c'est le seul rempart contre un VERSEMENT EN DOUBLE.

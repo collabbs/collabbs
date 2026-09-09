@@ -41,14 +41,23 @@ export async function blocagesAvantSuppression(userId: string): Promise<Blocage[
   const blocages: Blocage[] = [];
 
   // ── 1. De l'argent immobilisé ──
-  // `pending` = paiement lancé, `in_escrow` = payé et bloqué, `released` =
-  // libéré mais pas encore viré. Dans les trois cas, la somme existe et
-  // attend quelqu'un.
+  //
+  // `pending` = le paiement de la marque est lancé sans être confirmé.
+  // `in_escrow` = il est encaissé et bloqué : c'est l'argent qui n'a encore
+  // trouvé personne. Dans les deux cas la somme existe et attend.
+  //
+  // ⚠️ `released` N'EST PAS de l'argent en attente, contrairement à ce que son
+  // nom laisse croire. `attemptDealPayout` le pose APRÈS que le virement Stripe
+  // est parti : c'est l'état terminal d'une collaboration payée. (`paid` ne
+  // sert qu'aux versements d'affiliation et à l'écran d'arbitrage.) Le compter
+  // ici — ce que faisait la première version de ce fichier — interdisait de
+  // supprimer son compte à toute personne ayant un jour mené une collaboration
+  // à son terme. Le garde-fou se serait transformé en prison.
   const { data: argent } = await admin
     .from("transactions")
     .select("id, status, gross_amount, type")
     .or(`brand_id.eq.${userId},creator_id.eq.${userId}`)
-    .in("status", ["pending", "in_escrow", "released"]);
+    .in("status", ["pending", "in_escrow"]);
 
   if (argent && argent.length > 0) {
     const total = argent.reduce((s, t) => s + Number(t.gross_amount ?? 0), 0);

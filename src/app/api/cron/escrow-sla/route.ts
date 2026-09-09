@@ -118,6 +118,13 @@ export async function GET(request: Request) {
       // compte. La collaboration reste close et validée : `releaseDealPayout`
       // pourra reprendre plus tard, et l'écran d'administration le montre.
       result.failed++;
+      // Toute autre cause est une panne, pas une attente : elle ne se résoudra
+      // pas d'elle-même et il faut que quelqu'un chez Collabbs l'apprenne.
+      if (payout.reason !== "no_account" && payout.reason !== "account_not_ready") {
+        await reportError("cron/escrow-sla-versement", payout.error ?? "échec inconnu", {
+          detail: `deal ${deal.id} — cause : ${payout.reason ?? "inconnue"}`,
+        });
+      }
       await notify({
         userId: deal.creator_id,
         type: "escrow_auto_validated_pending_payout",
@@ -220,10 +227,25 @@ export async function GET(request: Request) {
     const reprise = await attemptDealPayout(deal.id);
     if (!reprise.released) {
       result.pending++;
-      // On ne notifie QUE lorsque le créateur peut agir — un compte absent ou
-      // incomplet. Pour les autres causes il n'a rien à faire, et le prévenir
-      // chaque jour d'un problème qui ne le concerne pas ferait couper les
-      // notifications. `throttleMinutes` borne de toute façon la répétition.
+      // ⚠️ LE SILENCE QUI A COÛTÉ DIX JOURS
+      //
+      // Ne pas prévenir le CRÉATEUR d'un problème sur lequel il ne peut rien
+      // est juste — le prévenir chaque jour ferait couper ses notifications.
+      // Mais cette retenue s'était étendue à tout le monde : quand la cause
+      // n'était ni l'un ni l'autre des deux cas ci-dessous, la reprise
+      // échouait, recommençait le lendemain, et n'écrivait RIEN nulle part.
+      //
+      // 1 260 € ont ainsi tourné en boucle depuis le 30 août sans que
+      // personne ne l'apprenne. `reportError` regroupe par message normalisé :
+      // une panne qui se répète tous les jours reste UNE ligne, pas trois
+      // cents.
+      if (reprise.reason !== "no_account" && reprise.reason !== "account_not_ready") {
+        await reportError("cron/reprise-versement", reprise.error ?? "échec inconnu", {
+          detail:
+            `deal ${deal.id} — transaction ${tx.id}, ${Number(tx.net_amount)} € en attente — ` +
+            `cause : ${reprise.reason ?? "inconnue"}`,
+        });
+      }
       if (reprise.reason === "no_account" || reprise.reason === "account_not_ready") {
         await notify({
           userId: deal.creator_id,

@@ -64,11 +64,17 @@ describe("ce qui empêche un compte de disparaître", () => {
     expect(b[0].issue).toMatch(/remboursement|terme/i);
   });
 
-  it("retient aussi quand l'argent est libéré mais pas encore viré", async () => {
-    // `released` est le piège : l'écran dit « validé », et pourtant la somme
-    // n'a pas quitté la plateforme. C'est l'état exact des 1 260 € bloqués.
-    base({ transactions: [{ id: "t1", status: "released", gross_amount: 300 }] });
-    expect(await blocagesAvantSuppression(MOI)).toHaveLength(1);
+  it("laisse partir un compte dont le virement est déjà parti", async () => {
+    // `released` porte mal son nom : ce n'est pas « libéré et en attente »,
+    // c'est l'état posé APRÈS le virement Stripe — la fin de l'histoire.
+    //
+    // La première version de ce garde-fou le comptait comme de l'argent en
+    // attente. Elle aurait interdit à toute personne ayant mené une
+    // collaboration à son terme de supprimer son compte, pour toujours. Le
+    // test qui se trouvait ici figeait cette erreur au lieu de l'attraper :
+    // c'est en lisant les vraies transactions de la base que je l'ai vue.
+    base({ transactions: [] });
+    expect(await blocagesAvantSuppression(MOI)).toEqual([]);
   });
 
   it("retient un compte engagé dans une collaboration en cours", async () => {
