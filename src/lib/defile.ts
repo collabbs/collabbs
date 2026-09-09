@@ -184,6 +184,18 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
 
   // Les marques qui ont déjà retenu CE créateur. Une seule lecture, et
   // seulement si l'on sait de qui il s'agit.
+  // Ce que cette personne a DÉJÀ vu, d'où qu'elle vienne. Sans cette lecture,
+  // le paquet repart de zéro sur un second appareil et lui remontre ce qu'elle
+  // a déjà écarté.
+  const dejaVues = new Set<string>();
+  if (createurId) {
+    const { data: vues } = await admin
+      .from("cartes_vues")
+      .select("cible_id")
+      .eq("viewer_id", createurId);
+    for (const v of vues ?? []) dejaVues.add(v.cible_id);
+  }
+
   const marquesInteressees = new Set<string>();
   if (createurId) {
     const { data: retenus } = await admin
@@ -277,9 +289,11 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
 
      Un paquet s'ouvre sur ce qu'il a de meilleur. Ça ne cache rien : les
      cartes sans photo restent dans le paquet, elles passent après. */
-  return briefs.sort((a, b) => {
-    const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
-    const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
-    return forceB - forceA;
-  });
+  return briefs
+    .filter((b) => !dejaVues.has(b.id))
+    .sort((a, b) => {
+      const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
+      const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
+      return forceB - forceA;
+    });
 }

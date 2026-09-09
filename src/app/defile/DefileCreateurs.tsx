@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useClavier } from "./useClavier";
+import { enregistrerVues } from "./actions";
 import Link from "next/link";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
 import { CLE_REPERAGES, CLE_VUES, listeDeTextes } from "@/lib/quiz";
@@ -46,8 +47,11 @@ const PAQUET_DU_JOUR = 12;
 export default function DefileCreateurs({
   createurs,
   apercuMatch,
+  connecte,
 }: {
   createurs: MarketplaceCreator[];
+  /** Connecté : la mémoire du paquet peut suivre la personne. */
+  connecte?: boolean;
   /** Aperçu de l'écran de match, demandé par `?apercu=match`. */
   apercuMatch?: boolean;
 }) {
@@ -103,6 +107,10 @@ export default function DefileCreateurs({
     if (createur) {
       const id = createur.id;
       setEnCoursDeLecture((liste) => (liste.includes(id) ? liste : [...liste, id]));
+      // Connecté, la mémoire suit la personne d'un appareil à l'autre — et
+      // c'est elle qui rend le rappel possible : on ne peut pas écrire
+      // « 35 nouvelles t'attendent » à quelqu'un dont on ignore ce qu'il a vu.
+      if (connecte) void enregistrerVues([id]);
       setVues((v) => (Array.isArray(v) && v.includes(id) ? v : [...listeDeTextes(v), id]));
     }
     setIndex((i) => i + 1);

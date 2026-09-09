@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CLE_CARTE, CLE_INTERETS, CLE_REPERAGES, listeDeTextes } from "@/lib/quiz";
+import { CLE_CARTE, CLE_INTERETS, CLE_REPERAGES, CLE_VUES, listeDeTextes } from "@/lib/quiz";
 import { reprendreFavoris, reprendreReperages } from "./favoris/actions";
 import { creerProfilDepuisCarte } from "./profile/depuis-questionnaire";
+import { enregistrerVues } from "@/app/defile/actions";
 
 /**
  * Ramène dans le compte ce qui a été retenu pendant le défilé.
@@ -62,6 +63,19 @@ export default function RepriseDuDefile({ role }: { role: string | null }) {
         } catch {
           window.localStorage.removeItem(CLE_CARTE);
         }
+      }
+    }
+
+    // Ce qui a défilé avant le compte suit aussi : sans ça, le paquet
+    // remontrerait dès la première visite de l'espace ce que la personne
+    // venait d'écarter.
+    const vuesBrut = window.localStorage.getItem(CLE_VUES);
+    if (vuesBrut) {
+      try {
+        const vues = listeDeTextes(JSON.parse(vuesBrut));
+        if (vues.length > 0) void enregistrerVues(vues);
+      } catch {
+        window.localStorage.removeItem(CLE_VUES);
       }
     }
 

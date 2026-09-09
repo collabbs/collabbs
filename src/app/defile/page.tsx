@@ -41,11 +41,14 @@ export default async function PageDefile({
   // créateurs, le créateur regarde des briefs. Si chacun défilait sur l'autre,
   // le créateur ouvrirait le défilé et verrait UNE marque.
   const cotéMarque = cote === "marque";
-  const briefs = cotéMarque ? [] : await briefsDuDefile(
-        // Connecté, on peut savoir si une marque l'a déjà retenu : le match
-        // devient réel. Anonyme, il n'y a rien à croiser.
-        (await (await createClient()).auth.getUser()).data.user?.id,
-      );
+  // Connecté, on sait ce que la personne a déjà vu et si une marque l'a
+  // retenue : le paquet s'ajuste et le match devient possible. Anonyme, il n'y
+  // a rien à croiser — et c'est normal, le défilé s'ouvre sans compte.
+  const {
+    data: { user: utilisateur },
+  } = await (await createClient()).auth.getUser();
+
+  const briefs = cotéMarque ? [] : await briefsDuDefile(utilisateur?.id);
   const createurs = cotéMarque ? await getMarketplaceCreators() : [];
 
   return (
@@ -86,9 +89,9 @@ export default async function PageDefile({
       <Trace etape="defile_ouvert" cote={cotéMarque ? "marque" : "createur"} />
       <div className="min-h-0 flex-1">
       {cotéMarque ? (
-        <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} />
+        <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} connecte={Boolean(utilisateur)} />
       ) : (
-        <Defile briefs={briefs} apercuMatch={apercu === "match"} />
+        <Defile briefs={briefs} apercuMatch={apercu === "match"} connecte={Boolean(utilisateur)} />
       )}
       </div>
     </div>
