@@ -33,8 +33,12 @@ const CREATOR_NAV: NavItem[] = [
 const BRAND_NAV: NavItem[] = [
   { href: "/defile?cote=marque", label: "Découvrir", icon: "🔥" },
   { href: "/dashboard", label: "Tableau de bord", icon: "🏠" },
+  // « Créer une campagne » a quitté ce menu : c'est une ACTION, pas une
+  // section. Elle vivait à côté de « Mes campagnes », qui porte déjà son
+  // bouton de création — deux entrées pour le même endroit, dans un menu déjà
+  // long de quinze lignes. Un menu liste des lieux ; les gestes appartiennent
+  // à l'écran où on les fait.
   { href: "/campaigns", label: "Mes campagnes", icon: "📊" },
-  { href: "/campaigns/new", label: "Créer une campagne", icon: "➕" },
   { href: "/creators", label: "Trouver des créateurs", icon: "🔍" },
   { href: "/shortlist", label: "Ma shortlist", icon: "⭐" },
   { href: "/deals", label: "Collaborations", icon: "🤝" },
@@ -176,8 +180,18 @@ export default function Sidebar({
         <div className="mt-6">
           <GlobalSearch />
         </div>
-        <nav className="mt-4 flex flex-1 flex-col gap-1">{items.map(renderNavLink)}</nav>
-        <div className="border-t border-zinc-100 pt-4">
+        {/* `min-h-0` n'est pas décoratif : sans lui, un enfant flex refuse de
+            rétrécir sous sa hauteur de contenu, et `overflow-y-auto` ne
+            déclenche jamais. Le menu marque compte quatorze entrées ; sur un
+            écran de portable, il dépassait, et « Se déconnecter » se retrouvait
+            sous le bord de la fenêtre, inatteignable. */}
+        <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          {items.map(renderNavLink)}
+        </nav>
+        {/* `shrink-0` : le pied ne se laisse pas comprimer par le menu. C'est
+            lui qui porte la déconnexion — il doit rester visible en toutes
+            circonstances. */}
+        <div className="shrink-0 border-t border-zinc-100 pt-4">
           {userBlock}
           <form action={logout} className="mt-3">
             <button
