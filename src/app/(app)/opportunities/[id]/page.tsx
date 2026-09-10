@@ -223,7 +223,7 @@ export default async function OpportunityDetailPage({
                 <img
                   src={c.brands.logo_url}
                   alt={c.brands.name}
-                  className="h-full w-full object-contain p-2"
+                  className="h-full w-full object-cover"
                 />
               ) : (
                 (c.brands?.name ?? "?").slice(0, 2).toUpperCase()
@@ -933,7 +933,7 @@ export default async function OpportunityDetailPage({
                   <img
                     src={c.brands.logo_url}
                     alt={c.brands.name ?? ""}
-                    className="h-full w-full object-contain p-1.5"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   <span className="text-xs font-bold text-zinc-500">

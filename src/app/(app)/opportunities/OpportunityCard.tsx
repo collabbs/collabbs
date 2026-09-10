@@ -252,6 +252,18 @@ export default function OpportunityCard({
         )}
 
         <div className="flex items-center gap-3">
+          {/* La pastille de marque est une TUILE, pas un cadre : le logo la
+              remplit (`object-cover`, aucune marge).
+
+              Avec `object-contain` et une marge intérieure, un logo qui porte
+              son propre fond — le cas le plus courant, une tuile carrée —
+              flottait au milieu d'un liseré blanc. « Ça remplit pas le carré,
+              c'est pas beau », et c'est exact.
+
+              En couvrant, un logo carré remplit exactement ; un logo large est
+              recadré au centre, ce qui est le traitement habituel des vignettes
+              d'application — et le nom de la marque est écrit juste à côté. Le
+              fond blanc reste dessous, pour les logos transparents et sombres. */}
           <span
             className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-2 ${meta.ring}`}
           >
@@ -260,7 +272,7 @@ export default function OpportunityCard({
               <img
                 src={o.brandLogo}
                 alt={o.brandName}
-                className="h-full w-full object-contain p-1.5"
+                className="h-full w-full object-cover"
               />
             ) : (
               <span className="text-xs font-bold text-zinc-500">

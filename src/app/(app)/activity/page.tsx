@@ -263,7 +263,7 @@ export default async function ActivityPage() {
                           <img
                             src={brand.logo_url}
                             alt={brand.name ?? ""}
-                            className="h-full w-full object-contain p-1.5"
+                            className="h-full w-full object-cover"
                           />
                         ) : (
                           (brand?.name ?? "?").slice(0, 2).toUpperCase()
@@ -356,7 +356,7 @@ export default async function ActivityPage() {
                         <img
                           src={brand.logo_url}
                           alt=""
-                          className="h-full w-full object-contain p-1"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         (brand?.name ?? "?").slice(0, 2).toUpperCase()
@@ -418,7 +418,7 @@ export default async function ActivityPage() {
                         <img
                           src={brand.logo_url}
                           alt=""
-                          className="h-full w-full object-contain p-1"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         (brand?.name ?? "?").slice(0, 2).toUpperCase()

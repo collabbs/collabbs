@@ -111,7 +111,7 @@ export default async function PublicCampaignPage({
           <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white text-sm font-bold text-zinc-500 ring-1 ring-zinc-100">
             {c.brands?.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.brands.logo_url} alt={c.brands.name} className="h-full w-full object-contain p-2" />
+              <img src={c.brands.logo_url} alt={c.brands.name} className="h-full w-full object-cover" />
             ) : (
               (c.brands?.name ?? "?").slice(0, 2).toUpperCase()
             )}
