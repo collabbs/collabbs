@@ -37,8 +37,17 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const seuil = new Date(Date.now() - ABSENCE_JOURS * 24 * 3600 * 1000).toISOString();
 
+  /* ⚠️ `creators.is_demo`, PAS la forme de l'adresse.
+     Le garde-fou d'hier reposait sur le texte de l'adresse : il cherchait
+     « @collabbs.test » et « +demo ». Or les comptes de démonstration
+     s'appellent `demo+lea@collabbs.dev` — le plus est AVANT, et le domaine
+     n'est pas celui que je croyais. Aucun des vingt-quatre n'était donc
+     écarté, et `collabbs.dev` n'a pas d'enregistrement MX : vingt-quatre
+     rebonds durs d'un coup, exactement ce que le garde-fou disait empêcher.
+     Une devinette sur une chaîne de caractères ne protège rien. La base sait
+     qui est un compte de démonstration : on le lui demande. */
   const [{ data: createurs }, { count: campagnes }] = await Promise.all([
-    admin.from("profiles").select("id, display_name").eq("role", "creator").limit(2000),
+    admin.from("creators").select("id").eq("is_demo", false).limit(2000),
     admin
       .from("campaigns")
       .select("id", { count: "exact", head: true })
@@ -82,6 +91,11 @@ export async function GET(request: Request) {
     (comptes?.users ?? []).map((u) => [u.id, (u.email ?? "").toLowerCase()]),
   );
 
+  /* Filet de sécurité, DERRIÈRE `is_demo` et non à sa place : les domaines
+     qui ne reçoivent rien. Si un jeu de données de test arrive un jour sans
+     être marqué, il ne coûtera pas la réputation du domaine d'envoi. */
+  const DOMAINES_MORTS = ["@collabbs.dev", "@collabbs.test", "@example.com", "@example.org"];
+
   /** L'adresse d'un créateur, en dernier recours ligne par ligne. */
   async function adresseDe(id: string): Promise<string | null> {
     const connue = adresses.get(id);
@@ -97,7 +111,7 @@ export async function GET(request: Request) {
 
   for (const c of createurs ?? []) {
     const adresse = await adresseDe(c.id);
-    if (!adresse || adresse.endsWith("@collabbs.test") || adresse.includes("+demo")) {
+    if (!adresse || DOMAINES_MORTS.some((d) => adresse.endsWith(d))) {
       ignores++;
       continue;
     }

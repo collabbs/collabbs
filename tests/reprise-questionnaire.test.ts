@@ -44,3 +44,43 @@ describe("chaque reprise ouvre le tiroir de son côté", () => {
     expect(s).toContain("CLE_CARTE");
   });
 });
+
+/**
+ * Le rappel du défilé ne doit écrire à personne d'injoignable.
+ *
+ * ─── Deux erreurs successives sur la même garde ───
+ * 1. Elle lisait `listUsers()` sans regarder l'erreur. Or cet appel échoue en
+ *    entier dès qu'UNE ligne d'authentification est corrompue : la table
+ *    d'adresses restait vide et le rappel n'envoyait rien, en silence.
+ * 2. Elle devinait les comptes de démonstration à la forme de leur adresse —
+ *    « @collabbs.test » et « +demo » — alors qu'ils s'appellent
+ *    `demo+lea@collabbs.dev`. Le plus est AVANT, le domaine n'est pas celui-là.
+ *    Aucun des vingt-quatre n'était écarté, et `collabbs.dev` n'a pas de MX :
+ *    vingt-quatre rebonds durs, exactement ce que la garde prétendait empêcher.
+ *
+ * D'où ce test : la vérité est dans `creators.is_demo`, pas dans une chaîne de
+ * caractères. Le filet sur les domaines morts ne vient qu'APRÈS, et il doit
+ * reconnaître les adresses réelles du jeu de démonstration.
+ */
+describe("à qui le rappel du défilé a le droit d'écrire", () => {
+  const source = readFileSync(
+    new URL("../src/app/api/cron/rappel-defile/route.ts", import.meta.url),
+    "utf8",
+  );
+
+  it("sélectionne les créateurs par is_demo, pas par leur adresse", () => {
+    expect(source).toMatch(/from\("creators"\)[\s\S]{0,80}\.eq\("is_demo", false\)/);
+  });
+
+  it("regarde l'erreur de listUsers au lieu de la traverser", () => {
+    expect(source).toMatch(/error: errComptes/);
+    expect(source).toMatch(/if \(errComptes\)/);
+  });
+
+  it("le filet de sécurité couvre les domaines réellement utilisés en démo", () => {
+    // `collabbs.dev` est celui qui manquait — c'est le vrai domaine des 24.
+    for (const d of ["@collabbs.dev", "@collabbs.test", "@example.com"]) {
+      expect(source).toContain(d);
+    }
+  });
+});
