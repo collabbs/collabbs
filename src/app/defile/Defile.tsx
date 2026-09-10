@@ -104,6 +104,24 @@ export default function Defile({
   // que la pile n'avance, exactement comme au glissement.
   const [sortieForcee, setSortieForcee] = useState<Direction | null>(null);
 
+  /**
+   * Ce qui reste à découvrir, et qu'on annonce à l'écran.
+   *
+   * ─── Le compteur qui mentait ───
+   * Il existait en DEUX exemplaires, avec deux formules différentes : l'écran
+   * de fin disait `briefs - vues`, l'écran de relance `briefs - vues - index - 1`.
+   * Or `vues` grandit à CHAQUE décision, et `index` compte exactement les mêmes
+   * cartes : la relance retranchait donc la progression deux fois. Après six
+   * coups de cœur elle annonçait une trentaine de campagnes là où il y en avait
+   * plus de trente-cinq — et le chiffre baissait deux fois plus vite que la
+   * réalité.
+   *
+   * Une promesse chiffrée qui se dément à la visite suivante coûte plus cher
+   * que pas de chiffre du tout. Il n'y en a donc plus qu'une définition, et les
+   * deux écrans la partagent : elles ne peuvent plus diverger.
+   */
+  const restantsAVoir = Math.max(0, briefs.length - vues.length);
+
   const brief = paquet[index];
   const suivant = paquet[index + 1];
   const fini = index >= paquet.length;
@@ -186,7 +204,7 @@ export default function Defile({
        Le nombre restant est CALCULÉ sur ce que le catalogue contient et ce
        qu'on a déjà vu. Une promesse chiffrée qui ne se vérifie pas se retourne
        au deuxième jour. */
-    const restants = Math.max(0, briefs.length - vues.length);
+    const restants = restantsAVoir;
 
     return (
       <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-6 py-12 text-center">
@@ -251,7 +269,7 @@ export default function Defile({
           nombre={interets.length}
           // Ce qui reste VRAIMENT à voir : la taille du paquet moins ce qui
           // a déjà défilé. Une abondance annoncée au hasard se dément vite.
-          restants={Math.max(0, briefs.length - vues.length - index - 1)}
+          restants={restantsAVoir}
           cote="createur"
           onContinuer={() => setRelance(false)}
         />
