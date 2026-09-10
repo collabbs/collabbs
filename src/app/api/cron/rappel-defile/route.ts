@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
+// ⚠️ Sans cet import, `reportError` ne serait pas une erreur de compilation :
+// c'est aussi une fonction globale du navigateur (`window.reportError`), à un
+// seul argument. Le code aurait compilé et signalé dans le vide.
+import { reportError } from "@/lib/report-error";
 
 /**
  * Le rappel qui tient la promesse du paquet.
@@ -48,15 +52,51 @@ export async function GET(request: Request) {
   /* ⚠️ Jamais aux comptes de DÉMONSTRATION.
      Ils portent des adresses en `@collabbs.test`, un domaine qui n'existe pas.
      Le premier envoi aurait produit vingt-quatre rebonds durs d'un coup sur un
-     domaine d'expédition tout neuf — c'est exactement ainsi qu'on brûle sa
-     réputation avant d'avoir écrit à un seul vrai utilisateur. */
-  const { data: comptes } = await admin.auth.admin.listUsers({ perPage: 1000 });
+     domaine d'expédition tout neuf — c'est ainsi qu'on brûle sa réputation
+     avant d'avoir écrit à un seul vrai utilisateur.
+
+     ⚠️⚠️ ET SURTOUT : `listUsers` peut échouer EN ENTIER.
+     Six lignes d'authentification sont corrompues (des marques de démo créées
+     en SQL, avec des jetons à NULL que GoTrue ne sait pas lire). Une seule
+     ligne malade fait tomber la page entière, donc l'appel complet.
+     La première version de ce garde-fou lisait `data` sans regarder `error` :
+     la table d'adresses restait vide, chaque créateur tombait dans « adresse
+     inconnue », et le rappel n'envoyait RIEN — en comptant tout le monde comme
+     « ignoré ». Un envoi hebdomadaire qui ne part jamais et qui se déclare en
+     bonne santé, c'est pire que pas d'envoi du tout.
+
+     On lit donc l'erreur, on le dit, et on se rabat sur une lecture compte par
+     compte : elle ne récupère que les créateurs retenus, et une ligne malade
+     n'emporte plus que la sienne. */
+  const { data: comptes, error: errComptes } = await admin.auth.admin.listUsers({
+    perPage: 1000,
+  });
+  if (errComptes) {
+    await reportError("cron/rappel-defile-comptes", errComptes, {
+      detail:
+        "listUsers a échoué : lecture compte par compte à la place. " +
+        "Une ligne auth.users corrompue suffit à faire tomber l'appel entier.",
+    });
+  }
   const adresses = new Map(
     (comptes?.users ?? []).map((u) => [u.id, (u.email ?? "").toLowerCase()]),
   );
 
+  /** L'adresse d'un créateur, en dernier recours ligne par ligne. */
+  async function adresseDe(id: string): Promise<string | null> {
+    const connue = adresses.get(id);
+    if (connue !== undefined) return connue;
+    const { data, error } = await admin.auth.admin.getUserById(id);
+    // Cette ligne-ci est illisible : on ne lui écrit pas, et on ne fait pas
+    // tomber le reste de l'envoi pour autant.
+    if (error || !data?.user) return null;
+    const mail = (data.user.email ?? "").toLowerCase();
+    adresses.set(id, mail);
+    return mail;
+  }
+
   for (const c of createurs ?? []) {
-    const adresse = adresses.get(c.id) ?? "";
+    const adresse = await adresseDe(c.id);
     if (!adresse || adresse.endsWith("@collabbs.test") || adresse.includes("+demo")) {
       ignores++;
       continue;
