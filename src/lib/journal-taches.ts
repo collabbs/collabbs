@@ -22,6 +22,27 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Échouer. Noter un passage ne doit jamais empêcher la tâche de répondre : si
  * l'écriture rate, la réponse part quand même.
  */
+/**
+ * Dans quel mode Stripe le serveur tourne-t-il réellement ?
+ *
+ * ─── Pourquoi c'est noté ici ───
+ * Trois fois de suite, la question « la production est-elle en test ou en
+ * live ? » a reçu une réponse tirée d'un écran de configuration, et trois fois
+ * elle était fausse. Vercel affiche un aperçu de la valeur stockée, mais un
+ * aperçu n'est pas ce que le processus a réellement en mémoire — et seul le
+ * comportement du produit a fini par trancher (un compte Connect créé en test
+ * alors que le tableau de bord annonçait une clé live).
+ *
+ * Sept caractères suffisent à répondre : `sk_test` ou `sk_live`. C'est un
+ * préfixe public, il n'expose rien — et il rend la question définitivement
+ * vérifiable, par une requête, sans capture d'écran ni interprétation.
+ */
+function modeStripe(): string {
+  const cle = process.env.STRIPE_SECRET_KEY ?? "";
+  if (!cle) return "absente";
+  return cle.slice(0, 7);
+}
+
 export async function repondreEtNoter(
   tache: string,
   debut: number,
@@ -33,7 +54,7 @@ export async function repondreEtNoter(
       .insert({
         tache,
         ok: corps.ok !== false,
-        resultat: corps as never,
+        resultat: { ...corps, mode_stripe: modeStripe() } as never,
         duree_ms: Date.now() - debut,
       });
   } catch {
