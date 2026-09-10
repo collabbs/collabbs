@@ -762,7 +762,7 @@ export async function removeDeliverableFile(
 
   const { data: d } = await supabase
     .from("deliverables")
-    .select("deal_id, approved, submission_files, deals(creator_id)")
+    .select("deal_id, approved, submission_files, submission_url, deals(creator_id)")
     .eq("id", deliverableId)
     .single();
   if (!d || d.deals?.creator_id !== user.id)
@@ -774,9 +774,28 @@ export async function removeDeliverableFile(
   const existing = Array.isArray(d.submission_files) ? (d.submission_files as SubmissionFile[]) : [];
   const filtered = existing.filter((f) => f.path !== path);
 
+  /* ⚠️ RETIRER LE DERNIER FICHIER, C'EST NE PLUS AVOIR LIVRÉ.
+     Cette fonction ne touchait que la liste des fichiers. Un livrable dont on
+     retirait la dernière pièce restait donc `done = true` avec RIEN dedans —
+     et la marque voyait une carte qui se contredisait elle-même : le badge
+     « Livré » et un bouton « Valider » au-dessus de la phrase « En attente du
+     dépôt du contenu par le créateur ».
+     Le danger n'est pas l'affichage : c'est que « Valider » débloquait le
+     séquestre. Une collaboration à 315 € pouvait être payée pour un contenu
+     qui n'existait pas — sans mauvaise foi de personne, juste en cliquant sur
+     la croix d'un aperçu en croyant replier une vignette. C'est exactement ce
+     qui est arrivé pendant les essais du 10 septembre.
+     Un lien de publication compte comme une livraison : on ne dé-livre que
+     s'il ne reste vraiment plus rien. */
+  const plusRien = filtered.length === 0 && !d.submission_url;
+
   const { error } = await supabase
     .from("deliverables")
-    .update({ submission_files: filtered })
+    .update(
+      plusRien
+        ? { submission_files: filtered, done: false, submitted_at: null }
+        : { submission_files: filtered },
+    )
     .eq("id", deliverableId);
   if (error) return { ok: false, error: error.message };
 
@@ -831,10 +850,29 @@ export async function setDeliverableApproved(
 
   const { data: d } = await supabase
     .from("deliverables")
-    .select("deal_id, deals(brand_id, status)")
+    .select("deal_id, done, submission_url, submission_files, deals(brand_id, status)")
     .eq("id", deliverableId)
     .single();
   if (!d || d.deals?.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
+
+  /* ⚠️ ON NE VALIDE PAS DU VIDE.
+     Valider libère le séquestre. Un livrable sans lien ni fichier n'a rien à
+     valider — et si l'écran propose quand même le bouton, c'est que l'état en
+     base est incohérent. On refuse ici plutôt que de payer un contenu qui
+     n'existe pas : c'est le dernier rempart, celui qui tient même quand tout
+     le reste s'est trompé.
+     Le retrait de validation, lui, reste toujours permis. */
+  if (approved) {
+    const fichiers = Array.isArray(d.submission_files) ? d.submission_files.length : 0;
+    if (!d.submission_url && fichiers === 0) {
+      return {
+        ok: false,
+        error:
+          "Ce livrable ne contient ni fichier ni lien : il n'y a rien à valider. " +
+          "Demande au créateur de déposer son contenu.",
+      };
+    }
+  }
 
   const { error } = await supabase
     .from("deliverables")
