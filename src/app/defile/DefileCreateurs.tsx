@@ -177,11 +177,13 @@ export default function DefileCreateurs({
               Crée ton compte pour leur envoyer ton brief. Contrat généré tout
               seul, paiement bloqué jusqu&apos;à la livraison.
             </p>
+            {/* Connectée, la marque n'a pas de compte à créer : elle a des
+                créateurs à contacter depuis son espace. */}
             <Link
-              href="/signup?role=brand"
+              href={connecte ? "/creators" : "/signup?role=brand"}
               className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90"
             >
-              Les contacter
+              {connecte ? "Voir leurs profils" : "Les contacter"}
             </Link>
           </>
         ) : (
@@ -196,10 +198,10 @@ export default function DefileCreateurs({
               Deux minutes pour comprendre, et tu reviendras avec un autre œil.
             </p>
             <Link
-              href="/decouvrir"
+              href={connecte ? "/dashboard" : "/decouvrir"}
               className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 text-base font-bold text-white transition hover:opacity-90"
             >
-              Découvrir Collabbs
+              {connecte ? "Retour à mon espace" : "Découvrir Collabbs"}
             </Link>
           </>
         )}

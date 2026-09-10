@@ -67,9 +67,21 @@ export default async function PageDefile({
           Il occupe maintenant la largeur, avec son contenu centré. */}
       <header className="w-full border-b border-zinc-100">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-        {/* Le logo EST la sortie : qui ne comprend pas ce qu'il regarde clique
-            dessus et arrive sur la page qui l'explique. */}
-        <Link href="/decouvrir" aria-label="Collabbs" className="shrink-0">
+        {/* ⚠️ LE DÉFILÉ IGNORAIT QU'ON PUISSE ÊTRE CONNECTÉ.
+            Le logo menait à la page publique et le bouton à l'inscription —
+            pour tout le monde, y compris une marque qui avait déjà un compte.
+            Arrivée au bout du paquet, elle atterrissait sur un formulaire
+            d'inscription sans rien de son espace autour : elle se croyait
+            déconnectée, et n'avait aucun chemin de retour vers son tableau de
+            bord. Rapporté par Julien, le 10 septembre.
+
+            Connecté, tout ramène donc à l'espace ; sinon, tout mène à
+            l'inscription, comme avant. */}
+        <Link
+          href={utilisateur ? "/dashboard" : "/decouvrir"}
+          aria-label="Collabbs"
+          className="shrink-0"
+        >
           <Logo size={26} />
         </Link>
         {/* ─── UN VRAI APPEL, PAS UNE INVITATION À LIRE ───
@@ -79,10 +91,20 @@ export default async function PageDefile({
             faire défiler des campagnes. Le seul geste qui compte ici, c'est
             créer son profil — sans lui, aucun match ne mène nulle part. */}
         <Link
-          href={cotéMarque ? "/signup?role=brand" : "/signup?role=creator"}
+          href={
+            utilisateur
+              ? "/dashboard"
+              : cotéMarque
+                ? "/signup?role=brand"
+                : "/signup?role=creator"
+          }
           className="shrink-0 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
         >
-          {cotéMarque ? "Publier ma campagne" : "Créer mon profil"}
+          {utilisateur
+            ? "Mon espace"
+            : cotéMarque
+              ? "Publier ma campagne"
+              : "Créer mon profil"}
         </Link>
         </div>
       </header>

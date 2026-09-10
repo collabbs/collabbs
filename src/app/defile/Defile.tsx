@@ -229,20 +229,33 @@ export default function Defile({
         </h1>
 
         <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-zinc-500">
-          {interets.length > 0
-            ? `Tu en as retenu ${interets.length}. Crée ton compte pour les garder et monétiser tes vidéos avec des collaborations.`
-            : "Crée ton compte pour monétiser tes vidéos avec des collaborations — et être prévenu des prochaines."}
+          {/* Connecté, on ne demande pas de créer un compte qui existe déjà :
+              on ramène là où les campagnes retenues se retrouvent. */}
+          {connecte
+            ? interets.length > 0
+              ? `Tu en as retenu ${interets.length}. Retrouve-les dans tes favoris et candidate quand tu veux.`
+              : "Rien ne t'a parlé cette fois — d'autres campagnes arrivent."
+            : interets.length > 0
+              ? `Tu en as retenu ${interets.length}. Crée ton compte pour les garder et monétiser tes vidéos avec des collaborations.`
+              : "Crée ton compte pour monétiser tes vidéos avec des collaborations — et être prévenu des prochaines."}
         </p>
 
         <Link
-          href="/signup?role=creator"
+          href={connecte ? (interets.length > 0 ? "/favoris" : "/opportunities") : "/signup?role=creator"}
           className="mt-7 flex min-h-[58px] w-full max-w-xs items-center justify-center rounded-xl bg-ink px-6 text-[16px] font-semibold text-white transition hover:opacity-90"
         >
-          Créer mon compte
+          {connecte
+            ? interets.length > 0
+              ? "Voir mes favoris"
+              : "Voir toutes les opportunités"
+            : "Créer mon compte"}
         </Link>
 
-        <Link href="/decouvrir" className="mt-4 text-[14px] font-medium text-zinc-400 transition hover:text-ink">
-          C&apos;est quoi Collabbs&nbsp;?
+        <Link
+          href={connecte ? "/dashboard" : "/decouvrir"}
+          className="mt-4 text-[14px] font-medium text-zinc-400 transition hover:text-ink"
+        >
+          {connecte ? "Retour à mon espace" : "C'est quoi Collabbs ?"}
         </Link>
       </div>
     );
