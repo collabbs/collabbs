@@ -317,6 +317,33 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_taches: {
+        Row: {
+          id: number
+          tache: string
+          ok: boolean
+          resultat: Json | null
+          duree_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          tache: string
+          ok?: boolean
+          resultat?: Json | null
+          duree_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          tache?: string
+          ok?: boolean
+          resultat?: Json | null
+          duree_ms?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       cartes_vues: {
         Row: { viewer_id: string; cible_id: string; created_at: string }
         Insert: { viewer_id: string; cible_id: string; created_at?: string }

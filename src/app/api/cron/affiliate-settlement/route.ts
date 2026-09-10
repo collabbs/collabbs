@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { repondreEtNoter } from "@/lib/journal-taches";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { runAffiliateValidation } from "@/lib/affiliate-billing";
 import { purgeRateLimitBuckets } from "@/lib/rate-limit";
@@ -79,6 +80,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
+  // Le passage est note meme sans travail a faire : sans ca, « rien a
+  // faire » et « ne tourne pas » se ressemblent trait pour trait.
+  const debutTache = Date.now();
+
   const res = await runAffiliateValidation();
 
   // Ménage des seaux de limitation de débit. Greffé ici plutôt que dans une
@@ -96,5 +101,5 @@ export async function GET(request: Request) {
   // commission d'un créateur peut attendre indéfiniment sur une seule
   // notification non lue.
   const { relances } = await relancerVentesARevoir();
-  return NextResponse.json({ ok: true, ...res, purgedRateLimits, plansExpires, relances });
+  return repondreEtNoter("affiliate-settlement", debutTache, { ok: true, ...res, purgedRateLimits, plansExpires, relances });
 }

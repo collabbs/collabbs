@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { repondreEtNoter } from "@/lib/journal-taches";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { runAffiliatePayouts } from "@/lib/affiliate-billing";
 
@@ -10,6 +11,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
+  // Le passage est note meme sans travail a faire : sans ca, « rien a
+  // faire » et « ne tourne pas » se ressemblent trait pour trait.
+  const debutTache = Date.now();
+
   const res = await runAffiliatePayouts();
-  return NextResponse.json({ ok: true, ...res });
+  return repondreEtNoter("affiliate-payouts", debutTache, { ok: true, ...res });
 }

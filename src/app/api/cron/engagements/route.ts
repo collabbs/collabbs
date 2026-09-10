@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { repondreEtNoter } from "@/lib/journal-taches";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { doitOuvrirLeMois } from "@/lib/ambassadeur";
@@ -23,6 +24,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
+  // Le passage est note meme sans travail a faire : sans ca, « rien a
+  // faire » et « ne tourne pas » se ressemblent trait pour trait.
+  const debutTache = Date.now();
+
   const admin = createAdminClient();
   const maintenant = new Date().toISOString();
 
@@ -43,7 +48,7 @@ export async function GET(request: Request) {
     else erreurs.push(`${e.id}: ${res.error}`);
   }
 
-  return NextResponse.json({
+  return repondreEtNoter("engagements", debutTache, {
     ok: true,
     examines: engagements?.length ?? 0,
     ouverts,

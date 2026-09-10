@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { repondreEtNoter } from "@/lib/journal-taches";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyOnce } from "@/lib/notifications";
@@ -10,6 +11,10 @@ export async function GET(request: Request) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+
+  // Le passage est note meme sans travail a faire : sans ca, « rien a
+  // faire » et « ne tourne pas » se ressemblent trait pour trait.
+  const debutTache = Date.now();
 
   const admin = createAdminClient();
   const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
@@ -57,5 +62,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, checked: profiles?.length ?? 0, sent });
+  return repondreEtNoter("profile-incomplete", debutTache, { ok: true, checked: profiles?.length ?? 0, sent });
 }
