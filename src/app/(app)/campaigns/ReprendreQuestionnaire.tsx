@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
    n'y avait rien, sans le moindre message. Le pont existait et ne raccordait
    rien. Trouvé par l'audit, jamais par moi : je n'avais pas pu jouer ce
    parcours faute de compte marque, et je l'avais annoncé sans le vérifier. */
-import { CLE_BRIEF } from "@/lib/quiz";
+import { CLE_BRIEF, repriseAutorisee } from "@/lib/quiz";
 import { creerCampagneDepuisCarte } from "./depuis-questionnaire";
 
 /**
@@ -40,6 +40,16 @@ export default function ReprendreQuestionnaire() {
   useEffect(() => {
     if (lance.current) return;
     lance.current = true;
+
+    /* ⚠️ Une reprise, pas une surprise.
+       Ce composant lisait le brief dès qu'il en trouvait un et publiait la
+       campagne correspondante. Or cette clé survit des semaines : un brief
+       rempli lors d'un essai devenait une VRAIE campagne active le jour où son
+       auteur se connectait pour autre chose — et `brands.website` était écrasé
+       par l'adresse de ce vieux brief. Constaté le 10/09 : deux campagnes à
+       cinq secondes d'intervalle, dont une que personne n'avait demandée.
+       On n'agit donc que dans la continuité du geste. */
+    if (!repriseAutorisee()) return;
 
     const brut = window.localStorage.getItem(CLE_BRIEF);
     if (!brut) return;

@@ -51,6 +51,58 @@ export const CLE_INTERETS = "collabbs.interets.v1";
 export const CLE_REPERAGES = "collabbs.reperages.v1";
 
 /**
+ * L'instant où quelqu'un est parti du questionnaire vers l'inscription.
+ *
+ * ─── Pourquoi une DATE, et pas la simple présence d'une carte ───
+ * Les reprises d'après-inscription lisaient la carte ou le brief laissés dans
+ * le navigateur, et agissaient dessus. Mais ces clés survivent des semaines :
+ * un brief rempli lors d'un essai, oublié là, devenait une VRAIE campagne
+ * publiée le jour où son auteur se connectait pour tout autre chose — avec
+ * l'adresse de son site écrasée au passage. C'est arrivé le 10 septembre :
+ * une campagne « Performance + Affiliation » est apparue cinq secondes après
+ * celle que Julien créait vraiment, sans qu'il ait rien demandé.
+ *
+ * Une reprise n'a de sens que dans la continuité du geste : « je viens de
+ * répondre, je viens de créer mon compte, j'arrive ». Passé quelques heures,
+ * ce n'est plus une reprise, c'est une surprise.
+ */
+export const CLE_REPRISE = "collabbs.reprise.v1";
+
+/** Au-delà, la carte laissée dans le navigateur n'est plus « en cours ». */
+export const REPRISE_VALIDE_HEURES = 6;
+
+/** Marque le départ vers l'inscription : c'est ce qui autorise la reprise. */
+export function marquerDepartInscription() {
+  try {
+    window.localStorage.setItem(CLE_REPRISE, String(Date.now()));
+  } catch {
+    /* navigation privée saturée : la reprise n'aura pas lieu, rien de grave */
+  }
+}
+
+/**
+ * La reprise est-elle encore légitime ?
+ *
+ * ⚠️ NE CONSOMME PAS le jeton. Plusieurs reprises coexistent — celle du
+ * créateur est montée dans la mise en page de tout l'espace connecté, celle de
+ * la marque sur ses campagnes. La première à lire aurait avalé le jeton et
+ * privé la seconde du sien, en silence. C'est la FRAÎCHEUR qui protège, pas
+ * l'unicité de la lecture ; et ce qui a été repris est retiré par son propre
+ * appelant.
+ */
+export function repriseAutorisee(): boolean {
+  try {
+    const brut = window.localStorage.getItem(CLE_REPRISE);
+    if (!brut) return false;
+    const quand = Number(brut);
+    if (!Number.isFinite(quand)) return false;
+    return Date.now() - quand < REPRISE_VALIDE_HEURES * 3600 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Tout ce que le parcours d'entrée garde dans le navigateur.
  *
  * Rassemblé ici pour qu'une remise à zéro n'en oublie aucune : effacer la

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Trace from "@/components/Trace";
 import { tracerEtape } from "@/lib/tunnel";
+import { marquerDepartInscription } from "@/lib/quiz";
 import { jetonDeSession } from "@/lib/session-tunnel";
 import { assombrir, eclaircir } from "@/lib/teinte";
 
@@ -150,6 +151,10 @@ export default function EcranRelance({
           onClick={() => {
             const jeton = jetonDeSession();
             if (jeton) void tracerEtape("inscription_cliquee", jeton, estCreateur ? "createur" : "marque");
+            // C'est CE geste — et lui seul — qui autorise la reprise de ce qui
+            // a été répondu. Sans lui, une carte oubliée dans le navigateur
+            // resterait sans effet le jour d'une connexion ordinaire.
+            marquerDepartInscription();
           }}
           href={estCreateur ? "/signup?role=creator" : "/signup?role=brand"}
           className="mt-7 flex min-h-[58px] w-full items-center justify-center rounded-xl bg-ink px-6 text-[16px] font-semibold text-white transition hover:opacity-90"

@@ -84,3 +84,56 @@ describe("à qui le rappel du défilé a le droit d'écrire", () => {
     }
   });
 });
+
+/**
+ * Une reprise, pas une surprise.
+ *
+ * ─── Ce qui est arrivé le 10 septembre ───
+ * `ReprendreQuestionnaire` publiait une campagne dès qu'il trouvait un brief
+ * dans le navigateur. Or cette clé survit des semaines. Un brief rempli lors
+ * d'un essai est devenu une VRAIE campagne active — cinq secondes après celle
+ * que Julien créait vraiment — et l'adresse de son site a été écrasée par
+ * celle de ce vieux brief.
+ *
+ * Une reprise n'a de sens que dans la continuité du geste : « je viens de
+ * répondre, je viens de créer mon compte, j'arrive ». Passé quelques heures,
+ * ce n'est plus une reprise.
+ */
+describe("le jeton qui autorise une reprise", () => {
+  it("refuse en l'absence de jeton", async () => {
+    const { repriseAutorisee, CLE_REPRISE } = await import("@/lib/quiz");
+    globalThis.window = { localStorage: { getItem: () => null, removeItem: () => {}, setItem: () => {} } } as never;
+    expect(repriseAutorisee()).toBe(false);
+    expect(CLE_REPRISE).toBe("collabbs.reprise.v1");
+  });
+
+  it("accepte un départ tout frais et refuse un départ d'hier", async () => {
+    const { repriseAutorisee, REPRISE_VALIDE_HEURES } = await import("@/lib/quiz");
+    const avec = (quand: number) => {
+      globalThis.window = {
+        localStorage: { getItem: () => String(quand), removeItem: () => {}, setItem: () => {} },
+      } as never;
+      return repriseAutorisee();
+    };
+    expect(avec(Date.now())).toBe(true);
+    expect(avec(Date.now() - (REPRISE_VALIDE_HEURES + 1) * 3600 * 1000)).toBe(false);
+  });
+
+  it("ne consomme PAS le jeton : deux reprises coexistent", async () => {
+    // Celle du créateur est montée dans la mise en page de tout l'espace
+    // connecté, celle de la marque sur ses campagnes. Si la première lecture
+    // effaçait le jeton, la seconde repartirait bredouille — en silence.
+    const { repriseAutorisee } = await import("@/lib/quiz");
+    let efface = false;
+    globalThis.window = {
+      localStorage: {
+        getItem: () => String(Date.now()),
+        removeItem: () => { efface = true; },
+        setItem: () => {},
+      },
+    } as never;
+    expect(repriseAutorisee()).toBe(true);
+    expect(repriseAutorisee()).toBe(true);
+    expect(efface).toBe(false);
+  });
+});
