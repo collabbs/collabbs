@@ -1,0 +1,22 @@
+<!-- Le pictogramme de Collabbs, seul : les deux ronds qui se recouvrent — les
+     deux « bb » du nom, et l'idée du produit, deux mondes qui se rencontrent.
+
+     En SVG plutôt qu'en .ico : un favicon est affiché à 16 px dans un onglet,
+     à 32 px dans un favori, à 180 px sur un écran d'accueil de téléphone. Un
+     .ico fige quelques tailles et bave entre les deux ; un vecteur reste net
+     partout, et se corrige en éditant du texte.
+
+     Les valeurs sont recopiées de `components/landing/Logo.tsx`. Si la marque
+     change là-bas, elle doit changer ici : ce sont les deux seuls endroits où
+     ce dessin existe. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="72" height="72">
+  <defs>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect width="72" height="72" rx="16" fill="url(#c)"/>
+  <circle cx="28" cy="36" r="14" fill="#fff"/>
+  <circle cx="44" cy="36" r="14" fill="#fff" fill-opacity="0.55"/>
+</svg>
