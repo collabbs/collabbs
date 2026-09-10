@@ -57,6 +57,25 @@ export async function notify(args: {
     if (userErr || !userData.user?.email) return;
     const to = userData.user.email;
 
+    /* ═══ LE SEUL ENDROIT OÙ CE CONTRÔLE A SA PLACE ═══
+
+       Les comptes de démonstration portent des adresses en `@collabbs.test`
+       (un domaine RÉSERVÉ par la RFC 2606 : il ne résout jamais) et
+       `@collabbs.dev` (aucun enregistrement MX). Écrire là-bas ne produit que
+       des rebonds durs, et un domaine d'expédition neuf n'en supporte pas
+       beaucoup avant d'être classé indésirable partout.
+
+       Ce garde-fou existait dans UN cron sur huit. Le résultat était mesurable :
+       le 10 septembre à 9h30, `profile-incomplete` a tenté 28 envois vers
+       `.test` — et il tourne tous les jours. Protéger chaque appelant, c'est
+       oublier le neuvième.
+
+       On le pose donc là où l'email part réellement. La notification EN BASE,
+       elle, reste écrite : elle est visible dans le produit, elle ne coûte
+       rien, et elle garde la trace de ce qui aurait été dit. */
+    const DOMAINES_SANS_COURRIER = ["@collabbs.test", "@collabbs.dev", "@example.com", "@example.org"];
+    if (DOMAINES_SANS_COURRIER.some((d) => to.toLowerCase().endsWith(d))) return;
+
     let origin = "https://collabbs.com";
     try {
       const h = await headers();

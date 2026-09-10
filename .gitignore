@@ -46,3 +46,6 @@ run-dev.sh
 
 # Config locale Claude Code (chemins spécifiques à la machine)
 .claude/
+
+# Exports comptables faits avant une remise a zero : jamais dans le depot.
+.sauvegardes/
