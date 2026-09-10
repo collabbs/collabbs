@@ -28,7 +28,19 @@ export const metadata: Metadata = {
     title: "Collabbs",
     statusBarStyle: "default",
   },
+  /* ⚠️ Déclarer `icons` DÉSACTIVE la détection automatique des fichiers
+     `icon.*` par Next.js. Cet objet ne portait que l'icône Apple : le
+     `src/app/icon.svg` posé à côté n'était donc jamais référencé, et les
+     onglets affichaient le favicon livré par défaut avec Next — le triangle de
+     Vercel — y compris sur la page de paiement d'une marque.
+     Dès qu'on écrit `icons`, il faut TOUT y écrire. */
   icons: {
+    icon: [
+      // Le vecteur d'abord : net à 16 px dans un onglet comme à 180 px.
+      { url: "/icon.svg", type: "image/svg+xml" },
+      // Le repli matriciel, pour ce qui ne sait pas lire un SVG en favicon.
+      { url: "/icons/collabbs-192.png", type: "image/png", sizes: "192x192" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };
