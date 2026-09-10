@@ -89,6 +89,25 @@ export type OnboardingData = {
   offers: { offer: OfferId; price: number | null }[];
 };
 
+/* ─── Pourquoi ces écritures ne sont plus des `upsert` ───
+ *
+ * Un `upsert` PostgREST écrit TOUTES les colonnes fournies, `id` compris, y
+ * compris dans la branche « la ligne existe déjà ». Or la migration 0068 a
+ * retiré au navigateur le droit de modifier les colonnes qu'il n'a aucune
+ * raison de toucher — et `id` en fait partie. Postgres refuse alors la requête
+ * ENTIÈRE, pas seulement la colonne fautive.
+ *
+ * Observé le 10 septembre : une marque changeait son logo, cliquait
+ * Enregistrer, et rien ne partait. Le message d'erreur existait, mais il
+ * s'affiche en haut du formulaire — hors de vue de quelqu'un qui vient de
+ * cliquer en bas. Invisible, donc, jusqu'à ce que Julien remarque que son logo
+ * ne tenait pas d'une visite à l'autre.
+ *
+ * La ligne est créée par le déclencheur `handle_new_user` à l'inscription : la
+ * mettre à jour suffit. L'insertion reste en second recours pour les comptes
+ * antérieurs à ce déclencheur — et elle, a bien le droit d'écrire `id`.
+ */
+
 export async function saveCreatorOnboarding(
   data: OnboardingData,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -113,11 +132,7 @@ export async function saveCreatorOnboarding(
   // Profil créateur — UPSERT pour être robuste si la row n'a pas été créée
   // par le trigger handle_new_user (rare mais possible en cas de signup
   // historique avant que le trigger ne soit en place).
-  const { error: creatorErr } = await supabase
-    .from("creators")
-    .upsert(
-      {
-        id: user.id,
+  const fiche = {
         handle: data.handle || null,
         bio: data.bio || null,
         custom_niche: data.customNiche || null,
@@ -126,9 +141,17 @@ export async function saveCreatorOnboarding(
         // ville ne regrouperait rien.
         city_slug: citySlug(data.city ?? ""),
         travels: Boolean(data.travels),
-      },
-      { onConflict: "id" },
-    );
+  };
+  const { data: majCreateur, error: errMajCreateur } = await supabase
+    .from("creators")
+    .update(fiche)
+    .eq("id", user.id)
+    .select("id");
+  const creatorErr =
+    errMajCreateur ??
+    (majCreateur && majCreateur.length > 0
+      ? null
+      : (await supabase.from("creators").insert({ id: user.id, ...fiche })).error);
   if (creatorErr) {
     console.error("saveCreatorOnboarding: creators upsert failed", creatorErr);
     return { ok: false, error: `Profil créateur : ${creatorErr.message}` };
@@ -232,19 +255,23 @@ export async function saveBrandOnboarding(
   if (!user) return { ok: false, error: "Non connecté." };
 
   // UPSERT pour la même raison que côté créateur — robuste si la row n'existe pas.
-  const { error: brandErr } = await supabase
-    .from("brands")
-    .upsert(
-      {
-        id: user.id,
+  const fiche = {
         name: data.name,
         sector: data.sector || null,
         website: data.website || null,
         logo_url: data.logoUrl,
         description: data.description?.trim() || null,
-      },
-      { onConflict: "id" },
-    );
+  };
+  const { data: majMarque, error: errMajMarque } = await supabase
+    .from("brands")
+    .update(fiche)
+    .eq("id", user.id)
+    .select("id");
+  const brandErr =
+    errMajMarque ??
+    (majMarque && majMarque.length > 0
+      ? null
+      : (await supabase.from("brands").insert({ id: user.id, ...fiche })).error);
   if (brandErr) {
     console.error("saveBrandOnboarding: brands upsert failed", brandErr);
     return { ok: false, error: `Profil marque : ${brandErr.message}` };

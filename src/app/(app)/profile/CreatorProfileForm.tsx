@@ -205,6 +205,14 @@ export default function CreatorProfileForm({
         }
       } else {
         setError(res.error ?? "Une erreur est survenue.");
+        // On remonte AUSSI en cas d'échec. Le bandeau d'erreur vit en haut du
+        // formulaire ; quelqu'un qui vient de cliquer « Enregistrer » est en
+        // bas et ne le voit jamais. C'est ainsi qu'un enregistrement refusé
+        // par la base est passé pour un enregistrement réussi pendant des
+        // jours — le logo d'une marque ne tenait pas, sans un mot d'explication.
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       }
     } finally {
       setSaving(false);
