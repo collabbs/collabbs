@@ -1209,6 +1209,29 @@ export async function refundDeal(dealId: string): Promise<Result> {
     };
   }
 
+  /* ⚠️ UN SÉQUESTRE REMBOURSÉ MET FIN À LA COLLABORATION.
+     Cette action ne touchait que la transaction : la collaboration restait
+     `active`, sans un euro en séquestre. Le créateur pouvait donc continuer à
+     travailler — et livrer — pour un travail que plus rien ne garantit, pendant
+     que sa page annonçait toujours « les fonds seront versés à la clôture ».
+     Le remboursement n'est possible que si RIEN n'a été livré (`peutRembourser`)
+     : c'est un abandon, et un abandon se termine. Le contrat est résilié avec,
+     comme lors d'une annulation ordinaire. */
+  const { error: errFin } = await supabase
+    .from("deals")
+    .update({ status: "cancelled" })
+    .eq("id", dealId);
+  if (errFin) {
+    await reportError("deal/remboursement-cloture", errFin, { detail: `deal ${dealId}` });
+  }
+  const { error: errContrat } = await createAdminClient()
+    .from("contracts")
+    .update({ status: "terminated", terminated_at: new Date().toISOString() })
+    .eq("deal_id", dealId);
+  if (errContrat) {
+    await reportError("deal/remboursement-contrat", errContrat, { detail: `deal ${dealId}` });
+  }
+
   // Notifie le créateur que le paiement a été remboursé (donc pas de versement).
   const { data: dealForNotif } = await supabase
     .from("deals")
@@ -1220,7 +1243,9 @@ export async function refundDeal(dealId: string): Promise<Result> {
       userId: dealForNotif.creator_id,
       type: "deal_refunded",
       title: `Paiement remboursé sur "${dealForNotif.title ?? "le deal"}"`,
-      body: "La marque a annulé son paiement avant clôture — le versement vers ton compte n'aura donc pas lieu pour ce deal.",
+      body:
+        "La marque a repris les fonds qu'elle avait déposés, avant toute livraison. " +
+        "La collaboration est close et aucun versement n'aura lieu. Si tu avais commencé à travailler dessus, écris-lui.",
       link: `/deals/${dealId}`,
     });
   }
