@@ -382,6 +382,13 @@ export default async function DealDetailPage({
             created_at: deal.created_at,
             status: deal.status,
             accepted_at: deal.accepted_at,
+            // Signé = les DEUX parties ont signé. On prend la plus tardive.
+            contract_signed_at:
+              contract?.brand_signed_at && contract?.creator_signed_at
+                ? contract.brand_signed_at > contract.creator_signed_at
+                  ? contract.brand_signed_at
+                  : contract.creator_signed_at
+                : null,
             escrow_due_at: deal.escrow_due_at,
             brand_validated_at: deal.brand_validated_at,
             brand_validation_deadline_days: deal.brand_validation_deadline_days,

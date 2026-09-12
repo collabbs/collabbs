@@ -36,6 +36,20 @@ export type DealForTimeline = {
   created_at: string;
   status: "negotiation" | "active" | "completed" | "cancelled";
   accepted_at: string | null;
+  /**
+   * La date de la dernière des deux signatures du contrat, s'il est signé.
+   *
+   * ─── Pourquoi cette donnée est ici ───
+   * L'étape s'appelle « Contrat signé ». Elle se calculait pourtant sur
+   * `accepted_at`, un horodatage du DEAL — et une collaboration active dont le
+   * contrat portait les deux signatures depuis des mois restait affichée
+   * « étape 2/6, en attente du créateur », indéfiniment. Julien l'a vu tout de
+   * suite : « c'est déjà accepté non ? ». Oui, ça l'était.
+   *
+   * Un écran de suivi qui se trompe d'étape est pire qu'un écran sans suivi :
+   * il fait douter de ce qu'on vient de faire.
+   */
+  contract_signed_at: string | null;
   escrow_due_at: string | null;
   brand_validated_at: string | null;
   brand_validation_deadline_days: number;
@@ -67,7 +81,12 @@ export default function DealTimeline({
 
   // ===== Calcul des 6 étapes =====
   const stepNegoDone = true; // dès qu'il y a un deal, les termes sont posés
-  const stepSignedDone = deal.status !== "negotiation" && Boolean(deal.accepted_at);
+  /* La SIGNATURE fait foi, pas l'horodatage du deal : c'est le nom même de
+     l'étape. `accepted_at` reste en second recours pour les collaborations
+     anciennes dont le contrat n'a pas été conservé. */
+  const stepSignedDone =
+    Boolean(deal.contract_signed_at) ||
+    (deal.status !== "negotiation" && Boolean(deal.accepted_at));
   const stepPaidDone = paid;
   const stepDeliveredDone = allDelivered;
   const stepValidatedDone =
@@ -130,7 +149,7 @@ export default function DealTimeline({
       emoji: "✍️",
       label: "Contrat signé",
       hint: "Validation des 2 parties",
-      date: fmtDate(deal.accepted_at),
+      date: fmtDate(deal.accepted_at ?? deal.contract_signed_at),
       state: stepSignedDone
         ? "done"
         : currentN === 2
