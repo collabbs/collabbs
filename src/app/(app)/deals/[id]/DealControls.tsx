@@ -56,7 +56,26 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  /**
+   * L'éditeur de termes s'ouvre TOUT SEUL sur une collaboration à fixer.
+   *
+   * ─── Pourquoi ───
+   * « Proposer une collaboration » depuis le profil d'un créateur crée la
+   * collaboration à 0 € — les termes se posent ensuite. La marque atterrissait
+   * donc sur une page qui l'informait poliment qu'elle avait du travail :
+   * « Montant à fixer, utilise Modifier les termes ». Le bouton promettait une
+   * proposition et livrait une coquille vide avec un devoir à faire.
+   *
+   * Une page où il n'y a rien à lire doit montrer le formulaire, pas une
+   * consigne pour le trouver. C'est la même règle que pour un livrable vide,
+   * dont l'éditeur s'ouvre déjà de lui-même.
+   *
+   * La condition porte sur l'ÉTAT, pas sur la provenance : une marque qui
+   * revient trois jours plus tard sur sa collaboration restée à 0 € retrouve
+   * le formulaire ouvert, sans avoir à se souvenir de rien.
+   */
+  const aFixer = role === "brand" && status === "negotiation" && terms.amount === 0;
+  const [editing, setEditing] = useState(aFixer);
 
   const [quantity, setQuantity] = useState(terms.quantity);
   const [envoiRequis, setEnvoiRequis] = useState(terms.shippingRequired);

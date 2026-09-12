@@ -829,7 +829,9 @@ export default async function DealDetailPage({
                   ? role === "brand"
                     ? deal.perf_rate != null
                       ? `✏️ Plafond à fixer. Cette campagne paie ${deal.perf_rate} € / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`
-                      : "✏️ Montant à fixer. Cette collaboration est à 0 € : utilise « Modifier les termes » pour indiquer ce que tu proposes. Le créateur ne peut pas accepter avant."
+                      : // Le formulaire s'ouvre désormais tout seul juste en dessous :
+                        // la phrase dit donc ce qu'il faut faire, plus où le trouver.
+                        "✏️ Indique ce que tu proposes — montant, format, échéance. Le créateur ne peut pas accepter avant, et il ne sera prévenu qu'à ce moment-là."
                     : deal.perf_rate != null
                       ? `✏️ La marque n'a pas encore fixé le plafond de cette collaboration aux vues (${deal.perf_rate} € / 1000 vues). Tu seras prévenu·e dès qu'elle l'aura indiqué.`
                       : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
