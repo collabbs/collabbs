@@ -108,7 +108,16 @@ export default function DeliverableRow({
     for (const f of files) {
       if (f.size > MAX_BYTES) {
         setUploadError(
-          `${f.name} fait ${(f.size / (1024 * 1024)).toFixed(0)} Mo (max 500 Mo). Compresse-la dans un éditeur ou exporte en 720p / bitrate plus bas.`,
+          /* ⚠️ Un refus doit proposer une SORTIE, pas seulement un obstacle.
+             « Compresse-la » demande à un créateur d'ouvrir un éditeur vidéo
+             pour livrer — alors que le champ juste au-dessus accepte un lien,
+             et que c'est ce que fait tout le monde en vrai : la vidéo est déjà
+             sur TikTok, ou dans un Drive. Une vidéo de téléphone dépasse
+             couramment 500 Mo ; le message doit donc commencer par le chemin
+             qui marche. */
+          `${f.name} fait ${(f.size / (1024 * 1024)).toFixed(0)} Mo — au-delà des 500 Mo acceptés. ` +
+            `Le plus simple : colle le lien de ta publication ou d'un dossier partagé dans le champ ci-dessus. ` +
+            `Sinon, réexporte la vidéo en 1080p avec un bitrate plus bas.`,
         );
         return;
       }
