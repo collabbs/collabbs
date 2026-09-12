@@ -741,12 +741,50 @@ export async function handleTopupCheckout(session: {
   return { ok: credited.ok, brandId };
 }
 
+/**
+ * La carte de la marque a été refusée hors session — et elle doit l'apprendre.
+ *
+ * ─── Ce qui manquait ───
+ * Cette fonction ne posait qu'un horodatage. Le produit savait que la carte
+ * avait échoué ; la marque, non. Elle l'aurait découvert par un créateur qui
+ * réclame sa commission, ou jamais.
+ *
+ * Pire : le garde-fou qui empêche de retenter une carte refusée se justifiait
+ * par « la marque a été prévenue, elle doit agir ». C'était faux. On ne
+ * retentait pas ET on ne disait rien — la provision restait bloquée en silence
+ * jusqu'à ce que quelqu'un s'en aperçoive.
+ *
+ * On n'avertit qu'au PREMIER refus d'une série : le retour à la ligne se fait
+ * tout seul, puisqu'un approvisionnement réussi remet `topup_failed_at` à nul.
+ * `notifyOnce` ne conviendrait pas — c'est un « une seule fois pour toujours »,
+ * et un refus de carte dans un an devra être annoncé de nouveau.
+ */
 async function flagTopupFailure(brandId: string) {
   const admin = createAdminClient();
+  const { data: avant } = await admin
+    .from("brands")
+    .select("topup_failed_at")
+    .eq("id", brandId)
+    .maybeSingle();
+
   await admin
     .from("brands")
     .update({ topup_failed_at: new Date().toISOString() })
     .eq("id", brandId);
+
+  // On ne réveille personne pour un échec déjà signalé.
+  if (avant?.topup_failed_at) return;
+
+  await notify({
+    userId: brandId,
+    type: "topup_failed",
+    title: "Ta carte a été refusée — la recharge n'a pas pu se faire",
+    body:
+      "La recharge automatique de ta provision a échoué : ta banque a demandé une authentification que nous ne pouvons pas faire sans toi. " +
+      "Approvisionne à la main depuis la page Provision — ta carte sera réenregistrée au passage. " +
+      "Tant que ta provision est à sec, les commissions de tes créateurs ne sont plus couvertes.",
+    link: "/billing",
+  });
 }
 
 /**
