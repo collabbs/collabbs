@@ -151,7 +151,15 @@ export async function settleSale(params: {
        du code qui a l'air fait et qui ne tourne pas.
        `after()` existe pour ça : le travail s'exécute APRÈS l'envoi de la
        réponse, et la plateforme garde la fonction en vie pour lui. */
-    after(() => rechargerSiSousLeSeuil(brandId));
+    /* `after()` lève hors d'une requête — un cron, un script, un test. On
+       retombe alors sur l'attente simple : mieux vaut une recharge qui retarde
+       de deux secondes un traitement de fond qu'une recharge qui n'arrive
+       jamais, ou pire, une exception qui fait échouer la vente elle-même. */
+    try {
+      after(() => rechargerSiSousLeSeuil(brandId));
+    } catch {
+      await rechargerSiSousLeSeuil(brandId);
+    }
   }
 
   const status: SettlementStatus = reserved ? "pending" : "unfunded";

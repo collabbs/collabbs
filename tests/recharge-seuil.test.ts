@@ -30,7 +30,7 @@ describe("le seuil de recharge automatique", () => {
   });
 
   it("se déclenche après une réservation réussie", () => {
-    expect(source).toMatch(/if \(reserved\) \{[\s\S]{0,900}?after\(\(\) => rechargerSiSousLeSeuil\(brandId\)\)/);
+    expect(source).toMatch(/if \(reserved\) \{[\s\S]{0,1600}?after\(\(\) => rechargerSiSousLeSeuil\(brandId\)\)/);
   });
 
   it("survit à l'envoi de la réponse", () => {
@@ -42,6 +42,15 @@ describe("le seuil de recharge automatique", () => {
        l'envoi de la réponse, et la plateforme garde la fonction en vie. */
     expect(source).toContain("after(() => rechargerSiSousLeSeuil(brandId))");
     expect(source).not.toMatch(/void rechargerSiSousLeSeuil/);
+  });
+
+  it("se rabat sur l'attente simple hors d'une requête", () => {
+    /* `after()` LÈVE hors d'un contexte de requête — un cron, un script, un
+       test. Sans repli, l'exception remontait jusqu'à faire échouer la vente
+       elle-même : découvert parce que la suite de tests est passée au rouge,
+       pas en relisant. Mieux vaut une recharge qui retarde un traitement de
+       fond de deux secondes qu'une vente perdue. */
+    expect(source).toMatch(/catch \{\s*\n\s*await rechargerSiSousLeSeuil\(brandId\);/);
   });
 
   it("ne retente pas une carte déjà refusée", () => {
