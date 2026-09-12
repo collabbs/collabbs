@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
@@ -140,7 +141,17 @@ export async function settleSale(params: {
      arrière-plan : elle ne doit pas retarder la réponse à la boutique de la
      marque, qui attend un accusé de réception, pas un débit de carte. */
   if (reserved) {
-    void rechargerSiSousLeSeuil(brandId);
+    /* ⚠️ `after()` ET NON `void`.
+       Ma première version lançait la recharge sans l'attendre, pour ne pas
+       retarder la réponse à la boutique. Sur une fonction sans serveur, une
+       promesse non attendue est TUÉE dès que la réponse part : la recharge ne
+       s'exécutait jamais. Vérifié en conditions réelles — la réservation
+       passait, le solde tombait sous le seuil, et rien ne se produisait.
+       C'est exactement le défaut que je passe ma semaine à trouver ailleurs :
+       du code qui a l'air fait et qui ne tourne pas.
+       `after()` existe pour ça : le travail s'exécute APRÈS l'envoi de la
+       réponse, et la plateforme garde la fonction en vie pour lui. */
+    after(() => rechargerSiSousLeSeuil(brandId));
   }
 
   const status: SettlementStatus = reserved ? "pending" : "unfunded";

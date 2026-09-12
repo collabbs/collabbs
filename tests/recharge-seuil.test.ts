@@ -30,13 +30,18 @@ describe("le seuil de recharge automatique", () => {
   });
 
   it("se déclenche après une réservation réussie", () => {
-    expect(source).toMatch(/if \(reserved\) \{\s*\n\s*void rechargerSiSousLeSeuil\(brandId\);/);
+    expect(source).toMatch(/if \(reserved\) \{[\s\S]{0,900}?after\(\(\) => rechargerSiSousLeSeuil\(brandId\)\)/);
   });
 
-  it("ne retarde pas la réponse au postback de la marque", () => {
-    // `void` et non `await` : la boutique attend un accusé de réception, pas
-    // le temps d'un débit de carte.
-    expect(source).toContain("void rechargerSiSousLeSeuil(brandId)");
+  it("survit à l'envoi de la réponse", () => {
+    /* Ma première version lançait la recharge sans l'attendre — `void` — pour
+       ne pas retarder la réponse à la boutique. Sur une fonction sans serveur,
+       une promesse non attendue est TUÉE dès que la réponse part : la recharge
+       ne s'exécutait jamais. Vérifié en conditions réelles.
+       `after()` fait exactement ce qu'on voulait : le travail s'exécute après
+       l'envoi de la réponse, et la plateforme garde la fonction en vie. */
+    expect(source).toContain("after(() => rechargerSiSousLeSeuil(brandId))");
+    expect(source).not.toMatch(/void rechargerSiSousLeSeuil/);
   });
 
   it("ne retente pas une carte déjà refusée", () => {
