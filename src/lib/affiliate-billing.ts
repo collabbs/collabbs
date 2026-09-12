@@ -120,6 +120,29 @@ export async function settleSale(params: {
     }
   }
 
+  /* ═══ LE SEUIL SERT ENFIN À QUELQUE CHOSE ═══
+
+     L'écran de provision promet : « Quand le solde passe sous le seuil, on
+     recharge ta carte automatiquement. Tes campagnes ne s'arrêtent jamais. »
+     Et il propose un champ « Recharger sous X € ».
+
+     Or ce seuil n'était lu que pour être RÉAFFICHÉ. Aucune décision ne s'en
+     servait : la recharge ne partait qu'au moment où une réservation ÉCHOUAIT,
+     c'est-à-dire quand la provision était déjà à sec. La marque choisissait
+     60 € en croyant se donner une marge, et la recharge attendait 0 €.
+
+     Ça marchait — la vente finissait réservée après recharge — mais pas comme
+     annoncé, et pas sans risque : si la carte est refusée à ce moment-là, la
+     commission reste non financée et le créateur attend. Tout l'intérêt d'un
+     seuil est de recharger AVANT d'en avoir besoin.
+
+     On regarde donc le solde APRÈS avoir réservé. La recharge se déclenche en
+     arrière-plan : elle ne doit pas retarder la réponse à la boutique de la
+     marque, qui attend un accusé de réception, pas un débit de carte. */
+  if (reserved) {
+    void rechargerSiSousLeSeuil(brandId);
+  }
+
   const status: SettlementStatus = reserved ? "pending" : "unfunded";
   const { error: errStatut } = await admin
     .from("affiliate_events")
@@ -410,6 +433,39 @@ export async function ensureBrandCustomer(brandId: string): Promise<string> {
  * authentification (3D Secure), le paiement échoue et il faut la prévenir pour
  * qu'elle recharge à la main — d'où le message explicite plutôt qu'un silence.
  */
+/**
+ * Recharge la provision si elle est passée sous le seuil choisi par la marque.
+ *
+ * Appelée APRÈS une réservation réussie, sans être attendue : le postback de la
+ * boutique attend un accusé de réception, pas le temps d'un débit de carte.
+ *
+ * Silencieuse quand il n'y a rien à faire — c'est le cas le plus fréquent.
+ */
+export async function rechargerSiSousLeSeuil(brandId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data: b } = await admin
+      .from("brands")
+      .select("balance, autotopup_enabled, autotopup_threshold, topup_failed_at")
+      .eq("id", brandId)
+      .maybeSingle();
+    if (!b?.autotopup_enabled) return;
+
+    // Une carte déjà refusée ne se retente pas à chaque vente : la marque a été
+    // prévenue, elle doit agir. Sinon on accumule les refus chez Stripe, ce qui
+    // finit par faire blacklister le moyen de paiement.
+    if (b.topup_failed_at) return;
+
+    const seuil = Number(b.autotopup_threshold ?? 0);
+    if (seuil <= 0) return;
+    if (Number(b.balance ?? 0) >= seuil) return;
+
+    await attemptAutoTopup(brandId);
+  } catch (e) {
+    void reportError("affiliate/recharge-seuil", e, { detail: `marque ${brandId}` });
+  }
+}
+
 export async function attemptAutoTopup(
   brandId: string,
 ): Promise<{ ok: boolean; amount?: number; message?: string }> {
