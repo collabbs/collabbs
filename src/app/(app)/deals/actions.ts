@@ -227,23 +227,58 @@ export async function createDealFromApplication(applicationId: string) {
  * Booking direct : une marque propose une collaboration à un créateur depuis son
  * profil (sans passer par une campagne). Crée un deal en "negotiation".
  */
-export async function createDirectDeal(creatorId: string) {
+/**
+ * Crée une collaboration DÉJÀ PROPOSÉE, avec ses termes.
+ *
+ * ─── Ce qu'elle remplace ───
+ * `createDirectDeal` créait la collaboration au clic sur « Proposer une
+ * collaboration », à 0 €, sans rien demander. La marque atterrissait sur une
+ * coquille vide et une consigne : « Montant à fixer, utilise Modifier les
+ * termes ». Le bouton promettait une proposition et livrait un devoir à faire.
+ * Pire : une marque qui changeait d'avis en route laissait derrière elle une
+ * collaboration à 0 € dans sa liste et dans celle du créateur.
+ *
+ * On demande donc les termes AVANT, et la ligne n'existe qu'une fois qu'il y a
+ * quelque chose à proposer. Le créateur est prévenu dans la foulée — ce qui
+ * était impossible avant, puisqu'il n'y avait rien à lui annoncer.
+ */
+export async function creerPropositionDirecte(
+  creatorId: string,
+  data: {
+    amount: number;
+    quantity: number;
+    deadline: string | null;
+    brandNotes: string | null;
+    title: string | null;
+  },
+): Promise<{ ok: boolean; dealId?: string; error?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  if (creatorId === user.id) redirect("/creators");
+  if (!user) return { ok: false, error: "Non connecté." };
 
   const { data: me } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, display_name")
     .eq("id", user.id)
     .single();
-  if (me?.role !== "brand") redirect("/creators");
+  if (me?.role !== "brand") return { ok: false, error: "Seule une marque peut proposer." };
 
-  // Évite les doublons : deal direct (sans campagne) déjà ouvert avec ce créateur.
-  const { data: open } = await supabase
+  // Les mêmes règles que la modification des termes : un montant se refuse, il
+  // ne s'arrondit pas en douce.
+  const controle = valider(termesDealSchema, {
+    amount: data.amount,
+    quantity: data.quantity,
+    deadline: data.deadline,
+    brandNotes: data.brandNotes,
+  });
+  if (!controle.ok) return { ok: false, error: controle.error };
+
+  // Une seule collaboration directe ouverte à la fois avec le même créateur :
+  // sinon deux propositions concurrentes s'ignorent et personne ne sait
+  // laquelle fait foi.
+  const { data: ouverte } = await supabase
     .from("deals")
     .select("id")
     .eq("brand_id", user.id)
@@ -251,28 +286,38 @@ export async function createDirectDeal(creatorId: string) {
     .is("campaign_id", null)
     .in("status", ["negotiation", "active"])
     .limit(1);
-  if (open && open.length > 0) redirect(`/deals/${open[0].id}`);
+  if (ouverte && ouverte.length > 0) {
+    return {
+      ok: false,
+      dealId: ouverte[0].id,
+      error:
+        "Tu as déjà une collaboration en cours avec ce créateur. Modifie-la plutôt que d'en ouvrir une seconde.",
+    };
+  }
 
+  const titre = data.title?.trim() || "Collaboration";
   const { data: deal, error } = await supabase
     .from("deals")
     .insert({
       brand_id: user.id,
       creator_id: creatorId,
       campaign_id: null,
-      title: "Collaboration",
-      amount: 0,
+      title: titre,
+      amount: data.amount,
+      quantity: data.quantity,
+      deadline: data.deadline,
+      brand_notes: data.brandNotes,
       format: "video_post",
-      quantity: 1,
       status: "negotiation",
     })
     .select("id")
     .single();
-  if (error || !deal) redirect("/creators");
+  if (error || !deal) return { ok: false, error: error?.message ?? "Création impossible." };
 
-  const livrablesDirect = await ensureDeliverables(supabase, deal.id);
-  if (!livrablesDirect.ok) {
+  const livrables = await ensureDeliverables(supabase, deal.id, data.quantity);
+  if (!livrables.ok) {
     await supabase.from("deals").delete().eq("id", deal.id);
-    redirect(`/creators?error=${encodeURIComponent(livrablesDirect.error ?? "Livrables impossibles à créer.")}`);
+    return { ok: false, error: livrables.error ?? "Livrables impossibles à créer." };
   }
 
   const contrat = await ensureContractRow(deal.id);
@@ -280,13 +325,20 @@ export async function createDirectDeal(creatorId: string) {
     // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
     // laisse pas exister à moitié.
     await supabase.from("deals").delete().eq("id", deal.id);
-    redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
+    return { ok: false, error: contrat.error ?? "Contrat impossible à créer." };
   }
 
-  // Pas de notification ici : un booking direct naît toujours à 0 €. Le
-  // créateur sera prévenu quand la marque aura fixé le montant.
+  // Maintenant il y a quelque chose à annoncer.
+  await notify({
+    userId: creatorId,
+    type: "deal_proposed",
+    title: `${me.display_name ?? "Une marque"} te propose une collaboration`,
+    body: `${eur(data.amount)} pour ${data.quantity} contenu${data.quantity > 1 ? "s" : ""}. Ouvre la proposition pour lire les termes et répondre.`,
+    link: `/deals/${deal.id}`,
+  });
 
-  redirect(`/deals/${deal.id}`);
+  revalidatePath("/deals");
+  return { ok: true, dealId: deal.id };
 }
 
 /** La marque ajuste les termes pendant la négociation. */

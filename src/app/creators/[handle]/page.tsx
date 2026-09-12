@@ -6,7 +6,6 @@ import EmptyState from "@/components/EmptyState";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import { getCreatorByHandle, getCreatorReviews } from "@/lib/creators-data";
 import { createClient } from "@/lib/supabase/server";
-import { createDirectDeal } from "@/app/(app)/deals/actions";
 import { openConversation } from "@/app/(app)/messages/actions";
 
 export async function generateMetadata({
@@ -193,14 +192,16 @@ export default async function CreatorProfilePage({
               {/* CTA */}
               {isBrandViewer ? (
                 <div className="mt-5 space-y-2">
-                  <form action={createDirectDeal.bind(null, c.id)}>
-                    <button
-                      type="submit"
-                      className="block w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-bold text-white shadow-md transition hover:opacity-90"
-                    >
-                      🤝 Proposer une collaboration
-                    </button>
-                  </form>
+                  {/* Un lien, plus un formulaire qui créait la collaboration au
+                      clic : on demande ce qu'on propose AVANT que la ligne
+                      n'existe. Une marque qui change d'avis en route ne laisse
+                      plus de coquille à 0 € derrière elle. */}
+                  <Link
+                    href={`/deals/nouveau?createur=${c.id}`}
+                    className="block w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-bold text-white shadow-md transition hover:opacity-90"
+                  >
+                    🤝 Proposer une collaboration
+                  </Link>
                   <form action={openConversation.bind(null, c.id)}>
                     <button
                       type="submit"
