@@ -66,13 +66,28 @@ export default function PlansAbonnement({
                 <span className="text-zinc-500">sur l&apos;affiliation</span>
               </p>
 
+              {/* Sur un plan sans abonnement, l'addition n'a qu'un seul terme :
+                  écrire « 52 € de commission = 52 € » donne un total qui semble
+                  faux, sur la carte même qu'on quitte pour payer. */}
               {volumeMensuel > 0 && (
                 <p className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-500">
-                  Sur ton volume : {commission.toLocaleString("fr-FR")} € de
-                  commission{t.prix > 0 ? ` + ${t.prix} € d'abonnement` : ""} ={" "}
-                  <strong className="text-ink">
-                    {coutTotal.toLocaleString("fr-FR")} €
-                  </strong>
+                  Sur ton volume :{" "}
+                  {t.prix > 0 ? (
+                    <>
+                      {commission.toLocaleString("fr-FR")} € de commission +{" "}
+                      {t.prix.toLocaleString("fr-FR")} € d&apos;abonnement ={" "}
+                      <strong className="text-ink">
+                        {coutTotal.toLocaleString("fr-FR")} €
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-ink">
+                        {commission.toLocaleString("fr-FR")} €
+                      </strong>{" "}
+                      de commission, sans abonnement
+                    </>
+                  )}
                 </p>
               )}
 
