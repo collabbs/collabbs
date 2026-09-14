@@ -21,6 +21,7 @@ import {
   reprendreAbonnement,
 } from "@/lib/abonnement-stripe";
 import { planValide } from "@/lib/tarifs";
+import { volumeCollaborations30j } from "@/lib/volume-collaborations";
 
 
 async function requireBrand() {
@@ -341,8 +342,30 @@ export async function souscrireAbonnement(formData: FormData) {
  * veut savoir en cliquant, c'est jusqu'à quand elle garde son taux — et si
  * quelque chose va s'arrêter aujourd'hui. Non.
  */
-export async function resilierMonAbonnement() {
+export async function resilierMonAbonnement(formData?: FormData) {
   const brandId = await requireBrand();
+
+  // Le motif est enregistré AVANT la résiliation, et son échec ne l'empêche
+  // jamais : une marque qui a cliqué sur « arrêter » doit être arrêtée, même si
+  // notre table de motifs est indisponible. On ne retient personne par un bug.
+  const motif = String(formData?.get("motif") ?? "").trim() || null;
+  const commentaire = String(formData?.get("commentaire") ?? "").trim() || null;
+  if (motif || commentaire) {
+    const { data: marque } = await createAdminClient()
+      .from("brands")
+      .select("plan")
+      .eq("id", brandId)
+      .maybeSingle();
+    const { error } = await createAdminClient().from("resiliations").insert({
+      brand_id: brandId,
+      plan: planValide(marque?.plan),
+      motif,
+      commentaire: commentaire?.slice(0, 1000) ?? null,
+      volume_30j: await volumeCollaborations30j(brandId),
+    });
+    if (error) await reportError("resiliation/motif", error, { userId: brandId });
+  }
+
   const res = await resilierAbonnement(brandId);
   revalidatePath("/billing");
   if (!res.ok) {

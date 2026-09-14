@@ -159,3 +159,32 @@ export function fenetreDOptimalite(plan: Plan): { debut: number; fin: number | n
   if (debut === null) return null;
   return { debut, fin: fin !== null && fin >= MAX ? null : fin };
 }
+
+/**
+ * Le même mois, facturé avec l'abonnement et sans lui.
+ *
+ * Sert l'écran d'arrêt, où la marque a droit à la comparaison honnête plutôt
+ * qu'à un argumentaire. Fonction pure et testée : c'est cette arithmétique qui
+ * décide de la phrase qu'on lui affiche — « arrêter est le bon calcul » ou
+ * « ton abonnement te fait économiser X € » — et se tromper de sens reviendrait
+ * à conseiller l'inverse de ce que ses chiffres disent.
+ *
+ * `ecart` positif = l'abonnement coûte plus qu'il ne rapporte à ce volume.
+ */
+export function comparaisonArret(plan: Plan, volumeMensuel: number): {
+  coutActuel: number;
+  coutGratuit: number;
+  ecart: number;
+  /** Volume à partir duquel le plan devient le moins cher des deux. */
+  seuil: number | null;
+} {
+  const t = TARIFS[plan];
+  const coutActuel = Math.round(volumeMensuel * t.tauxCollab + t.prix);
+  const coutGratuit = Math.round(volumeMensuel * TARIFS.free.tauxCollab);
+  return {
+    coutActuel,
+    coutGratuit,
+    ecart: coutActuel - coutGratuit,
+    seuil: depenseDIndifference("free", plan),
+  };
+}

@@ -19,7 +19,8 @@ import {
 import EmptyState from "@/components/EmptyState";
 import PlansAbonnement from "@/components/app/PlansAbonnement";
 import { planValide } from "@/lib/tarifs";
-import { ilYA, estEchu } from "@/lib/temps";
+import { estEchu } from "@/lib/temps";
+import { volumeCollaborations30j } from "@/lib/volume-collaborations";
 
 export const metadata = { title: "Provision — Collabbs" };
 
@@ -126,20 +127,9 @@ export default async function BillingPage({
 
   // Ce que la marque a réellement versé en collaborations sur 30 jours. C'est
   // ce chiffre qui vend l'abonnement : elle lit les siens, pas une promesse.
-  const depuis = ilYA(30);
-  const { data: txMois } = await supabase
-    .from("transactions")
-    .select("net_amount")
-    .eq("brand_id", user.id)
-    .eq("type", "deal_payment")
-    .gte("created_at", depuis);
-  const volumeMensuel = Math.round(
-    (txMois ?? []).reduce(
-      (somme: number, t: { net_amount: number | string | null }) =>
-        somme + Number(t.net_amount ?? 0),
-      0,
-    ),
-  );
+  // Calculé dans une seule fonction, parce que l'écran d'arrêt s'en sert aussi
+  // et que deux calculs voisins donneraient deux conseils contradictoires.
+  const volumeMensuel = await volumeCollaborations30j(user.id);
 
   const balance = Number(brand?.balance ?? 0);
   const hasCard = Boolean(brand?.payment_method_id);

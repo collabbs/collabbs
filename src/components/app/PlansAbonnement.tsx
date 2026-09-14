@@ -1,7 +1,7 @@
 import { TARIFS, PLANS, type Plan } from "@/lib/tarifs";
+import Link from "next/link";
 import {
   souscrireAbonnement,
-  resilierMonAbonnement,
   reprendreMonAbonnement,
 } from "@/app/(app)/billing/actions";
 
@@ -134,14 +134,15 @@ export default function PlansAbonnement({
                         </button>
                       </form>
                     ) : (
-                      <form action={resilierMonAbonnement} className="mt-2">
-                        <button
-                          type="submit"
-                          className="text-xs text-zinc-500 underline underline-offset-2 transition hover:text-ink"
-                        >
-                          Arrêter mon abonnement
-                        </button>
-                      </form>
+                      // Vers un écran, pas vers une résiliation immédiate : on
+                      // ne laisse pas un clic seul annuler un abonnement sans
+                      // avoir dit ce qui s'arrête et ce qui continue.
+                      <Link
+                        href="/billing/arreter"
+                        className="mt-2 inline-block text-xs text-zinc-500 underline underline-offset-2 transition hover:text-ink"
+                      >
+                        Arrêter mon abonnement
+                      </Link>
                     ))}
                 </div>
               ) : p === "free" ? (

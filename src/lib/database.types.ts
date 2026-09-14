@@ -317,6 +317,36 @@ export type Database = {
         }
         Relationships: []
       }
+      resiliations: {
+        Row: {
+          id: string
+          brand_id: string
+          plan: string
+          motif: string | null
+          commentaire: string | null
+          volume_30j: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          plan: string
+          motif?: string | null
+          commentaire?: string | null
+          volume_30j?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          brand_id?: string
+          plan?: string
+          motif?: string | null
+          commentaire?: string | null
+          volume_30j?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       journal_taches: {
         Row: {
           id: number

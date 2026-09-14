@@ -3,6 +3,7 @@ import {
   depenseDIndifference,
   planLePlusEconomique,
   fenetreDOptimalite,
+  comparaisonArret,
   TARIFS,
 } from "@/lib/tarifs";
 
@@ -82,5 +83,41 @@ describe("CONSTAT — le plan Growth est économiquement dominé", () => {
       expect(planLePlusEconomique(collabs * 350)).toBe("free");
     }
     expect(TARIFS.free.campagnesActives).not.toBeNull();
+  });
+});
+
+describe("comparaisonArret — ce qu'on affiche à qui veut partir", () => {
+  // C'est cette arithmétique qui choisit la phrase montrée à la marque. Se
+  // tromper de sens reviendrait à lui conseiller l'inverse de ce que ses
+  // propres chiffres disent, au moment précis où elle nous juge.
+
+  it("à volume nul, l'abonnement ne coûte que son prix", () => {
+    const r = comparaisonArret("growth", 0);
+    expect(r.coutActuel).toBe(TARIFS.growth.prix);
+    expect(r.coutGratuit).toBe(0);
+    expect(r.ecart).toBe(TARIFS.growth.prix);
+  });
+
+  it("sous le seuil, arrêter fait économiser", () => {
+    const seuil = depenseDIndifference("free", "growth")!;
+    expect(comparaisonArret("growth", seuil - 1000).ecart).toBeGreaterThan(0);
+  });
+
+  it("au-dessus du seuil, garder le plan fait économiser", () => {
+    const seuil = depenseDIndifference("free", "growth")!;
+    expect(comparaisonArret("growth", seuil + 1000).ecart).toBeLessThan(0);
+  });
+
+  it("au seuil exactement, les deux coûtent la même chose", () => {
+    const seuil = depenseDIndifference("free", "scale")!;
+    expect(comparaisonArret("scale", seuil).ecart).toBe(0);
+  });
+
+  it("le seuil annoncé est celui du plan qu'on quitte", () => {
+    // Annoncer le seuil de Growth à quelqu'un qui quitte Scale lui donnerait
+    // un chiffre faux pour décider de revenir.
+    expect(comparaisonArret("scale", 500).seuil).toBe(
+      depenseDIndifference("free", "scale"),
+    );
   });
 });
