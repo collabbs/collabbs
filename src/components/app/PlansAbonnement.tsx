@@ -1,5 +1,9 @@
 import { TARIFS, PLANS, type Plan } from "@/lib/tarifs";
-import { souscrireAbonnement } from "@/app/(app)/billing/actions";
+import {
+  souscrireAbonnement,
+  resilierMonAbonnement,
+  reprendreMonAbonnement,
+} from "@/app/(app)/billing/actions";
 
 /**
  * Les plans, et surtout ce qu'ils auraient fait gagner.
@@ -13,11 +17,22 @@ import { souscrireAbonnement } from "@/app/(app)/billing/actions";
 export default function PlansAbonnement({
   planActuel,
   volumeMensuel,
+  resiliationLe,
 }: {
   planActuel: Plan;
   /** Ce que la marque a versé en collaborations sur les 30 derniers jours. */
   volumeMensuel: number;
+  /** Fin programmée de l'abonnement, si la marque a demandé à s'arrêter. */
+  resiliationLe?: string | null;
 }) {
+  const finProgrammee = resiliationLe
+    ? new Date(resiliationLe).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
       <h2 className="font-semibold text-ink">Abonnement</h2>
@@ -33,6 +48,15 @@ export default function PlansAbonnement({
             {volumeMensuel.toLocaleString("fr-FR")} €
           </strong>{" "}
           de collaborations ces 30 derniers jours.
+        </p>
+      )}
+
+      {finProgrammee && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Ton abonnement s&apos;arrête le <strong>{finProgrammee}</strong>. D&apos;ici
+          là rien ne change : tu gardes ton taux, tes campagnes et tes
+          collaborations continuent. Ensuite tu repasses au plan Gratuit, sans
+          rien perdre.
         </p>
       )}
 
@@ -92,9 +116,34 @@ export default function PlansAbonnement({
               )}
 
               {actuel ? (
-                <p className="mt-3 text-xs font-semibold text-purple-700">
-                  ✓ Ton plan actuel
-                </p>
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-purple-700">
+                    ✓ Ton plan actuel
+                  </p>
+                  {/* Arrêter doit se faire là où on a souscrit. Renvoyer la
+                      marque « vers Stripe » sans lien, c'est lui demander
+                      d'écrire à quelqu'un pour cesser de payer. */}
+                  {p !== "free" &&
+                    (finProgrammee ? (
+                      <form action={reprendreMonAbonnement} className="mt-2">
+                        <button
+                          type="submit"
+                          className="text-xs font-semibold text-purple-700 underline underline-offset-2"
+                        >
+                          Reprendre mon abonnement
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={resilierMonAbonnement} className="mt-2">
+                        <button
+                          type="submit"
+                          className="text-xs text-zinc-500 underline underline-offset-2 transition hover:text-ink"
+                        >
+                          Arrêter mon abonnement
+                        </button>
+                      </form>
+                    ))}
+                </div>
               ) : p === "free" ? (
                 <p className="mt-3 text-xs text-zinc-400">
                   Plan par défaut — aucune action requise.
@@ -116,8 +165,8 @@ export default function PlansAbonnement({
       </div>
 
       <p className="mt-4 text-xs text-zinc-400">
-        Résiliable à tout moment depuis Stripe. Ton taux reste celui de ton plan
-        jusqu&apos;au terme déjà réglé.
+        Résiliable à tout moment, ici même. L&apos;arrêt prend effet à la fin du
+        mois déjà réglé — tu gardes ton taux jusque-là.
       </p>
     </div>
   );

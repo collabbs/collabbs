@@ -45,6 +45,21 @@ type FactureStripe = {
  * vérité, et changer un prix ne demande pas de le changer à deux endroits.
  */
 
+/**
+ * La fin de la période payée, quelle que soit la version d'API servie.
+ *
+ * Le champ a migré de la racine vers `items.data[].current_period_end`. On lit
+ * les deux, et on renvoie `null` plutôt que d'inventer une date : une échéance
+ * fausse ferait rétrograder une marque qui paie, ou l'inverse.
+ */
+export function finDePeriode(sub: {
+  current_period_end?: number | null;
+  items?: { data?: { current_period_end?: number | null }[] } | null;
+}): string | null {
+  const fin = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+  return fin ? new Date(fin * 1000).toISOString() : null;
+}
+
 /** Ouvre le paiement d'un abonnement mensuel. Renvoie l'URL Stripe. */
 export async function ouvrirAbonnement(params: {
   brandId: string;
@@ -118,8 +133,7 @@ export async function enregistrerAbonnement(session: {
       const sub = (await stripe.subscriptions.retrieve(
         subscriptionId,
       )) as unknown as AbonnementStripe;
-      const fin = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
-      if (fin) expiresAt = new Date(fin * 1000).toISOString();
+      expiresAt = finDePeriode(sub);
     } catch (e) {
       // Sans échéance, le plan resterait actif indéfiniment : on le signale
       // plutôt que de laisser passer un abonnement sans terme.
@@ -130,7 +144,14 @@ export async function enregistrerAbonnement(session: {
   const admin = createAdminClient();
   const { error } = await admin
     .from("brands")
-    .update({ plan, stripe_subscription_id: subscriptionId, plan_expires_at: expiresAt })
+    .update({
+      plan,
+      stripe_subscription_id: subscriptionId,
+      plan_expires_at: expiresAt,
+      // Souscrire efface une sortie programmée : on ne peut pas être à la
+      // fois en train de partir et de revenir.
+      plan_cancel_at: null,
+    })
     .eq("id", brandId);
   if (error) {
     // La marque a payé et son taux n'a pas changé : c'est de l'argent encaissé
@@ -218,13 +239,12 @@ export async function prolongerAbonnement(invoice: FactureStripe): Promise<{ ok:
   }
   if (!brandId || plan === "free") return { ok: false };
 
-  const fin = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
   const { error } = await admin
     .from("brands")
     .update({
       plan,
       stripe_subscription_id: subscriptionId,
-      plan_expires_at: fin ? new Date(fin * 1000).toISOString() : null,
+      plan_expires_at: finDePeriode(sub),
     })
     .eq("id", brandId);
   if (error) {
@@ -259,7 +279,12 @@ export async function cloturerAbonnement(sub: AbonnementStripe): Promise<{ ok: b
   if (!brandId) return { ok: false };
   const { error } = await admin
     .from("brands")
-    .update({ plan: "free", stripe_subscription_id: null, plan_expires_at: null })
+    .update({
+      plan: "free",
+      stripe_subscription_id: null,
+      plan_expires_at: null,
+      plan_cancel_at: null,
+    })
     .eq("id", brandId);
   if (error) {
     await reportError("abonnement/cloture", error, { userId: brandId });
@@ -283,4 +308,111 @@ export async function expirerAbonnementsEchus(): Promise<number> {
     return 0;
   }
   return Number(data ?? 0);
+}
+
+/* ══════════════════════════════════════════════════════ résilier, revenir ══
+
+   Ce que la marque demande en cliquant sur « Arrêter mon abonnement », ce
+   n'est pas « coupe tout de suite » : c'est « ne me reprends plus rien ». Les
+   deux se confondent facilement dans le code, et les confondre revient à lui
+   retirer un mois qu'elle a déjà payé.
+
+   On programme donc la fin au terme de la période en cours. Jusque-là, son
+   taux ne bouge pas, ses campagnes non plus, et elle peut revenir sur sa
+   décision sans repayer. C'est Stripe qui enverra `subscription.deleted` le
+   jour venu, et `cloturerAbonnement` la ramènera au tarif gratuit.            */
+
+/**
+ * Programme l'arrêt de l'abonnement à la fin de la période réglée.
+ *
+ * Le cas sans abonnement Stripe n'est pas une erreur : un plan posé à la main
+ * (compte de test, geste commercial) n'a rien à annuler chez Stripe. On le
+ * ramène alors directement au tarif gratuit — refuser laisserait la marque
+ * devant un bouton qui ne fait rien.
+ */
+export async function resilierAbonnement(
+  brandId: string,
+): Promise<{ ok: boolean; finLe?: string | null; error?: string }> {
+  const admin = createAdminClient();
+  const { data: marque } = await admin
+    .from("brands")
+    .select("plan, stripe_subscription_id, plan_expires_at")
+    .eq("id", brandId)
+    .maybeSingle();
+
+  if (!marque || planValide(marque.plan) === "free") {
+    return { ok: false, error: "Tu n'as pas d'abonnement en cours." };
+  }
+
+  if (!marque.stripe_subscription_id) {
+    const { error } = await admin
+      .from("brands")
+      .update({ plan: "free", plan_expires_at: null, plan_cancel_at: null })
+      .eq("id", brandId);
+    if (error) {
+      await reportError("abonnement/resiliation-directe", error, { userId: brandId });
+      return { ok: false, error: "La résiliation n'a pas pu être enregistrée. Réessaie." };
+    }
+    return { ok: true, finLe: null };
+  }
+
+  let finLe: string | null = null;
+  try {
+    const sub = (await stripe.subscriptions.update(marque.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    })) as unknown as AbonnementStripe;
+    finLe = finDePeriode(sub);
+  } catch (e) {
+    await reportError("abonnement/resiliation", e, { userId: brandId });
+    return { ok: false, error: "Stripe n'a pas pu enregistrer la résiliation. Réessaie." };
+  }
+
+  // Le repli sur l'échéance connue compte : sans date, l'écran dirait « ton
+  // abonnement s'arrête » sans dire quand, ce qui est plus inquiétant que
+  // rassurant pour quelqu'un qui vient de cliquer.
+  const { error } = await admin
+    .from("brands")
+    .update({ plan_cancel_at: finLe ?? marque.plan_expires_at })
+    .eq("id", brandId);
+  if (error) {
+    // Stripe a bien enregistré l'arrêt : la marque ne sera pas prélevée. Seul
+    // l'affichage est en retard, on le signale sans lui annoncer un échec.
+    await reportError("abonnement/resiliation-ecriture", error, { userId: brandId });
+  }
+  return { ok: true, finLe: finLe ?? marque.plan_expires_at };
+}
+
+/** Annule une résiliation programmée : l'abonnement reprend son cours. */
+export async function reprendreAbonnement(
+  brandId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = createAdminClient();
+  const { data: marque } = await admin
+    .from("brands")
+    .select("stripe_subscription_id")
+    .eq("id", brandId)
+    .maybeSingle();
+
+  if (!marque?.stripe_subscription_id) {
+    return { ok: false, error: "Aucun abonnement à reprendre." };
+  }
+
+  try {
+    await stripe.subscriptions.update(marque.stripe_subscription_id, {
+      cancel_at_period_end: false,
+    });
+  } catch (e) {
+    await reportError("abonnement/reprise", e, { userId: brandId });
+    return { ok: false, error: "Stripe n'a pas pu reprendre l'abonnement. Réessaie." };
+  }
+
+  const { error } = await admin
+    .from("brands")
+    .update({ plan_cancel_at: null })
+    .eq("id", brandId);
+  if (error) {
+    await reportError("abonnement/reprise-ecriture", error, { userId: brandId });
+    return { ok: false, error: "La reprise n'a pas pu être enregistrée. Réessaie." };
+  }
+  return { ok: true };
 }

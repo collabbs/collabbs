@@ -84,6 +84,8 @@ export default async function BillingPage({
     saved?: string;
     cancelled?: string;
     refunded?: string;
+    resiliation?: string;
+    reprise?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -113,7 +115,7 @@ export default async function BillingPage({
   const { data: brand } = await createAdminClient()
     .from("brands")
     .select(
-      "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at, plan, plan_expires_at",
+      "id, balance, payment_method_id, autotopup_enabled, autotopup_threshold, autotopup_amount, topup_failed_at, plan, plan_expires_at, plan_cancel_at",
     )
     .eq("id", user.id)
     .single();
@@ -221,6 +223,26 @@ export default async function BillingPage({
       )}
       {sp.error && (
         <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{sp.error}</p>
+      )}
+      {/* Après un clic sur « Arrêter », la première inquiétude est « qu'est-ce
+          qui vient de s'arrêter ? ». On répond avant qu'elle soit formulée. */}
+      {sp.resiliation === "1" && (
+        <p className="mt-4 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700">
+          C&apos;est noté, tu ne seras plus prélevé. Rien ne s&apos;arrête
+          aujourd&apos;hui : tu gardes ton plan jusqu&apos;au terme du mois déjà
+          réglé. Tu peux revenir sur ta décision d&apos;ici là.
+        </p>
+      )}
+      {sp.resiliation === "immediate" && (
+        <p className="mt-4 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700">
+          Abonnement arrêté. Tu es repassé au plan Gratuit — aucune facture en
+          cours, rien à régler.
+        </p>
+      )}
+      {sp.reprise === "1" && (
+        <p className="mt-4 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700">
+          Ton abonnement reprend son cours normal. Rien n&apos;a été interrompu.
+        </p>
       )}
 
       {!stripeConfigured && (
@@ -381,7 +403,11 @@ export default async function BillingPage({
         </form>
       </div>
 
-      <PlansAbonnement planActuel={planActuel} volumeMensuel={volumeMensuel} />
+      <PlansAbonnement
+        planActuel={planActuel}
+        volumeMensuel={volumeMensuel}
+        resiliationLe={brand?.plan_cancel_at ?? null}
+      />
 
       {/* Recharge automatique */}
       <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">

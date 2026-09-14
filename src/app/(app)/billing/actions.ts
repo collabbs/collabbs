@@ -15,7 +15,11 @@ import { notify } from "@/lib/notifications";
 import { valider, nombreDuFormulaire } from "@/lib/validation";
 import { approvisionnementSchema, rechargeAutoSchema } from "@/lib/schemas/billing";
 import { reportError } from "@/lib/report-error";
-import { ouvrirAbonnement } from "@/lib/abonnement-stripe";
+import {
+  ouvrirAbonnement,
+  resilierAbonnement,
+  reprendreAbonnement,
+} from "@/lib/abonnement-stripe";
 import { planValide } from "@/lib/tarifs";
 
 
@@ -328,4 +332,32 @@ export async function souscrireAbonnement(formData: FormData) {
     redirect(`/billing?error=${encodeURIComponent(res.error ?? "Abonnement indisponible.")}`);
   }
   redirect(res.url);
+}
+
+/**
+ * La marque arrête son abonnement.
+ *
+ * Le retour dit la date de fin plutôt qu'un simple « c'est fait » : ce qu'elle
+ * veut savoir en cliquant, c'est jusqu'à quand elle garde son taux — et si
+ * quelque chose va s'arrêter aujourd'hui. Non.
+ */
+export async function resilierMonAbonnement() {
+  const brandId = await requireBrand();
+  const res = await resilierAbonnement(brandId);
+  revalidatePath("/billing");
+  if (!res.ok) {
+    redirect(`/billing?error=${encodeURIComponent(res.error ?? "Résiliation impossible.")}`);
+  }
+  redirect(res.finLe ? "/billing?resiliation=1" : "/billing?resiliation=immediate");
+}
+
+/** Elle change d'avis avant le terme : l'abonnement reprend son cours. */
+export async function reprendreMonAbonnement() {
+  const brandId = await requireBrand();
+  const res = await reprendreAbonnement(brandId);
+  revalidatePath("/billing");
+  if (!res.ok) {
+    redirect(`/billing?error=${encodeURIComponent(res.error ?? "Reprise impossible.")}`);
+  }
+  redirect("/billing?reprise=1");
 }

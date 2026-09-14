@@ -595,6 +595,7 @@ export type Database = {
           name: string
           payment_method_id: string | null
           plan: Database["public"]["Enums"]["brand_plan"]
+          plan_cancel_at: string | null
           plan_expires_at: string | null
           postback_secret: string
           rating: number | null
@@ -624,6 +625,7 @@ export type Database = {
           name: string
           payment_method_id?: string | null
           plan?: Database["public"]["Enums"]["brand_plan"]
+          plan_cancel_at?: string | null
           plan_expires_at?: string | null
           postback_secret?: string
           rating?: number | null
@@ -653,6 +655,7 @@ export type Database = {
           name?: string
           payment_method_id?: string | null
           plan?: Database["public"]["Enums"]["brand_plan"]
+          plan_cancel_at?: string | null
           plan_expires_at?: string | null
           postback_secret?: string
           rating?: number | null

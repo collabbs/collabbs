@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { planValide, tauxCollab, TARIFS } from "@/lib/tarifs";
-import { identifiantAbonnement } from "@/lib/abonnement-stripe";
+import { identifiantAbonnement, finDePeriode } from "@/lib/abonnement-stripe";
 
 /**
  * La règle qui décide du taux appliqué. On la teste sur la partie pure —
@@ -62,5 +62,40 @@ describe("identifiantAbonnement", () => {
     expect(identifiantAbonnement({ subscription: null, parent: null })).toBeNull();
     // Une chaîne vide n'est pas un identifiant.
     expect(identifiantAbonnement({ subscription: "" })).toBeNull();
+  });
+});
+
+describe("finDePeriode", () => {
+  // Le champ a migré de la racine vers `items.data[]`. Se tromper de place ne
+  // lève aucune erreur : on obtient `undefined`, donc « pas d'échéance », donc
+  // un abonnement sans terme — ou une résiliation qui ne sait pas dire quand
+  // elle prend effet.
+  const LE_1ER_MARS = "2026-03-01T00:00:00.000Z";
+  const horodatage = Math.floor(new Date(LE_1ER_MARS).getTime() / 1000);
+
+  it("lit l'ancienne forme, à la racine", () => {
+    expect(finDePeriode({ current_period_end: horodatage })).toBe(LE_1ER_MARS);
+  });
+
+  it("lit la forme actuelle, dans les lignes de l'abonnement", () => {
+    expect(
+      finDePeriode({ items: { data: [{ current_period_end: horodatage }] } }),
+    ).toBe(LE_1ER_MARS);
+  });
+
+  it("la racine l'emporte quand les deux sont là", () => {
+    expect(
+      finDePeriode({
+        current_period_end: horodatage,
+        items: { data: [{ current_period_end: horodatage + 86400 }] } ,
+      }),
+    ).toBe(LE_1ER_MARS);
+  });
+
+  it("renvoie null plutôt qu'une date inventée", () => {
+    // Une date fausse ferait rétrograder une marque qui paie, ou l'inverse.
+    for (const sub of [{}, { current_period_end: null }, { items: null }, { items: { data: [] } }]) {
+      expect(finDePeriode(sub)).toBeNull();
+    }
   });
 });
