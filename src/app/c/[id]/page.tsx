@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import Nav from "@/components/landing/Nav";
 import Footer from "@/components/landing/Footer";
@@ -235,14 +236,13 @@ export default async function PublicCampaignPage({
               <p className="text-sm text-zinc-600">
                 Active ton lien unique en <strong>1 clic</strong> — gratuit, aucune validation requise.
               </p>
-              <button
-                type="submit"
+              <BoutonSoumettre
                 className="mt-4 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-3 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 {viewerRole === "creator"
                   ? "🔗 Activer mon lien maintenant"
                   : "🔗 Devenir affilié (inscription gratuite)"}
-              </button>
+              </BoutonSoumettre>
               <p className="mt-2 text-[11px] text-zinc-400">
                 Tracking par cookie 30 jours · paiement sécurisé Stripe
               </p>

@@ -1,4 +1,5 @@
 import { TARIFS, PLANS, type Plan } from "@/lib/tarifs";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import {
   souscrireAbonnement,
@@ -126,12 +127,11 @@ export default function PlansAbonnement({
                   {p !== "free" &&
                     (finProgrammee ? (
                       <form action={reprendreMonAbonnement} className="mt-2">
-                        <button
-                          type="submit"
+                        <BoutonSoumettre
                           className="text-xs font-semibold text-purple-700 underline underline-offset-2"
                         >
                           Reprendre mon abonnement
-                        </button>
+                        </BoutonSoumettre>
                       </form>
                     ) : (
                       // Vers un écran, pas vers une résiliation immédiate : on
@@ -152,12 +152,12 @@ export default function PlansAbonnement({
               ) : (
                 <form action={souscrireAbonnement} className="mt-3">
                   <input type="hidden" name="plan" value={p} />
-                  <button
-                    type="submit"
+                  <BoutonSoumettre
+              pendant="Ouverture de Stripe…"
                     className="w-full rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
                   >
                     Passer à {t.libelle}
-                  </button>
+                  </BoutonSoumettre>
                 </form>
               )}
             </div>

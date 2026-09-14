@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
 import { creerPropositionDirecte } from "../actions";
 
@@ -158,13 +159,12 @@ export default function FormulaireProposition({
         jusqu&apos;à ce que tu valides la livraison.
       </div>
 
-      <button
-        type="submit"
+      <BoutonSoumettre
         disabled={envoi}
         className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
       >
         {envoi ? "Envoi…" : "Envoyer la proposition"}
-      </button>
+      </BoutonSoumettre>
     </form>
   );
 }

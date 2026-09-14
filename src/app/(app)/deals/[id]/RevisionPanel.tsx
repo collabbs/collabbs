@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useToast } from "@/components/Toast";
 import { requestRevision } from "../actions";
 
@@ -89,13 +90,12 @@ export default function RevisionPanel({
             {remaining > 1 ? "s" : ""}.
           </p>
           <div className="mt-3 flex gap-2">
-            <button
-              type="submit"
+            <BoutonSoumettre
               disabled={busy || message.trim().length < 5}
               className="rounded-full bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-50"
             >
               {busy ? "Envoi…" : "Envoyer la demande"}
-            </button>
+            </BoutonSoumettre>
             <button
               type="button"
               onClick={() => {

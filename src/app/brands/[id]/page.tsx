@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -267,12 +268,11 @@ export default async function BrandPublicPage({
               {/* CTA contextuel */}
               {isCreatorViewer && user && !isOwnPage ? (
                 <form action={openConversation.bind(null, brand.id)} className="mt-5">
-                  <button
-                    type="submit"
+                  <BoutonSoumettre
                     className="block w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-bold text-white shadow-md transition hover:opacity-90"
                   >
                     💬 Contacter {brand.name}
-                  </button>
+                  </BoutonSoumettre>
                 </form>
               ) : !user ? (
                 <Link

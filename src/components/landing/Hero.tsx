@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { FEATURED_CREATORS } from "./creators";
 import CreatorCard from "./CreatorCard";
 import NetworkLinks from "./NetworkLinks";
@@ -86,12 +87,11 @@ export default function Hero() {
                 placeholder="Rechercher une niche, un créateur…"
                 className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
               />
-              <button
-                type="submit"
+              <BoutonSoumettre
                 className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 Rechercher
-              </button>
+              </BoutonSoumettre>
             </div>
           </form>
 

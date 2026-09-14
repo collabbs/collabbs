@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import { capturerProspect } from "../actions";
 
@@ -88,13 +89,12 @@ export default function DemandeModele({
           placeholder="ton@email.com"
           className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
         />
-        <button
-          type="submit"
+        <BoutonSoumettre
           disabled={etat === "envoi"}
           className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
         >
           {etat === "envoi" ? "Envoi…" : "Recevoir le modèle"}
-        </button>
+        </BoutonSoumettre>
       </form>
 
       {erreur && (

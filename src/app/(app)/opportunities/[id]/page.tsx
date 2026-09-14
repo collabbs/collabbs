@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -898,12 +899,11 @@ export default async function OpportunityDetailPage({
             </div>
 
             <form action={openConversation.bind(null, c.brand_id)} className="mt-4">
-              <button
-                type="submit"
+              <BoutonSoumettre
                 className="w-full rounded-full px-5 py-2.5 text-sm font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
               >
                 💬 Poser une question à la marque
-              </button>
+              </BoutonSoumettre>
             </form>
 
             {c.brands?.website && (

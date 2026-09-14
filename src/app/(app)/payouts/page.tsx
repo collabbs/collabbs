@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { stripe, stripeConfigured } from "@/lib/stripe";
@@ -236,12 +237,12 @@ export default async function PayoutsPage({
               et ton compte bancaire. C&apos;est rapide et sécurisé.
             </p>
             <form action={startCreatorPayoutOnboarding} className="mt-4">
-              <button
-                type="submit"
+              <BoutonSoumettre
+              pendant="Ouverture de Stripe…"
                 className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 {hasAccount ? "Continuer la configuration" : "Connecter mon compte"}
-              </button>
+              </BoutonSoumettre>
             </form>
           </>
         )}

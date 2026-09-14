@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -308,21 +309,19 @@ export default async function BillingPage({
                   <div className="flex shrink-0 items-center gap-3">
                     <form action={rejectPixelSale}>
                       <input type="hidden" name="eventId" value={s2.id} />
-                      <button
-                        type="submit"
+                      <BoutonSoumettre
                         className="text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-800"
                       >
                         Aucune commande
-                      </button>
+                      </BoutonSoumettre>
                     </form>
                     <form action={confirmPixelSale}>
                       <input type="hidden" name="eventId" value={s2.id} />
-                      <button
-                        type="submit"
+                      <BoutonSoumettre
                         className="rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
                       >
                         Confirmer
-                      </button>
+                      </BoutonSoumettre>
                     </form>
                   </div>
                 </li>
@@ -353,12 +352,11 @@ export default async function BillingPage({
             de tes créateurs ne sont plus garanties.
           </p>
           <form action={retryTopup} className="mt-3">
-            <button
-              type="submit"
+            <BoutonSoumettre
               className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
             >
               Relancer la recharge
-            </button>
+            </BoutonSoumettre>
           </form>
         </div>
       )}
@@ -384,12 +382,12 @@ export default async function BillingPage({
             />
             <span className="text-sm text-zinc-500">€</span>
           </div>
-          <button
-            type="submit"
+          <BoutonSoumettre
+              pendant="Ouverture de Stripe…"
             className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Approvisionner
-          </button>
+          </BoutonSoumettre>
         </form>
       </div>
 
@@ -455,13 +453,12 @@ export default async function BillingPage({
             </label>
           </div>
 
-          <button
-            type="submit"
+          <BoutonSoumettre
             disabled={!hasCard}
             className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             Enregistrer
-          </button>
+          </BoutonSoumettre>
         </form>
 
         {hasCard && (
@@ -469,12 +466,11 @@ export default async function BillingPage({
             <p className="text-sm text-zinc-500">
               Une carte est enregistrée pour les recharges.
             </p>
-            <button
-              type="submit"
+            <BoutonSoumettre
               className="mt-2 text-sm font-medium text-red-600 underline underline-offset-2 hover:text-red-700"
             >
               Oublier cette carte
-            </button>
+            </BoutonSoumettre>
           </form>
         )}
       </div>
@@ -575,8 +571,7 @@ export default async function BillingPage({
                     {s.status !== "refunded" && s.status !== "rejected" && (
                       <form action={refundSale}>
                         <input type="hidden" name="eventId" value={s.id} />
-                        <button
-                          type="submit"
+                        <BoutonSoumettre
                           title={
                             s.status === "paid"
                               ? "La commission a déjà été versée au créateur : elle sera déduite de son prochain versement, jamais reprise sur ce qu'il a reçu."
@@ -585,7 +580,7 @@ export default async function BillingPage({
                           className="text-xs font-medium text-red-600 underline underline-offset-2 hover:text-red-700"
                         >
                           {s.status === "paid" ? "Remboursée (déjà versée)" : "Remboursée"}
-                        </button>
+                        </BoutonSoumettre>
                       </form>
                     )}
                   </div>

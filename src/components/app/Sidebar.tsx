@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/landing/Logo";
@@ -194,12 +195,11 @@ export default function Sidebar({
         <div className="shrink-0 border-t border-zinc-100 pt-4">
           {userBlock}
           <form action={logout} className="mt-3">
-            <button
-              type="submit"
+            <BoutonSoumettre
               className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-ink"
             >
               Se déconnecter
-            </button>
+            </BoutonSoumettre>
           </form>
         </div>
       </aside>
@@ -273,12 +273,11 @@ export default function Sidebar({
               <div className="flex flex-col gap-1">{items.map(renderNavLink)}</div>
             </nav>
             <form action={logout} className="border-t border-zinc-100 px-3 py-3">
-              <button
-                type="submit"
+              <BoutonSoumettre
                 className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-ink"
               >
                 Se déconnecter
-              </button>
+              </BoutonSoumettre>
             </form>
           </aside>
         </div>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { messageAuth } from "@/lib/messages-auth";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -67,7 +68,7 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    redirect(`/login?error=${encodeURIComponent(messageAuth(error.message))}`);
   }
 
   revalidatePath("/", "layout");
@@ -116,7 +117,7 @@ export async function signup(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    redirect(`/signup?error=${encodeURIComponent(messageAuth(error.message))}`);
   }
 
   // Supabase ouvre-t-il la session tout de suite ?
@@ -197,7 +198,7 @@ export async function updatePassword(formData: FormData) {
   if (!user) redirect("/login?error=" + encodeURIComponent("Lien expiré, redemande un email."));
 
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) redirect("/auth/update-password?error=" + encodeURIComponent(error.message));
+  if (error) redirect("/auth/update-password?error=" + encodeURIComponent(messageAuth(error.message)));
 
   revalidatePath("/", "layout");
   redirect("/dashboard?reset=1");

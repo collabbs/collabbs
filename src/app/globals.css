@@ -217,3 +217,24 @@ input[type="button"]:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
   .lueur-carte { animation: none; }
 }
+
+/* Le fil de chargement en haut de l'écran (BarreDeNavigation).
+
+   Il avance vite puis ralentit, sans jamais atteindre le bord : on ne connaît
+   pas la durée réelle d'un rendu serveur, et une barre qui arrive à 100 %
+   avant la page annoncerait une fin qui n'a pas eu lieu. */
+@keyframes barre {
+  0%   { transform: scaleX(0);    }
+  35%  { transform: scaleX(0.55); }
+  70%  { transform: scaleX(0.82); }
+  100% { transform: scaleX(0.94); }
+}
+
+/* Mouvement réduit : le fil reste VISIBLE — c'est une information, pas une
+   décoration — mais il cesse de bouger. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[barre_2\.2s_ease-out_forwards\] {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+}

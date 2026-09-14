@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { requireAdmin } from "@/lib/admin";
 import Tunnel from "./Tunnel";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -238,12 +239,11 @@ export default async function AdminPage({
                 )}
                 <form action={resolveError} className="mt-2">
                   <input type="hidden" name="errorId" value={e.id} />
-                  <button
-                    type="submit"
+                  <BoutonSoumettre
                     className="text-xs font-medium text-zinc-600 underline underline-offset-2 hover:text-ink"
                   >
                     Marquer traitée
-                  </button>
+                  </BoutonSoumettre>
                 </form>
               </li>
             ))}
@@ -280,12 +280,11 @@ export default async function AdminPage({
             placeholder="Motif — la marque le lira"
             className="min-w-0 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
           />
-          <button
-            type="submit"
+          <BoutonSoumettre
             className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white"
           >
             Régulariser
-          </button>
+          </BoutonSoumettre>
         </form>
       </section>
 
@@ -337,12 +336,11 @@ export default async function AdminPage({
                       placeholder="Motif de la libération…"
                       className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
                     />
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="shrink-0 rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"
                     >
                       Verser au créateur
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                   <form action={adminRefundEscrow} className="flex gap-2">
                     <input type="hidden" name="dealId" value={deal.id} />
@@ -353,12 +351,11 @@ export default async function AdminPage({
                       placeholder="Motif du remboursement…"
                       className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-purple-400"
                     />
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="shrink-0 rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white"
                     >
                       Rendre à la marque
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                 </div>
               </li>
@@ -390,22 +387,20 @@ export default async function AdminPage({
                   <form action={adminResolveInKind}>
                     <input type="hidden" name="id" value={g.id} />
                     <input type="hidden" name="decision" value="keep" />
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white"
                     >
                       Maintenir
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                   <form action={adminResolveInKind}>
                     <input type="hidden" name="id" value={g.id} />
                     <input type="hidden" name="decision" value="drop" />
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700"
                     >
                       Retirer
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                 </div>
               </li>
@@ -457,12 +452,11 @@ export default async function AdminPage({
                       placeholder="Motif…"
                       className="w-28 rounded-xl border border-zinc-200 px-2 py-1 text-xs outline-none focus:border-purple-400"
                     />
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700"
                     >
                       Écarter
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                 </div>
               </li>

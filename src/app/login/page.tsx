@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { login } from "@/app/auth/actions";
 import GoogleButton from "@/components/GoogleButton";
 import { googleActif } from "@/lib/google-auth";
@@ -67,12 +68,12 @@ export default async function LoginPage({
             />
           </div>
 
-          <button
-            type="submit"
+          <BoutonSoumettre
+              pendant="Connexion…"
             className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Se connecter
-          </button>
+          </BoutonSoumettre>
         </form>
 
         {googleActif() && (

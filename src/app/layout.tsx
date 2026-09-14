@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import BarreDeNavigation from "@/components/BarreDeNavigation";
 import type { Metadata, Viewport } from "next";
 import { Inter, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
@@ -66,6 +68,12 @@ export default function RootLayout({
       className={`${inter.variable} ${bricolage.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        {/* Le fil de chargement vit au-dessus de tout le reste : il doit
+            couvrir l'application ET les pages publiques, et un clic sur
+            n'importe quel lien du produit passe par lui. */}
+        <Suspense fallback={null}>
+          <BarreDeNavigation />
+        </Suspense>
         <ToastProvider>{children}</ToastProvider>
         <ServiceWorker />
       </body>

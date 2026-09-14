@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { createClient } from "@/lib/supabase/server";
 import { markAllAsRead, markAsReadAndGo } from "./actions";
 
@@ -116,12 +117,11 @@ export default async function NotificationsPage() {
         </div>
         {unreadCount > 0 && (
           <form action={markAllAsRead}>
-            <button
-              type="submit"
+            <BoutonSoumettre
               className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-50"
             >
               Tout marquer lu
-            </button>
+            </BoutonSoumettre>
           </form>
         )}
       </div>
@@ -153,8 +153,7 @@ export default async function NotificationsPage() {
                         <form
                           action={markAsReadAndGo.bind(null, n.id, n.link ?? "/notifications")}
                         >
-                          <button
-                            type="submit"
+                          <BoutonSoumettre
                             className={`flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-zinc-50 ${
                               unread ? "bg-purple-50/40" : ""
                             }`}
@@ -190,7 +189,7 @@ export default async function NotificationsPage() {
                                 →
                               </span>
                             )}
-                          </button>
+                          </BoutonSoumettre>
                         </form>
                       </li>
                     );

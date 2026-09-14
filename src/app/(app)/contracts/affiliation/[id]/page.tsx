@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildAffiliateContractDocument,
@@ -67,12 +68,12 @@ export default async function AffiliateContractPage({
         {!maSignature && (
           <form action={signAffiliateContract}>
             <input type="hidden" name="contractId" value={contract.id} />
-            <button
-              type="submit"
+            <BoutonSoumettre
+              pendant="Signature…"
               className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
               Signer le contrat
-            </button>
+            </BoutonSoumettre>
           </form>
         )}
         {maSignature && !complet && (

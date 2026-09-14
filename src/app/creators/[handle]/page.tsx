@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import AppOrLandingShell from "@/components/app/AppOrLandingShell";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -203,12 +204,11 @@ export default async function CreatorProfilePage({
                     🤝 Proposer une collaboration
                   </Link>
                   <form action={openConversation.bind(null, c.id)}>
-                    <button
-                      type="submit"
+                    <BoutonSoumettre
                       className="block w-full rounded-full px-5 py-2.5 text-center text-sm font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
                     >
                       💬 Contacter {first}
-                    </button>
+                    </BoutonSoumettre>
                   </form>
                 </div>
               ) : (

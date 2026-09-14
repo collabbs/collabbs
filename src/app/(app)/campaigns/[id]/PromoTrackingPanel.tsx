@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { recordManualPromoSale } from "../actions";
@@ -150,13 +151,12 @@ export default function PromoTrackingPanel({
             placeholder="N° commande (optionnel, évite les doublons)"
             className="rounded-lg border border-zinc-300 px-2 py-2 text-sm outline-none focus:border-fuchsia-400"
           />
-          <button
-            type="submit"
+          <BoutonSoumettre
             disabled={busy}
             className="rounded-lg bg-gradient-to-r from-fuchsia-600 to-pink-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "…" : "+ Vente"}
-          </button>
+          </BoutonSoumettre>
         </div>
       </form>
 

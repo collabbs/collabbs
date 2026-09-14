@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -802,12 +803,11 @@ export default async function DealDetailPage({
               </div>
             ) : role === "brand" && status === "active" && deal.amount > 0 ? (
               <form action={createDealCheckout.bind(null, deal.id)} className="mt-4">
-                <button
-                  type="submit"
+                <BoutonSoumettre
                   className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                 >
                   Régler {eur(b.gross)} (séquestre)
-                </button>
+                </BoutonSoumettre>
                 <p className="mt-1.5 text-center text-[11px] text-zinc-400">
                   Paiement sécurisé Stripe · test (carte 4242 4242 4242 4242)
                 </p>
@@ -857,12 +857,11 @@ export default async function DealDetailPage({
             )}
 
             <form action={openConversation.bind(null, otherId)} className="mt-4">
-              <button
-                type="submit"
+              <BoutonSoumettre
                 className="w-full rounded-full px-5 py-2.5 text-sm font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
               >
                 💬 Discuter avec {(other?.display_name ?? "").split(" ")[0] || "l'autre partie"}
-              </button>
+              </BoutonSoumettre>
             </form>
           </div>
         </aside>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import {
@@ -115,13 +116,12 @@ export default function ExamplesManager({
             />
           </div>
           <div className="flex gap-2">
-            <button
-              type="submit"
+            <BoutonSoumettre
               disabled={busy}
               className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
             >
               {busy ? "Ajout…" : "Ajouter"}
-            </button>
+            </BoutonSoumettre>
             <button
               type="button"
               onClick={() => {

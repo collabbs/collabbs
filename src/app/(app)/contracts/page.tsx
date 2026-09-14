@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { eurExact } from "@/lib/deal";
@@ -326,12 +327,11 @@ export default async function ContractsPage({
                     className="rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
                   />
                 </label>
-                <button
-                  type="submit"
+                <BoutonSoumettre
                   className="self-start rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
                 >
                   Déclarer
-                </button>
+                </BoutonSoumettre>
               </form>
             </details>
           )}
@@ -377,12 +377,11 @@ export default async function ContractsPage({
                         {role === "brand" && (
                           <form action={cancelInKind}>
                             <input type="hidden" name="id" value={g.id} />
-                            <button
-                              type="submit"
+                            <BoutonSoumettre
                               className="text-xs font-medium text-red-600 underline underline-offset-2"
                             >
                               Retirer
-                            </button>
+                            </BoutonSoumettre>
                           </form>
                         )}
                       </div>
@@ -402,12 +401,11 @@ export default async function ContractsPage({
                             placeholder="Jamais reçu, ou valeur surévaluée…"
                             className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
                           />
-                          <button
-                            type="submit"
+                          <BoutonSoumettre
                             className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white"
                           >
                             Contester
-                          </button>
+                          </BoutonSoumettre>
                         </form>
                       </details>
                     )}

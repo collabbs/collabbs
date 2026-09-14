@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useToast } from "@/components/Toast";
 import { updatePassword } from "./actions";
 
@@ -65,13 +66,12 @@ export default function PasswordForm() {
           placeholder="Retape le mot de passe"
         />
       </div>
-      <button
-        type="submit"
+      <BoutonSoumettre
         disabled={busy || newP.length < 8 || newP !== confirmP}
         className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-40"
       >
         {busy ? "Mise à jour…" : "Mettre à jour le mot de passe"}
-      </button>
+      </BoutonSoumettre>
     </form>
   );
 }

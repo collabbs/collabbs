@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -253,12 +254,12 @@ export default async function ArreterPage() {
           >
             Garder mon plan {tarif.libelle}
           </Link>
-          <button
-            type="submit"
+          <BoutonSoumettre
+              pendant="Enregistrement…"
             className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-600 transition hover:border-zinc-400 hover:text-ink"
           >
             Confirmer l&apos;arrêt
-          </button>
+          </BoutonSoumettre>
         </div>
       </form>
     </div>

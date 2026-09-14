@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { deleteAccount } from "./actions";
 
 export default function DangerZone({ error }: { error: string | null }) {
@@ -56,13 +57,12 @@ export default function DangerZone({ error }: { error: string | null }) {
             )}
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="submit"
+              <BoutonSoumettre
                 disabled={confirmText !== "SUPPRIMER"}
                 className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-40"
               >
                 Supprimer définitivement mon compte
-              </button>
+              </BoutonSoumettre>
               <button
                 type="button"
                 onClick={() => {

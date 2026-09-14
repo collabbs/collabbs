@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -645,12 +646,11 @@ export default async function CampaignManagePage({
                     <CreatorCell creatorId={a.creator_id} />
                     <div className="flex items-center gap-2">
                       <form action={openConversation.bind(null, a.creator_id)}>
-                        <button
-                          type="submit"
+                        <BoutonSoumettre
                           className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
                         >
                           💬 Contacter
-                        </button>
+                        </BoutonSoumettre>
                       </form>
                       {a.status === "accepted" &&
                         (dealByCreator.has(a.creator_id) ? (
@@ -662,12 +662,11 @@ export default async function CampaignManagePage({
                           </Link>
                         ) : (
                           <form action={createDealFromApplication.bind(null, a.id)}>
-                            <button
-                              type="submit"
+                            <BoutonSoumettre
                               className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
                             >
                               🤝 Créer le deal
-                            </button>
+                            </BoutonSoumettre>
                           </form>
                         ))}
                       <ApplicationDecision applicationId={a.id} initialStatus={a.status} />
@@ -720,12 +719,11 @@ export default async function CampaignManagePage({
                           : "En attente de réponse"}
                     </span>
                     <form action={openConversation.bind(null, a.creator_id)}>
-                      <button
-                        type="submit"
+                      <BoutonSoumettre
                         className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-inset ring-purple-200 transition hover:bg-purple-50"
                       >
                         💬 Contacter
-                      </button>
+                      </BoutonSoumettre>
                     </form>
                     {a.status === "accepted" &&
                       (dealByCreator.has(a.creator_id) ? (
@@ -737,12 +735,11 @@ export default async function CampaignManagePage({
                         </Link>
                       ) : (
                         <form action={createDealFromApplication.bind(null, a.id)}>
-                          <button
-                            type="submit"
+                          <BoutonSoumettre
                             className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
                           >
                             🤝 Créer le deal
-                          </button>
+                          </BoutonSoumettre>
                         </form>
                       ))}
                   </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import OpportunityCard, { type Opportunity } from "./OpportunityCard";
@@ -402,13 +403,12 @@ export default async function OpportunitiesPage({
             placeholder="Rechercher une marque, un produit…"
             className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
           />
-          <button
-            type="submit"
+          <BoutonSoumettre
             className="shrink-0 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 sm:px-5"
           >
             <span className="hidden sm:inline">Rechercher</span>
             <span className="sm:hidden">🔍</span>
-          </button>
+          </BoutonSoumettre>
         </form>
 
         {/* Filtres : drawer sur mobile, barre de popovers compacts sur desktop */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -240,13 +241,12 @@ export default function PortfolioManager({
                 />
               </div>
               <div className="flex gap-2">
-                <button
-                  type="submit"
+                <BoutonSoumettre
                   disabled={busy || !ytInput.trim()}
                   className="rounded-full bg-gradient-to-r from-red-500 to-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
                 >
                   {busy ? "Import en cours…" : "Importer mes vidéos"}
-                </button>
+                </BoutonSoumettre>
                 <button
                   type="button"
                   onClick={() => setYtOpen(false)}
@@ -317,13 +317,12 @@ export default function PortfolioManager({
                 />
               </div>
               <div className="flex gap-2">
-                <button
-                  type="submit"
+                <BoutonSoumettre
                   disabled={busy || !url.trim()}
                   className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
                 >
                   {busy ? "Ajout…" : "Ajouter au portfolio"}
-                </button>
+                </BoutonSoumettre>
                 <button
                   type="button"
                   onClick={() => setManualOpen(false)}

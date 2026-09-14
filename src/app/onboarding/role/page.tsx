@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { createClient } from "@/lib/supabase/server";
 import Logo from "@/components/landing/Logo";
 import { confirmerRole } from "./actions";
@@ -58,8 +59,7 @@ export default async function ChoixRolePage({
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <form action={confirmerRole.bind(null, "creator")}>
-          <button
-            type="submit"
+          <BoutonSoumettre
             className="h-full w-full rounded-2xl border border-zinc-200 bg-white p-6 text-left transition hover:border-purple-300 hover:shadow-md"
           >
             <span className="text-3xl">🎬</span>
@@ -70,12 +70,11 @@ export default async function ChoixRolePage({
               Je publie du contenu et je veux collaborer avec des marques.
               Collabbs ne me prélève rien.
             </span>
-          </button>
+          </BoutonSoumettre>
         </form>
 
         <form action={confirmerRole.bind(null, "brand")}>
-          <button
-            type="submit"
+          <BoutonSoumettre
             className="h-full w-full rounded-2xl border border-zinc-200 bg-white p-6 text-left transition hover:border-purple-300 hover:shadow-md"
           >
             <span className="text-3xl">🏢</span>
@@ -86,7 +85,7 @@ export default async function ChoixRolePage({
               Je cherche des créateurs, je lance des campagnes et je paie les
               collaborations.
             </span>
-          </button>
+          </BoutonSoumettre>
         </form>
       </div>
 

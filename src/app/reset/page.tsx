@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { requestPasswordReset } from "@/app/auth/actions";
 
 export const metadata = { title: "Mot de passe oublié — Collabbs" };
@@ -51,12 +52,12 @@ export default async function ResetPage({
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-500"
                 />
               </div>
-              <button
-                type="submit"
+              <BoutonSoumettre
+              pendant="Envoi…"
                 className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 Recevoir le lien
-              </button>
+              </BoutonSoumettre>
             </form>
           </>
         )}

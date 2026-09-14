@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { createClient } from "@/lib/supabase/server";
 import { updatePassword } from "@/app/auth/actions";
 
@@ -69,12 +70,11 @@ export default async function UpdatePasswordPage({
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-purple-500"
             />
           </div>
-          <button
-            type="submit"
+          <BoutonSoumettre
             className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Mettre à jour
-          </button>
+          </BoutonSoumettre>
         </form>
       </div>
     </main>
