@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { modeleValide, montantAFixer } from "@/lib/deal";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -119,7 +120,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number, engagement_id, engagement_month",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number, engagement_id, engagement_month, modele_remuneration",
     )
     .eq("id", id)
     .single();
@@ -223,6 +224,13 @@ export default async function DealDetailPage({
         net: Number(payment.net_amount),
       }
     : dealBreakdown(deal.amount, planMarque);
+
+  /* Le modèle de rémunération décide de ce que `amount` veut dire. Zéro
+     signifiait « pas encore fixé » ; sur un produit offert, zéro est la
+     réponse. Sans cette distinction, l'écran réclamerait un montant sur une
+     collaboration parfaitement complète. */
+  const modele = modeleValide(deal.modele_remuneration);
+  const aFixerLeMontant = status === "negotiation" && montantAFixer(modele, deal.amount);
 
   // Calculs timeline
   const paymentPaid =
@@ -824,7 +832,7 @@ export default async function DealDetailPage({
                     </p>
                   ))}
               </div>
-            ) : role === "brand" && status === "active" && deal.amount > 0 ? (
+            ) : role === "brand" && status === "active" && deal.amount > 0 && modele !== "produit" ? (
               <form action={createDealCheckout.bind(null, deal.id)} className="mt-4">
                 <BoutonSoumettre
                   className="w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
@@ -838,7 +846,7 @@ export default async function DealDetailPage({
             ) : (
               <div
                 className={
-                  status === "negotiation" && deal.amount <= 0
+                  aFixerLeMontant
                     ? "mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800"
                     : "mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500"
                 }
@@ -848,7 +856,9 @@ export default async function DealDetailPage({
                     la marque n'a rien fixé, le créateur ne peut pas accepter —
                     il signerait un contrat à 0 €. On le dit ici, à côté du
                     montant, plutôt que de laisser le bouton échouer. */}
-                {status === "negotiation" && deal.amount <= 0
+                {modele === "produit"
+                  ? "🎁 Collaboration en produit offert : rien à régler. Le créateur reçoit le produit décrit au contrat, et l'avantage en nature est déclaré."
+                  : aFixerLeMontant
                   ? role === "brand"
                     ? deal.perf_rate != null
                       ? `✏️ Plafond à fixer. Cette campagne paie ${deal.perf_rate} € / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`

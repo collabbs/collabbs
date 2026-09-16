@@ -259,6 +259,8 @@ export async function creerPropositionDirecte(
     brandNotes: string | null;
     title: string | null;
     format?: string | null;
+    modele?: string | null;
+    perfRate?: number | null;
   },
 ): Promise<{ ok: boolean; dealId?: string; error?: string }> {
   const supabase = await createClient();
@@ -282,6 +284,8 @@ export async function creerPropositionDirecte(
     deadline: data.deadline,
     brandNotes: data.brandNotes,
     format: data.format,
+    modele: data.modele,
+    perfRate: data.perfRate,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
 
@@ -321,6 +325,15 @@ export async function creerPropositionDirecte(
       // commande, et n'était modifiable nulle part ensuite : le contrat signé
       // annonçait donc une vidéo pour trois stories.
       format: controle.data.format ?? "video_post",
+      // Le modèle dit ce que `amount` signifie : un montant, un plafond, ou la
+      // valeur d'un produit offert. Sans lui, zéro voudrait dire « pas encore
+      // fixé » sur une collaboration parfaitement complète.
+      modele_remuneration: controle.data.modele ?? "forfait",
+      perf_rate: controle.data.modele === "performance" ? controle.data.perfRate : null,
+      // Offrir un produit, c'est l'envoyer : l'encadré d'expédition doit
+      // exister dès la proposition, sinon personne n'a d'endroit où donner
+      // une adresse.
+      shipping_required: controle.data.modele === "produit",
       status: "negotiation",
     })
     .select("id")
@@ -377,6 +390,8 @@ export async function updateDealTerms(
     exclusivityDays?: number | null;
     shippingRequired?: boolean;
     format?: string | null;
+    modele?: string | null;
+    perfRate?: number | null;
   },
 ): Promise<Result> {
   const supabase = await createClient();
@@ -430,9 +445,16 @@ export async function updateDealTerms(
       // de jours que si la case est cochée.
       exclusivity_days: controle.data.exclusivity ? controle.data.exclusivityDays : null,
       shipping_required: controle.data.shippingRequired,
-      // Modifiable tant qu'on est en négociation — cette action le vérifie
-      // plus haut — et figé dès la signature, comme le reste des termes.
+      // Modifiables tant qu'on est en négociation — cette action le vérifie
+      // plus haut — et figés dès la signature, comme le reste des termes.
       ...(controle.data.format ? { format: controle.data.format } : {}),
+      ...(controle.data.modele
+        ? {
+            modele_remuneration: controle.data.modele,
+            perf_rate:
+              controle.data.modele === "performance" ? controle.data.perfRate : null,
+          }
+        : {}),
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };

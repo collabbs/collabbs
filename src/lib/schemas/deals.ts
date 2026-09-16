@@ -128,15 +128,37 @@ export const formatDealSchema = z.enum(["video_post", "ugc", "story", "reel", "l
   message: "Choisis un format de contenu.",
 });
 
+export const modeleSchema = z.enum(["forfait", "performance", "produit"], {
+  message: "Choisis comment le créateur est payé.",
+});
+
 export const termesDealSchema = z.object({
   format: formatDealSchema.nullish(),
+  /** Comment le créateur est payé. Absent = on ne touche pas au modèle. */
+  modele: modeleSchema.nullish(),
+  /**
+   * Tarif pour 1 000 vues, sur une collaboration à la performance.
+   * En euros entiers : c'est ce que la colonne accepte, et un tarif au centime
+   * près sur 1 000 vues n'a aucun sens pratique.
+   */
+  perfRate: nombreEntier({
+    quoi: "Le tarif pour 1 000 vues",
+    min: 1,
+    max: 1000,
+  }).nullish(),
   /**
    * En euros ENTIERS : la colonne l'est. On refuse la virgule au lieu de
    * l'arrondir en douce.
    */
+  /**
+   * Le minimum est ZÉRO et non un : un produit offert est une collaboration
+   * sans argent, parfaitement valable. Le contrôle croisé plus bas refuse le
+   * zéro sur les deux autres modèles — une collaboration en argent à 0 € est
+   * une coquille vide que le créateur ne peut pas accepter.
+   */
   amount: nombreEntier({
     quoi: "Le montant de la collaboration",
-    min: 1,
+    min: 0,
     max: DEAL_MONTANT_MAX,
   }),
   quantity: nombreEntier({
@@ -230,4 +252,32 @@ export const termesDealSchema = z.object({
     error:
       "Précise le périmètre des droits d'usage (supports propres ou publicité payante) avant de les facturer.",
     path: ["usageRightsScope"],
+  })
+  /* ─── Ce que chaque modèle exige ───────────────────────────────────────────
+     `amount` ne veut pas dire la même chose selon le modèle : un montant, un
+     plafond, ou la valeur d'un cadeau. Le contrôle est donc croisé, et il est
+     ici plutôt que dans l'écran — un écran se contourne. */
+  .refine((d) => d.modele !== "performance" || (d.perfRate ?? 0) > 0, {
+    error: "Indique le tarif pour 1 000 vues.",
+    path: ["perfRate"],
+  })
+  .refine((d) => d.modele === "produit" || d.amount > 0, {
+    error:
+      "Une collaboration payée doit avoir un montant. Choisis « Produit offert » si tu ne verses pas d'argent.",
+    path: ["amount"],
+  })
+  // Le plafond protège la marque autant que le créateur : sans lui, une vidéo
+  // virale se règle en milliers d'euros qu'elle n'a pas provisionnés.
+  .refine((d) => d.modele !== "performance" || d.amount >= (d.perfRate ?? 0), {
+    error:
+      "Le plafond doit valoir au moins le tarif de 1 000 vues, sinon il est atteint avant la première vue.",
+    path: ["amount"],
+  })
+  /* Un produit offert sans description est un piège : le créateur signe pour
+     « un produit » et découvre ce qu'il reçoit à la livraison. C'est la seule
+     contrepartie de son travail — elle doit être écrite au contrat. */
+  .refine((d) => d.modele !== "produit" || Boolean(d.brandNotes?.trim()), {
+    error:
+      "Décris le produit offert : c'est la seule contrepartie du créateur, et elle doit figurer au contrat.",
+    path: ["brandNotes"],
   });

@@ -70,3 +70,68 @@ export const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
  */
 export const eurExact = (n: number) =>
   `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
+
+/* ══════════════════════════════════════ comment le créateur est payé ══════
+
+   Le produit ne savait décrire QU'UNE façon de payer une collaboration
+   directe : un forfait. Côté campagne il en connaissait six. Une marque qui
+   créait une campagne « Fixe + commission » puis allait voir un créateur en
+   direct n'avait plus qu'un montant fixe, sans que rien ne le lui explique.
+
+   Deux questions différentes, longtemps mélangées dans une seule liste :
+   · le FORMAT dit ce que le créateur produit (vidéo, story, reel…) ;
+   · le MODÈLE dit comment il est payé.
+   Elles sont indépendantes — une story se paie au forfait, aux vues ou en
+   produit — et les garder séparées est ce qui permet de les combiner.        */
+
+export type ModeleRemuneration = "forfait" | "performance" | "produit";
+
+export const MODELES_REMUNERATION: ModeleRemuneration[] = [
+  "forfait",
+  "performance",
+  "produit",
+];
+
+export const MODELE_LABEL: Record<ModeleRemuneration, string> = {
+  forfait: "Montant fixe",
+  performance: "Paiement aux vues",
+  produit: "Produit offert",
+};
+
+/** Ce que le modèle promet, dit du point de vue du créateur. */
+export const MODELE_DESCRIPTION: Record<ModeleRemuneration, string> = {
+  forfait: "Une somme convenue d'avance, versée à la livraison validée.",
+  performance:
+    "Un tarif pour 1 000 vues, plafonné. Le créateur déclare ses vues, tu les valides.",
+  produit:
+    "Pas d'argent : le créateur reçoit un produit. Le contrat vaut quand même, et l'avantage en nature se déclare.",
+};
+
+export function modeleValide(valeur: string | null | undefined): ModeleRemuneration {
+  return (MODELES_REMUNERATION as string[]).includes(valeur ?? "")
+    ? (valeur as ModeleRemuneration)
+    : "forfait";
+}
+
+/**
+ * Le montant d'une collaboration ne veut pas dire la même chose selon le
+ * modèle, et l'afficher sous le même mot est ce qui fait croire à une marque
+ * qu'elle paie un forfait alors qu'elle pose un plafond.
+ */
+export const LIBELLE_MONTANT: Record<ModeleRemuneration, string> = {
+  forfait: "Montant pour le créateur (€)",
+  performance: "Plafond que tu acceptes de dépenser (€)",
+  produit: "Valeur du produit offert (€)",
+};
+
+/**
+ * Un montant reste-t-il à fixer ?
+ *
+ * Écrit ici parce que `amount === 0` a longtemps voulu dire « pas encore
+ * fixé » — et qu'avec le produit offert, zéro devient une réponse valable.
+ * Confondre les deux afficherait « montant à fixer » sur une collaboration
+ * parfaitement complète.
+ */
+export function montantAFixer(modele: ModeleRemuneration, amount: number): boolean {
+  return modele !== "produit" && amount <= 0;
+}

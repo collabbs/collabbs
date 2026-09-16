@@ -4,7 +4,15 @@ import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
 import { creerPropositionDirecte } from "../actions";
-import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
+import {
+  DEAL_FORMAT_LABEL,
+  MODELES_REMUNERATION,
+  MODELE_LABEL,
+  MODELE_DESCRIPTION,
+  LIBELLE_MONTANT,
+  type DealFormat,
+  type ModeleRemuneration,
+} from "@/lib/deal";
 
 /**
  * Ce qu'une marque doit décider avant qu'une collaboration existe.
@@ -32,6 +40,9 @@ export default function FormulaireProposition({
 }) {
   const router = useRouter();
   const [format, setFormat] = useState<DealFormat>("video_post");
+  // Deux questions indépendantes : ce qui est produit, et comment c'est payé.
+  const [modele, setModele] = useState<ModeleRemuneration>("forfait");
+  const [tarifVues, setTarifVues] = useState("");
   const [montant, setMontant] = useState(tarifDepart ? String(tarifDepart) : "");
   const [quantite, setQuantite] = useState("1");
   const [echeance, setEcheance] = useState("");
@@ -51,6 +62,8 @@ export default function FormulaireProposition({
       brandNotes: brief.trim() || null,
       title: titre.trim() || null,
       format,
+      modele,
+      perfRate: modele === "performance" ? Number(tarifVues) : null,
     });
     setEnvoi(false);
     // Même refusée, la réponse peut porter la collaboration déjà ouverte :
@@ -74,6 +87,32 @@ export default function FormulaireProposition({
       {erreur && (
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{erreur}</p>
       )}
+
+      <div>
+        <span className={legende}>Comment {nomCreateur} est payé</span>
+        <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+          {MODELES_REMUNERATION.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setModele(m)}
+              aria-pressed={modele === m}
+              className={
+                modele === m
+                  ? "rounded-xl border-2 border-ink px-3.5 py-3 text-left"
+                  : "rounded-xl border-2 border-zinc-200 px-3.5 py-3 text-left transition hover:border-zinc-300"
+              }
+            >
+              <span className="block text-sm font-semibold text-ink">
+                {MODELE_LABEL[m]}
+              </span>
+              <span className="mt-0.5 block text-xs leading-snug text-zinc-500">
+                {MODELE_DESCRIPTION[m]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div>
         <span className={legende}>Format du contenu</span>
@@ -102,25 +141,56 @@ export default function FormulaireProposition({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
+          {/* Le même champ ne veut pas dire la même chose selon le modèle.
+              L'appeler « Montant » partout ferait croire à la marque qu'elle
+              fixe un forfait alors qu'elle pose un plafond. */}
           <label className={legende} htmlFor="montant">
-            Montant pour le créateur (€)
+            {LIBELLE_MONTANT[modele]}
           </label>
           <input
             id="montant"
             type="number"
-            min={1}
+            min={modele === "produit" ? 0 : 1}
             step={1}
             required
             value={montant}
             onChange={(e) => setMontant(e.target.value)}
-            placeholder="300"
+            placeholder={modele === "performance" ? "400" : "300"}
             className={champ}
           />
           <p className="mt-1 text-xs text-zinc-400">
-            {tarifDepart
-              ? `Son tarif affiché est de ${tarifDepart} €. Tu peux proposer autre chose.`
-              : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
+            {modele === "performance"
+              ? "C'est le maximum que tu séquestres. Ce qui n'est pas dû te revient."
+              : modele === "produit"
+                ? "Sert à déclarer l'avantage en nature. Aucun argent n'est versé."
+                : tarifDepart
+                  ? `Son tarif affiché est de ${tarifDepart} €. Tu peux proposer autre chose.`
+                  : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
           </p>
+
+          {modele === "performance" && (
+            <div className="mt-3">
+              <label className={legende} htmlFor="tarifVues">
+                Tarif pour 1 000 vues (€)
+              </label>
+              <input
+                id="tarifVues"
+                type="number"
+                min={1}
+                step={1}
+                required
+                value={tarifVues}
+                onChange={(e) => setTarifVues(e.target.value)}
+                placeholder="8"
+                className={champ}
+              />
+              <p className="mt-1 text-xs text-zinc-400">
+                {Number(tarifVues) > 0 && Number(montant) > 0
+                  ? `Le plafond est atteint à ${Math.round((Number(montant) / Number(tarifVues)) * 1000).toLocaleString("fr-FR")} vues.`
+                  : "Le créateur déclare ses vues, tu les valides avant paiement."}
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -168,21 +238,33 @@ export default function FormulaireProposition({
       </div>
 
       <div>
+        {/* Sur un produit offert, ce champ n'est plus un confort : c'est la
+            seule contrepartie du créateur. Signer pour « un produit » et
+            découvrir lequel à la livraison, c'est ce qui donne à ces
+            collaborations leur mauvaise réputation. */}
         <label className={legende} htmlFor="brief">
-          Ce que tu attends{" "}
-          <span className="font-normal normal-case text-zinc-400">(facultatif)</span>
+          {modele === "produit" ? "Le produit offert, et ce que tu attends" : "Ce que tu attends"}{" "}
+          <span className="font-normal normal-case text-zinc-400">
+            {modele === "produit" ? "(obligatoire)" : "(facultatif)"}
+          </span>
         </label>
         <textarea
           id="brief"
           rows={4}
+          required={modele === "produit"}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          placeholder="Le produit, le ton, ce qu'il faut montrer, ce qu'il faut éviter…"
+          placeholder={
+            modele === "produit"
+              ? "Quel produit, quelle valeur, ce qu'il faut montrer…"
+              : "Le produit, le ton, ce qu'il faut montrer, ce qu'il faut éviter…"
+          }
           className={`${champ} resize-y`}
         />
         <p className="mt-1 text-xs text-zinc-400">
-          Les droits d&apos;usage, l&apos;exclusivité et l&apos;envoi de produit se règlent
-          ensuite, sur la proposition.
+          {modele === "produit"
+            ? "Ce texte figure au contrat : c'est ce que le créateur reçoit en échange de son travail."
+            : "Les droits d'usage, l'exclusivité et l'envoi de produit se règlent ensuite, sur la proposition."}
         </p>
       </div>
 

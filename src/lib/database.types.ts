@@ -1383,6 +1383,7 @@ export type Database = {
           id: string
           perf_declared_at: string | null
           perf_proof_url: string | null
+          modele_remuneration: string
           perf_rate: number | null
           perf_validated_at: string | null
           perf_views: number | null
@@ -1426,6 +1427,7 @@ export type Database = {
           id?: string
           perf_declared_at?: string | null
           perf_proof_url?: string | null
+          modele_remuneration?: string
           perf_rate?: number | null
           perf_validated_at?: string | null
           perf_views?: number | null
@@ -1469,6 +1471,7 @@ export type Database = {
           id?: string
           perf_declared_at?: string | null
           perf_proof_url?: string | null
+          modele_remuneration?: string
           perf_rate?: number | null
           perf_validated_at?: string | null
           perf_views?: number | null
