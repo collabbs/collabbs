@@ -101,7 +101,12 @@ export default async function DealDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ paid?: string; payerror?: string; stripe?: string }>;
+  searchParams: Promise<{
+    paid?: string;
+    payerror?: string;
+    stripe?: string;
+    existante?: string;
+  }>;
 }) {
   const { id } = await params;
   const retour = await searchParams;
@@ -352,6 +357,22 @@ export default async function DealDetailPage({
           (`?paid=1`, `?payerror=1`, `?stripe=missing`) et lus par personne :
           la marque revenait de sa banque sans un mot, y compris quand le
           paiement avait été encaissé sans être enregistré chez nous. */}
+      {/* On arrive ici en ayant cliqué sur « Proposer une collaboration » :
+          sans un mot d'explication, atterrir sur une collaboration ouverte
+          des semaines plus tôt ressemble à un bug, et on reclique. Le
+          paramètre existait déjà — la phrase, non. */}
+      {retour.existante === "1" && (
+        <div className="mt-6 rounded-2xl bg-purple-50 p-4 text-sm text-purple-900">
+          <strong>
+            Tu as déjà une collaboration en cours avec{" "}
+            {other?.display_name ?? "ce créateur"} — la voici.
+          </strong>{" "}
+          On n&apos;en ouvre pas une seconde en parallèle : deux propositions
+          concurrentes s&apos;ignoreraient, et personne ne saurait laquelle fait
+          foi. Termine celle-ci, ou annule-la, pour en proposer une autre.
+        </div>
+      )}
+
       {retour.payerror === "1" && (
         <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
           <strong>Ton paiement a été encaissé, mais nous n&apos;avons pas pu
