@@ -635,6 +635,27 @@ export async function cancelDeal(dealId: string): Promise<Result> {
   if (deal.status === "completed" || deal.status === "cancelled")
     return { ok: false, error: "Ce deal est déjà clôturé." };
 
+  /* Le séquestre change la nature du geste.
+     Tant qu'il n'est pas réglé, annuler ne touche à aucun argent et les deux
+     parties peuvent le faire. Une fois réglé, « annuler » laisserait la
+     collaboration close avec des fonds bloqués chez Stripe et personne pour
+     les réclamer : ce n'est plus une annulation, c'est un remboursement, et il
+     appartient à la marque. Aucun écran ne proposait ce chemin — mais une
+     action serveur s'appelle aussi sans écran. */
+  const { data: reglement } = await supabase
+    .from("transactions")
+    .select("status")
+    .eq("deal_id", dealId)
+    .eq("type", "deal_payment")
+    .maybeSingle();
+  if (reglement && ["in_escrow", "released", "paid"].includes(reglement.status)) {
+    return {
+      ok: false,
+      error:
+        "Le séquestre est déjà réglé : cette collaboration ne s'annule plus. La marque peut demander le remboursement, qui rend les fonds et clôt la collaboration.",
+    };
+  }
+
   const { error } = await supabase
     .from("deals")
     .update({ status: "cancelled" })

@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  profilVisible,
+  completionProfil,
+  manquantsProfil,
+  phraseManquants,
+} from "@/lib/profil-visible";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dealBreakdown } from "@/lib/deal";
@@ -171,6 +177,7 @@ export default async function DashboardPage() {
     primaryKpis: Kpi[];
     secondaryStats: { label: string; value: string }[];
     completion?: number;
+    manquants?: string[];
     listable?: boolean;
     trackingNeeded?: boolean;
     ready?: boolean;
@@ -222,17 +229,25 @@ export default async function DashboardPage() {
     const rating = creatorRes.data?.rating ?? null;
     const reviewsCount = creatorRes.data?.reviews_count ?? 0;
 
-    const completion =
-      (profile?.avatar_url ? 25 : 0) +
-      (creatorRes.data?.handle ? 15 : 0) +
-      ((nicheC.count ?? 0) > 0 ? 20 : 0) +
-      ((platC.count ?? 0) > 0 ? 20 : 0) +
-      ((offerC.count ?? 0) > 0 ? 20 : 0);
-    const listable =
-      Boolean(profile?.avatar_url) && (nicheC.count ?? 0) > 0 && (offerC.count ?? 0) > 0;
+    /* Les deux réponses — « à combien j'en suis » et « est-ce que les marques
+       me voient » — sortent de la MÊME règle que le catalogue. Elles n'en
+       sortaient pas : `listable` ignorait le pseudo et les réseaux, donc un
+       créateur sans pseudo ne voyait aucune alerte et n'apparaissait dans
+       aucune recherche. */
+    const etatProfil = {
+      pseudo: Boolean(creatorRes.data?.handle),
+      photo: Boolean(profile?.avatar_url),
+      plateforme: (platC.count ?? 0) > 0,
+      niche: (nicheC.count ?? 0) > 0,
+      offre: (offerC.count ?? 0) > 0,
+    };
+    const completion = completionProfil(etatProfil);
+    const listable = profilVisible(etatProfil);
+    const manquants = manquantsProfil(etatProfil);
 
     view = {
       completion,
+      manquants,
       listable,
       primaryKpis: [
         {
@@ -392,7 +407,11 @@ export default async function DashboardPage() {
             emoji="✨"
             message={
               <>
-                Ton profil est à <strong>{view.completion}%</strong> — finalise-le pour devenir visible par les marques.
+                {/* Dire CE QUI MANQUE, pas un pourcentage : quelqu'un qui
+                    croit avoir fini ne cherche pas ce qu'il n'a pas vu. */}
+                Les marques ne te voient pas encore — il manque{" "}
+                <strong>{phraseManquants(view.manquants ?? [])}</strong>. Ton
+                profil est à {view.completion}%.
               </>
             }
             ctaLabel="Compléter"

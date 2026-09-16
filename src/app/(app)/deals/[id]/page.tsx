@@ -655,6 +655,7 @@ export default async function DealDetailPage({
             role={role}
             status={status}
             perfRate={deal.perf_rate != null ? Number(deal.perf_rate) : null}
+            sequestreRegle={paymentPaid}
             deliverables={await Promise.all(
               deliverables.map(async (dv) => {
                 const rawFiles = Array.isArray(dv.submission_files)

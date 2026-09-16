@@ -41,6 +41,14 @@ type Props = {
   /** Compteur retouches du deal (passé par la page parent). */
   revisions?: { used: number; max: number };
   /**
+   * Le séquestre a-t-il été réglé ?
+   *
+   * Tant qu'il ne l'est pas, une collaboration acceptée n'engage encore aucun
+   * argent : les deux parties doivent pouvoir en sortir. Une fois réglé, sortir
+   * n'est plus une annulation mais un remboursement, et ça passe ailleurs.
+   */
+  sequestreRegle?: boolean;
+  /**
    * Tarif aux vues (€ / 1000), quand la collaboration en a un.
    *
    * Il ne change rien au calcul — le champ écrit toujours `amount` — mais il
@@ -52,7 +60,16 @@ type Props = {
   perfRate?: number | null;
 };
 
-export default function DealControls({ dealId, role, status, deliverables, terms, revisions, perfRate }: Props) {
+export default function DealControls({
+  dealId,
+  role,
+  status,
+  deliverables,
+  terms,
+  revisions,
+  perfRate,
+  sequestreRegle = false,
+}: Props) {
   const revRemaining = revisions ? Math.max(0, revisions.max - revisions.used) : 0;
   const revMax = revisions?.max ?? 0;
   const router = useRouter();
@@ -440,6 +457,30 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                 Annuler le deal
               </button>
             </>
+          )}
+
+          {/* ═══ SORTIR D'UNE COLLABORATION ACCEPTÉE MAIS NON RÉGLÉE ═══
+
+              Il n'existait aucun bouton : une fois le deal accepté, la marque
+              ne pouvait plus que le clôturer — donc valider des livrables qui
+              n'existaient pas — et le créateur ne pouvait rien faire du tout.
+              Les deux attendaient sept jours qu'un cron annule pour eux, sans
+              qu'aucun écran ne l'annonce.
+
+              Or la situation est banale : la marque change d'avis avant de
+              payer, le créateur n'est plus disponible, ou les deux se sont
+              reparlés par message. Tant qu'aucun argent n'est bloqué, sortir ne
+              coûte rien à personne — et ne pas pouvoir sortir coûte la
+              confiance des deux côtés. */}
+          {status === "active" && !sequestreRegle && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => run(() => cancelDeal(dealId))}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-50 disabled:opacity-50"
+            >
+              {role === "brand" ? "Annuler la collaboration" : "Me retirer"}
+            </button>
           )}
 
           {role === "brand" && status === "active" && (

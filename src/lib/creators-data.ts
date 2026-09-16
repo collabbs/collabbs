@@ -1,4 +1,5 @@
 import "server-only";
+import { profilVisible } from "@/lib/profil-visible";
 import { createClient } from "@/lib/supabase/server";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import { demoCreatorsVisible } from "./demo-data";
@@ -229,8 +230,25 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
     const niches = nichesBy.get(c.id) ?? [];
     const offers = orderOffers(offersBy.get(c.id) ?? []);
 
-    // Gating : un profil n'apparaît que s'il est complet.
-    if (!c.handle || !prof?.avatar_url || plats.length === 0 || niches.length === 0 || offers.length === 0)
+    // Gating : un profil n'apparaît que s'il est complet. La règle vit dans
+    // `lib/profil-visible` et PAS ici, parce que le tableau de bord du créateur
+    // doit appliquer exactement la même — il en appliquait une autre, plus
+    // permissive, et laissait donc des créateurs invisibles sans les prévenir.
+    const pseudo = c.handle;
+    const photo = prof?.avatar_url;
+    // `pseudo` et `photo` sont redits ici pour TypeScript seulement : la règle
+    // les garantit déjà, mais il ne peut pas le déduire d'un appel de fonction.
+    if (
+      !profilVisible({
+        pseudo: Boolean(pseudo),
+        photo: Boolean(photo),
+        plateforme: plats.length > 0,
+        niche: niches.length > 0,
+        offre: offers.length > 0,
+      }) ||
+      !pseudo ||
+      !photo
+    )
       continue;
 
     const main = plats[0];
@@ -255,7 +273,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
     result.push({
       id: c.id,
       name: prof.display_name ?? "Créateur",
-      handle: c.handle,
+      handle: pseudo,
       niche: niches[0],
       platform: main.label,
       platformSlug: main.slug,
@@ -269,11 +287,11 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       ),
       offers,
       rating,
-      photo: prof.avatar_url,
+      photo,
       city: (c as { city?: string | null }).city ?? null,
       citySlug: (c as { city_slug?: string | null }).city_slug ?? null,
       travels: Boolean((c as { travels?: boolean | null }).travels),
-      tint: tintFor(c.handle),
+      tint: tintFor(pseudo),
       niches,
       platformLabels: plats.map((p) => p.label),
       isTop,
