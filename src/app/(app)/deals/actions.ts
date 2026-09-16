@@ -193,7 +193,11 @@ export async function createDealFromApplication(applicationId: string) {
   // ensuite dans les termes, et les livrables suivent.
   const livrables = await ensureDeliverables(supabase, deal.id, 1);
   if (!livrables.ok) {
-    await supabase.from("deals").delete().eq("id", deal.id);
+    // Par le client de service : 0077 retire `delete` au navigateur — une
+    // partie ne doit pas pouvoir effacer la trace de ce qui a été convenu.
+    // Ce repli-ci est notre propre code, sur une collaboration qui n'a
+    // jamais existé complètement.
+    await createAdminClient().from("deals").delete().eq("id", deal.id);
     redirect(`/deals?error=${encodeURIComponent(livrables.error ?? "Livrables impossibles à créer.")}`);
   }
 
@@ -202,7 +206,11 @@ export async function createDealFromApplication(applicationId: string) {
   if (!contrat.ok) {
     // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
     // laisse pas exister à moitié.
-    await supabase.from("deals").delete().eq("id", deal.id);
+    // Par le client de service : 0077 retire `delete` au navigateur — une
+    // partie ne doit pas pouvoir effacer la trace de ce qui a été convenu.
+    // Ce repli-ci est notre propre code, sur une collaboration qui n'a
+    // jamais existé complètement.
+    await createAdminClient().from("deals").delete().eq("id", deal.id);
     redirect(`/deals?error=${encodeURIComponent(contrat.error ?? "Contrat impossible à créer.")}`);
   }
 
@@ -316,7 +324,11 @@ export async function creerPropositionDirecte(
 
   const livrables = await ensureDeliverables(supabase, deal.id, data.quantity);
   if (!livrables.ok) {
-    await supabase.from("deals").delete().eq("id", deal.id);
+    // Par le client de service : 0077 retire `delete` au navigateur — une
+    // partie ne doit pas pouvoir effacer la trace de ce qui a été convenu.
+    // Ce repli-ci est notre propre code, sur une collaboration qui n'a
+    // jamais existé complètement.
+    await createAdminClient().from("deals").delete().eq("id", deal.id);
     return { ok: false, error: livrables.error ?? "Livrables impossibles à créer." };
   }
 
@@ -324,7 +336,11 @@ export async function creerPropositionDirecte(
   if (!contrat.ok) {
     // Sans contrat, la collaboration n'a aucune valeur juridique : on ne la
     // laisse pas exister à moitié.
-    await supabase.from("deals").delete().eq("id", deal.id);
+    // Par le client de service : 0077 retire `delete` au navigateur — une
+    // partie ne doit pas pouvoir effacer la trace de ce qui a été convenu.
+    // Ce repli-ci est notre propre code, sur une collaboration qui n'a
+    // jamais existé complètement.
+    await createAdminClient().from("deals").delete().eq("id", deal.id);
     return { ok: false, error: contrat.error ?? "Contrat impossible à créer." };
   }
 
@@ -423,7 +439,11 @@ export async function updateDealTerms(
     .or("done.eq.true,submission_url.not.is.null")
     .limit(1);
   if (!dejaDeposes || dejaDeposes.length === 0) {
-    await supabase.from("deliverables").delete().eq("deal_id", dealId);
+    // Par le client de service : 0077 retire `delete` au navigateur, pour
+    // qu'un livrable déposé ne puisse pas disparaître. Ici rien n'a été
+    // déposé — on vient de le vérifier — et c'est la marque qui ajuste sa
+    // propre commande, encore en négociation.
+    await createAdminClient().from("deliverables").delete().eq("deal_id", dealId);
     const refaits = await ensureDeliverables(supabase, dealId, controle.data.quantity);
     if (!refaits.ok) {
       await reportError("deal/livrables-quantite", refaits.error ?? "inconnu", {
