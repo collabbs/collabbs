@@ -698,6 +698,7 @@ export default async function DealDetailPage({
               exclusivity: deal.exclusivity ?? false,
               exclusivityDays: deal.exclusivity_days ?? null,
               shippingRequired: deal.shipping_required ?? false,
+              format: deal.format,
             }}
             revisions={{
               used: deal.revision_rounds_used,

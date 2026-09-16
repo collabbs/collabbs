@@ -4,15 +4,22 @@ import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
 import { creerPropositionDirecte } from "../actions";
+import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
 
 /**
  * Ce qu'une marque doit décider avant qu'une collaboration existe.
  *
- * Quatre champs, pas douze : un montant, un nombre de contenus, une échéance
- * facultative, et ce qu'elle attend. Tout le reste — droits d'usage,
+ * Cinq champs, pas douze : un format, un montant, un nombre de contenus, une
+ * échéance facultative, et ce qu'elle attend. Tout le reste — droits d'usage,
  * exclusivité, envoi de produit — se règle ensuite dans « Modifier les termes »,
  * sur une proposition qui existe déjà. Demander tout d'un coup ferait
  * abandonner avant la première ligne.
+ *
+ * Le format n'était pas demandé : toute proposition directe naissait « vidéo
+ * postée », et rien ne permettait d'en changer ensuite. Une marque qui
+ * commandait trois stories signait un contrat annonçant une vidéo — faux dans
+ * le document qui fait foi. Il est donc ici, en premier : c'est la première
+ * chose qu'on décide en commandant du contenu, avant même le prix.
  */
 export default function FormulaireProposition({
   creatorId,
@@ -24,6 +31,7 @@ export default function FormulaireProposition({
   tarifDepart: number | null;
 }) {
   const router = useRouter();
+  const [format, setFormat] = useState<DealFormat>("video_post");
   const [montant, setMontant] = useState(tarifDepart ? String(tarifDepart) : "");
   const [quantite, setQuantite] = useState("1");
   const [echeance, setEcheance] = useState("");
@@ -42,6 +50,7 @@ export default function FormulaireProposition({
       deadline: echeance || null,
       brandNotes: brief.trim() || null,
       title: titre.trim() || null,
+      format,
     });
     setEnvoi(false);
     // Même refusée, la réponse peut porter la collaboration déjà ouverte :
@@ -65,6 +74,31 @@ export default function FormulaireProposition({
       {erreur && (
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{erreur}</p>
       )}
+
+      <div>
+        <span className={legende}>Format du contenu</span>
+        <div className="mt-1.5 flex flex-wrap gap-2">
+          {(Object.keys(DEAL_FORMAT_LABEL) as DealFormat[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFormat(f)}
+              aria-pressed={format === f}
+              className={
+                format === f
+                  ? "rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+                  : "rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:border-zinc-300"
+              }
+            >
+              {DEAL_FORMAT_LABEL[f]}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-zinc-500">
+          C&apos;est ce qui sera écrit au contrat. Tu peux encore le changer tant
+          que {nomCreateur} n&apos;a pas accepté.
+        </p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

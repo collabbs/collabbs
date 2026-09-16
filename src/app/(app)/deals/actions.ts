@@ -258,6 +258,7 @@ export async function creerPropositionDirecte(
     deadline: string | null;
     brandNotes: string | null;
     title: string | null;
+    format?: string | null;
   },
 ): Promise<{ ok: boolean; dealId?: string; error?: string }> {
   const supabase = await createClient();
@@ -280,6 +281,7 @@ export async function creerPropositionDirecte(
     quantity: data.quantity,
     deadline: data.deadline,
     brandNotes: data.brandNotes,
+    format: data.format,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
 
@@ -315,7 +317,10 @@ export async function creerPropositionDirecte(
       quantity: data.quantity,
       deadline: data.deadline,
       brand_notes: data.brandNotes,
-      format: "video_post",
+      // Le format vient de la marque. Il valait « vidéo postée » quoi qu'elle
+      // commande, et n'était modifiable nulle part ensuite : le contrat signé
+      // annonçait donc une vidéo pour trois stories.
+      format: controle.data.format ?? "video_post",
       status: "negotiation",
     })
     .select("id")
@@ -371,6 +376,7 @@ export async function updateDealTerms(
     exclusivity?: boolean;
     exclusivityDays?: number | null;
     shippingRequired?: boolean;
+    format?: string | null;
   },
 ): Promise<Result> {
   const supabase = await createClient();
@@ -424,6 +430,9 @@ export async function updateDealTerms(
       // de jours que si la case est cochée.
       exclusivity_days: controle.data.exclusivity ? controle.data.exclusivityDays : null,
       shipping_required: controle.data.shippingRequired,
+      // Modifiable tant qu'on est en négociation — cette action le vérifie
+      // plus haut — et figé dès la signature, comme le reste des termes.
+      ...(controle.data.format ? { format: controle.data.format } : {}),
     })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };

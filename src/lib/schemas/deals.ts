@@ -116,7 +116,20 @@ export const expeditionSchema = z
       "Indique le transporteur : sans lui, le numéro de suivi n'ouvre aucun lien et le créateur ne peut rien en faire.",
   });
 
+/**
+ * Le format de la collaboration.
+ *
+ * Il était figé à « vidéo postée » pour toute proposition directe, et
+ * modifiable nulle part ensuite : une marque qui commandait trois stories
+ * signait un contrat qui annonçait une vidéo postée. Faux dans le document
+ * qui fait foi, ce qui est le pire endroit pour se tromper.
+ */
+export const formatDealSchema = z.enum(["video_post", "ugc", "story", "reel", "live"], {
+  message: "Choisis un format de contenu.",
+});
+
 export const termesDealSchema = z.object({
+  format: formatDealSchema.nullish(),
   /**
    * En euros ENTIERS : la colonne l'est. On refuse la virgule au lieu de
    * l'arrondir en douce.

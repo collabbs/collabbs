@@ -18,6 +18,7 @@ import {
   type Perimetre,
 } from "@/lib/droits";
 import RevisionPanel from "./RevisionPanel";
+import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
 
 type Props = {
   dealId: string;
@@ -35,6 +36,7 @@ type Props = {
     exclusivity: boolean;
     exclusivityDays: number | null;
     shippingRequired: boolean;
+    format: DealFormat;
   };
   /** Compteur retouches du deal (passé par la page parent). */
   revisions?: { used: number; max: number };
@@ -78,6 +80,9 @@ export default function DealControls({ dealId, role, status, deliverables, terms
   const [editing, setEditing] = useState(aFixer);
 
   const [quantity, setQuantity] = useState(terms.quantity);
+  // Le format était figé à « vidéo postée » dès la création, sans jamais
+  // pouvoir être corrigé : le contrat annonçait une vidéo pour trois stories.
+  const [format, setFormat] = useState<DealFormat>(terms.format);
   const [envoiRequis, setEnvoiRequis] = useState(terms.shippingRequired);
   const [deadline, setDeadline] = useState(terms.deadline ?? "");
   const [notes, setNotes] = useState(terms.brandNotes ?? "");
@@ -199,6 +204,32 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
               />
             </label>
+            <div className="text-sm sm:col-span-2">
+              <span className="text-xs font-semibold text-zinc-500">Format du contenu</span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {(Object.keys(DEAL_FORMAT_LABEL) as DealFormat[]).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFormat(f)}
+                    aria-pressed={format === f}
+                    className={
+                      format === f
+                        ? "rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white"
+                        : "rounded-full border border-zinc-200 px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-300"
+                    }
+                  >
+                    {DEAL_FORMAT_LABEL[f]}
+                  </button>
+                ))}
+              </div>
+              {/* Après l'acceptation le contrat est signé : son objet ne se
+                  réécrit plus d'un clic, il faudrait l'accord des deux
+                  parties. La base le refuse aussi (0079). */}
+              <p className="mt-1 text-xs text-zinc-500">
+                Modifiable tant que le créateur n&apos;a pas accepté.
+              </p>
+            </div>
             <label className="text-sm sm:col-span-2">
               <span className="text-xs font-semibold text-zinc-500">Échéance</span>
               <input
@@ -345,6 +376,7 @@ export default function DealControls({ dealId, role, status, deliverables, terms
                     exclusivity: exclu,
                     exclusivityDays: excluJours === "" ? null : Number(excluJours),
                     shippingRequired: envoiRequis,
+                    format,
                   });
                   if (res.ok) setEditing(false);
                   return res;

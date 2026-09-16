@@ -62,6 +62,29 @@ export default async function ThreadPage({
     .order("created_at", { ascending: true });
   const messages = msgs ?? [];
 
+  /* ─── La conversation mène quelque part ───────────────────────────────────
+     L'en-tête ne portait que le nom et le rôle. Or c'est ICI que le deal se
+     conclut — « ok, 200 € pour deux stories » — et à cet instant la marque
+     devait quitter le chat, retrouver le créateur dans la recherche, et tout
+     ressaisir. C'est le moment précis où l'on perd des collaborations.
+
+     On cherche donc la collaboration ouverte entre ces deux-là. S'il y en a
+     une, les deux parties y accèdent d'un clic — le créateur aussi, qui
+     jusqu'ici n'avait aucun chemin depuis le chat. Sinon, et seulement côté
+     marque, on propose de l'ouvrir : un créateur ne se propose pas à
+     lui-même. */
+  const { data: collab } = await supabase
+    .from("deals")
+    .select("id, status")
+    .eq("brand_id", conv.brand_id)
+    .eq("creator_id", conv.creator_id)
+    .in("status", ["negotiation", "active"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const jeSuisLaMarque = conv.brand_id === user.id;
+
   // Marque comme lus les messages entrants non lus.
   await supabase
     .from("messages")
@@ -85,12 +108,32 @@ export default async function ThreadPage({
             (other?.display_name ?? "?").slice(0, 1).toUpperCase()
           )}
         </span>
-        <div>
-          <p className="font-semibold text-ink">{other?.display_name ?? "Utilisateur"}</p>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">
+            {other?.display_name ?? "Utilisateur"}
+          </p>
           <p className="text-xs text-zinc-400">
             {other?.role === "brand" ? "Marque" : "Créateur"}
           </p>
         </div>
+
+        {collab ? (
+          <Link
+            href={`/deals/${collab.id}`}
+            className="ml-auto shrink-0 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:text-ink"
+          >
+            {collab.status === "negotiation"
+              ? "Voir la proposition"
+              : "Voir la collaboration"}
+          </Link>
+        ) : jeSuisLaMarque ? (
+          <Link
+            href={`/deals/nouveau?createur=${conv.creator_id}`}
+            className="ml-auto shrink-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Proposer une collaboration
+          </Link>
+        ) : null}
       </div>
 
       {/* Fil de messages : rendu ici, puis tenu à jour en direct côté client. */}
