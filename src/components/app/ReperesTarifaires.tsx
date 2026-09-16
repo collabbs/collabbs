@@ -66,7 +66,7 @@ export default function ReperesTarifaires({
           <strong className="tabular-nums">{q3} €</strong>.
         </p>
         <p className="mt-2 text-xs text-zinc-400">
-          Calculé sur {n} tarifs affichés. Médiane et non moyenne : un tarif
+          Calculé sur {n}{" "}tarifs affichés. Médiane et non moyenne : un tarif
           exceptionnel ne doit pas déplacer le repère.
         </p>
       </div>
@@ -79,7 +79,7 @@ export default function ReperesTarifaires({
         Repères du marché
       </p>
       <p className="mt-1.5 text-sm text-zinc-600">
-        {phraseObservations(reperes.observations)} En attendant, voici ce que
+        {phraseObservations(reperes.observations)}{" "}En attendant, voici ce que
         d&apos;autres plateformes affichent publiquement — ce ne sont pas nos
         chiffres, et ils ne s&apos;accordent pas entre eux.
       </p>

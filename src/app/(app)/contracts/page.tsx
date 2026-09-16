@@ -217,7 +217,7 @@ export default async function ContractsPage({
           <p className="mt-1 text-sm text-zinc-500">
             Depuis le 1<sup>er</sup> janvier 2026, un contrat écrit détaillé est
             obligatoire dès que la rémunération cumulée sur l&apos;année atteint{" "}
-            {eurExact(LEGAL_THRESHOLD)} avec un même partenaire — cadeaux et dotations
+            {eurExact(LEGAL_THRESHOLD)}{" "}avec un même partenaire — cadeaux et dotations
             compris.
           </p>
 

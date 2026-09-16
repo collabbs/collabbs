@@ -81,7 +81,7 @@ export default function MentionsPage() {
           </p>
           <p className="mt-2">
             Les contenus publiés par les créateurs et les marques restent la propriété
-            de leurs auteurs respectifs. {SITE.name} n&apos;acquiert aucun droit sur ces
+            de leurs auteurs respectifs. {SITE.name}{" "}n&apos;acquiert aucun droit sur ces
             contenus au-delà de ce qui est strictement nécessaire au fonctionnement du
             service.
           </p>
@@ -90,7 +90,7 @@ export default function MentionsPage() {
         <section>
           <h2 className="font-display text-xl font-bold text-ink">Signalement</h2>
           <p className="mt-3">
-            {SITE.name} agit en qualité d&apos;hébergeur au sens de la LCEN pour les
+            {SITE.name}{" "}agit en qualité d&apos;hébergeur au sens de la LCEN pour les
             contenus publiés par ses utilisateurs. Tout contenu manifestement illicite
             peut être signalé à{" "}
             <a

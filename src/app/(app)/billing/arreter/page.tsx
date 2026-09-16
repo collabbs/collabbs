@@ -205,7 +205,7 @@ export default async function ArreterPage() {
         {actives > plafondGratuit && (
           <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
             À savoir : tu as <strong>{actives} campagnes actives</strong>, et le
-            plan Gratuit en autorise {plafondGratuit} en même temps. Elles
+            plan Gratuit en autorise {plafondGratuit}{" "}en même temps. Elles
             continueront toutes — on ne ferme jamais une campagne ouverte — mais
             tu ne pourras plus en ouvrir de nouvelle tant que tu es au-dessus de{" "}
             {plafondGratuit}.

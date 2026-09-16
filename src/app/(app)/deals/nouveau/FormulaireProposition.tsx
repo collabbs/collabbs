@@ -96,7 +96,7 @@ export default function FormulaireProposition({
         </div>
         <p className="mt-1.5 text-xs text-zinc-500">
           C&apos;est ce qui sera écrit au contrat. Tu peux encore le changer tant
-          que {nomCreateur} n&apos;a pas accepté.
+          que {nomCreateur}{" "}n&apos;a pas accepté.
         </p>
       </div>
 
@@ -187,7 +187,7 @@ export default function FormulaireProposition({
       </div>
 
       <div className="rounded-xl bg-zinc-50 p-4 text-xs leading-relaxed text-zinc-500">
-        {nomCreateur} recevra la proposition et pourra l&apos;accepter ou en discuter.
+        {nomCreateur}{" "}recevra la proposition et pourra l&apos;accepter ou en discuter.
         Le contrat se signe automatiquement à son acceptation, et{" "}
         <b className="text-ink">tu ne payes qu&apos;après</b> — les fonds restent bloqués
         jusqu&apos;à ce que tu valides la livraison.

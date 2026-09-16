@@ -101,7 +101,7 @@ export default function ActionPanel({
           ✓ Ton lien d&apos;affiliation est actif
         </p>
         <p className="mt-1 text-xs text-emerald-600">
-          Partage-le partout : chaque {rewardedFor} générée te rapporte une
+          Partage-le partout : chaque {rewardedFor}{" "}générée te rapporte une
           commission.
         </p>
         <div className="mt-3 flex items-center gap-2">

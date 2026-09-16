@@ -192,7 +192,7 @@ export default async function PayoutsPage({
 
           {affToReview > 0 && (
             <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-700">
-              {eurExact(affToReview)} de commissions attendent que la marque confirme
+              {eurExact(affToReview)}{" "}de commissions attendent que la marque confirme
               la commande dans son back-office. C&apos;est une vérification normale
               pour les ventes remontées par sa boutique.
             </p>
@@ -200,7 +200,7 @@ export default async function PayoutsPage({
 
           {affUnfunded > 0 && (
             <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
-              {eurExact(affUnfunded)} de commissions attendent que la marque réapprovisionne
+              {eurExact(affUnfunded)}{" "}de commissions attendent que la marque réapprovisionne
               son compte. Elle a été prévenue.
             </p>
           )}

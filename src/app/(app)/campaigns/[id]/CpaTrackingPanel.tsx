@@ -47,7 +47,7 @@ export default function CpaTrackingPanel({
         🔌 Brancher le suivi des {actionLabel}s
       </h2>
       <p className="mt-2 text-sm text-zinc-600">
-        Une {actionLabel} ne se constate que chez toi : ton serveur nous prévient
+        Une {actionLabel}{" "}ne se constate que chez toi : ton serveur nous prévient
         quand elle a lieu. Donne ceci à ton développeur — c&apos;est une seule
         requête à envoyer au moment où tu enregistres l&apos;{actionLabel}.
       </p>
