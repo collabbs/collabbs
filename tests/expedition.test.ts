@@ -5,6 +5,7 @@ import {
   adresseEnUneLigne,
   lienDeSuivi,
 } from "@/lib/expedition";
+import { expeditionSchema } from "@/lib/schemas/deals";
 
 const ADRESSE_OK = {
   name: "Julien Dreneau",
@@ -83,5 +84,36 @@ describe("lienDeSuivi", () => {
   it("ne rend rien sans numéro", () => {
     expect(lienDeSuivi("Colissimo", null)).toBeNull();
     expect(lienDeSuivi(null, "6A123456789")).toBeNull();
+  });
+});
+
+describe("un numéro de suivi sans transporteur", () => {
+  // Trouvé en testant l'envoi pour de vrai : les deux champs étaient
+  // facultatifs séparément, donc on pouvait expédier avec un numéro seul. Le
+  // créateur lisait « Suivi : 6A12345678901 » sans savoir chez quel
+  // transporteur le chercher — un numéro qu'on ne peut pas suivre inquiète
+  // plus qu'il ne rassure.
+
+  it("est refusé", () => {
+    const r = expeditionSchema.safeParse({ carrier: "", tracking: "6A12345678901" });
+    expect(r.success).toBe(false);
+  });
+
+  it("l'inverse reste permis : expédier sans suivi du tout", () => {
+    expect(expeditionSchema.safeParse({ carrier: "", tracking: "" }).success).toBe(true);
+    expect(expeditionSchema.safeParse({ carrier: null, tracking: null }).success).toBe(true);
+  });
+
+  it("un transporteur seul reste permis", () => {
+    expect(expeditionSchema.safeParse({ carrier: "Colissimo", tracking: "" }).success).toBe(true);
+  });
+
+  it("les deux ensemble passent, et construisent le lien", () => {
+    expect(expeditionSchema.safeParse({ carrier: "Colissimo", tracking: "6A12345678901" }).success).toBe(true);
+    expect(lienDeSuivi("Colissimo", "6A12345678901")).toContain("laposte.fr");
+  });
+
+  it("un transporteur en espaces ne compte pas comme un transporteur", () => {
+    expect(expeditionSchema.safeParse({ carrier: "   ", tracking: "6A12345678901" }).success).toBe(false);
   });
 });

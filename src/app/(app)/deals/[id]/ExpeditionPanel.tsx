@@ -184,7 +184,10 @@ export default function ExpeditionPanel({
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-semibold text-zinc-500">
-                    Transporteur <span className="font-normal text-zinc-400">(facultatif)</span>
+                    Transporteur{" "}
+                    <span className="font-normal text-zinc-400">
+                      {numero.trim() ? "(obligatoire avec un numéro)" : "(facultatif)"}
+                    </span>
                   </span>
                   <input
                     type="text"
@@ -212,11 +215,24 @@ export default function ExpeditionPanel({
                   />
                 </label>
               </div>
-              {/* On ne ment pas sur ce que le suivi apporte : sans numéro, le
-                  créateur n'aura qu'une date. */}
-              <p className="text-xs text-zinc-500">
-                Sans numéro de suivi, le créateur verra seulement que le colis est parti.
-              </p>
+              {/* On ne ment pas sur ce que le suivi apporte, et on le dit AVANT
+                  d'expédier : une fois le colis parti, c'est trop tard pour
+                  corriger ce qu'on a saisi. */}
+              {numero.trim() && !transporteur.trim() ? (
+                <p className="text-xs font-medium text-amber-700">
+                  Il manque le transporteur : sans lui, ce numéro n&apos;ouvre aucun
+                  suivi et le créateur ne peut rien en faire.
+                </p>
+              ) : numero.trim() && !lienDeSuivi(transporteur, numero) ? (
+                <p className="text-xs text-zinc-500">
+                  On ne sait pas construire de lien de suivi pour « {transporteur.trim()} » :
+                  le créateur verra le numéro, sans lien direct.
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Sans numéro de suivi, le créateur verra seulement que le colis est parti.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() =>

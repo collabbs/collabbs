@@ -96,10 +96,25 @@ export const adresseLivraisonSchema = z.object({
  * envoyé par un autre canal. Les rendre obligatoires forcerait la marque à
  * inventer un numéro, ce qui est pire que pas de numéro du tout.
  */
-export const expeditionSchema = z.object({
-  carrier: texteFacultatif({ quoi: "Le transporteur", max: TEXTE_COURT_MAX }).nullish(),
-  tracking: texteFacultatif({ quoi: "Le numéro de suivi", max: TEXTE_COURT_MAX }).nullish(),
-});
+export const expeditionSchema = z
+  .object({
+    carrier: texteFacultatif({ quoi: "Le transporteur", max: TEXTE_COURT_MAX }).nullish(),
+    tracking: texteFacultatif({ quoi: "Le numéro de suivi", max: TEXTE_COURT_MAX }).nullish(),
+  })
+  /**
+   * Les deux sont facultatifs ENSEMBLE — expédier sans suivi est courant, et
+   * le créateur voit alors simplement que le colis est parti.
+   *
+   * Mais un numéro SANS transporteur ne sert à rien : c'est de lui qu'on
+   * déduit le lien de suivi. Sans lui, le créateur lit « Suivi : 6A12345678901 »
+   * sans savoir chez qui le chercher — un numéro qu'on ne peut pas suivre
+   * inquiète plus qu'il ne rassure.
+   */
+  .refine((v) => !v.tracking?.trim() || Boolean(v.carrier?.trim()), {
+    path: ["carrier"],
+    message:
+      "Indique le transporteur : sans lui, le numéro de suivi n'ouvre aucun lien et le créateur ne peut rien en faire.",
+  });
 
 export const termesDealSchema = z.object({
   /**
