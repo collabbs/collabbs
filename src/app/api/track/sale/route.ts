@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  commissionDueSurCePaiement,
+  estUnRenouvellement,
+} from "@/lib/commission-recurrente";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify, notifyOnce } from "@/lib/notifications";
@@ -16,7 +20,12 @@ import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 //   POST /api/track/sale
 //   Authorization: Bearer <postback_secret de la marque>
 //   { "code": "<ref capté par votre cookie>", "amount": 49.99, "order_id": "ORD-12345",
-//     "clicked_at": "2026-08-01T10:00:00Z" }   ← facultatif
+//     "clicked_at": "2026-08-01T10:00:00Z",      ← facultatif
+//     "subscription_id": "sub_1ABC..." }          ← facultatif, pour un abonnement
+//
+// `subscription_id` n'a de sens que pour un SaaS : il identifie l'abonnement
+// chez la marque, et c'est lui qui permet de savoir si ce paiement est le
+// premier ou le sixième — donc s'il est encore commissionné.
 //
 // `clicked_at` est la date du clic qui a posé votre cookie. Elle est
 // FACULTATIVE, et son absence ne coûte jamais rien au créateur : sans elle, la
@@ -31,6 +40,12 @@ type Payload = {
   externalRef: string | null;
   /** Date du clic à l'origine de la vente. Facultative — voir l'en-tête. */
   clickedAt: string | null;
+  /**
+   * Identifiant de l'abonnement chez la marque, quand il s'agit d'un SaaS.
+   * Facultatif : une vente e-commerce n'en a pas. C'est lui qui permet de
+   * savoir s'il s'agit du premier paiement ou du sixième renouvellement.
+   */
+  abonnement: string | null;
   secret: string;
 };
 
@@ -65,7 +80,7 @@ async function handle(p: Payload) {
   const { data: link } = await supabase
     .from("affiliate_links")
     .select(
-      "id, creator_id, campaigns(brand_id, attribution_days, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
+      "id, creator_id, campaigns(brand_id, attribution_days, commission_paiements, commission_nano, commission_micro, commission_mid, commission_macro, brands(postback_secret))",
     )
     .eq("code", p.code)
     .maybeSingle();
@@ -94,7 +109,27 @@ async function handle(p: Payload) {
     else rate = c.commission_nano ?? 0;
   }
   // Au centime : on manipule désormais de l'argent réellement versé.
-  const commission = Math.round((amount * rate)) / 100;
+  let commission = Math.round((amount * rate)) / 100;
+
+  /* ─── Un abonnement ne rapporte pas indéfiniment, sauf si la marque l'a dit ──
+     On compte les paiements du MÊME abonnement qui ont déjà rapporté. Au-delà
+     du nombre prévu, le renouvellement est enregistré — le créateur doit
+     pouvoir constater qu'il a eu lieu et pourquoi il ne rapporte plus — mais
+     sans commission. */
+  let dejaCommissionnes = 0;
+  if (p.abonnement) {
+    const { count } = await supabase
+      .from("affiliate_events")
+      .select("id", { count: "exact", head: true })
+      .eq("link_id", link.id)
+      .eq("abonnement", p.abonnement)
+      .eq("type", "sale")
+      .gt("commission_amount", 0);
+    dejaCommissionnes = count ?? 0;
+    if (!commissionDueSurCePaiement(c?.commission_paiements ?? 1, dejaCommissionnes)) {
+      commission = 0;
+    }
+  }
 
   // La fenêtre d'attribution, enfin appliquée. La colonne existait depuis la
   // migration 0040 avec sa valeur par défaut et sa contrainte ; rien ne la
@@ -108,7 +143,14 @@ async function handle(p: Payload) {
   // commande sous les yeux — qui tranche.
   const survenueLe = new Date().toISOString();
   const fenetre = fenetreValide(link.campaigns?.attribution_days);
-  const aRevoir = horsFenetre(p.clickedAt, survenueLe, fenetre);
+  /* La fenêtre juge le PREMIER paiement — « ce clic a-t-il encore provoqué cet
+     achat ? ». Un renouvellement au sixième mois n'est provoqué par aucun clic :
+     il découle d'un abonnement déjà attribué. Lui appliquer les 30 jours le
+     ferait basculer en revue manuelle chaque mois, sur une commission
+     parfaitement due — et la marque finirait par ne plus les regarder. */
+  const aRevoir = estUnRenouvellement(p.abonnement, dejaCommissionnes)
+    ? false
+    : horsFenetre(p.clickedAt, survenueLe, fenetre);
 
   const { data: inserted, error } = await supabase
     .from("affiliate_events")
@@ -124,6 +166,7 @@ async function handle(p: Payload) {
       sale_amount: amount,
       commission_amount: commission,
       external_ref: p.externalRef,
+      abonnement: p.abonnement,
     })
     .select("id")
     .single();
@@ -295,6 +338,7 @@ export async function GET(request: Request) {
     amount: url.searchParams.get("amount"),
     externalRef: url.searchParams.get("order_id"),
     clickedAt: url.searchParams.get("clicked_at"),
+    abonnement: url.searchParams.get("subscription_id"),
     secret,
   });
 }
@@ -310,6 +354,7 @@ export async function POST(request: Request) {
     amount: body.amount != null ? String(body.amount) : null,
     externalRef: (body.order_id as string) ?? null,
     clickedAt: (body.clicked_at as string) ?? null,
+    abonnement: (body.subscription_id as string) ?? null,
     secret,
   });
 }

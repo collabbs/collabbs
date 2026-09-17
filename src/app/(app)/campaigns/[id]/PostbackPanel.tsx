@@ -4,13 +4,21 @@ import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 type Mode = "drop" | "server";
-type Platform = "shopify" | "woocommerce" | "wix" | "squarespace" | "custom" | "other";
+type Platform =
+  | "shopify"
+  | "woocommerce"
+  | "wix"
+  | "squarespace"
+  | "saas"
+  | "custom"
+  | "other";
 
 const PLATFORMS: { id: Platform; label: string; icon: string; sub: string }[] = [
   { id: "shopify", label: "Shopify", icon: "🛍️", sub: "Le plus courant en e-commerce" },
   { id: "woocommerce", label: "WordPress / WooCommerce", icon: "📦", sub: "Avec un plugin gratuit" },
   { id: "wix", label: "Wix", icon: "🟦", sub: "Studio ou éditeur classique" },
   { id: "squarespace", label: "Squarespace", icon: "⬛", sub: "Code Injection" },
+  { id: "saas", label: "SaaS / abonnement", icon: "🔁", sub: "Stripe, paiements récurrents" },
   { id: "custom", label: "Site custom / avec dev", icon: "🧑‍💻", sub: "Tu as un développeur" },
   { id: "other", label: "Autre", icon: "❓", sub: "Webflow, Prestashop, etc." },
 ];
@@ -112,6 +120,25 @@ wixWindow.trackSale = (amount, orderId) => {
   // Remplace les valeurs par celles de TA commande :
   Collabbs.trackSale(49.99, "ORD-12345");
 </script>`,
+    /* Un SaaS ne passe PAS par le navigateur. Le paiement se constate dans le
+       webhook Stripe, côté serveur — c'est là que la vente est certaine, et
+       c'est le seul endroit qui voit les renouvellements. Un pixel sur la page
+       de remerciement raterait tous les mois suivants. */
+    saas: `// Dans ton webhook Stripe, sur "checkout.session.completed"
+// ET sur "invoice.paid" (c'est lui qui porte les renouvellements).
+await fetch("https://collabbs.com/api/track/sale", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: "Bearer " + process.env.COLLABBS_POSTBACK_SECRET,
+  },
+  body: JSON.stringify({
+    code: refDeTonClient,          // le ?ref= capté à l'inscription, stocké chez toi
+    amount: invoice.amount_paid / 100,
+    order_id: invoice.id,          // unique par paiement : c'est l'anti-doublon
+    subscription_id: invoice.subscription, // le même à chaque renouvellement
+  }),
+});`,
     other: `<script>Collabbs.trackSale(MONTANT_TOTAL, "ORDER_ID_UNIQUE");</script>`,
   };
 

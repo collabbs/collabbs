@@ -6,6 +6,7 @@ import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import PlatformIcon from "@/components/PlatformIcon";
 import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
+import { RYTHMES_COMMISSION } from "@/lib/commission-recurrente";
 import {
   createCampaign,
   televerserVisuelCampagne,
@@ -64,6 +65,8 @@ export default function CampaignForm({
   // c'était jusqu'ici le SEUL cas possible — sauf qu'il se déguisait en
   // « vidéo postée » au moment de créer la collaboration.
   const [format, setFormat] = useState<DealFormat | null>(null);
+  // Le défaut reste le comportement historique : le premier paiement seul.
+  const [paiementsCommissionnes, setPaiementsCommissionnes] = useState(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
@@ -144,6 +147,7 @@ export default function CampaignForm({
     const res = await createCampaign({
       type,
       format,
+      paiementsCommissionnes,
       name: name.trim(),
       description: description.trim(),
       requirements: requirements.trim(),
@@ -774,6 +778,37 @@ export default function CampaignForm({
               className="w-full py-2.5 text-sm outline-none"
             />
             <span className="whitespace-nowrap text-sm text-zinc-400">jours</span>
+          </div>
+
+          {/* ═══ COMBIEN DE FOIS L'ABONNEMENT RAPPORTE ═══
+
+              La question décisive d'un programme SaaS, et elle n'était posée
+              nulle part. 20 % de 29 € sur le premier paiement font 5,80 € :
+              aucun créateur ne se déplace. Les mêmes 20 % sur douze mois font
+              70 €, et le programme se vend. */}
+          <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+            Le créateur touche sur…
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Pour un abonnement. Sur un achat unique, il n&apos;y a qu&apos;un
+            paiement et ce réglage ne change rien.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {RYTHMES_COMMISSION.map((r) => (
+              <button
+                key={r.valeur}
+                type="button"
+                onClick={() => setPaiementsCommissionnes(r.valeur)}
+                className={`rounded-xl border p-3 text-left transition ${
+                  paiementsCommissionnes === r.valeur
+                    ? "border-transparent bg-gradient-to-br from-purple-50 to-pink-50 ring-2 ring-purple-300"
+                    : "border-zinc-200 hover:border-zinc-300"
+                }`}
+              >
+                <p className="text-sm font-semibold text-ink">{r.label}</p>
+                <p className="mt-0.5 text-xs leading-snug text-zinc-500">{r.detail}</p>
+              </button>
+            ))}
           </div>
 
           <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">

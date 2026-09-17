@@ -99,6 +99,11 @@ export type CampaignData = {
    * collaboration : le format y était écrit « vidéo postée » en dur.
    */
   format: string | null;
+  /**
+   * Combien de paiements successifs d'un même abonnement sont commissionnés.
+   * 1 = le premier seulement, N = les N premiers, 0 = tous.
+   */
+  paiementsCommissionnes?: number;
   name: string;
   description: string;
   requirements: string;
@@ -252,6 +257,7 @@ export async function createCampaign(
       requirements: data.requirements || null,
       type: data.type,
       format: data.format,
+      commission_paiements: Math.max(0, Math.trunc(data.paiementsCommissionnes ?? 1)),
       status: "active",
       target_url: targetUrl || null,
       // `fenetreValide` plutôt que la valeur brute : la contrainte CHECK en

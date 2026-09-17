@@ -81,6 +81,7 @@ export type Database = {
       }
       affiliate_events: {
         Row: {
+          abonnement: string | null
           action_count: number
           click_day: string | null
           commission_amount: number | null
@@ -104,6 +105,7 @@ export type Database = {
           visitor_hash: string | null
         }
         Insert: {
+          abonnement?: string | null
           action_count?: number
           click_day?: string | null
           commission_amount?: number | null
@@ -127,6 +129,7 @@ export type Database = {
           visitor_hash?: string | null
         }
         Update: {
+          abonnement?: string | null
           action_count?: number
           click_day?: string | null
           commission_amount?: number | null
@@ -851,6 +854,7 @@ export type Database = {
           commission_micro: number | null
           commission_mid: number | null
           commission_nano: number | null
+          commission_paiements: number
           commission_type: Database["public"]["Enums"]["commission_type"] | null
           commission_unit: string | null
           commission_value: number | null
@@ -901,6 +905,7 @@ export type Database = {
           commission_micro?: number | null
           commission_mid?: number | null
           commission_nano?: number | null
+          commission_paiements?: number
           commission_type?:
             | Database["public"]["Enums"]["commission_type"]
             | null
@@ -953,6 +958,7 @@ export type Database = {
           commission_micro?: number | null
           commission_mid?: number | null
           commission_nano?: number | null
+          commission_paiements?: number
           commission_type?:
             | Database["public"]["Enums"]["commission_type"]
             | null
