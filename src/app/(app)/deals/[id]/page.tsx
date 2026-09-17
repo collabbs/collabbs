@@ -787,10 +787,16 @@ export default async function DealDetailPage({
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm">
             <h2 className="font-display text-lg font-black text-ink">Paiement</h2>
-            {/* La commission s'AJOUTE désormais au montant du créateur. Le
-                signe « − » d'avant décrivait l'ancienne convention, où elle
-                était retenue sur sa part. */}
-            <dl className="mt-3 space-y-2 text-sm">
+            {/* Sur une affiliation pure, ce décompte n'a rien à décompter :
+                « Pour le créateur 0 €, à régler 0 € » décrit une collaboration
+                qui, elle, rapportera et coûtera. Trois zéros qui rassurent à
+                tort valent moins que rien du tout. */}
+            {modele !== "affiliation" && (
+              <>
+                {/* La commission s'AJOUTE désormais au montant du créateur. Le
+                    signe « − » d'avant décrivait l'ancienne convention, où elle
+                    était retenue sur sa part. */}
+                <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-zinc-500">
                   {auxVuesEnAttente
@@ -838,8 +844,10 @@ export default async function DealDetailPage({
                 <dd className="font-display text-lg font-black text-ink">
                   {role === "brand" ? eur(b.gross) : eur(b.net)}
                 </dd>
-              </div>
-            </dl>
+                  </div>
+                </dl>
+              </>
+            )}
 
             {auxVuesEnAttente && (
               <p className="mt-3 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
@@ -915,9 +923,15 @@ export default async function DealDetailPage({
                     la marque n'a rien fixé, le créateur ne peut pas accepter —
                     il signerait un contrat à 0 €. On le dit ici, à côté du
                     montant, plutôt que de laisser le bouton échouer. */}
-                {modele === "produit"
-                  ? "🎁 Collaboration en produit offert : rien à régler. Le créateur reçoit le produit décrit au contrat, et l'avantage en nature est déclaré."
-                  : aFixerLeMontant
+                {/* « À régler : 0 € » est vrai à la seconde près et faux sur
+                    le fond : la marque PAIERA, au fil des ventes, prélevé sur sa
+                    provision. Lui laisser croire que la collaboration ne coûte
+                    rien, c'est préparer la surprise du premier prélèvement. */}
+                {modele === "affiliation"
+                  ? `💸 Aucun séquestre : rien n'est bloqué d'avance. ${affiliation?.commission_value ?? 0} % de chaque vente amenée par le créateur seront prélevés sur ta provision, au fil des ventes.`
+                  : modele === "produit"
+                    ? "🎁 Collaboration en produit offert : rien à régler. Le créateur reçoit le produit décrit au contrat, et l'avantage en nature est déclaré."
+                    : aFixerLeMontant
                   ? role === "brand"
                     ? deal.perf_rate != null
                       ? `✏️ Plafond à fixer. Cette campagne paie ${deal.perf_rate} € / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`
