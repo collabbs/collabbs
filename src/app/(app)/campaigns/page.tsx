@@ -38,6 +38,9 @@ export default async function MyCampaignsPage() {
       "id, name, type, status, fixed_amount, commission_value, created_at",
     )
     .eq("brand_id", user.id)
+    // Invisibles ici aussi : la marque les retrouve sur la collaboration
+    // qu'elles servent, pas mélangées à ses vraies campagnes.
+    .eq("privee", false)
     .order("created_at", { ascending: false });
   const campaigns = campaignsRes.data ?? [];
   const capacite = await capaciteCampagnes(user.id);

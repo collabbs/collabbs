@@ -872,6 +872,7 @@ export type Database = {
           product_name: string | null
           product_retail_value: number | null
           product_url: string | null
+          privee: boolean
           promo_auto_generate: boolean
           promo_code: string | null
           promo_commission_pct: number | null
@@ -922,6 +923,7 @@ export type Database = {
           product_name?: string | null
           product_retail_value?: number | null
           product_url?: string | null
+          privee?: boolean
           promo_auto_generate?: boolean
           promo_code?: string | null
           promo_commission_pct?: number | null
@@ -972,6 +974,7 @@ export type Database = {
           product_name?: string | null
           product_retail_value?: number | null
           product_url?: string | null
+          privee?: boolean
           promo_auto_generate?: boolean
           promo_code?: string | null
           promo_commission_pct?: number | null
@@ -1368,6 +1371,7 @@ export type Database = {
           brand_id: string
           brand_notes: string | null
           brand_validated_at: string | null
+          campagne_affiliation: string | null
           brand_validation_deadline_days: number
           campaign_id: string | null
           created_at: string
@@ -1412,6 +1416,7 @@ export type Database = {
           brand_id: string
           brand_notes?: string | null
           brand_validated_at?: string | null
+          campagne_affiliation?: string | null
           brand_validation_deadline_days?: number
           campaign_id?: string | null
           created_at?: string
@@ -1456,6 +1461,7 @@ export type Database = {
           brand_id?: string
           brand_notes?: string | null
           brand_validated_at?: string | null
+          campagne_affiliation?: string | null
           brand_validation_deadline_days?: number
           campaign_id?: string | null
           created_at?: string

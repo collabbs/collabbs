@@ -10,6 +10,7 @@ import {
   MODELE_LABEL,
   MODELE_DESCRIPTION,
   LIBELLE_MONTANT,
+  avecCommission,
   type DealFormat,
   type ModeleRemuneration,
 } from "@/lib/deal";
@@ -43,6 +44,8 @@ export default function FormulaireProposition({
   // Deux questions indépendantes : ce qui est produit, et comment c'est payé.
   const [modele, setModele] = useState<ModeleRemuneration>("forfait");
   const [tarifVues, setTarifVues] = useState("");
+  const [commission, setCommission] = useState("");
+  const [urlDestination, setUrlDestination] = useState("");
   const [montant, setMontant] = useState(tarifDepart ? String(tarifDepart) : "");
   const [quantite, setQuantite] = useState("1");
   const [echeance, setEcheance] = useState("");
@@ -64,6 +67,8 @@ export default function FormulaireProposition({
       format,
       modele,
       perfRate: modele === "performance" ? Number(tarifVues) : null,
+      commission: avecCommission(modele) ? Number(commission) : null,
+      urlDestination: avecCommission(modele) ? urlDestination.trim() : null,
     });
     setEnvoi(false);
     // Même refusée, la réponse peut porter la collaboration déjà ouverte :
@@ -90,7 +95,7 @@ export default function FormulaireProposition({
 
       <div>
         <span className={legende}>Comment {nomCreateur} est payé</span>
-        <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
+        <div className="mt-1.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {MODELES_REMUNERATION.map((m) => (
             <button
               key={m}
@@ -168,6 +173,30 @@ export default function FormulaireProposition({
                   : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
           </p>
 
+          {avecCommission(modele) && (
+            <div className="mt-3">
+              <label className={legende} htmlFor="commission">
+                Commission sur les ventes (%)
+              </label>
+              <input
+                id="commission"
+                type="number"
+                min={1}
+                max={50}
+                step={1}
+                required
+                value={commission}
+                onChange={(e) => setCommission(e.target.value)}
+                placeholder="10"
+                className={champ}
+              />
+              <p className="mt-1 text-xs text-zinc-400">
+                Reversé au créateur sur chaque vente qu&apos;il amène, pendant 30
+                jours après le clic.
+              </p>
+            </div>
+          )}
+
           {modele === "performance" && (
             <div className="mt-3">
               <label className={legende} htmlFor="tarifVues">
@@ -210,6 +239,30 @@ export default function FormulaireProposition({
           <p className="mt-1 text-xs text-zinc-400">Un livrable sera créé pour chacun.</p>
         </div>
       </div>
+
+      {avecCommission(modele) && (
+        <div>
+          <label className={legende} htmlFor="urlDestination">
+            Où le lien du créateur envoie
+          </label>
+          <input
+            id="urlDestination"
+            type="url"
+            required
+            value={urlDestination}
+            onChange={(e) => setUrlDestination(e.target.value)}
+            placeholder="https://ma-boutique.fr/le-produit"
+            className={champ}
+          />
+          {/* Sans destination, le lien renverrait vers le site de la marque —
+              ou vers Collabbs — et le créateur enverrait son audience nulle
+              part. C'est la page qui vend qu'il faut viser. */}
+          <p className="mt-1 text-xs text-zinc-400">
+            La page produit, de préférence : chaque clic y est compté, et les
+            ventes qui suivent lui sont attribuées.
+          </p>
+        </div>
+      )}
 
       <div>
         <label className={legende} htmlFor="titre">

@@ -36,7 +36,11 @@ export async function capaciteCampagnes(brandId: string): Promise<EtatCapacite> 
     .from("campaigns")
     .select("id", { count: "exact", head: true })
     .eq("brand_id", brandId)
-    .eq("status", "active");
+    .eq("status", "active")
+    // Une campagne privée porte une collaboration directe déjà conclue. La
+    // compter dans le plafond ferait payer un plan supérieur pour avoir
+    // proposé trois affiliations à trois créateurs.
+    .eq("privee", false);
 
   const actives = count ?? 0;
   return {

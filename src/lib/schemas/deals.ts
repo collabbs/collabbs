@@ -128,9 +128,12 @@ export const formatDealSchema = z.enum(["video_post", "ugc", "story", "reel", "l
   message: "Choisis un format de contenu.",
 });
 
-export const modeleSchema = z.enum(["forfait", "performance", "produit"], {
-  message: "Choisis comment le créateur est payé.",
-});
+export const modeleSchema = z.enum(
+  ["forfait", "affiliation", "hybride", "performance", "produit"],
+  {
+    message: "Choisis comment le créateur est payé.",
+  },
+);
 
 export const termesDealSchema = z.object({
   format: formatDealSchema.nullish(),
@@ -146,6 +149,19 @@ export const termesDealSchema = z.object({
     min: 1,
     max: 1000,
   }).nullish(),
+  /**
+   * Pourcentage reversé au créateur sur chaque vente qu'il amène.
+   *
+   * Plafonné à 50 % : au-delà, la marque perd de l'argent sur chaque vente, et
+   * ce n'est jamais ce qu'elle voulait taper.
+   */
+  commission: nombreEntier({
+    quoi: "La commission",
+    min: 1,
+    max: 50,
+  }).nullish(),
+  /** Où le lien tracké envoie l'acheteur. Sans elle, le lien ne mène nulle part. */
+  urlDestination: texteFacultatif({ quoi: "L'adresse de destination", max: 500 }).nullish(),
   /**
    * En euros ENTIERS : la colonne l'est. On refuse la virgule au lieu de
    * l'arrondir en douce.
@@ -261,7 +277,7 @@ export const termesDealSchema = z.object({
     error: "Indique le tarif pour 1 000 vues.",
     path: ["perfRate"],
   })
-  .refine((d) => d.modele === "produit" || d.amount > 0, {
+  .refine((d) => ["produit", "affiliation"].includes(d.modele ?? "") || d.amount > 0, {
     error:
       "Une collaboration payée doit avoir un montant. Choisis « Produit offert » si tu ne verses pas d'argent.",
     path: ["amount"],
@@ -271,6 +287,29 @@ export const termesDealSchema = z.object({
   .refine((d) => d.modele !== "performance" || d.amount >= (d.perfRate ?? 0), {
     error:
       "Le plafond doit valoir au moins le tarif de 1 000 vues, sinon il est atteint avant la première vue.",
+    path: ["amount"],
+  })
+  .refine((d) => !["affiliation", "hybride"].includes(d.modele ?? "") || (d.commission ?? 0) > 0, {
+    error: "Indique le pourcentage de commission sur les ventes.",
+    path: ["commission"],
+  })
+  /* Le lien tracké a besoin d'une destination. Sans elle il renvoie vers le
+     site de la marque s'il est renseigné, et vers Collabbs sinon — un créateur
+     enverrait alors son audience nulle part. */
+  .refine(
+    (d) =>
+      !["affiliation", "hybride"].includes(d.modele ?? "") ||
+      /^https?:\/\/.+\..+/.test((d.urlDestination ?? "").trim()),
+    {
+      error:
+        "Donne l'adresse vers laquelle le lien du créateur doit envoyer (https://…).",
+      path: ["urlDestination"],
+    },
+  )
+  /* Un fixe + commission sans partie fixe est une affiliation qui ne dit pas
+     son nom : le créateur croit avoir une garantie et n'en a aucune. */
+  .refine((d) => d.modele !== "hybride" || d.amount > 0, {
+    error: "Indique la partie fixe garantie, ou choisis « Commission sur les ventes ».",
     path: ["amount"],
   })
   /* Un produit offert sans description est un piège : le créateur signe pour

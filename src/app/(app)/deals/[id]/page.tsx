@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { modeleValide, montantAFixer } from "@/lib/deal";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
@@ -120,7 +121,7 @@ export default async function DealDetailPage({
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number, engagement_id, engagement_month, modele_remuneration",
+      "id, brand_id, creator_id, title, amount, format, platform_id, quantity, deadline, brand_notes, status, created_at, accepted_at, escrow_due_at, brand_validated_at, brand_validation_deadline_days, revision_rounds_max, revision_rounds_used, usage_rights_months, usage_rights_scope, usage_rights_fee, exclusivity, exclusivity_days, perf_rate, perf_views, perf_proof_url, perf_declared_at, perf_validated_at, shipping_required, shipping_address, shipped_at, received_at, shipping_carrier, tracking_number, engagement_id, engagement_month, modele_remuneration, campagne_affiliation",
     )
     .eq("id", id)
     .single();
@@ -224,6 +225,26 @@ export default async function DealDetailPage({
         net: Number(payment.net_amount),
       }
     : dealBreakdown(deal.amount, planMarque);
+
+  /* Le lien tracké d'une collaboration en commission. On le lit ici plutôt
+     que de renvoyer le créateur vers « Mes opportunités » : la collaboration
+     est l'endroit où il vient voir ce qu'il a à faire, et un lien qu'il faut
+     aller chercher ailleurs ne se diffuse pas. */
+  const { data: affiliation } = deal.campagne_affiliation
+    ? await createAdminClient()
+        .from("campaigns")
+        .select("commission_value, target_url, id")
+        .eq("id", deal.campagne_affiliation)
+        .maybeSingle()
+    : { data: null };
+  const { data: lienAffilie } = deal.campagne_affiliation
+    ? await createAdminClient()
+        .from("affiliate_links")
+        .select("code")
+        .eq("campaign_id", deal.campagne_affiliation)
+        .eq("creator_id", deal.creator_id)
+        .maybeSingle()
+    : { data: null };
 
   /* Le modèle de rémunération décide de ce que `amount` veut dire. Zéro
      signifiait « pas encore fixé » ; sur un produit offert, zéro est la
@@ -502,6 +523,44 @@ export default async function DealDetailPage({
               carrier={deal.shipping_carrier}
               tracking={deal.tracking_number}
             />
+          )}
+
+          {/* Le lien tracké, dès que la collaboration est acceptée. Avant, il
+              n'existe pas : un lien diffusé sans accord attribuerait des ventes
+              à un contrat non signé. */}
+          {affiliation && (
+            <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-semibold text-ink">Commission sur les ventes</h2>
+                <span className="font-display text-2xl font-black tabular-nums text-ink">
+                  {affiliation.commission_value} %
+                </span>
+              </div>
+
+              {lienAffilie ? (
+                <>
+                  <p className="mt-3 text-sm text-zinc-600">
+                    {role === "creator"
+                      ? "Ton lien. Chaque vente qui en découle pendant 30 jours te rapporte la commission."
+                      : "Le lien du créateur. Les ventes qui en découlent lui sont attribuées pendant 30 jours."}
+                  </p>
+                  <p className="mt-2 overflow-x-auto rounded-xl bg-zinc-50 p-3 font-mono text-[13px] text-ink">
+                    collabbs.com/r/{lienAffilie.code}
+                  </p>
+                  {affiliation.target_url && (
+                    <p className="mt-2 truncate text-xs text-zinc-400">
+                      Envoie vers {affiliation.target_url}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-zinc-500">
+                  {status === "negotiation"
+                    ? "Le lien de suivi sera créé dès que la collaboration sera acceptée."
+                    : "Le lien de suivi n'a pas pu être créé. Écris-nous — sans lui, aucune vente ne peut être attribuée."}
+                </p>
+              )}
+            </div>
           )}
 
           {/* Vues — uniquement sur les collaborations payées à la performance.

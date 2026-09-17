@@ -84,16 +84,37 @@ export const eurExact = (n: number) =>
    Elles sont indépendantes — une story se paie au forfait, aux vues ou en
    produit — et les garder séparées est ce qui permet de les combiner.        */
 
-export type ModeleRemuneration = "forfait" | "performance" | "produit";
+export type ModeleRemuneration =
+  | "forfait"
+  | "performance"
+  | "produit"
+  | "affiliation"
+  | "hybride";
 
 export const MODELES_REMUNERATION: ModeleRemuneration[] = [
   "forfait",
+  "affiliation",
+  "hybride",
   "performance",
   "produit",
 ];
 
+/** Les modèles qui font gagner une commission sur les ventes. */
+export const MODELES_AVEC_COMMISSION: ModeleRemuneration[] = ["affiliation", "hybride"];
+
+export function avecCommission(modele: ModeleRemuneration): boolean {
+  return MODELES_AVEC_COMMISSION.includes(modele);
+}
+
+/** Les modèles où la marque verse une somme d'argent au créateur. */
+export function avecSommeVersee(modele: ModeleRemuneration): boolean {
+  return modele === "forfait" || modele === "hybride" || modele === "performance";
+}
+
 export const MODELE_LABEL: Record<ModeleRemuneration, string> = {
   forfait: "Montant fixe",
+  affiliation: "Commission sur les ventes",
+  hybride: "Fixe + commission",
   performance: "Paiement aux vues",
   produit: "Produit offert",
 };
@@ -101,6 +122,10 @@ export const MODELE_LABEL: Record<ModeleRemuneration, string> = {
 /** Ce que le modèle promet, dit du point de vue du créateur. */
 export const MODELE_DESCRIPTION: Record<ModeleRemuneration, string> = {
   forfait: "Une somme convenue d'avance, versée à la livraison validée.",
+  affiliation:
+    "Pas de fixe : un lien tracké, et un pourcentage sur chaque vente qu'il amène.",
+  hybride:
+    "Une somme garantie, plus un pourcentage sur les ventes qu'il amène.",
   performance:
     "Un tarif pour 1 000 vues, plafonné. Le créateur déclare ses vues, tu les valides.",
   produit:
@@ -120,6 +145,8 @@ export function modeleValide(valeur: string | null | undefined): ModeleRemunerat
  */
 export const LIBELLE_MONTANT: Record<ModeleRemuneration, string> = {
   forfait: "Montant pour le créateur (€)",
+  affiliation: "Valeur du produit envoyé, s'il y en a un (€)",
+  hybride: "Partie fixe garantie (€)",
   performance: "Plafond que tu acceptes de dépenser (€)",
   produit: "Valeur du produit offert (€)",
 };
@@ -133,5 +160,7 @@ export const LIBELLE_MONTANT: Record<ModeleRemuneration, string> = {
  * parfaitement complète.
  */
 export function montantAFixer(modele: ModeleRemuneration, amount: number): boolean {
-  return modele !== "produit" && amount <= 0;
+  // Ni le produit offert ni l'affiliation pure ne versent d'argent : zéro y est
+  // la réponse, pas un champ resté vide.
+  return avecSommeVersee(modele) && amount <= 0;
 }

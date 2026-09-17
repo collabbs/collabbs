@@ -44,6 +44,7 @@ export async function searchEverything(query: string): Promise<SearchHit[]> {
       .select("id, name, type, brands(name)")
       .ilike("name", like)
       .eq("status", "active")
+      .eq("privee", false)
       .limit(5),
   ]);
 

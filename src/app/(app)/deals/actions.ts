@@ -1,6 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { modeleValide, avecCommission } from "@/lib/deal";
+import {
+  creerCampagnePrivee,
+  majCampagnePrivee,
+  cloreCampagnePrivee,
+} from "@/lib/campagne-privee";
+import { creerLienAffilie } from "@/lib/lien-affilie";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -261,6 +268,8 @@ export async function creerPropositionDirecte(
     format?: string | null;
     modele?: string | null;
     perfRate?: number | null;
+    commission?: number | null;
+    urlDestination?: string | null;
   },
 ): Promise<{ ok: boolean; dealId?: string; error?: string }> {
   const supabase = await createClient();
@@ -286,6 +295,8 @@ export async function creerPropositionDirecte(
     format: data.format,
     modele: data.modele,
     perfRate: data.perfRate,
+    commission: data.commission,
+    urlDestination: data.urlDestination,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
 
@@ -340,6 +351,33 @@ export async function creerPropositionDirecte(
     .single();
   if (error || !deal) return { ok: false, error: error?.message ?? "Création impossible." };
 
+  /* Une collaboration en commission a besoin d'un lien tracké, donc d'une
+     campagne — privée, invisible au catalogue, hors plafond de plan. Créée
+     APRÈS le deal : si elle échoue, on retire le deal plutôt que de laisser
+     une collaboration qui promet une commission que rien ne mesure. */
+  if (avecCommission(modeleValide(controle.data.modele))) {
+    const campagne = await creerCampagnePrivee({
+      brandId: user.id,
+      nom: titre ?? "Collaboration",
+      commission: controle.data.commission ?? 0,
+      urlDestination: (controle.data.urlDestination ?? "").trim(),
+      description: controle.data.brandNotes,
+    });
+    if (!campagne.ok) {
+      await createAdminClient().from("deals").delete().eq("id", deal.id);
+      return { ok: false, error: campagne.error };
+    }
+    const { error: errRattache } = await supabase
+      .from("deals")
+      .update({ campagne_affiliation: campagne.campaignId })
+      .eq("id", deal.id);
+    if (errRattache) {
+      await createAdminClient().from("deals").delete().eq("id", deal.id);
+      await cloreCampagnePrivee(campagne.campaignId);
+      return { ok: false, error: "La proposition n'a pas pu être enregistrée. Réessaie." };
+    }
+  }
+
   const livrables = await ensureDeliverables(supabase, deal.id, data.quantity);
   if (!livrables.ok) {
     // Par le client de service : 0077 retire `delete` au navigateur — une
@@ -392,6 +430,8 @@ export async function updateDealTerms(
     format?: string | null;
     modele?: string | null;
     perfRate?: number | null;
+    commission?: number | null;
+    urlDestination?: string | null;
   },
 ): Promise<Result> {
   const supabase = await createClient();
@@ -402,7 +442,7 @@ export async function updateDealTerms(
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, creator_id, title, status")
+    .select("brand_id, creator_id, title, status, modele_remuneration, campagne_affiliation")
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
@@ -426,6 +466,36 @@ export async function updateDealTerms(
     shippingRequired: data.shippingRequired ?? false,
   });
   if (!controle.ok) return { ok: false, error: controle.error };
+
+  /* La campagne privée suit les termes tant qu'on négocie.
+     Trois cas : la marque passe EN commission (il faut la créer), elle en
+     sort (il faut la clore, sinon elle continuerait d'attribuer des ventes à
+     une collaboration qui n'en promet plus), ou elle ajuste son taux. */
+  const modeleVoulu = modeleValide(controle.data.modele ?? deal.modele_remuneration);
+  const campagneActuelle = deal.campagne_affiliation ?? null;
+  let campagneRattachee: string | null | undefined;
+
+  if (avecCommission(modeleVoulu)) {
+    const params = {
+      commission: controle.data.commission ?? 0,
+      urlDestination: (controle.data.urlDestination ?? "").trim(),
+      description: controle.data.brandNotes,
+    };
+    if (campagneActuelle) {
+      await majCampagnePrivee(campagneActuelle, params);
+    } else {
+      const campagne = await creerCampagnePrivee({
+        brandId: user.id,
+        nom: deal.title ?? "Collaboration",
+        ...params,
+      });
+      if (!campagne.ok) return { ok: false, error: campagne.error };
+      campagneRattachee = campagne.campaignId;
+    }
+  } else if (campagneActuelle) {
+    await cloreCampagnePrivee(campagneActuelle);
+    campagneRattachee = null;
+  }
 
   const { error } = await supabase
     .from("deals")
@@ -454,6 +524,9 @@ export async function updateDealTerms(
             perf_rate:
               controle.data.modele === "performance" ? controle.data.perfRate : null,
           }
+        : {}),
+      ...(campagneRattachee !== undefined
+        ? { campagne_affiliation: campagneRattachee }
         : {}),
     })
     .eq("id", dealId);
@@ -514,7 +587,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "brand_id, creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes",
+      "brand_id, creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes, campagne_affiliation",
     )
     .eq("id", dealId)
     .single();
@@ -626,6 +699,22 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
 
+  /* Le lien tracké naît ICI, pas à la proposition : tant que le créateur
+     n'a pas accepté, il n'a rien à diffuser, et un lien qui existerait
+     avant l'accord attribuerait des ventes à un contrat non signé.
+     Son échec ne défait pas l'acceptation — le contrat est signé — mais il
+     doit se voir, parce qu'une collaboration en commission sans lien ne
+     rapporte rien au créateur. */
+  if (deal.campagne_affiliation) {
+    const lien = await creerLienAffilie(user.id, deal.campagne_affiliation);
+    if (!lien.ok) {
+      await reportError("affiliation-directe/lien", lien.error, {
+        userId: user.id,
+        detail: `deal ${dealId}`,
+      });
+    }
+  }
+
   await notify({
     userId: deal.brand_id,
     type: "deal_accepted",
@@ -649,7 +738,7 @@ export async function cancelDeal(dealId: string): Promise<Result> {
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, creator_id, status")
+    .select("brand_id, creator_id, status, campagne_affiliation")
     .eq("id", dealId)
     .single();
   if (!deal || (deal.brand_id !== user.id && deal.creator_id !== user.id))
@@ -683,6 +772,11 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .update({ status: "cancelled" })
     .eq("id", dealId);
   if (error) return { ok: false, error: error.message };
+
+  // Une campagne privée laissée ouverte continuerait d'attribuer des ventes à
+  // une collaboration annulée — donc d'engager la provision de la marque pour
+  // une commission que plus aucun contrat ne prévoit.
+  if (deal.campagne_affiliation) await cloreCampagnePrivee(deal.campagne_affiliation);
 
   // Idem : l'écriture du contrat passe par le serveur. `cancelDeal` a vérifié
   // que l'appelant est l'une des deux parties.

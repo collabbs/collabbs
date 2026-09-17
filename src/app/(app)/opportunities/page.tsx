@@ -60,6 +60,7 @@ export default async function OpportunitiesPage({
             "id, name, description, type, fixed_amount, commission_value, commission_nano, commission_macro, min_subscribers, spots, created_at, cpa_action_label, cpa_value_per_action, with_promo_code, promo_discount_pct, with_giveaway, giveaway_prize_label, giveaway_prize_value, brands!inner(name, logo_url), campaign_niches(niche_id), campaign_platforms(platform_id), campaign_cpa_tiers(payout)",
           )
           .eq("status", "active")
+          .eq("privee", false)
           .order("created_at", { ascending: false });
         return demoVisible() ? requete : requete.neq("brands.is_demo", true);
       })(),

@@ -150,6 +150,7 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
       "id, brand_id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
     )
     .eq("status", "active")
+    .eq("privee", false)
     .order("created_at", { ascending: false })
     .limit(50);
 
