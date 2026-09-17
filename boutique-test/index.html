@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sérum Éclat — boutique de test</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="config.js"></script>
+    <!-- ÉTAPE 1 du tracker Collabbs : sur TOUTES les pages, dans le <head>.
+         C'est elle qui capte le ?ref= à l'arrivée et le garde 30 jours. -->
+    <script>
+      document.write(
+        '<script src="https://collabbs.com/track.js" data-brand="' +
+          window.MARQUE_COLLABBS +
+          '"><\/script>',
+      );
+    </script>
+  </head>
+  <body>
+    <header>Boutique de test</header>
+    <main>
+      <div class="produit">
+        <div class="visuel">🧴</div>
+        <div>
+          <h1>Sérum Éclat — 30 ml</h1>
+          <p class="desc">
+            Un produit qui n'existe pas, vendu par une boutique qui n'existe pas,
+            pour vérifier qu'une vente bien réelle remonte jusqu'à Collabbs.
+          </p>
+          <p class="prix">49,00 €</p>
+          <button id="acheter">Acheter</button>
+        </div>
+      </div>
+
+      <div class="mouchard" id="mouchard"></div>
+    </main>
+
+    <script src="mouchard.js"></script>
+    <script>
+      // Un vrai paiement poserait ici un identifiant de commande unique. On fait
+      // pareil : c'est lui qui empêche qu'un rechargement de page compte deux
+      // fois la même vente.
+      document.getElementById("acheter").addEventListener("click", function () {
+        var commande = "TEST-" + Date.now();
+        location.href = "merci.html?commande=" + encodeURIComponent(commande);
+      });
+    </script>
+  </body>
+</html>

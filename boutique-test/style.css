@@ -1,0 +1,90 @@
+/* Une vraie boutique, en tout petit. Assez soignée pour qu'on oublie qu'elle
+   est fausse — c'est le but : reproduire les conditions réelles, cookie
+   compris, pas simuler une page. */
+:root {
+  --encre: #17161a;
+  --doux: #6b6875;
+  --trait: #e8e5ee;
+  --fond: #faf9fb;
+  --accent: #6d28d9;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--encre);
+  font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header {
+  border-bottom: 1px solid var(--trait);
+  background: #fff;
+  padding: 18px 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+main { margin: 0 auto; max-width: 720px; padding: 40px 24px 80px; }
+.produit {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: 20px;
+  padding: 28px;
+}
+@media (min-width: 640px) { .produit { grid-template-columns: 200px 1fr; } }
+.visuel {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #ede9fe, #fce7f3);
+  display: grid;
+  place-items: center;
+  font-size: 64px;
+}
+h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 6px; }
+.prix { font-size: 30px; font-weight: 900; letter-spacing: -0.03em; margin: 14px 0; }
+p.desc { color: var(--doux); margin: 0; }
+button {
+  margin-top: 18px;
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  padding: 13px 20px;
+  cursor: pointer;
+}
+button:hover { opacity: 0.92; }
+.confirme {
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+}
+.confirme .coche { font-size: 44px; }
+.mouchard {
+  margin-top: 28px;
+  border: 1px dashed var(--trait);
+  border-radius: 16px;
+  background: #fff;
+  padding: 18px 20px;
+  font-size: 14px;
+}
+.mouchard h2 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--doux);
+}
+.mouchard code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--fond);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.vide { color: var(--doux); }
+.ok { color: #047857; font-weight: 600; }

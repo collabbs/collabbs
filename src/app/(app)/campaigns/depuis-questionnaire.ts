@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { normaliserSiteMarque } from "@/lib/site-marque";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import { normaliserCarteMarque, type CarteMarque } from "@/lib/quiz";
 import { createCampaign, type CampaignType } from "./actions";
@@ -70,7 +71,10 @@ export async function creerCampagneDepuisCarte(
       .eq("id", user.id)
       .maybeSingle();
     if (marque && !marque.website) {
-      await supabase.from("brands").update({ website: carte.site }).eq("id", user.id);
+      await supabase
+        .from("brands")
+        .update({ website: normaliserSiteMarque(carte.site) })
+        .eq("id", user.id);
     }
   }
 

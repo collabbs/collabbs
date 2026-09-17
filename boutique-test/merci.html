@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commande confirmée — boutique de test</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="config.js"></script>
+    <!-- ÉTAPE 1, ici aussi : le tracker doit être présent sur cette page pour
+         que `Collabbs.trackSale` existe au moment de l'appeler. -->
+    <script>
+      document.write(
+        '<script src="https://collabbs.com/track.js" data-brand="' +
+          window.MARQUE_COLLABBS +
+          '"><\/script>',
+      );
+    </script>
+  </head>
+  <body>
+    <header>Boutique de test</header>
+    <main>
+      <div class="confirme">
+        <div class="coche">✅</div>
+        <h1>Merci, c'est commandé</h1>
+        <p class="desc">Commande <code id="numero">—</code> · 49,00 €</p>
+      </div>
+
+      <div class="mouchard" id="mouchard"></div>
+      <div class="mouchard" id="envoi"></div>
+    </main>
+
+    <script src="mouchard.js"></script>
+    <script>
+      var commande =
+        new URLSearchParams(location.search).get("commande") || "TEST-SANS-NUMERO";
+      document.getElementById("numero").textContent = commande;
+
+      // ÉTAPE 2 du tracker : une seule ligne, sur la page de confirmation.
+      // Sur une vraie boutique, le montant et le numéro viennent du moteur de
+      // commande — ici ils viennent de l'URL, c'est la seule différence.
+      var envoye = false;
+      try {
+        if (window.Collabbs && typeof window.Collabbs.trackSale === "function") {
+          window.Collabbs.trackSale(49.0, commande);
+          envoye = true;
+        }
+      } catch (e) {
+        /* on montre l'échec plus bas plutôt que de le taire */
+      }
+
+      document.getElementById("envoi").innerHTML =
+        "<h2>La vente</h2>" +
+        (envoye
+          ? '<p class="ok">✓ Envoyée à Collabbs — 49,00 € · commande <code>' +
+            commande +
+            "</code></p><p>Elle n'apparaîtra que si un code créateur était mémorisé au-dessus : sans clic à attribuer, le tracker n'envoie rien, et c'est voulu.</p>"
+          : '<p class="vide">Le tracker n\'était pas disponible : rien n\'a été envoyé. C\'est exactement le cas qu\'on cherche à détecter.</p>');
+    </script>
+  </body>
+</html>

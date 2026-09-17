@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normaliserSiteMarque } from "@/lib/site-marque";
 import { createClient } from "@/lib/supabase/server";
 import { citySlug } from "@/lib/city";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -258,7 +259,9 @@ export async function saveBrandOnboarding(
   const fiche = {
         name: data.name,
         sector: data.sector || null,
-        website: data.website || null,
+        // Une adresse collée depuis la barre du navigateur arrive souvent
+        // avec les paramètres d'une publicité. On garde le site, pas la visite.
+        website: normaliserSiteMarque(data.website),
         logo_url: data.logoUrl,
         description: data.description?.trim() || null,
   };
