@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { modeleValide, montantAFixer } from "@/lib/deal";
+import { modeleValide, montantAFixer, contenuLibre } from "@/lib/deal";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -252,6 +252,7 @@ export default async function DealDetailPage({
      collaboration parfaitement complète. */
   const modele = modeleValide(deal.modele_remuneration);
   const aFixerLeMontant = status === "negotiation" && montantAFixer(modele, deal.amount);
+  const libreDeContenu = contenuLibre(modele, deal.quantity);
 
   // Calculs timeline
   const paymentPaid =
@@ -467,12 +468,19 @@ export default async function DealDetailPage({
               <div>
                 <dt className="text-xs text-zinc-500">Format</dt>
                 <dd className="font-semibold text-ink">
-                  {DEAL_FORMAT_LABEL[deal.format as DealFormat]}
+                  {libreDeContenu
+                    ? "Libre"
+                    : DEAL_FORMAT_LABEL[deal.format as DealFormat]}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs text-zinc-500">Quantité</dt>
-                <dd className="font-semibold text-ink">{deal.quantity}</dd>
+                {/* « Vidéo postée · 1 » sur une affiliation écrivait une
+                    obligation dont personne n'avait parlé : le créateur pouvait
+                    se croire quitte après une vidéo, la marque en attendre dix. */}
+                <dd className="font-semibold text-ink">
+                  {libreDeContenu ? "Il publie ce qu'il veut" : deal.quantity}
+                </dd>
               </div>
               {platRes.data?.label && (
                 <div>

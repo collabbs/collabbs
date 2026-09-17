@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { termesDealSchema } from "@/lib/schemas/deals";
 import {
   avecCommission,
+  contenuLibre,
   avecSommeVersee,
   modeleValide,
   montantAFixer,
@@ -173,5 +174,41 @@ describe("qui verse de l'argent", () => {
     for (const m of MODELES_REMUNERATION) {
       expect(montantAFixer(m, 0)).toBe(avecSommeVersee(m));
     }
+  });
+});
+
+describe("le contenu libre", () => {
+  // « Vidéo postée · 1 » s'affichait sur une affiliation : une obligation dont
+  // personne n'avait parlé. Le créateur pouvait se croire quitte après une
+  // vidéo, la marque en attendre dix.
+  it("n'existe que sur l'affiliation", () => {
+    expect(contenuLibre("affiliation", 0)).toBe(true);
+    for (const m of ["forfait", "hybride", "performance", "produit"] as const) {
+      expect(contenuLibre(m, 0)).toBe(false);
+    }
+  });
+
+  it("une affiliation avec un nombre précis n'est pas libre", () => {
+    expect(contenuLibre("affiliation", 2)).toBe(false);
+  });
+
+  it("zéro contenu n'est permis que sur l'affiliation", () => {
+    const base = {
+      deadline: null, brandNotes: null, amount: 0, commission: 10,
+      urlDestination: "https://ma-boutique.fr",
+    };
+    expect(
+      termesDealSchema.safeParse({ ...base, modele: "affiliation", quantity: 0 }).success,
+    ).toBe(true);
+    // Les autres achètent un travail précis : sans contenu attendu, le créateur
+    // ne sait pas ce qu'il vend et la marque ne sait pas quand clôturer.
+    expect(
+      termesDealSchema.safeParse({
+        ...base, modele: "hybride", quantity: 0, amount: 200,
+      }).success,
+    ).toBe(false);
+    expect(
+      termesDealSchema.safeParse({ ...BASE, modele: "forfait", amount: 300, quantity: 0 }).success,
+    ).toBe(false);
   });
 });

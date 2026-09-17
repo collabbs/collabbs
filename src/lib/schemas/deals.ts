@@ -177,9 +177,14 @@ export const termesDealSchema = z.object({
     min: 0,
     max: DEAL_MONTANT_MAX,
   }),
+  /**
+   * Zéro est permis, et ne veut pas dire « rien » : il veut dire « rien
+   * d'imposé ». Une affiliation où le créateur publie ce qu'il veut n'a pas de
+   * compte à tenir. Le contrôle croisé plus bas le réserve à ce seul cas.
+   */
   quantity: nombreEntier({
     quoi: "Le nombre de contenus",
-    min: 1,
+    min: 0,
     max: DEAL_QUANTITE_MAX,
   }),
   /** Une échéance passée n'est pas refusée : les parties peuvent régulariser. */
@@ -308,6 +313,13 @@ export const termesDealSchema = z.object({
   )
   /* Un fixe + commission sans partie fixe est une affiliation qui ne dit pas
      son nom : le créateur croit avoir une garantie et n'en a aucune. */
+  /* Les autres modèles achètent un travail précis : sans contenu attendu, le
+     créateur ne saurait pas ce qu'il vend, et la marque ne saurait pas quand
+     elle peut clôturer. */
+  .refine((d) => d.modele === "affiliation" || d.quantity >= 1, {
+    error: "Indique le nombre de contenus attendus.",
+    path: ["quantity"],
+  })
   .refine((d) => d.modele !== "hybride" || d.amount > 0, {
     error: "Indique la partie fixe garantie, ou choisis « Commission sur les ventes ».",
     path: ["amount"],

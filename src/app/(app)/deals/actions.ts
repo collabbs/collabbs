@@ -115,6 +115,11 @@ async function ensureDeliverables(
     .limit(1);
   if (existants && existants.length > 0) return { ok: true };
 
+  // Zéro contenu attendu n'est plus une saisie vide à rattraper : c'est une
+  // affiliation en contenu libre, et lui inventer un livrable écrirait une
+  // obligation dont personne n'a parlé.
+  if (quantity === 0) return { ok: true };
+
   const combien = Math.max(1, Math.min(quantity || 1, DEAL_QUANTITE_MAX));
   const lignes = Array.from({ length: combien }, (_, i) => ({
     deal_id: dealId,

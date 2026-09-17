@@ -49,6 +49,11 @@ export default function FormulaireProposition({
   const [urlDestination, setUrlDestination] = useState("");
   const [montant, setMontant] = useState(tarifDepart ? String(tarifDepart) : "");
   const [quantite, setQuantite] = useState("1");
+  /* Sur une affiliation, le défaut est LIBRE : c'est le cas courant — un lien,
+     un pourcentage, et le créateur publie comme il l'entend. Imposer « 1 vidéo
+     postée » écrirait au contrat une obligation dont personne n'a parlé. */
+  const [libre, setLibre] = useState(false);
+  const contenuLibre = modele === "affiliation" && libre;
   const [echeance, setEcheance] = useState("");
   const [titre, setTitre] = useState("");
   const [brief, setBrief] = useState("");
@@ -61,7 +66,7 @@ export default function FormulaireProposition({
     setErreur(null);
     const res = await creerPropositionDirecte(creatorId, {
       amount: Number(montant),
-      quantity: Number(quantite),
+      quantity: contenuLibre ? 0 : Number(quantite),
       deadline: echeance || null,
       brandNotes: brief.trim() || null,
       title: titre.trim() || null,
@@ -101,7 +106,10 @@ export default function FormulaireProposition({
             <button
               key={m}
               type="button"
-              onClick={() => setModele(m)}
+              onClick={() => {
+                setModele(m);
+                setLibre(m === "affiliation");
+              }}
               aria-pressed={modele === m}
               className={
                 modele === m
@@ -120,7 +128,7 @@ export default function FormulaireProposition({
         </div>
       </div>
 
-      <div>
+      <div hidden={contenuLibre}>
         <span className={legende}>Format du contenu</span>
         <div className="mt-1.5 flex flex-wrap gap-2">
           {(Object.keys(DEAL_FORMAT_LABEL) as DealFormat[]).map((f) => (
@@ -230,19 +238,53 @@ export default function FormulaireProposition({
 
         <div>
           <label className={legende} htmlFor="quantite">
-            Nombre de contenus
+            {modele === "affiliation" ? "Contenus attendus" : "Nombre de contenus"}
           </label>
-          <input
-            id="quantite"
-            type="number"
-            min={1}
-            max={20}
-            required
-            value={quantite}
-            onChange={(e) => setQuantite(e.target.value)}
-            className={champ}
-          />
-          <p className="mt-1 text-xs text-zinc-400">Un livrable sera créé pour chacun.</p>
+          {modele === "affiliation" && (
+            <div className="mt-1.5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLibre(true)}
+                aria-pressed={libre}
+                className={
+                  libre
+                    ? "rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white"
+                    : "rounded-full border border-zinc-200 px-3.5 py-1.5 text-xs font-medium text-zinc-600"
+                }
+              >
+                Libre
+              </button>
+              <button
+                type="button"
+                onClick={() => setLibre(false)}
+                aria-pressed={!libre}
+                className={
+                  !libre
+                    ? "rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white"
+                    : "rounded-full border border-zinc-200 px-3.5 py-1.5 text-xs font-medium text-zinc-600"
+                }
+              >
+                Un nombre précis
+              </button>
+            </div>
+          )}
+          {!contenuLibre && (
+            <input
+              id="quantite"
+              type="number"
+              min={1}
+              max={20}
+              required
+              value={quantite}
+              onChange={(e) => setQuantite(e.target.value)}
+              className={champ}
+            />
+          )}
+          <p className="mt-1 text-xs text-zinc-400">
+            {contenuLibre
+              ? "Rien n'est imposé : il publie ce qu'il veut, quand il veut. Sa rémunération vient des ventes."
+              : "Un livrable sera créé pour chacun."}
+          </p>
         </div>
       </div>
 

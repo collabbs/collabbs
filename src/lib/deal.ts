@@ -164,3 +164,22 @@ export function montantAFixer(modele: ModeleRemuneration, amount: number): boole
   // la réponse, pas un champ resté vide.
   return avecSommeVersee(modele) && amount <= 0;
 }
+
+/**
+ * Une collaboration peut-elle ne rien imposer à livrer ?
+ *
+ * ─── Ce que ça corrige ───
+ * Toute collaboration affichait « Vidéo postée · 1 », y compris une
+ * affiliation. Or une affiliation, la plupart du temps, n'impose RIEN : la
+ * marque donne un lien et un pourcentage, le créateur publie ce qu'il veut,
+ * quand il veut, autant de fois qu'il veut. Annoncer « 1 vidéo postée » sur ce
+ * contrat, c'est écrire une obligation dont personne n'a parlé — et le
+ * créateur qui n'en publie qu'une pourrait se croire quitte, pendant que la
+ * marque en attendait dix.
+ *
+ * `quantity = 0` exprime cet accord-là : rien n'est dû, tout est permis. Les
+ * autres modèles achètent un travail précis et gardent leur compte.
+ */
+export function contenuLibre(modele: ModeleRemuneration, quantity: number): boolean {
+  return modele === "affiliation" && quantity <= 0;
+}

@@ -133,8 +133,14 @@ export default function DealControls({
     else setError(res.error ?? "Erreur.");
   }
 
-  const allApproved =
-    deliverables.length > 0 && deliverables.every((d) => d.approved);
+  /* Sans livrable, `allApproved` valait faux et la marque ne pouvait JAMAIS
+     clôturer : le bouton restait grisé sur « Valide tous les livrables
+     d'abord », alors qu'il n'y en avait aucun à valider. Une affiliation en
+     contenu libre restait donc ouverte pour toujours. */
+  const contenuLibre = terms.quantity <= 0;
+  const allApproved = contenuLibre
+    ? true
+    : deliverables.length > 0 && deliverables.every((d) => d.approved);
 
   return (
     <div className="space-y-5">
@@ -215,7 +221,7 @@ export default function DealControls({
               <span className="text-xs font-semibold text-zinc-500">Quantité de contenus</span>
               <input
                 type="number"
-                min={1}
+                min={0}
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
                 className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-purple-400"
@@ -496,6 +502,11 @@ export default function DealControls({
               </button>
               {!allApproved && (
                 <span className="text-xs text-zinc-400">Valide tous les livrables pour clôturer</span>
+              )}
+              {contenuLibre && (
+                <span className="text-xs text-zinc-400">
+                  Contenu libre : clôture quand tu estimes la collaboration terminée.
+                </span>
               )}
             </>
           )}
