@@ -91,6 +91,14 @@ export type CpaTier = { minActions: number; payout: number; label: string };
 
 export type CampaignData = {
   type: CampaignType;
+  /**
+   * Ce que le créateur doit produire. `null` = rien d'imposé.
+   *
+   * Séparé du `type`, qui dit comment il est PAYÉ. Les deux vivaient dans une
+   * seule liste, et la conséquence se voyait à la création de chaque
+   * collaboration : le format y était écrit « vidéo postée » en dur.
+   */
+  format: string | null;
   name: string;
   description: string;
   requirements: string;
@@ -243,6 +251,7 @@ export async function createCampaign(
       description: data.description || null,
       requirements: data.requirements || null,
       type: data.type,
+      format: data.format,
       status: "active",
       target_url: targetUrl || null,
       // `fenetreValide` plutôt que la valeur brute : la contrainte CHECK en

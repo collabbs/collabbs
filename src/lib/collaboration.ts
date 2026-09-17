@@ -8,12 +8,25 @@
  *
  * Tout ce qui doit traverser la frontière serveur / navigateur se met ici.
  */
+/**
+ * Ce que la campagne PAIE — jamais ce qu'elle fait produire.
+ *
+ * Deux de ces libellés décrivaient un contenu (« Vidéo postée », « Contenu
+ * UGC ») là où les quatre autres décrivaient un mode de paiement. Sur la même
+ * ligne, dans la même liste. Une marque qui comparait deux campagnes lisait
+ * donc « Vidéo postée » face à « Affiliation » — deux réponses à deux
+ * questions différentes — et ne pouvait pas choisir.
+ *
+ * Le vocabulaire est désormais celui de la proposition directe : on dit la
+ * même chose des deux côtés du produit.
+ */
 export const LIBELLES_TYPE: Record<string, string> = {
-  video: "Vidéo postée",
-  ugc: "Contenu UGC",
-  affiliation: "Affiliation",
-  performance: "Paiement à la performance",
+  video: "Montant fixe",
+  ugc: "Montant fixe",
+  affiliation: "Commission sur les ventes",
+  performance: "Paiement aux vues",
   hybrid: "Fixe + commission",
+  cpa_flat: "Prix par inscription",
   cpa_tiers: "Paliers de commission",
 };
 

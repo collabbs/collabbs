@@ -860,6 +860,7 @@ export type Database = {
           description: string | null
           ends_at: string | null
           fixed_amount: number | null
+          format: string | null
           giveaway_prize_label: string | null
           giveaway_prize_value: number | null
           giveaway_rules_url: string | null
@@ -911,6 +912,7 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           fixed_amount?: number | null
+          format?: string | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null
@@ -962,6 +964,7 @@ export type Database = {
           description?: string | null
           ends_at?: string | null
           fixed_amount?: number | null
+          format?: string | null
           giveaway_prize_label?: string | null
           giveaway_prize_value?: number | null
           giveaway_rules_url?: string | null

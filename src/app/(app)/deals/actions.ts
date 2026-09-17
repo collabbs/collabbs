@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { modeleValide, avecCommission, montantAFixer } from "@/lib/deal";
+import {
+  modeleValide,
+  avecCommission,
+  montantAFixer,
+  type DealFormat,
+} from "@/lib/deal";
 import {
   creerCampagnePrivee,
   majCampagnePrivee,
@@ -146,7 +151,7 @@ export async function createDealFromApplication(applicationId: string) {
   const { data: app } = await supabase
     .from("applications")
     .select(
-      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, fixed_amount, commission_value, product_kind, campaign_platforms(platform_id))",
+      "id, creator_id, campaign_id, status, campaigns(brand_id, name, type, format, fixed_amount, commission_value, product_kind, campaign_platforms(platform_id))",
     )
     .eq("id", applicationId)
     .single();
@@ -191,7 +196,10 @@ export async function createDealFromApplication(applicationId: string) {
       amount,
       perf_rate: perfRate,
       shipping_required: envoiRequis,
-      format: "video_post",
+      // Le format vient de la campagne. Il valait « vidéo postée » quoi qu'elle
+      // demande : une marque qui cherchait trois stories signait un contrat
+      // annonçant une vidéo, et le créateur aussi.
+      format: (app.campaigns?.format as DealFormat | null) ?? "video_post",
       platform_id: platformId,
       quantity: 1,
       status: "negotiation",

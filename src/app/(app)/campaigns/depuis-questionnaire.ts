@@ -82,6 +82,7 @@ export async function creerCampagneDepuisCarte(
   return createCampaign({
     name: intitule(carte),
     type: typeDepuis(carte.remuneration),
+    format: null,
     description: carte.produit ?? "",
     requirements: "",
     fixedAmount: carte.montant,

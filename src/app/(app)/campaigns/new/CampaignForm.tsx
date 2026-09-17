@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
 import PlatformIcon from "@/components/PlatformIcon";
+import { DEAL_FORMAT_LABEL, type DealFormat } from "@/lib/deal";
 import {
   createCampaign,
   televerserVisuelCampagne,
@@ -31,12 +32,12 @@ const TIERS: { key: TierKey; label: string; range: string }[] = [
 // Code promo / concours sont des ASSETS activables sur n'importe quel type
 // (cf checkboxes plus bas).
 const TYPES: { id: CampaignType; emoji: string; label: string; desc: string }[] = [
-  { id: "video", emoji: "🎬", label: "Paiement fixe", desc: "Montant fixe par contenu livré" },
-  { id: "affiliation", emoji: "🔗", label: "Commission %", desc: "% sur les ventes générées" },
+  { id: "video", emoji: "🎬", label: "Montant fixe", desc: "Une somme convenue par contenu livré" },
+  { id: "affiliation", emoji: "🔗", label: "Commission sur les ventes", desc: "% sur chaque vente amenée" },
   { id: "cpa_flat", emoji: "🎯", label: "CPA fixe", desc: "X€ par inscription / lead" },
   { id: "cpa_tiers", emoji: "📈", label: "CPA paliers", desc: "1000 inscrits = X€, 5000 = Y€…" },
-  { id: "performance", emoji: "📊", label: "Aux vues", desc: "Payé aux vues du contenu" },
-  { id: "hybrid", emoji: "✨", label: "Hybride", desc: "Fixe + commission" },
+  { id: "performance", emoji: "📊", label: "Paiement aux vues", desc: "Un tarif pour 1 000 vues" },
+  { id: "hybrid", emoji: "✨", label: "Fixe + commission", desc: "Une somme garantie, plus un %" },
 ];
 
 const PRODUCT_KINDS: { id: ProductKind; emoji: string; label: string; desc: string }[] = [
@@ -59,6 +60,10 @@ export default function CampaignForm({
 }) {
   const router = useRouter();
   const [type, setType] = useState<CampaignType>("affiliation");
+  // `null` = aucun format imposé. C'est le cas courant en affiliation, et
+  // c'était jusqu'ici le SEUL cas possible — sauf qu'il se déguisait en
+  // « vidéo postée » au moment de créer la collaboration.
+  const [format, setFormat] = useState<DealFormat | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
@@ -138,6 +143,7 @@ export default function CampaignForm({
     };
     const res = await createCampaign({
       type,
+      format,
       name: name.trim(),
       description: description.trim(),
       requirements: requirements.trim(),
@@ -241,6 +247,48 @@ export default function CampaignForm({
           );
         })}
       </div>
+
+      {/* Ce que la campagne PAIE et ce qu'elle fait PRODUIRE sont deux
+          questions. La seconde n'était posée nulle part : toute collaboration
+          née d'une candidature naissait « vidéo postée », en dur. Une marque
+          qui cherchait trois stories signait un contrat annonçant une vidéo. */}
+      <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
+        Format du contenu
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setFormat(null)}
+          aria-pressed={format === null}
+          className={
+            format === null
+              ? "rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+              : "rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:border-zinc-300"
+          }
+        >
+          Libre
+        </button>
+        {(Object.keys(DEAL_FORMAT_LABEL) as DealFormat[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFormat(f)}
+            aria-pressed={format === f}
+            className={
+              format === f
+                ? "rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+                : "rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:border-zinc-300"
+            }
+          >
+            {DEAL_FORMAT_LABEL[f]}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-zinc-500">
+        {format === null
+          ? "Rien d'imposé : le créateur publie comme il l'entend. Fréquent en affiliation."
+          : "C'est ce qui sera écrit au contrat de chaque collaboration issue de cette campagne."}
+      </p>
 
       {/* Brief */}
       <div className="mt-8 space-y-4">
