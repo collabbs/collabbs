@@ -455,6 +455,7 @@ export default async function DealDetailPage({
           allDelivered={allDelivered}
           firstDeliveredAt={firstDeliveredAt}
           viewerRole={role}
+          affiliationPure={modele === "affiliation"}
         />
       </div>
 

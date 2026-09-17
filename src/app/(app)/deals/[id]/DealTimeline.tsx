@@ -67,6 +67,7 @@ export default function DealTimeline({
   allDelivered,
   firstDeliveredAt,
   viewerRole,
+  affiliationPure = false,
 }: {
   deal: DealForTimeline;
   paid: boolean;
@@ -76,6 +77,14 @@ export default function DealTimeline({
   allDelivered: boolean;
   firstDeliveredAt: string | null;
   viewerRole: "brand" | "creator";
+  /**
+   * Une collaboration payée uniquement à la commission ne suit pas ce parcours
+   * : il n'y a ni séquestre, ni livrable à valider, ni versement à la clôture.
+   * Lui montrer « Paiement séquestré » comme étape en cours laisse la marque
+   * attendre un règlement qui n'arrivera jamais, et le créateur attendre un
+   * versement qui ne dépend pas de cette page.
+   */
+  affiliationPure?: boolean;
 }) {
   const now = new Date();
 
@@ -134,7 +143,49 @@ export default function DealTimeline({
   }
   const currentN = nextCurrent();
 
-  const steps: Step[] = [
+  /* Le parcours d'une affiliation : le lien remplace le séquestre, la
+     diffusion remplace la livraison, et les commissions tombent au fil des
+     ventes plutôt qu'en un versement à la clôture. */
+  const etapesAffiliation: Step[] = [
+    {
+      n: 1,
+      emoji: "📝",
+      label: "Termes posés",
+      hint: "Commission, destination, contenu",
+      date: fmtDate(deal.created_at),
+      state: "done",
+      whoActs: "none",
+    },
+    {
+      n: 2,
+      emoji: "✍️",
+      label: "Contrat signé",
+      hint: "Validation des 2 parties",
+      date: fmtDate(deal.accepted_at),
+      state: stepSignedDone ? "done" : "current",
+      whoActs: "creator",
+    },
+    {
+      n: 3,
+      emoji: "🔗",
+      label: "Lien actif",
+      hint: "Le créateur diffuse, les ventes sont comptées",
+      date: fmtDate(deal.accepted_at),
+      state: !stepSignedDone ? "pending" : deal.status === "completed" ? "done" : "current",
+      whoActs: "creator",
+    },
+    {
+      n: 4,
+      emoji: "💸",
+      label: "Commissions versées",
+      hint: "Chaque mois, sur les ventes attribuées",
+      date: null,
+      state: deal.status === "completed" ? "done" : "pending",
+      whoActs: "none",
+    },
+  ];
+
+  const steps: Step[] = affiliationPure ? etapesAffiliation : [
     {
       n: 1,
       emoji: "📝",
