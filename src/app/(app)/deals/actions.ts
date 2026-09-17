@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { modeleValide, avecCommission } from "@/lib/deal";
+import { modeleValide, avecCommission, montantAFixer } from "@/lib/deal";
 import {
   creerCampagnePrivee,
   majCampagnePrivee,
@@ -592,7 +592,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   const { data: deal } = await supabase
     .from("deals")
     .select(
-      "brand_id, creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes, campagne_affiliation",
+      "brand_id, creator_id, status, title, amount, format, platform_id, quantity, deadline, brand_notes, campagne_affiliation, modele_remuneration",
     )
     .eq("id", dealId)
     .single();
@@ -600,12 +600,19 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   if (deal.status !== "negotiation")
     return { ok: false, error: "Ce deal n'est plus en négociation." };
 
-  // Un deal naît à 0 € : le booking direct part de zéro, et une candidature
-  // sur une campagne à la performance ou au CPA n'a pas de montant fixe à
-  // reprendre. Tant que la marque n'a rien fixé, accepter reviendrait à
-  // SIGNER UN CONTRAT À 0 € — et le séquestre refuse ensuite ce montant, donc
-  // la collaboration serait bloquée avec un contrat signé pour rien.
-  if (!deal.amount || deal.amount <= 0)
+  /* Un deal naît à 0 € : le booking direct part de zéro, et une candidature
+     sur une campagne à la performance n'a pas de montant fixe à reprendre.
+     Tant que la marque n'a rien fixé, accepter reviendrait à SIGNER UN CONTRAT
+     À 0 € — et le séquestre refuse ensuite ce montant, donc la collaboration
+     serait bloquée avec un contrat signé pour rien.
+
+     Mais zéro N'EST PAS toujours un oubli. Sur une affiliation pure, comme sur
+     un produit offert, c'est la réponse : aucune somme n'est versée, le
+     créateur est payé à la commission ou en nature. La question n'est donc pas
+     « le montant est-il nul » mais « ce modèle attend-il un montant » — et
+     c'est `montantAFixer` qui la tranche, au même endroit pour tous les
+     écrans. Ce garde-fou bloquait l'acceptation de toute affiliation. */
+  if (montantAFixer(modeleValide(deal.modele_remuneration), deal.amount))
     return {
       ok: false,
       error:
@@ -692,7 +699,13 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   // le délai de 7 jours dont dispose la marque pour régler le séquestre ; un
   // cron annule au-delà.
   const acceptedAtIso = now;
-  const escrowDueIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  /* Le délai de règlement n'a de sens que s'il y a quelque chose à régler. Sur
+     une affiliation pure ou un produit offert, le poser lancerait un compte à
+     rebours vers un paiement qui n'existe pas. */
+  const escrowDueIso =
+    deal.amount > 0
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
 
   const { error } = await supabase
     .from("deals")

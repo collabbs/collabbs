@@ -174,6 +174,13 @@ export async function GET(request: Request) {
     .lt("escrow_due_at", new Date().toISOString());
 
   for (const deal of (unpaid ?? [])) {
+    /* Rien à régler, rien à relancer. Une affiliation pure et un produit
+       offert ne séquestrent aucun argent : sans ce filtre, la marque recevait
+       tous les deux jours « Paiement en retard — 0 € » pour une collaboration
+       qui se déroule normalement. Une notification fausse et répétée apprend
+       surtout à ignorer les vraies. */
+    if (Number(deal.amount ?? 0) <= 0) continue;
+
     const { data: tx } = await admin
       .from("transactions")
       .select("id")
