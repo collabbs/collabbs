@@ -11,6 +11,7 @@ import {
   MODELE_DESCRIPTION,
   LIBELLE_MONTANT,
   avecCommission,
+  avecSommeVersee,
   type DealFormat,
   type ModeleRemuneration,
 } from "@/lib/deal";
@@ -155,7 +156,7 @@ export default function FormulaireProposition({
           <input
             id="montant"
             type="number"
-            min={modele === "produit" ? 0 : 1}
+            min={avecSommeVersee(modele) ? 1 : 0}
             step={1}
             required
             value={montant}
@@ -168,9 +169,14 @@ export default function FormulaireProposition({
               ? "C'est le maximum que tu séquestres. Ce qui n'est pas dû te revient."
               : modele === "produit"
                 ? "Sert à déclarer l'avantage en nature. Aucun argent n'est versé."
-                : tarifDepart
-                  ? `Son tarif affiché est de ${tarifDepart} €. Tu peux proposer autre chose.`
-                  : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
+                : modele === "affiliation"
+                  ? // Le libellé dit « s'il y en a un » : le champ doit donc
+                    // accepter zéro. Il exigeait 1 € — une affiliation pure
+                    // devenait impossible à proposer.
+                    "Laisse 0 si tu n'envoies rien. Le créateur est payé à la commission."
+                  : tarifDepart
+                    ? `Son tarif affiché est de ${tarifDepart} €. Tu peux proposer autre chose.`
+                    : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
           </p>
 
           {avecCommission(modele) && (

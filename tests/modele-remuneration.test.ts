@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { termesDealSchema } from "@/lib/schemas/deals";
 import {
   avecCommission,
+  avecSommeVersee,
   modeleValide,
   montantAFixer,
   MODELE_LABEL,
@@ -147,5 +148,30 @@ describe("les modèles à commission", () => {
     expect(montantAFixer("affiliation", 0)).toBe(false);
     // L'hybride, si : sa partie fixe est une promesse.
     expect(montantAFixer("hybride", 0)).toBe(true);
+  });
+});
+
+describe("qui verse de l'argent", () => {
+  // Le formulaire s'en sert pour décider si le champ montant accepte zéro.
+  // Il exigeait 1 € partout sauf sur le produit offert — et rendait donc
+  // l'affiliation pure impossible à proposer, alors que son propre libellé
+  // annonçait « s'il y en a un ».
+  it("l'affiliation pure ne verse rien", () => {
+    expect(avecSommeVersee("affiliation")).toBe(false);
+    expect(avecSommeVersee("produit")).toBe(false);
+  });
+
+  it("les trois autres versent", () => {
+    for (const m of ["forfait", "hybride", "performance"] as const) {
+      expect(avecSommeVersee(m)).toBe(true);
+    }
+  });
+
+  it("verser de l'argent et exiger un montant, c'est la même question", () => {
+    // Si les deux notions divergent, un écran réclame un montant que le
+    // schéma n'exige pas — ou l'inverse, et la collaboration part vide.
+    for (const m of MODELES_REMUNERATION) {
+      expect(montantAFixer(m, 0)).toBe(avecSommeVersee(m));
+    }
   });
 });
