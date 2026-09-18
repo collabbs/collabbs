@@ -76,11 +76,56 @@
     return { code: brut.slice(0, i), clicke: brut.slice(i + 1) };
   }
 
+  // 1 bis) Shopify : la référence voyage AVEC la commande.
+  //
+  // ─── Pourquoi ce détour ───
+  // Shopify retire « Additional scripts » de la page de confirmation. Son
+  // remplacement, le pixel personnalisé, tourne dans un bac à sable : il ne
+  // lit pas les cookies de la boutique, donc il ne peut pas retrouver le
+  // `collabbs_ref` posé ici. Le suivi s'arrêterait net au moment précis où il
+  // sert.
+  //
+  // On inscrit donc la référence dans les ATTRIBUTS DU PANIER, côté boutique,
+  // là où le cookie est encore lisible. Elle devient une donnée de la commande
+  // et n'a plus besoin d'être retrouvée au moment du paiement — le pixel la
+  // reçoit dans l'évènement, sans rien avoir à lire.
+  //
+  // Sans effet ailleurs : la requête n'est tentée que si Shopify est présent.
+  try {
+    if (window.Shopify && typeof window.fetch === "function") {
+      var refPanier = lireRef();
+      if (refPanier) {
+        var attributs = { collabbs_ref: refPanier.code };
+        if (refPanier.clicke) attributs.collabbs_clicked_at = refPanier.clicke;
+        // `keepalive` pour que l'écriture survive à une navigation immédiate :
+        // un visiteur qui arrive par le lien et clique aussitôt sur « acheter »
+        // ne doit pas perdre son attribution dans la course.
+        window.fetch("/cart/update.js", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attributes: attributs }),
+          keepalive: true,
+        }).catch(function () {
+          /* Une boutique sans panier — page d'accueil d'un thème particulier —
+             répond en erreur. Ce n'est pas un échec du suivi : le cookie reste
+             là, et l'écriture sera retentée à la page suivante. */
+        });
+      }
+    }
+  } catch (_e) {
+    /* noop */
+  }
+
   // 2) API publique : Collabbs.trackSale(amount, orderId).
   window.Collabbs = {
-    trackSale: function (amount, orderId) {
-      var ref = lireRef();
-      if (!ref) return; // Pas de clic Collabbs à attribuer, on ne fait rien.
+    /**
+     * `refExterne` sert au pixel personnalisé de Shopify : il connaît la
+     * référence par les attributs de la commande, mais ne peut pas lire le
+     * cookie. Sans ce paramètre, il aurait la réponse sans pouvoir s'en servir.
+     */
+    trackSale: function (amount, orderId, refExterne) {
+      var ref = refExterne ? { code: refExterne, clicke: null } : lireRef();
+      if (!ref || !ref.code) return; // Pas de clic Collabbs à attribuer.
       var url =
         origin +
         "/api/track/sale-pixel?brand=" +
