@@ -111,7 +111,7 @@ export async function blocagesAvantSuppression(userId: string): Promise<Blocage[
       blocages.push({
         quoi: `${commissions.length} commission${commissions.length > 1 ? "s" : ""} d'affiliation ${commissions.length > 1 ? "sont" : "est"} en attente de versement, pour ${eurExact(total)}.`,
         issue:
-          "Elles sont versées le 1er de chaque mois. Attends le prochain versement — sinon cet argent est perdu pour toi.",
+          "Elles partent dès qu'elles atteignent 20 €. Attends le prochain versement — sinon cet argent est perdu pour toi.",
       });
     }
   }

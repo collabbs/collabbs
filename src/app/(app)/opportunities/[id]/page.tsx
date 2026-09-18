@@ -146,7 +146,7 @@ export default async function OpportunityDetailPage({
   // Les actions (CPA) comptent, le rejeté et le remboursé non.
   // Ce que la campagne a fait GAGNER aux créateurs — pas ce qui leur a été
   // versé : `sumEarnings` compte aussi les commissions réservées et acquises,
-  // qui ne partent qu'au versement mensuel. L'encadré s'intitulait « Versé aux
+  // qui ne partent qu'au versement. L'encadré s'intitulait « Versé aux
   // créateurs » : un créateur qui découvre la campagne y lisait la promesse
   // d'un argent déjà sorti.
   const totalCommissionsGagnees = sumEarnings(campaignEv);
@@ -759,7 +759,7 @@ export default async function OpportunityDetailPage({
                     },
                     {
                       n: 4,
-                      t: "Tu es payé·e chaque mois",
+                      t: "Tu es payé·e dès 20 € atteints",
                       d: "Versement automatique des commissions sur ton compte (Stripe Connect, ~2 jours ouvrés).",
                     },
                   ]
@@ -810,7 +810,7 @@ export default async function OpportunityDetailPage({
                   ? [
                       {
                         q: "Quand est-ce que je suis payé·e ?",
-                        a: "Les commissions sont calculées en temps réel et versées le 1er de chaque mois pour le mois précédent, automatiquement sur ton compte connecté (Stripe Connect, 2-3 jours ouvrés).",
+                        a: "Les commissions sont calculées en temps réel. Dès que tes commissions acquises atteignent 20 €, le versement part le lendemain matin, automatiquement sur ton compte connecté (Stripe Connect, 2-3 jours ouvrés). En dessous de 20 €, elles restent acquises et s'ajoutent aux suivantes.",
                       },
                       {
                         q: "Combien est-ce que je peux gagner ?",

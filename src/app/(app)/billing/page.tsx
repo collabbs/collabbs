@@ -495,7 +495,7 @@ export default async function BillingPage({
           </li>
           <li>
             <strong className="text-ink">3.</strong> Passé ce délai, la commission est
-            acquise au créateur et lui est versée au prochain versement mensuel (à partir
+            acquise au créateur et lui est versée au prochain versement (à partir
             de {eur(MIN_PAYOUT)}).
           </li>
         </ol>

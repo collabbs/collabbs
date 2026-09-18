@@ -587,7 +587,7 @@ async function BrandAnalytics({
           tone="amber"
           delta={pctDelta(commissionsCurrent, commissionsPrev)}
           suffix="€"
-          hint="Dues aux créateurs · versées le 1er du mois"
+          hint="Dues aux créateurs · versées dès 20 € atteints"
         />
         <KpiTrend
           label="Clics affiliation"

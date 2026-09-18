@@ -9,7 +9,7 @@ import { reportError } from "@/lib/report-error";
  * L'affiliation a besoin d'un lien tracké, d'une fenêtre d'attribution, d'un
  * taux et d'une destination. Toute la chaîne de l'argent lit ces choses dans
  * une CAMPAGNE : le clic (`/r/[code]`), la vente (`/api/track`), le calcul de
- * commission, la réservation sur la provision, le versement mensuel.
+ * commission, la réservation sur la provision, le versement au créateur.
  *
  * Apprendre à cette chaîne à lire aussi un deal reviendrait à écrire deux fois
  * le circuit de l'argent — c'est exactement la faute qui a coûté le plus cher

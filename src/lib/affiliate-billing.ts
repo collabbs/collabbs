@@ -18,7 +18,7 @@ import { planDeLaMarque } from "@/lib/abonnement";
  *  - les frais Collabbs sont payés PAR LA MARQUE EN PLUS : le créateur touche
  *    exactement le taux annoncé par la campagne ;
  *  - après 30 jours sans remboursement la vente est validée, puis versée au
- *    créateur lors du versement mensuel (minimum 20 €).
+ *    créateur au prochain versement quotidien (à partir de 20 € acquis).
  *
  * Toute variation de solde passe par les fonctions SQL `reserve_commission` et
  * `credit_balance`, qui verrouillent la ligne de la marque et écrivent une ligne
