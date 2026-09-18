@@ -802,12 +802,23 @@ async function flagTopupFailure(brandId: string) {
  */
 export async function runAffiliateValidation(): Promise<{ validated: number }> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  /* `count` et non les lignes : PostgREST plafonne à mille les lignes qu'il
+     RENVOIE, pas celles qu'il met à jour. Le jour où plus de mille commissions
+     se valident le même matin, le journal en aurait annoncé mille pile —
+     un chiffre rond et faux, qu'on aurait pris pour une limite du traitement
+     alors que le travail, lui, avait bien été fait en entier. */
+  const echeance = new Date().toISOString();
+  const { count } = await admin
+    .from("affiliate_events")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .lte("validate_at", echeance);
+
+  const { error } = await admin
     .from("affiliate_events")
     .update({ status: "validated" })
     .eq("status", "pending")
-    .lte("validate_at", new Date().toISOString())
-    .select("id");
+    .lte("validate_at", echeance);
 
   if (error) {
     // Sans signalement, une validation qui échoue tous les jours ne se voit
@@ -816,7 +827,7 @@ export async function runAffiliateValidation(): Promise<{ validated: number }> {
     void reportError("affiliate/validation", error);
     return { validated: 0 };
   }
-  return { validated: (data ?? []).length };
+  return { validated: count ?? 0 };
 }
 
 /**
@@ -829,13 +840,70 @@ export async function runAffiliateValidation(): Promise<{ validated: number }> {
  * Les ventes ne passent à « versée » qu'APRÈS un transfert Stripe abouti :
  * en cas d'échec elles restent validées et seront reprises au prochain passage.
  */
+/**
+ * Le temps qu'on s'autorise pour un passage de versements.
+ *
+ * Chaque créateur payé coûte un aller-retour Stripe — quelques centaines de
+ * millisecondes. À cinquante créateurs ça passe, à cinq cents non : la
+ * plateforme coupe la fonction en plein milieu d'une itération, et ce qui est
+ * coupé là est précisément ce qu'il ne faut pas couper (voir la reprise
+ * ci-dessous). On s'arrête donc NOUS-MÊMES, proprement, avant d'y être forcé.
+ *
+ * Le passage suivant reprend ce qui reste : les ventes déjà versées portent un
+ * `payout_id` et ne reviennent jamais dans un lot.
+ */
+const BUDGET_VERSEMENTS_MS = 45_000;
+
+/**
+ * Répare les lots restés en suspens d'un passage interrompu.
+ *
+ * La prise de lot écrit `payout_id` AVANT le virement Stripe — c'est ce qui
+ * empêche de payer deux fois. Mais si le processus meurt entre les deux, les
+ * ventes restent marquées comme versées alors que personne n'a rien reçu :
+ * elles ne reviendront plus jamais dans un lot, et le créateur ne sera jamais
+ * payé. Silencieusement.
+ *
+ * On relâche donc ce qui est rattaché à une transaction restée « en attente »
+ * depuis plus d'une heure. Une heure parce qu'un passage en cours ne dure
+ * jamais si longtemps : au-delà, ce n'est plus un versement en cours, c'est un
+ * versement mort.
+ */
+async function libererLotsAbandonnes(): Promise<number> {
+  const admin = createAdminClient();
+  const ilYAUneHeure = new Date(Date.now() - 3_600_000).toISOString();
+
+  const { data: mortes } = await admin
+    .from("transactions")
+    .select("id")
+    .eq("type", "affiliate_payout")
+    .eq("status", "pending")
+    .lte("created_at", ilYAUneHeure);
+  if (!mortes || mortes.length === 0) return 0;
+
+  const ids = mortes.map((t) => t.id);
+  await admin.from("affiliate_events").update({ payout_id: null }).in("payout_id", ids);
+  await admin.from("transactions").update({ status: "cancelled" }).in("id", ids);
+  // Signalé sans faire échouer : le versement reprend son cours, mais un lot
+  // abandonné veut dire qu'un passage a été coupé, et ça doit se savoir.
+  void reportError("affiliate/lots-abandonnes", `${ids.length} lot(s) repris`, {
+    detail: ids.join(", "),
+  });
+  return ids.length;
+}
+
 export async function runAffiliatePayouts(): Promise<{
   paid: number;
   skipped: number;
   failed: number;
+  /** Créateurs non traités faute de temps. Repris au passage suivant. */
+  restants: number;
+  /** Lots d'un passage interrompu, remis en circulation. */
+  repris: number;
 }> {
   const admin = createAdminClient();
-  const result = { paid: 0, skipped: 0, failed: 0 };
+  const debut = Date.now();
+  const repris = await libererLotsAbandonnes();
+  const result = { paid: 0, skipped: 0, failed: 0, restants: 0, repris };
 
   // `payout_id is null` : une vente déjà rattachée à un versement ne doit
   // JAMAIS revenir dans un lot. C'est cette colonne qui sert de réservation
@@ -869,7 +937,19 @@ export async function runAffiliatePayouts(): Promise<{
     byCreator.set(creatorId, bucket);
   }
 
-  for (const [creatorId, bucket] of byCreator) {
+  const creatorsATraiter = [...byCreator.entries()];
+  let traites = 0;
+
+  for (const [creatorId, bucket] of creatorsATraiter) {
+    /* On s'arrête avant d'être coupé. Un versement à moitié fait coûte plus
+       cher qu'un versement reporté d'un jour : le premier laisse un créateur
+       impayé sans trace, le second ne laisse rien du tout. */
+    if (Date.now() - debut > BUDGET_VERSEMENTS_MS) {
+      result.restants = creatorsATraiter.length - traites;
+      break;
+    }
+    traites++;
+
     // Régularisations en attente : commissions versées puis annulées parce que
     // la marque a remboursé son client. On les déduit ici, jamais en reprenant
     // un virement déjà reçu.
