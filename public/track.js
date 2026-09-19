@@ -91,27 +91,76 @@
   // reçoit dans l'évènement, sans rien avoir à lire.
   //
   // Sans effet ailleurs : la requête n'est tentée que si Shopify est présent.
-  try {
-    if (window.Shopify && typeof window.fetch === "function") {
+  function ecrireDansLePanier() {
+    try {
+      if (!window.Shopify || typeof window.fetch !== "function") return;
       var refPanier = lireRef();
-      if (refPanier) {
-        var attributs = { collabbs_ref: refPanier.code };
-        if (refPanier.clicke) attributs.collabbs_clicked_at = refPanier.clicke;
-        // `keepalive` pour que l'écriture survive à une navigation immédiate :
-        // un visiteur qui arrive par le lien et clique aussitôt sur « acheter »
-        // ne doit pas perdre son attribution dans la course.
-        window.fetch("/cart/update.js", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ attributes: attributs }),
-          keepalive: true,
-        }).catch(function () {
-          /* Une boutique sans panier — page d'accueil d'un thème particulier —
-             répond en erreur. Ce n'est pas un échec du suivi : le cookie reste
-             là, et l'écriture sera retentée à la page suivante. */
+      if (!refPanier) return;
+      var attributs = { collabbs_ref: refPanier.code };
+      if (refPanier.clicke) attributs.collabbs_clicked_at = refPanier.clicke;
+      // `keepalive` pour que l'écriture survive à une navigation immédiate :
+      // un visiteur qui ajoute au panier et file au paiement ne doit pas perdre
+      // son attribution dans la course.
+      window.fetch("/cart/update.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attributes: attributs }),
+        keepalive: true,
+      }).catch(function () {
+        /* Une boutique sans panier répond parfois en erreur. Ce n'est pas un
+           échec du suivi : le cookie reste, et on réessaiera. */
+      });
+    } catch (_e) {
+      /* noop */
+    }
+  }
+
+  ecrireDansLePanier();
+
+  /* ─── ET SURTOUT : après chaque ajout au panier ────────────────────────────
+     Vérifié sur une vraie boutique : en ajoutant le PREMIER article, Shopify
+     crée un nouveau panier et jette les attributs posés sur le panier vide.
+     La référence disparaissait donc entre l'arrivée du visiteur et sa commande
+     — exactement au milieu du parcours qu'on cherche à suivre.
+
+     Les thèmes ajoutent au panier en arrière-plan, sans recharger la page : il
+     n'y a donc pas de second chargement pour rattraper. On écoute l'appel
+     lui-même, quelle que soit la façon dont le thème le passe. */
+  function estUnAjoutAuPanier(url) {
+    return typeof url === "string" && url.indexOf("/cart/add") !== -1;
+  }
+
+  try {
+    var fetchOriginal = window.fetch;
+    if (typeof fetchOriginal === "function") {
+      window.fetch = function (entree, options) {
+        var url = typeof entree === "string" ? entree : (entree && entree.url) || "";
+        var promesse = fetchOriginal.apply(this, arguments);
+        if (estUnAjoutAuPanier(url)) {
+          promesse.then(function () {
+            ecrireDansLePanier();
+          }).catch(function () {
+            /* l'ajout a échoué : rien à réécrire */
+          });
+        }
+        return promesse;
+      };
+    }
+  } catch (_e) {
+    /* noop */
+  }
+
+  // Les thèmes plus anciens passent encore par XMLHttpRequest.
+  try {
+    var ouvrirOriginal = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (methode, url) {
+      if (estUnAjoutAuPanier(url)) {
+        this.addEventListener("load", function () {
+          ecrireDansLePanier();
         });
       }
-    }
+      return ouvrirOriginal.apply(this, arguments);
+    };
   } catch (_e) {
     /* noop */
   }
