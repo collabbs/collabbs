@@ -415,6 +415,26 @@ export async function releaseReservation(params: {
 }
 
 /**
+ * Un identifiant client stocké ne prouve rien : il peut venir du mode test, ou
+ * avoir été supprimé depuis le tableau de bord Stripe. Le réutiliser tel quel
+ * fait échouer la création du paiement, et la marque ne lit qu'un « Le paiement
+ * n'a pas pu être ouvert » qui ne dit pas pourquoi. Constaté le 07/10/2026 au
+ * passage en mode réel. On vérifie donc avant de s'en servir.
+ */
+export async function clientStripeExiste(id: string): Promise<boolean> {
+  try {
+    const client = await stripe.customers.retrieve(id);
+    return !("deleted" in client && client.deleted);
+  } catch (err) {
+    // `resource_missing` : l'identifiant ne désigne rien dans ce mode. Toute
+    // autre erreur (réseau, clé invalide) doit remonter : la masquer ferait
+    // créer un deuxième client à chaque incident passager.
+    if ((err as { code?: string }).code === "resource_missing") return false;
+    throw err;
+  }
+}
+
+/**
  * Crée (ou retrouve) le client Stripe de la marque. Nécessaire pour enregistrer
  * une carte et pouvoir la débiter hors session lors des recharges.
  */
@@ -426,7 +446,12 @@ export async function ensureBrandCustomer(brandId: string): Promise<string> {
     .eq("id", brandId)
     .maybeSingle();
 
-  if (brand?.stripe_customer_id) return brand.stripe_customer_id as string;
+  if (brand?.stripe_customer_id) {
+    const idStocke = brand.stripe_customer_id as string;
+    if (await clientStripeExiste(idStocke)) return idStocke;
+    // Périmé : on n'abandonne pas, on en recrée un plus bas. La marque ne
+    // voit rien, sinon qu'elle ressaisit sa carte une fois.
+  }
 
   // L'email vit dans auth.users, pas dans profiles.
   const { data: authUser } = await admin.auth.admin.getUserById(brandId);
@@ -437,9 +462,13 @@ export async function ensureBrandCustomer(brandId: string): Promise<string> {
     metadata: { brand_id: brandId },
   });
 
+  // La carte enregistrée appartenait à l'ANCIEN client : elle ne peut plus
+  // être débitée. La laisser en base ferait échouer la recharge automatique
+  // plus tard, hors session, sans personne devant l'écran pour s'en rendre
+  // compte. On l'efface ici ; elle sera réenregistrée au prochain paiement.
   await admin
     .from("brands")
-    .update({ stripe_customer_id: customer.id })
+    .update({ stripe_customer_id: customer.id, payment_method_id: null })
     .eq("id", brandId);
 
   return customer.id;
