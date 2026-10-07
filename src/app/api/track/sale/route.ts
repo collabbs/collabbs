@@ -34,7 +34,7 @@ import { limitByIp, tooManyRequests, RATE_POLICIES } from "@/lib/rate-limit";
 // passe en revue chez vous, comme une vente déclarée par pixel. Notre script
 // `track.js` la renseigne automatiquement.
 
-type Payload = {
+export type Payload = {
   code: string | null;
   amount: string | null;
   externalRef: string | null;
@@ -61,6 +61,20 @@ function constantTimeEqual(a: string, b: string): boolean {
   const bBuf = Buffer.from(b);
   if (aBuf.length !== bBuf.length) return false;
   return timingSafeEqual(aBuf, bBuf);
+}
+
+/**
+ * Le chemin d'une vente authentifiée, partagé.
+ *
+ * Exporté pour que le webhook Shopify l'emprunte au lieu d'en écrire un
+ * second : attribution, fenêtre, commission récurrente, réservation sur la
+ * provision, déduplication par numéro de commande, reprise d'une vente déjà
+ * vue. Tout ça a été éprouvé sur de l'argent réel — le réécrire ailleurs
+ * reviendrait à dupliquer le circuit de l'argent, la faute qui a coûté le plus
+ * cher dans ce produit.
+ */
+export async function enregistrerVenteAuthentifiee(p: Payload) {
+  return handle(p);
 }
 
 async function handle(p: Payload) {

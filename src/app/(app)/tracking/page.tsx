@@ -4,10 +4,16 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import PostbackPanel from "../campaigns/[id]/PostbackPanel";
+import LiaisonShopify from "@/components/app/LiaisonShopify";
 
 export const metadata = { title: "Tracking des ventes — Collabbs" };
 
-export default async function TrackingPage() {
+export default async function TrackingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; shopify?: string }>;
+}) {
+  const retour = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,7 +32,7 @@ export default async function TrackingPage() {
   // plus que par le client de service, pour la marque elle-meme (0068).
   const { data: brand } = await createAdminClient()
     .from("brands")
-    .select("postback_secret, website, tracking_verified_at")
+    .select("postback_secret, website, tracking_verified_at, shopify_domain, shopify_webhook_secret")
     .eq("id", user.id)
     .single();
 
@@ -76,6 +82,30 @@ export default async function TrackingPage() {
           </Link>
         )}
       </div>
+
+      {retour.error && (
+        <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{retour.error}</p>
+      )}
+      {retour.shopify === "relie" && (
+        <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+          Boutique reliée. Passe une commande de test : elle doit apparaître dans
+          ta provision dans la minute.
+        </p>
+      )}
+      {retour.shopify === "delie" && (
+        <p className="mt-4 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-700">
+          Boutique déliée. Les ventes Shopify ne remonteront plus.
+        </p>
+      )}
+
+      {/* Shopify d'abord : c'est la plateforme de la majorité des marques
+          e-commerce, et c'est maintenant le chemin le plus simple — deux
+          valeurs à coller, contre un script à poser dans un thème. */}
+      <LiaisonShopify
+        origin={origin}
+        domaine={brand?.shopify_domain ?? null}
+        relie={Boolean(brand?.shopify_webhook_secret)}
+      />
 
       {brand?.postback_secret && (
         <PostbackPanel

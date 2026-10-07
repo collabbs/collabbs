@@ -630,6 +630,8 @@ export type Database = {
           plan: Database["public"]["Enums"]["brand_plan"]
           plan_cancel_at: string | null
           plan_expires_at: string | null
+          shopify_webhook_secret: string | null
+          shopify_domain: string | null
           postback_secret: string
           rating: number | null
           reviews_count: number
@@ -660,6 +662,8 @@ export type Database = {
           plan?: Database["public"]["Enums"]["brand_plan"]
           plan_cancel_at?: string | null
           plan_expires_at?: string | null
+          shopify_webhook_secret?: string | null
+          shopify_domain?: string | null
           postback_secret?: string
           rating?: number | null
           reviews_count?: number
@@ -690,6 +694,8 @@ export type Database = {
           plan?: Database["public"]["Enums"]["brand_plan"]
           plan_cancel_at?: string | null
           plan_expires_at?: string | null
+          shopify_webhook_secret?: string | null
+          shopify_domain?: string | null
           postback_secret?: string
           rating?: number | null
           reviews_count?: number
