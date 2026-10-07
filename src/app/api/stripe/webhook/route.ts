@@ -27,7 +27,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "stripe non configuré" }, { status: 500 });
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // `.trim()` n'est pas de la coquetterie : un secret collé depuis le tableau
+  // de bord Stripe emporte très facilement un retour à la ligne ou une espace.
+  // À l'écran la valeur paraît juste — on relit « whsec_… » et tout va bien —
+  // mais la signature calculée diffère, et Stripe ne répond qu'un 401 nu.
+  // Deux heures perdues le 07/10/2026 à soupçonner la mauvaise clé.
+  const brut = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = brut?.trim();
   if (!webhookSecret) {
     return NextResponse.json(
       { ok: false, error: "STRIPE_WEBHOOK_SECRET manquant" },
@@ -46,7 +52,25 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch {
-    return NextResponse.json({ ok: false, error: "signature invalide" }, { status: 401 });
+    // Un 401 nu ne dit pas QUELLE est l'erreur, et on ne peut pas relire une
+    // variable sensible dans Vercel pour comparer. On renvoie donc de quoi
+    // trancher, lisible directement sur la page de l'événement chez Stripe.
+    // Rien ici ne permet de reconstituer le secret : une longueur et deux
+    // oui/non. À retirer une fois la chaîne stabilisée.
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "signature invalide",
+        indices: {
+          longueur_du_secret: webhookSecret.length,
+          prefixe_whsec: webhookSecret.startsWith("whsec_"),
+          espaces_parasites: brut !== webhookSecret,
+          taille_du_corps: rawBody.length,
+          horodatage_signature: /^t=\d+/.test(sig),
+        },
+      },
+      { status: 401 },
+    );
   }
 
   try {
