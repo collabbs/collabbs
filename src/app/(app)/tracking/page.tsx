@@ -41,18 +41,32 @@ export default async function TrackingPage({
   const proto = host.startsWith("localhost") ? "http" : "https";
   const origin = `${proto}://${host}`;
 
-  const verified = Boolean(brand?.tracking_verified_at);
   const fmtDate = (d: string) =>
     new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
+  /* ─── Deux façons d'être opérationnel, un seul voyant ─────────────────────
+     Le voyant ne regardait que le script posé dans le site. Depuis le webhook
+     Shopify, une marque peut être parfaitement branchée SANS ce script — et
+     elle lisait quand même « pas encore configuré », sur une page qui lui
+     annonçait juste en dessous que sa boutique était reliée. Deux vérités
+     contradictoires sur le même écran, c'est le genre de détail qui fait
+     douter de tout le reste. */
+  const parScript = Boolean(brand?.tracking_verified_at);
+  const parShopify = Boolean(brand?.shopify_webhook_secret);
+  const verified = parScript || parShopify;
+  const commentCaRemonte = parShopify
+    ? `Shopify nous annonce chaque commande payée${brand?.shopify_domain ? ` depuis ${brand.shopify_domain}` : ""}.`
+    : parScript
+      ? `Le script est en place sur ton site — dernière vérification le ${fmtDate(brand!.tracking_verified_at!)}.`
+      : "";
   return (
     <>
       <h1 className="font-display text-3xl font-black tracking-tight text-ink">
         Tracking des ventes
       </h1>
       <p className="mt-2 text-zinc-600">
-        Branche le tracking sur ta boutique une fois, et toutes tes campagnes d&apos;affiliation
-        en profiteront automatiquement.
+        Branche-le une fois, et toutes tes campagnes d&apos;affiliation en profitent.
+        Sur Shopify, deux valeurs à coller suffisent — rien à installer.
       </p>
 
       {/* Bandeau d'état */}
@@ -69,8 +83,8 @@ export default async function TrackingPage({
           </p>
           <p className={`mt-0.5 text-xs ${verified ? "text-emerald-700" : "text-amber-700"}`}>
             {verified
-              ? `Dernière vérification réussie le ${fmtDate(brand!.tracking_verified_at!)}.`
-              : "Tant qu'il n'est pas branché sur ton site, les ventes attribuées aux créateurs ne remonteront pas."}
+              ? commentCaRemonte
+              : "Tant qu'il n'est pas branché sur ta boutique, les ventes attribuées aux créateurs ne remonteront pas."}
           </p>
         </div>
         {!brand?.website && (

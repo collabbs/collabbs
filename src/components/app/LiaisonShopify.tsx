@@ -57,7 +57,12 @@ export default function LiaisonShopify({
           </code>
         </li>
         <li>
-          <strong>3.</strong> Shopify affiche alors une <strong>clé de signature</strong>.
+          <strong>3.</strong> Crée un second webhook, même adresse, évènement{" "}
+          <strong>« Remboursement créé »</strong>. Sans lui, une commande que tu
+          rembourses laisserait le créateur payé sur une vente qui n&apos;a pas eu lieu.
+        </li>
+        <li>
+          <strong>4.</strong> Shopify affiche alors une <strong>clé de signature</strong>.
           Recopie-la ci-dessous avec l&apos;adresse de ta boutique.
         </li>
       </ol>

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportError } from "@/lib/report-error";
+import { releaseReservation } from "@/lib/affiliate-billing";
+import { notify } from "@/lib/notifications";
 import { enregistrerVenteAuthentifiee } from "../sale/route";
 import {
   EN_TETE_SIGNATURE,
@@ -88,6 +90,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "corps illisible" }, { status: 400 });
   }
 
+  /* ─── Un remboursement reprend la commission ──────────────────────────────
+     Sans ça, une marque qui rembourse son client laisse le créateur payé sur
+     une vente qui n'a pas eu lieu. Elle pouvait déjà le faire à la main depuis
+     sa provision ; Shopify nous le dit, autant ne pas le lui demander.
+
+     On traite le remboursement AVANT de chercher une référence de créateur :
+     l'objet reçu n'est pas une commande mais un remboursement, et ses champs
+     ne sont pas les mêmes. */
+  if (sujet === "refunds/create") {
+    return traiterRemboursement(corpsBrut, marque.id, boutique);
+  }
+
   const { code, clicke } = referenceDeLaCommande(commande);
   /* Aucune référence : la commande n'a pas été amenée par un créateur. C'est le
      cas de l'immense majorité des ventes d'une boutique, et ce n'est pas une
@@ -124,4 +138,77 @@ export async function POST(request: Request) {
     abonnement: null,
     secret: marque.postback_secret ?? "",
   });
+}
+
+
+/**
+ * Un remboursement Shopify annule la commission correspondante.
+ *
+ * Shopify envoie `order_id` : c'est la commande d'origine, donc exactement la
+ * clé sous laquelle on a enregistré la vente. On retrouve l'évènement et on
+ * relâche la réservation — la provision de la marque est recréditée, et la
+ * commission n'est plus due.
+ *
+ * Remboursement PARTIEL : on ne touche à rien. Une commission proportionnelle
+ * se discute (frais de port remboursés, un article sur trois rendu…) et
+ * trancher à la place de la marque serait décider de l'argent d'un créateur
+ * sans qu'il puisse en débattre. On la prévient, elle arbitre.
+ */
+async function traiterRemboursement(corpsBrut: string, brandId: string, boutique: string) {
+  let remb: { order_id?: unknown; refund_line_items?: unknown[]; transactions?: unknown[] };
+  try {
+    remb = JSON.parse(corpsBrut);
+  } catch {
+    return NextResponse.json({ ok: false, error: "corps illisible" }, { status: 400 });
+  }
+
+  const externalRef = referenceExterne({ id: remb.order_id });
+  if (!externalRef) return NextResponse.json({ ok: true, ignore: "remboursement sans commande" });
+
+  const admin = createAdminClient();
+  const { data: vente } = await admin
+    .from("affiliate_events")
+    .select("id, status, sale_amount, commission_amount")
+    .eq("external_ref", externalRef)
+    .eq("type", "sale")
+    .maybeSingle();
+
+  // Aucune vente de notre côté : la commande n'avait pas été amenée par un
+  // créateur. C'est le cas courant, et ce n'est pas une anomalie.
+  if (!vente) return NextResponse.json({ ok: true, ignore: "vente inconnue" });
+  if (vente.status === "refunded") {
+    return NextResponse.json({ ok: true, deja: true });
+  }
+
+  const montantRembourse = (remb.transactions ?? []).reduce((somme: number, t: unknown) => {
+    const m = Number((t as { amount?: unknown })?.amount ?? 0);
+    return somme + (Number.isFinite(m) ? m : 0);
+  }, 0);
+  const total = Number(vente.sale_amount ?? 0);
+  const partiel = montantRembourse > 0 && total > 0 && montantRembourse < total - 0.01;
+
+  if (partiel) {
+    await notify({
+      userId: brandId,
+      type: "pixel_sale_to_review",
+      title: "Remboursement partiel sur une vente commissionnée",
+      body: `Tu as remboursé ${montantRembourse.toFixed(2)} € sur une commande de ${total.toFixed(2)} € qui a rapporté une commission. À toi de décider si elle reste due — depuis ta provision.`,
+      link: "/billing",
+    });
+    return NextResponse.json({ ok: true, partiel: true });
+  }
+
+  const res = await releaseReservation({
+    eventId: vente.id,
+    status: "refunded",
+    reason: `Remboursé sur Shopify (${boutique})`,
+  });
+  if (!res.ok) {
+    await reportError("shopify/remboursement", res.message ?? "reprise impossible", {
+      userId: brandId,
+      detail: externalRef,
+    });
+    return NextResponse.json({ ok: false, error: res.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, rembourse: true });
 }
