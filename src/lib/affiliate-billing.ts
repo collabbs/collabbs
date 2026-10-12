@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
+import { alerterAdmins } from "@/lib/alerte-admin";
 import { reportError } from "@/lib/report-error";
 import { TARIFS } from "@/lib/tarifs";
 import { tauxAffiliation } from "@/lib/tarifs";
@@ -1117,6 +1118,17 @@ export async function runAffiliatePayouts(): Promise<{
         void reportError("affiliate/payout-transaction", errTx, {
           detail: `Virement ${transfer.id} parti (${net} € au créateur ${creatorId}) mais la transaction ${tx.id} n'a pas pu passer à "paid".`,
         });
+        /* De l'argent réel est sorti et nos écritures l'ignorent. Aucun
+           passage de cron ne réparera ça : seul un humain peut rapprocher le
+           virement Stripe de la transaction. Ça ne peut pas attendre qu'on
+           pense à ouvrir l'écran d'administration. */
+        await alerterAdmins({
+          type: "versement_parti_non_enregistre",
+          title: "Un virement est parti sans être enregistré",
+          body: `${net} € ont bien été versés au créateur ${creatorId} (virement Stripe ${transfer.id}), mais la transaction ${tx.id} est restée dans un état incohérent. L'argent est sorti ; nos comptes ne le disent pas. À rapprocher à la main — aucun traitement automatique ne le fera.`,
+          link: "/admin",
+          fenetreMinutes: 1,
+        });
       }
 
       const { error: errVentes } = await admin
@@ -1129,6 +1141,13 @@ export async function runAffiliatePayouts(): Promise<{
         // statut à la main : on le signale.
         void reportError("affiliate/payout-ventes", errVentes, {
           detail: `Virement ${transfer.id} parti pour le créateur ${creatorId} ; ${bucket.ids.length} ventes non passées à "paid".`,
+        });
+        await alerterAdmins({
+          type: "ventes_payees_non_marquees",
+          title: "Des ventes versées n'ont pas été marquées payées",
+          body: `Le virement ${transfer.id} est parti pour le créateur ${creatorId}, mais ${bucket.ids.length} ventes n'ont pas pu passer à « payée ». Elles ne repartiront pas dans un autre lot — leur rattachement les protège — mais leur statut doit être corrigé à la main, sinon le créateur les verra comme encore dues.`,
+          link: "/admin",
+          fenetreMinutes: 1,
         });
       }
 
@@ -1199,6 +1218,27 @@ export async function runAffiliatePayouts(): Promise<{
       // on annule la transaction, les ventes restent validées pour le prochain tour.
       void reportError("affiliate/transfer", err, {
         detail: `créateur ${creatorId} · ${net} €`,
+      });
+      /* Le rattrapage est bon — la transaction est annulée, les ventes
+         repartent au tour suivant — mais il ne sert à rien si la cause
+         persiste : un solde plateforme insuffisant le restera demain, et les
+         créateurs ne seront jamais payés, en silence. Observé le 14/09/2026,
+         deux fois, sans que personne l'apprenne.
+
+         Le message distingue les deux causes, parce qu'elles n'appellent pas
+         le même geste : ajouter des fonds, ou attendre que le créateur
+         termine son inscription Stripe. */
+      const soldeInsuffisant =
+        (err as { code?: string } | null)?.code === "balance_insufficient";
+      await alerterAdmins({
+        type: soldeInsuffisant ? "versement_solde_insuffisant" : "versement_refuse",
+        title: soldeInsuffisant
+          ? "Un versement à un créateur a échoué : solde Stripe insuffisant"
+          : "Un versement à un créateur a été refusé par Stripe",
+        body: soldeInsuffisant
+          ? `${net} € n'ont pas pu être versés. Stripe garde les encaissements en attente quelques jours avant de les rendre disponibles : le solde disponible ne suffit pas. Les ventes ne sont pas perdues, le passage de demain réessaiera — mais tant que le solde reste insuffisant, le créateur n'est pas payé. Ajoute des fonds depuis le tableau de bord Stripe.`
+          : `${net} € n'ont pas pu être versés au créateur ${creatorId}. Cause rapportée par Stripe : ${(err as Error)?.message ?? "inconnue"}. Les ventes repartent au prochain passage ; si la cause persiste, elles ne seront jamais versées.`,
+        link: "/admin",
       });
       // On relâche le lot : les ventes redeviennent disponibles pour le
       // prochain passage. Sans ça, elles resteraient réservées à une
