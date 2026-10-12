@@ -52,29 +52,24 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch {
-    // Un 401 nu ne dit pas QUELLE est l'erreur, et on ne peut pas relire une
-    // variable sensible dans Vercel pour comparer. On renvoie donc de quoi
-    // trancher, lisible directement sur la page de l'événement chez Stripe.
-    // Rien ici ne permet de reconstituer le secret : une longueur et deux
-    // oui/non. À retirer une fois la chaîne stabilisée.
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "signature invalide",
-        indices: {
-          longueur_du_secret: webhookSecret.length,
-          prefixe_whsec: webhookSecret.startsWith("whsec_"),
-          espaces_parasites: brut !== webhookSecret,
-          taille_du_corps: rawBody.length,
-          horodatage_signature: /^t=\d+/.test(sig),
-          // Quel déploiement répond. Sans ça, on ne sait pas si une
-          // correction de variable est réellement en ligne — on a passé
-          // la semaine dernière à le supposer.
-          deploiement: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "inconnu",
-        },
-      },
-      { status: 401 },
-    );
+    // Le 401 reste nu pour l'appelant : il est public, et une réponse qui
+    // décrit la configuration du serveur n'a rien à y faire. Les éléments
+    // qui permettent de trancher partent dans les journaux Vercel, où seul
+    // Julien les lit. Aucun ne permet de reconstituer le secret.
+    //
+    // Ils ne sont pas décoratifs : le 07/10/2026, un 401 sans explication a
+    // coûté une demi-journée et trois hypothèses fausses. La vraie cause —
+    // deux variables Vercel homonymes, l'une sur Preview et l'autre sur
+    // Production — n'a été trouvée qu'en faisant parler le code.
+    console.error("[stripe/webhook] signature refusee", {
+      longueur_du_secret: webhookSecret.length,
+      prefixe_whsec: webhookSecret.startsWith("whsec_"),
+      espaces_parasites: brut !== webhookSecret,
+      taille_du_corps: rawBody.length,
+      horodatage_signature: /^t=\d+/.test(sig),
+      deploiement: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "inconnu",
+    });
+    return NextResponse.json({ ok: false, error: "signature invalide" }, { status: 401 });
   }
 
   try {
