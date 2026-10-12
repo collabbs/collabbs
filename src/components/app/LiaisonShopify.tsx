@@ -75,6 +75,15 @@ export default function LiaisonShopify({
           <input
             name="domaine"
             type="text"
+            // Sans ça, le gestionnaire de mots de passe du navigateur prend ce
+            // formulaire pour une connexion — un champ texte suivi d'un champ
+            // mot de passe — et remplit celui-ci avec l'adresse e-mail du
+            // compte. Constaté le 12/10/2026 sur l'écran de Julien.
+            // `autoComplete="off"` seul ne suffit pas sur Chrome : un nom de
+            // champ qu'aucun gestionnaire ne reconnaît, si.
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
             defaultValue={domaine ?? ""}
             placeholder="ma-marque.myshopify.com"
             className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-purple-400"
@@ -95,7 +104,14 @@ export default function LiaisonShopify({
           <input
             name="cle"
             type="password"
-            autoComplete="off"
+            // Chrome ignore `off` sur un champ mot de passe et propose quand
+            // même les identifiants enregistrés. `new-password` est la seule
+            // valeur qu'il respecte. Le risque n'est pas cosmétique : sans
+            // elle, le mot de passe personnel de la marque pouvait être
+            // enregistré en base comme clé de signature Shopify.
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
             placeholder={relie ? "••••••••  (déjà enregistrée)" : "Collée depuis Shopify"}
             className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-purple-400"
           />
