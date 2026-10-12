@@ -11,6 +11,8 @@ import {
   signatureValide,
   domaineBoutique,
   commandeReglee,
+  deviseAcceptee,
+  deviseDeLaCommande,
   referenceDeLaCommande,
   montantDeLaCommande,
   referenceExterne,
@@ -117,6 +119,24 @@ export async function POST(request: Request) {
      erreur — on l'accepte sans rien enregistrer. */
   if (!code) {
     return NextResponse.json({ ok: true, ignore: "sans référence créateur" });
+  }
+
+  /* La devise n'était pas lue jusqu'au 12/10/2026 : une commande en dollars
+     devenait un montant en euros, et la commission était calculée dessus. On
+     refuse, et SURTOUT on le dit — un créateur a amené cette vente, il doit
+     pouvoir savoir pourquoi elle n'est pas comptée. La limitation évite de
+     harceler une boutique entièrement libellée dans une autre devise. */
+  if (!deviseAcceptee(commande)) {
+    const devise = deviseDeLaCommande(commande) ?? "non précisée";
+    await notify({
+      userId: marque.id,
+      type: "shopify_devise_non_supportee",
+      title: "Une vente n'a pas pu être comptée : devise non prise en charge",
+      body: `Une commande en ${devise} est arrivée depuis ${boutique}. Collabbs compte en euros : la commission n'a pas été calculée, pour ne pas inventer un montant. Écris-nous si ta boutique vend dans une autre devise.`,
+      link: "/tracking",
+      throttleMinutes: 1440,
+    });
+    return NextResponse.json({ ok: true, ignore: "devise non prise en charge", devise });
   }
 
   const montant = montantDeLaCommande(commande);

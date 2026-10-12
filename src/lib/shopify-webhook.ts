@@ -63,9 +63,46 @@ export type CommandeShopify = {
   current_total_price?: unknown;
   note_attributes?: AttributDeCommande[];
   financial_status?: unknown;
+  currency?: unknown;
   checkout_token?: unknown;
   created_at?: unknown;
 };
+
+/**
+ * La devise de la commande, telle que la boutique la déclare.
+ *
+ * `total_price` est exprimé dans la devise de la BOUTIQUE, pas dans celle que
+ * le client a vue (`presentment_currency`). C'est donc `currency` qu'il faut
+ * lire pour savoir ce que vaut le nombre qu'on vient de lire.
+ */
+export function deviseDeLaCommande(commande: CommandeShopify): string | null {
+  return typeof commande.currency === "string" && commande.currency.trim()
+    ? commande.currency.trim().toUpperCase()
+    : null;
+}
+
+/**
+ * La commande est-elle libellée dans une devise qu'on sait traiter ?
+ *
+ * Collabbs compte en euros : provisions, commissions, versements. Jusqu'au
+ * 12/10/2026 la devise n'était jamais lue, et une commande de test à
+ * **749,95 $** a été enregistrée comme **749,95 €**, commission calculée
+ * dessus. Rien n'échouait : le chiffre était là, il avait l'air juste, il
+ * était faux.
+ *
+ * On refuse donc tout ce qui n'est pas l'euro — y compris une devise absente,
+ * pour la même raison qu'une commande sans statut de paiement : on ne réserve
+ * pas d'argent sur une supposition. La marque en est prévenue ; ce refus ne
+ * doit jamais être muet, sinon le créateur aurait amené une vente sans être
+ * payé et personne ne saurait pourquoi.
+ *
+ * Convertir au taux du jour serait plus confortable, mais ferait dépendre un
+ * calcul d'argent d'une source extérieure. À reconsidérer le jour où une vraie
+ * marque hors zone euro arrive.
+ */
+export function deviseAcceptee(commande: CommandeShopify): boolean {
+  return deviseDeLaCommande(commande) === "EUR";
+}
 
 /**
  * La commande est-elle réglée ?

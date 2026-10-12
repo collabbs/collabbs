@@ -7,6 +7,8 @@ import {
   montantDeLaCommande,
   referenceExterne,
   commandeReglee,
+  deviseAcceptee,
+  deviseDeLaCommande,
 } from "@/lib/shopify-webhook";
 
 const SECRET = "cle-de-signature-shopify";
@@ -165,5 +167,36 @@ describe("une commande non réglée ne réserve rien", () => {
   it("refuse une commande sans statut de paiement", () => {
     // On ne réserve pas d'argent sur une supposition.
     expect(commandeReglee({})).toBe(false);
+  });
+});
+
+describe("une commande hors euro ne produit pas de commission", () => {
+  // Le 12/10/2026, une commande de test à 749,95 $ a été enregistrée comme
+  // 749,95 € : la devise n'était jamais lue. Rien n'échouait, le chiffre
+  // avait l'air juste, il était faux.
+  it("accepte l'euro", () => {
+    expect(deviseAcceptee({ currency: "EUR" })).toBe(true);
+  });
+
+  it("accepte l'euro quelle que soit la casse ou les espaces", () => {
+    expect(deviseAcceptee({ currency: " eur " })).toBe(true);
+  });
+
+  it.each(["USD", "GBP", "CHF", "CAD"])("refuse %s", (d) => {
+    expect(deviseAcceptee({ currency: d })).toBe(false);
+  });
+
+  it("refuse une devise absente", () => {
+    // Même principe que pour le statut de paiement : on ne réserve pas
+    // d'argent sur une supposition.
+    expect(deviseAcceptee({})).toBe(false);
+  });
+
+  it("lit la devise de la BOUTIQUE, pas celle affichée au client", () => {
+    // `total_price` est exprimé dans la devise de la boutique. Lire
+    // `presentment_currency` donnerait un montant et une devise qui ne vont
+    // pas ensemble.
+    const commande = { currency: "EUR", presentment_currency: "USD" } as never;
+    expect(deviseDeLaCommande(commande)).toBe("EUR");
   });
 });
