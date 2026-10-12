@@ -10,6 +10,7 @@ import {
   EN_TETE_SUJET,
   signatureValide,
   domaineBoutique,
+  commandeReglee,
   referenceDeLaCommande,
   montantDeLaCommande,
   referenceExterne,
@@ -100,6 +101,14 @@ export async function POST(request: Request) {
      ne sont pas les mêmes. */
   if (sujet === "refunds/create") {
     return traiterRemboursement(corpsBrut, marque.id, boutique);
+  }
+
+  /* Une commande non réglée ne réserve rien. Voir `commandeReglee` : le
+     libellé « Création de commande » est voisin de « Commande payée » dans la
+     liste de Shopify, et une erreur de case ferait payer des créateurs sur des
+     ventes qui n'ont jamais abouti. */
+  if (!commandeReglee(commande)) {
+    return NextResponse.json({ ok: true, ignore: "commande non réglée" });
   }
 
   const { code, clicke } = referenceDeLaCommande(commande);

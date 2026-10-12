@@ -62,9 +62,28 @@ export type CommandeShopify = {
   total_price?: unknown;
   current_total_price?: unknown;
   note_attributes?: AttributDeCommande[];
+  financial_status?: unknown;
   checkout_token?: unknown;
   created_at?: unknown;
 };
+
+/**
+ * La commande est-elle réglée ?
+ *
+ * Le webhook « Commande payée » ne devrait livrer que des commandes payées,
+ * mais rien ne garantit à quel événement une boutique nous a abonnés — la
+ * liste de Shopify propose « Création de commande » juste à côté, et les deux
+ * libellés se ressemblent. Une commande non réglée (virement en attente,
+ * paiement à la livraison, commande provisoire) réserverait la commission du
+ * créateur sur une vente qui n'a pas eu lieu, et la marque la paierait.
+ *
+ * On exige donc `paid`, et on refuse tout le reste — `pending`, `authorized`,
+ * `partially_paid`, `voided`. Une absence de champ est refusée aussi : on ne
+ * réserve pas d'argent sur une supposition.
+ */
+export function commandeReglee(commande: CommandeShopify): boolean {
+  return commande.financial_status === "paid";
+}
 
 /**
  * La référence du créateur, telle qu'elle voyage dans la commande.

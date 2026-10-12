@@ -6,6 +6,7 @@ import {
   referenceDeLaCommande,
   montantDeLaCommande,
   referenceExterne,
+  commandeReglee,
 } from "@/lib/shopify-webhook";
 
 const SECRET = "cle-de-signature-shopify";
@@ -143,5 +144,26 @@ describe("le numéro qui empêche de payer deux fois", () => {
   it("le préfixe évite toute collision avec un numéro d'une autre source", () => {
     // Le postback d'une boutique maison pourrait envoyer « 1042 » aussi.
     expect(referenceExterne({ order_number: 1042 })).toMatch(/^shopify-/);
+  });
+});
+
+describe("une commande non réglée ne réserve rien", () => {
+  // Le libellé « Création de commande » est voisin de « Commande payée » dans
+  // la liste de Shopify. Si une boutique s'abonne au mauvais, une commande en
+  // attente de virement ferait payer un créateur sur une vente inexistante.
+  it("accepte une commande payée", () => {
+    expect(commandeReglee({ financial_status: "paid" })).toBe(true);
+  });
+
+  it.each(["pending", "authorized", "partially_paid", "voided", "refunded"])(
+    "refuse une commande en %s",
+    (etat) => {
+      expect(commandeReglee({ financial_status: etat })).toBe(false);
+    },
+  );
+
+  it("refuse une commande sans statut de paiement", () => {
+    // On ne réserve pas d'argent sur une supposition.
+    expect(commandeReglee({})).toBe(false);
   });
 });
