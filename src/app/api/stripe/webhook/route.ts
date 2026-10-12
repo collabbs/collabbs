@@ -67,6 +67,10 @@ export async function POST(request: Request) {
           espaces_parasites: brut !== webhookSecret,
           taille_du_corps: rawBody.length,
           horodatage_signature: /^t=\d+/.test(sig),
+          // Quel déploiement répond. Sans ça, on ne sait pas si une
+          // correction de variable est réellement en ligne — on a passé
+          // la semaine dernière à le supposer.
+          deploiement: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "inconnu",
         },
       },
       { status: 401 },
