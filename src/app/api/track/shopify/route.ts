@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportError } from "@/lib/report-error";
+import { alerterAdmins } from "@/lib/alerte-admin";
 import { releaseReservation } from "@/lib/affiliate-billing";
 import { notify } from "@/lib/notifications";
 import { enregistrerVenteAuthentifiee } from "../sale/route";
@@ -82,6 +83,24 @@ export async function POST(request: Request) {
     await reportError("shopify/signature", "signature invalide", {
       userId: marque.id,
       detail: `boutique ${boutique}, sujet ${sujet}`,
+    });
+    /* Ici, contrairement à Stripe, c'est la clé DE LA MARQUE qui ne correspond
+       pas : elle seule peut la corriger. On la prévient donc directement, et
+       on prévient aussi l'administration — une marque qui ne comprend pas le
+       message laisserait ses créateurs non payés en silence. */
+    await notify({
+      userId: marque.id,
+      type: "shopify_signature_refusee",
+      title: "Shopify nous annonce des ventes que nous refusons",
+      body: `Les commandes de ${boutique} nous arrivent avec une signature que nous ne reconnaissons pas. Tant que ce n'est pas réglé, les ventes amenées par tes créateurs ne sont pas comptées et leurs commissions ne sont pas réservées. Recopie la clé de signature affichée dans Shopify (Réglages → Notifications → Webhooks) sur ta page Tracking.`,
+      link: "/tracking",
+      throttleMinutes: 360,
+    });
+    await alerterAdmins({
+      type: "webhook_shopify_signature",
+      title: "Une boutique Shopify envoie des signatures refusées",
+      body: `Les webhooks de ${boutique} sont rejetés : la clé de signature enregistrée par la marque ne correspond pas à celle de la boutique. La marque a été prévenue. Si ça dure, ses créateurs ne sont pas payés sur les ventes qu'ils amènent.`,
+      link: "/admin",
     });
     return NextResponse.json({ ok: false, error: "signature invalide" }, { status: 401 });
   }

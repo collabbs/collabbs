@@ -13,6 +13,7 @@ import {
   cloturerAbonnement,
 } from "@/lib/abonnement-stripe";
 import { reportError } from "@/lib/report-error";
+import { alerterAdmins } from "@/lib/alerte-admin";
 
 // Webhook Stripe — source de vérité asynchrone pour les événements de paiement.
 // Sécurité : la signature Stripe est vérifiée avec STRIPE_WEBHOOK_SECRET (sinon 401).
@@ -61,6 +62,17 @@ export async function POST(request: Request) {
     // coûté une demi-journée et trois hypothèses fausses. La vraie cause —
     // deux variables Vercel homonymes, l'une sur Preview et l'autre sur
     // Production — n'a été trouvée qu'en faisant parler le code.
+    /* Cinq jours de 401 sans que personne le sache, du 07 au 12/10/2026 : la
+       route de retour créditait la provision à la place du webhook, donc rien
+       n'avait l'air cassé. Un client qui ferme son onglet avant la
+       redirection, lui, aurait payé sans rien recevoir. On pousse l'alerte au
+       lieu de l'écrire dans une table qu'il faut penser à ouvrir. */
+    await alerterAdmins({
+      type: "webhook_stripe_signature",
+      title: "Le webhook Stripe refuse les signatures",
+      body: "Stripe nous envoie des évènements que nous rejetons : STRIPE_WEBHOOK_SECRET ne correspond pas à la destination active. Les paiements continuent d'être encaissés, mais un client qui ferme son onglet avant d'être redirigé ne verra pas sa provision créditée. Vérifier la variable sur Vercel — attention, il peut en exister une par environnement.",
+      link: "/admin",
+    });
     console.error("[stripe/webhook] signature refusee", {
       longueur_du_secret: webhookSecret.length,
       prefixe_whsec: webhookSecret.startsWith("whsec_"),
