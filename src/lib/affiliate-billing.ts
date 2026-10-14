@@ -103,7 +103,11 @@ export async function settleSale(params: {
 
   // La vente porte d'emblée sa décomposition et sa date de validation, même si
   // la réservation échoue : on veut garder la trace de ce qui est dû.
-  await admin
+  //
+  // Et si cette trace ne s'écrit pas, elle n'existe nulle part ailleurs : le
+  // versement lira `commission_amount` vide et paiera zéro. Le créateur aurait
+  // amené une vente et toucherait rien, sans qu'aucune erreur ne s'affiche.
+  const { error: errMontants } = await admin
     .from("affiliate_events")
     .update({
       commission_amount: creatorAmount,
@@ -111,6 +115,18 @@ export async function settleSale(params: {
       validate_at: validateAt.toISOString(),
     })
     .eq("id", eventId);
+  if (errMontants) {
+    await reportError("affiliate/montants-vente", errMontants, {
+      detail: `vente ${eventId}, marque ${brandId}, ${creatorAmount} € dus au créateur`,
+    });
+    await alerterAdmins({
+      type: "vente_sans_montants",
+      title: "Une vente n'a pas enregistré la commission due",
+      body: `La vente ${eventId} (marque ${brandId}) devait porter ${creatorAmount} € pour le créateur, et l'écriture a échoué. Sans ce montant, le versement paiera zéro : le créateur aurait amené la vente et ne toucherait rien, sans qu'aucune erreur ne s'affiche nulle part.`,
+      link: "/admin",
+      fenetreMinutes: 1,
+    });
+  }
 
   let reserved = await tryReserve(admin, brandId, eventId, brandTotal);
 
@@ -672,10 +688,28 @@ export async function reserveOutstanding(
     if (!ok) break; // provision épuisée
     const validateAt = new Date();
     validateAt.setDate(validateAt.getDate() + VALIDATION_DAYS);
-    await admin
+    /* `tryReserve` vient de DÉBITER la provision de la marque. Si l'écriture
+       qui suit échoue sans qu'on le sache, l'argent est pris et la vente reste
+       dans son ancien statut : elle ne se validera jamais, le créateur ne sera
+       jamais payé, et la marque aura payé pour rien. Perdu des deux côtés, en
+       silence. On ne défait pas la réservation — rendre de l'argent sur une
+       écriture déjà incertaine ferait pire — on appelle quelqu'un. */
+    const { error: errStatut } = await admin
       .from("affiliate_events")
       .update({ status: "pending", validate_at: validateAt.toISOString() })
       .eq("id", e.id);
+    if (errStatut) {
+      await reportError("affiliate/reserve-statut", errStatut, {
+        detail: `vente ${e.id}, marque ${brandId}, ${total} € déjà réservés`,
+      });
+      await alerterAdmins({
+        type: "vente_reservee_sans_statut",
+        title: "Une commission a été prélevée sans que la vente soit marquée",
+        body: `${total} € ont été réservés sur la provision de la marque ${brandId} pour la vente ${e.id}, mais la vente n'a pas pu passer en « réservée ». Elle ne se validera donc jamais et le créateur ne sera pas payé — alors que la marque, elle, a déjà été débitée. À reprendre à la main.`,
+        link: "/admin",
+        fenetreMinutes: 1,
+      });
+    }
     reserved++;
   }
 
@@ -1244,14 +1278,32 @@ export async function runAffiliatePayouts(): Promise<{
       // On relâche le lot : les ventes redeviennent disponibles pour le
       // prochain passage. Sans ça, elles resteraient réservées à une
       // transaction annulée et ne seraient plus jamais versées.
-      await admin
+      //
+      // Cette écriture-là ne pouvait PAS être lancée sans contrôle. Le
+      // commentaire ci-dessus décrit sa conséquence : si elle échoue, les
+      // ventes restent accrochées à une transaction annulée et aucun passage
+      // ne les reprendra — le créateur n'est jamais payé, et rien ne le dit.
+      // C'était le garde-fou le plus silencieux du fichier.
+      const { error: errRelache } = await admin
         .from("affiliate_events")
         .update({ payout_id: null })
         .eq("payout_id", tx.id);
-      await admin
+      const { error: errAnnule } = await admin
         .from("transactions")
         .update({ status: "cancelled" })
         .eq("id", tx.id);
+      if (errRelache || errAnnule) {
+        await reportError("affiliate/relache-lot", errRelache ?? errAnnule, {
+          detail: `créateur ${creatorId}, transaction ${tx.id}`,
+        });
+        await alerterAdmins({
+          type: "ventes_bloquees_sur_lot_annule",
+          title: "Des commissions sont bloquées et ne repartiront pas",
+          body: `Le versement au créateur ${creatorId} a échoué, et le lot n'a pas pu être relâché (transaction ${tx.id}). Les ventes restent rattachées à une transaction annulée : aucun passage quotidien ne les reprendra, et le créateur ne sera jamais payé tant que ce n'est pas défait à la main.`,
+          link: "/admin",
+          fenetreMinutes: 1,
+        });
+      }
       result.failed++;
     }
   }
