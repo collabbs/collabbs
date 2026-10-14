@@ -865,7 +865,8 @@ export async function runAffiliateValidation(): Promise<{ validated: number }> {
  *
  * Regroupe par créateur toutes les ventes validées, crée une transaction
  * récapitulative, puis transfère le net vers son compte Stripe connecté.
- * En dessous du minimum, on laisse s'accumuler jusqu'au mois suivant.
+ * En dessous du minimum, on laisse s'accumuler jusqu'au passage suivant —
+ * quotidien depuis que le versement a quitté le rythme mensuel.
  *
  * Les ventes ne passent à « versée » qu'APRÈS un transfert Stripe abouti :
  * en cas d'échec elles restent validées et seront reprises au prochain passage.

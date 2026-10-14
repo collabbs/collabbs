@@ -6,6 +6,7 @@ import { stripe, stripeConfigured } from "@/lib/stripe";
 import { startCreatorPayoutOnboarding } from "../deals/actions";
 import { eur, eurExact } from "@/lib/deal";
 import EmptyState from "@/components/EmptyState";
+import { VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
 
 export const metadata = { title: "Paiements — Collabbs" };
 
@@ -161,8 +162,8 @@ export default async function PayoutsPage({
           <h2 className="font-semibold text-ink">Commissions d&apos;affiliation</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Dès qu&apos;une vente est enregistrée, la marque met ta commission de côté.
-            Elle t&apos;est définitivement acquise au bout de 30 jours, puis versée au
-            début du mois suivant à partir de 20 €.
+            Elle t&apos;est définitivement acquise au bout de {VALIDATION_DAYS} jours,
+            puis versée dès le lendemain à partir de {MIN_PAYOUT} €.
           </p>
 
           <div className="mt-4 grid grid-cols-3 gap-3">
