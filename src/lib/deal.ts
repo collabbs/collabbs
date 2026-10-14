@@ -45,6 +45,29 @@ export const PLATFORM_FEE_RATE = TARIFS.free.tauxCollab;
  * colonnes de `transactions` : `gross_amount` est ce que la marque a payé,
  * `net_amount` ce que le créateur reçoit.
  */
+/**
+ * La commission Collabbs sur un montant, au centime.
+ *
+ * ─── Pourquoi une fonction pour une multiplication ───
+ * Le calcul existait en DEUX exemplaires — ici et dans le générateur de
+ * contrat — et les deux employaient `Math.round`, qui arrondit à l'EURO
+ * entier. 10 % de 25 € donnait 3 € et non 2,50 €, alors que l'écran annonce
+ * « Commission Collabbs (10 %) » : le montant contredisait son propre libellé.
+ * Et l'écart partait toujours du même côté, `Math.round(2.5)` arrondissant
+ * vers le haut — toujours en faveur de Collabbs.
+ *
+ * Les commissions d'affiliation, elles, étaient déjà au centime. Les deux
+ * moitiés du produit ne comptaient pas pareil.
+ *
+ * Le taux est passé en argument et non déduit ici : le contrat doit appliquer
+ * le taux FIGÉ au moment de sa signature, pas celui du plan actuel.
+ *
+ * Constaté le 14/10/2026 en préparant un vrai paiement de test.
+ */
+export function commissionCollabbs(montant: number, taux: number): number {
+  return Math.round(montant * taux * 100) / 100;
+}
+
 export function dealBreakdown(
   amount: number,
   plan?: string | null,
@@ -56,8 +79,8 @@ export function dealBreakdown(
   /** Ce que reçoit le créateur : le montant convenu, entier. */
   net: number;
 } {
-  const fee = Math.round(amount * tauxCollab(plan));
-  return { gross: amount + fee, fee, net: amount };
+  const fee = commissionCollabbs(amount, tauxCollab(plan));
+  return { gross: commissionCollabbs(amount + fee, 1), fee, net: amount };
 }
 
 export const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;

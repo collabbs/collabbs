@@ -1,7 +1,7 @@
 import "server-only";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 // Taux unique, celui qu'applique réellement le calcul du versement.
-import { PLATFORM_FEE_RATE } from "@/lib/deal";
+import { PLATFORM_FEE_RATE, commissionCollabbs } from "@/lib/deal";
 
 /**
  * Corps du contrat de collaboration commerciale.
@@ -189,7 +189,7 @@ export function buildContractDocument(params: {
   // cette correction n'en portent pas — ils retombent sur le taux historique,
   // parce qu'on ne réécrit pas un document signé.
   const tauxContrat = deal.platform_fee_rate ?? PLATFORM_FEE_RATE;
-  const dealFee = Math.round(deal.amount * tauxContrat);
+  const dealFee = commissionCollabbs(deal.amount, tauxContrat);
   const dealTotal = deal.amount + dealFee;
 
   add("Rémunération et avantages en nature", [
