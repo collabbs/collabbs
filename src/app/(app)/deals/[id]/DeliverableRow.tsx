@@ -32,7 +32,21 @@ export type Deliverable = {
 
 const ACCEPTED =
   "video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/gif,application/pdf,application/zip";
-const MAX_BYTES = 500 * 1024 * 1024; // 500 Mo / fichier
+/* La limite RÉELLE, mesurée le 14/10/2026 : 45 Mo passent, 55 Mo sont refusés.
+   Ce n'est pas le seau qui plafonne — il est réglé à 500 Mo — mais la limite
+   globale du projet Supabase, qui s'applique par-dessus et vaut 50 Mo sur le
+   plan gratuit.
+
+   L'écran annonçait 500 Mo : dix fois trop. Un créateur livrant une vidéo de
+   téléphone tombait donc presque à coup sûr sur un refus, et recevait le
+   message brut de Supabase, en anglais.
+
+   Pour accepter davantage, il faut relever la limite du projet dans Supabase
+   (Storage → Settings), ce que le plan gratuit ne permet pas. Le jour où le
+   projet passe au plan supérieur, c'est CETTE constante qu'il faut changer :
+   l'affichage et les messages en découlent tous. */
+const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_LABEL = `${MAX_BYTES / 1024 / 1024} Mo`;
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -115,7 +129,7 @@ export default function DeliverableRow({
              sur TikTok, ou dans un Drive. Une vidéo de téléphone dépasse
              couramment 500 Mo ; le message doit donc commencer par le chemin
              qui marche. */
-          `${f.name} fait ${(f.size / (1024 * 1024)).toFixed(0)} Mo — au-delà des 500 Mo acceptés. ` +
+          `${f.name} fait ${(f.size / (1024 * 1024)).toFixed(0)} Mo — au-delà des ${MAX_LABEL} acceptés. ` +
             `Le plus simple : colle le lien de ta publication ou d'un dossier partagé dans le champ ci-dessus. ` +
             `Sinon, réexporte la vidéo en 1080p avec un bitrate plus bas.`,
         );
@@ -135,7 +149,18 @@ export default function DeliverableRow({
         upsert: false,
       });
       if (error) {
-        setUploadError(`Upload échoué : ${error.message}`);
+        /* Le stockage peut refuser après coup — limite du projet, panne,
+           fichier juste à la frontière. Sans traduction, le créateur lisait
+           « The object exceeded the maximum allowed size » et restait bloqué
+           devant un écran de livraison. On redonne la même porte de sortie
+           que pour le refus anticipé : le lien. */
+        const trop = /exceeded the maximum allowed size/i.test(error.message);
+        setUploadError(
+          trop
+            ? `${f.name} a été refusé par le stockage : il dépasse les ${MAX_LABEL} acceptés. ` +
+                `Le plus simple : colle le lien de ta publication ou d'un dossier partagé dans le champ ci-dessus.`
+            : `Le dépôt de ${f.name} a échoué (${error.message}). Tu peux réessayer, ou coller le lien de ta publication dans le champ ci-dessus.`,
+        );
         setUploading(false);
         return;
       }
@@ -283,7 +308,7 @@ export default function DeliverableRow({
           {/* Upload fichier */}
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              Joindre un fichier (vidéo MP4, image, PDF, ZIP — 500 Mo max)
+              Joindre un fichier (vidéo MP4, image, PDF, ZIP — {MAX_LABEL} max)
             </label>
             <input
               ref={fileInputRef}
