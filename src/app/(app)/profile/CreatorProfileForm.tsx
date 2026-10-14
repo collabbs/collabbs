@@ -9,6 +9,8 @@ import { extractHandleFromUrl } from "@/lib/social-handle";
 import { compressImage } from "@/lib/image-compress";
 import ReperesTarifaires from "@/components/app/ReperesTarifaires";
 import type { Reperes } from "@/lib/benchmark";
+import { profilVisible, manquantsProfil } from "@/lib/profil-visible";
+import { phraseManquants } from "@/lib/profil-listable";
 
 type Niche = { id: number; label: string };
 type Platform = { id: number; label: string; slug: string };
@@ -126,7 +128,24 @@ export default function CreatorProfileForm({
     (hasNiche ? 20 : 0) +
     (Object.keys(platformSel).length ? 20 : 0) +
     (offerIds.length ? 20 : 0);
-  const listable = hasPhoto && hasNiche && offerIds.length > 0;
+  /* Trois conditions ici, cinq dans le catalogue : c'est exactement le défaut
+     que `lib/profil-visible` raconte avoir corrigé — « un créateur sans pseudo
+     voyait son tableau de bord silencieux, donc tout va bien, et n'apparaissait
+     dans aucune recherche de marque. Invisible, sans le savoir, indéfiniment. »
+     Le correctif avait été posé sur le tableau de bord ; ce formulaire, lui,
+     avait gardé sa propre copie. Constaté le 14/10/2026 en créant un compte
+     neuf : profil à 75 %, pseudo et réseau renseignés, et le bandeau annonçait
+     encore qu'il manquait une niche et une offre déjà saisies.
+
+     On appelle donc la règle qui fait autorité, celle que lit le catalogue. */
+  const etatProfil = {
+    pseudo: Boolean(handle.trim()),
+    photo: hasPhoto,
+    plateforme: Object.keys(platformSel).length > 0,
+    niche: hasNiche,
+    offre: offerIds.length > 0,
+  };
+  const listable = profilVisible(etatProfil);
 
   // Un tarif renseigné sur au moins une offre.
   //
@@ -664,7 +683,7 @@ export default function CreatorProfileForm({
               ) : (
                 <>
                   <strong className="text-amber-700">Pas encore visible.</strong>{" "}
-                  Il te manque photo + niche + 1 offre.
+                  {phraseManquants(manquantsProfil(etatProfil))}
                 </>
               )}
             </span>
