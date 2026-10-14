@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
+import { alerterAdmins } from "@/lib/alerte-admin";
 
 /**
  * Versement de la part créateur d'un séquestre.
@@ -195,10 +196,37 @@ export async function attemptDealPayout(
 
     return { released: true };
   } catch (e) {
+    /* Le message de Stripe ne doit PAS remonter tel quel : il est en anglais,
+       il est technique, et il parle de l'intérieur de la plateforme. Une marque
+       qui clôture une collaboration lisait « You have insufficient available
+       funds in your Stripe account » — un problème qui n'est pas le sien et
+       qu'elle ne peut pas résoudre.
+
+       Le rattrapage existe : le statut reste « en séquestre » et l'automate
+       quotidien repassera. Ce qui manquait, c'est que QUELQU'UN l'apprenne —
+       un solde insuffisant le restera demain, et le créateur ne serait jamais
+       payé, en silence. Même défaut que les versements d'affiliation,
+       corrigé le 12/10. */
+    const message = e instanceof Error ? e.message : "";
+    const soldeInsuffisant = (e as { code?: string } | null)?.code === "balance_insufficient";
+
+    await reportError("deal/versement", e, { detail: `deal ${dealId}` });
+    await alerterAdmins({
+      type: soldeInsuffisant ? "versement_solde_insuffisant" : "versement_deal_refuse",
+      title: soldeInsuffisant
+        ? "Un versement de collaboration a échoué : solde Stripe insuffisant"
+        : "Un versement de collaboration a été refusé par Stripe",
+      body: soldeInsuffisant
+        ? `Le versement du deal ${dealId} n'a pas pu partir : le solde disponible chez Stripe ne suffit pas. Les encaissements restent en attente quelques jours avant d'être disponibles. La collaboration reste en séquestre et l'automate quotidien réessaiera — mais tant que le solde est insuffisant, le créateur n'est pas payé. Ajoute des fonds depuis le tableau de bord Stripe.`
+        : `Le versement du deal ${dealId} a été refusé par Stripe. Cause rapportée : ${message || "inconnue"}. La collaboration reste en séquestre et sera retentée ; si la cause persiste, le créateur ne sera jamais payé.`,
+      link: "/admin",
+    });
+
     return {
       released: false,
       reason: "other",
-      error: e instanceof Error ? e.message : "Échec du versement.",
+      error:
+        "Le versement n'a pas pu partir tout de suite. La collaboration reste sécurisée et nous le relançons automatiquement — il n'y a rien à refaire.",
     };
   }
 }
