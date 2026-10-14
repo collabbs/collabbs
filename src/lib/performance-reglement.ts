@@ -4,6 +4,7 @@ import { stripe, stripeConfigured } from "@/lib/stripe";
 import { montantAuxVues } from "@/lib/performance";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
+import { alerterAdmins } from "@/lib/alerte-admin";
 import { eur } from "@/lib/campaign";
 
 /**
@@ -99,9 +100,23 @@ export async function reglerCollaborationAuxVues(dealId: string): Promise<Reglem
       { idempotencyKey: `perf-reliquat-${tx.id}-${aRembourser}` },
     );
   } catch (e) {
+    /* Ce remboursement rend à la marque ce qu'elle a avancé au-dessus des vues
+       réellement faites. S'il échoue, elle est créancière et ne le sait pas —
+       et le message de Stripe, en anglais, ne l'aiderait en rien. On alerte
+       donc l'administration, seule à pouvoir agir, et on dit à la marque une
+       phrase vraie : la somme lui reste due. */
+    const message = e instanceof Error ? e.message : "";
+    await alerterAdmins({
+      type: "reliquat_non_rembourse",
+      title: "Un reliquat de performance n'a pas pu être remboursé",
+      body: `Le remboursement de ${aRembourser} € au titre du deal ${dealId} a échoué. Cause rapportée par Stripe : ${message || "inconnue"}. La marque a avancé plus que les vues réalisées et attend cette somme : tant que ce n'est pas réglé, elle est créancière sans le savoir.`,
+      link: "/admin",
+      fenetreMinutes: 1,
+    });
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Le remboursement du reliquat a échoué.",
+      error:
+        "Le remboursement du reliquat n'a pas pu être effectué. La somme te reste due — nous la relançons, tu n'as rien à faire.",
     };
   }
 

@@ -8,6 +8,7 @@ import {
   fetchVideoStats,
   videoIdFromUrl,
 } from "@/lib/youtube";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Importe les 10 dernières vidéos publiques d'un channel YouTube
@@ -165,9 +166,15 @@ export async function refreshYouTubeStats(): Promise<{
   try {
     stats = await fetchVideoStats(Array.from(idToVid.values()));
   } catch (err) {
+    /* Le message de l'API YouTube est en anglais et technique
+       (« quotaExceeded », « channelNotFound ») : un créateur qui importe sa
+       chaîne n'en tire rien. Mais le perdre serait pire — un quota dépassé
+       ressemblerait à une panne aléatoire. Il part donc dans la table
+       d'erreurs, lisible côté administration. */
+    await reportError("youtube/import-stats", err);
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Erreur côté API YouTube.",
+      error: "L'import depuis YouTube n'a pas abouti. Réessaie dans un moment, ou saisis ta chaîne à la main.",
     };
   }
 
