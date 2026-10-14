@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { modeleValide, montantAFixer, contenuLibre } from "@/lib/deal";
+import { modeleValide, montantAFixer, contenuLibre, commissionCollabbs } from "@/lib/deal";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -306,13 +306,17 @@ export default async function DealDetailPage({
           // du remboursement au moment précis où il devient un fait. On repart
           // donc de ce que valait le séquestre au plafond.
           if (deal.perf_validated_at)
-            return Math.max(0, plafond + Math.round(plafond * taux) - brut);
+            // `commissionCollabbs` et non `Math.round` : la commission se compte
+            // au centime depuis le 14/10. Recalculer ici à l'euro affichait un
+            // reliquat fantôme — sur un plafond de 25 € à 10 %, la page
+            // annonçait 0,50 € à rembourser alors qu'il n'y avait rien.
+            return Math.max(0, plafond + commissionCollabbs(plafond, taux) - brut);
           const du = montantAuxVues(
             Number(deal.perf_views ?? 0),
             Number(deal.perf_rate),
             plafond,
           );
-          return Math.max(0, brut - (du + Math.round(du * taux)));
+          return Math.max(0, brut - (du + commissionCollabbs(du, taux)));
         })()
       : null;
   const paymentReleased =
