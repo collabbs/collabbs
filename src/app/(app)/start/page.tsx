@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+export const metadata = { title: "Bienvenue — Collabbs" };
+
 /**
  * Routage post-login. Toutes les entrées (login form, callback email,
  * etc.) convergent ici. On regarde le rôle et on envoie l'utilisateur

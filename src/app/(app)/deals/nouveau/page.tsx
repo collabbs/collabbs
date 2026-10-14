@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import FormulaireProposition from "./FormulaireProposition";
 
+export const metadata = { title: "Proposer une collaboration — Collabbs" };
+
 /**
  * Proposer une collaboration à un créateur — les termes d'abord.
  *
