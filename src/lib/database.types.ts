@@ -2098,6 +2098,7 @@ export type Database = {
           currency: string
           deal_id: string | null
           escrow_released_at: string | null
+          payout_reference: string | null
           gross_amount: number
           id: string
           net_amount: number
@@ -2116,6 +2117,7 @@ export type Database = {
           currency?: string
           deal_id?: string | null
           escrow_released_at?: string | null
+          payout_reference?: string | null
           gross_amount: number
           id?: string
           net_amount: number
@@ -2134,6 +2136,7 @@ export type Database = {
           currency?: string
           deal_id?: string | null
           escrow_released_at?: string | null
+          payout_reference?: string | null
           gross_amount?: number
           id?: string
           net_amount?: number

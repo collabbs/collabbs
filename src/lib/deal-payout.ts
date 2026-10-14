@@ -143,7 +143,13 @@ export async function attemptDealPayout(
     // tentative — l'automate de délais tourne tous les jours — repasserait ici
     // et transférerait une seconde fois de l'argent réel. Avec cette clé,
     // Stripe renvoie le transfert déjà créé au lieu d'en créer un autre.
-    await stripe.transfers.create(
+    /* Le résultat n'était pas gardé : on versait, et aucune trace du virement
+       n'entrait en base. Le jour où un créateur affirme ne pas avoir été payé,
+       il faut pouvoir produire cet identifiant. On l'écrit dans
+       `payout_reference` et NON dans `reference`, qui garde le paiement
+       entrant — il sert de `source_transaction` ci-dessus et relie un
+       remboursement à sa vente. */
+    const transfer = await stripe.transfers.create(
       {
         amount: Math.round(Number(tx.net_amount) * 100),
         currency: "eur",
@@ -156,7 +162,11 @@ export async function attemptDealPayout(
 
     const { error: errStatut } = await admin
       .from("transactions")
-      .update({ status: "released", escrow_released_at: new Date().toISOString() })
+      .update({
+        status: "released",
+        payout_reference: transfer.id,
+        escrow_released_at: new Date().toISOString(),
+      })
       .eq("id", tx.id);
     if (errStatut) {
       // L'argent est PARTI et notre trace dit encore « en séquestre ». Le

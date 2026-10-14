@@ -98,6 +98,11 @@ export async function adminReleaseEscrow(formData: FormData) {
       .from("transactions")
       .update({
         status: "paid",
+        // Sans ça, l'identifiant du virement était perdu ici aussi : on versait
+        // de l'argent réel et nos écritures n'en gardaient aucune trace. Il ne
+        // va PAS dans `reference`, qui garde le paiement entrant — celui-ci
+        // sert de `source_transaction` et relie un remboursement à sa vente.
+        payout_reference: transfer.id,
         escrow_released_at: new Date().toISOString(),
         paid_at: new Date().toISOString(),
       })
