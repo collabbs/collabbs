@@ -65,6 +65,8 @@ export type Creator = {
   isTop?: boolean;
   isVerified?: boolean;
   isNew?: boolean;
+  /** Profil de démonstration : la carte le dit, pour que personne ne s'y trompe. */
+  isDemo?: boolean;
 };
 
 const U = (id: string) =>

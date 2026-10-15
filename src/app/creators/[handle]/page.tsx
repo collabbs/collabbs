@@ -104,6 +104,17 @@ export default async function CreatorProfilePage({
 
               {/* Badges contextuels en haut à gauche */}
               <div className="absolute left-3 top-3 z-10 flex flex-col gap-1.5">
+                {/* Une fiche de démonstration le dit, et elle le dit SEULE :
+                    la présenter en même temps comme « Top créateur » ou
+                    « Vérifié » reviendrait à décorer une personne inventée.
+                    Le `noindex` plus haut la tient hors des moteurs ; ce badge
+                    la tient hors du malentendu pour qui la lit vraiment. */}
+                {c.isDemo ? (
+                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800 shadow-sm ring-1 ring-amber-200">
+                    Exemple
+                  </span>
+                ) : (
+                  <>
                 {c.isTop && (
                   <span className="rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
                     ★ Top créateur
@@ -121,6 +132,8 @@ export default async function CreatorProfilePage({
                   <span className="rounded-full bg-purple-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-md">
                     ✨ Nouveau
                   </span>
+                )}
+                  </>
                 )}
               </div>
 

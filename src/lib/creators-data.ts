@@ -89,6 +89,8 @@ export type MarketplaceCreator = {
   isTop: boolean;
   isVerified: boolean;
   isNew: boolean;
+  /** Fiche de démonstration : la carte l'annonce au visiteur. */
+  isDemo: boolean;
   /** Ville affichée telle que saisie. */
   city: string | null;
   /** Forme normalisée, pour filtrer. */
@@ -110,6 +112,7 @@ type CreatorRow = {
   deals_count: number | null;
   reviews_count: number | null;
   created_at: string | null;
+  is_demo: boolean | null;
 };
 
 async function loadRelations(ids: string[]) {
@@ -297,6 +300,7 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
       isTop,
       isVerified: verified,
       isNew,
+      isDemo: Boolean(c.is_demo),
       reviewsCount,
     });
   }

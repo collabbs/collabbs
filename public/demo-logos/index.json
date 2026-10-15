@@ -1,0 +1,206 @@
+[
+  {
+    "id": "66995afa-7ba6-47e6-8915-8e44005d1188",
+    "name": "Atelier Maison",
+    "sector": "Maison",
+    "fichier": "atelier-maison.svg"
+  },
+  {
+    "id": "33bb163a-1e13-44b5-871a-22d970cc894d",
+    "name": "Atelier Margaux",
+    "sector": "Mode",
+    "fichier": "atelier-margaux.svg"
+  },
+  {
+    "id": "618c4e66-51aa-481b-8a1e-48c979f61c81",
+    "name": "Barbier Moderne",
+    "sector": "Beauté",
+    "fichier": "barbier-moderne.svg"
+  },
+  {
+    "id": "583d041b-dd60-47e0-9527-54b4197b9429",
+    "name": "Belline",
+    "sector": "Beauté",
+    "fichier": "belline.svg"
+  },
+  {
+    "id": "0cc7e61a-5d3b-4a01-b47d-385c8b16cf9d",
+    "name": "Bitume & Fil",
+    "sector": "Mode",
+    "fichier": "bitume-fil.svg"
+  },
+  {
+    "id": "8af60dbc-0651-4daa-b915-11d871470040",
+    "name": "Bonnet Bleu",
+    "sector": "Mode",
+    "fichier": "bonnet-bleu.svg"
+  },
+  {
+    "id": "948f1336-df9f-4737-9986-776b59ac726f",
+    "name": "Boucle & Co",
+    "sector": "Beauté",
+    "fichier": "boucle-co.svg"
+  },
+  {
+    "id": "1c207216-6a5a-49ac-be81-d19674f6b973",
+    "name": "Chaussette Royale",
+    "sector": "Mode",
+    "fichier": "chaussette-royale.svg"
+  },
+  {
+    "id": "c5584106-16f2-440c-a5e3-be8d64ef3e47",
+    "name": "Chemise Nette",
+    "sector": "Mode",
+    "fichier": "chemise-nette.svg"
+  },
+  {
+    "id": "2aa78504-6ebb-4df8-9dcc-a059a2c1b2e4",
+    "name": "Cloisonne",
+    "sector": "Cybersécurité",
+    "fichier": "cloisonne.svg"
+  },
+  {
+    "id": "71e3236d-1f23-4325-a7b0-54f97da4bf47",
+    "name": "Comptoir Culture",
+    "sector": "Tech",
+    "fichier": "comptoir-culture.svg"
+  },
+  {
+    "id": "6093a61e-34ab-439b-a239-c847c4e766b3",
+    "name": "Conteuse",
+    "sector": "Tech",
+    "fichier": "conteuse.svg"
+  },
+  {
+    "id": "ba838456-dcab-4005-9510-f66a38f385dc",
+    "name": "Coupe Durable",
+    "sector": "Mode",
+    "fichier": "coupe-durable.svg"
+  },
+  {
+    "id": "5e9c0048-8f61-427a-9f50-4af5c9deb72c",
+    "name": "Cuir Patiné",
+    "sector": "Mode",
+    "fichier": "cuir-patine.svg"
+  },
+  {
+    "id": "572ee477-2249-4861-9f47-6466bc7233c8",
+    "name": "Cycle Serein",
+    "sector": "Santé",
+    "fichier": "cycle-serein.svg"
+  },
+  {
+    "id": "3dff40a7-6171-4944-adde-9adbcd5d18e1",
+    "name": "Électro Plus",
+    "sector": "Tech",
+    "fichier": "electro-plus.svg"
+  },
+  {
+    "id": "f8841c9f-9a4a-4082-beac-91c42592b7e4",
+    "name": "Épargne Simple",
+    "sector": "Finance",
+    "fichier": "epargne-simple.svg"
+  },
+  {
+    "id": "1f17cefb-6745-4613-83b9-24aaaab24dbf",
+    "name": "Flacon Vide",
+    "sector": "Maison",
+    "fichier": "flacon-vide.svg"
+  },
+  {
+    "id": "c03fd7d0-59ed-44ff-a9f8-1388ac0bfaf6",
+    "name": "Fraîche",
+    "sector": "Beauté",
+    "fichier": "fraiche.svg"
+  },
+  {
+    "id": "031b4365-5cba-44bb-b6df-30aa075ae7ab",
+    "name": "Grand Terrain",
+    "sector": "Sport",
+    "fichier": "grand-terrain.svg"
+  },
+  {
+    "id": "0151499b-a616-4087-bd6e-f6e0f54aec4c",
+    "name": "Ironwave",
+    "sector": "Sport",
+    "fichier": "ironwave.svg"
+  },
+  {
+    "id": "6324597c-6afb-40a2-b269-b7edd361a173",
+    "name": "La Jambe Droite",
+    "sector": "Mode",
+    "fichier": "la-jambe-droite.svg"
+  },
+  {
+    "id": "40d0e418-7a05-465b-86b1-fa4dfe7f682f",
+    "name": "Le Coton Juste",
+    "sector": "Mode",
+    "fichier": "le-coton-juste.svg"
+  },
+  {
+    "id": "bcc28075-a7ec-4630-98fd-d8bf5013da15",
+    "name": "Le Héron Sportif",
+    "sector": "Sport",
+    "fichier": "le-heron-sportif.svg"
+  },
+  {
+    "id": "4b7d81cd-4fd1-428f-b434-cb72e1e6d7bb",
+    "name": "Maison Avril",
+    "sector": "Mode",
+    "fichier": "maison-avril.svg"
+  },
+  {
+    "id": "98295187-5b22-4154-8249-2f38ed151043",
+    "name": "Monture Claire",
+    "sector": "Mode",
+    "fichier": "monture-claire.svg"
+  },
+  {
+    "id": "a5d17cbd-6861-492c-a8e5-283d132b5d12",
+    "name": "Parfumerie Lune",
+    "sector": "Beauté",
+    "fichier": "parfumerie-lune.svg"
+  },
+  {
+    "id": "e8d149ed-9ec6-4ca7-97c8-f4a24698ddda",
+    "name": "Pas Léger",
+    "sector": "Mode",
+    "fichier": "pas-leger.svg"
+  },
+  {
+    "id": "a4313718-4f4a-4e56-b29e-996a0ea4bdbf",
+    "name": "Peau Nette",
+    "sector": "Beauté",
+    "fichier": "peau-nette.svg"
+  },
+  {
+    "id": "b737c801-5464-49f8-9988-7cfc20ce70cf",
+    "name": "Petit Moulin",
+    "sector": "Maison",
+    "fichier": "petit-moulin.svg"
+  },
+  {
+    "id": "fe02c304-2ea3-4ecb-b695-0557ebd5cf96",
+    "name": "Rivoli Studio",
+    "sector": "Mode",
+    "fichier": "rivoli-studio.svg"
+  },
+  {
+    "id": "0a7e37d0-d68a-4a51-9f9c-21f5d9981438",
+    "name": "Salon Doux",
+    "sector": "Maison",
+    "fichier": "salon-doux.svg"
+  },
+  {
+    "id": "ca018732-c76a-4cb6-a3ad-f00b137ebb3e",
+    "name": "Studio Mila",
+    "sector": "Mode & sport",
+    "fichier": "studio-mila.svg"
+  },
+  {
+    "id": "eb0af1df-229f-494c-bc48-13995a57c069",
+    "name": "Voltique",
+    "sector": "Tech",
+    "fichier": "voltique.svg"
+  }
+]

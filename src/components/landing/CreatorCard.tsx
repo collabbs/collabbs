@@ -28,7 +28,8 @@ export default function CreatorCard({
   overlay?: React.ReactNode;
 }) {
   const slug = creator.platformSlug ?? platformSlug(creator.platform);
-  const hasBadges = creator.isTop || creator.isVerified || creator.isNew;
+  const hasBadges =
+    creator.isDemo || creator.isTop || creator.isVerified || creator.isNew;
 
   const card = (
     <div className="group relative h-full overflow-hidden rounded-2xl border border-zinc-100 bg-white p-2.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-200 hover:shadow-xl">
@@ -46,6 +47,17 @@ export default function CreatorCard({
         {/* Badges contextuels en haut à gauche */}
         {hasBadges && (
           <div className="absolute left-2 top-2 z-10 flex flex-col gap-1">
+            {/* Le badge « Exemple » passe AVANT les autres et ne s'additionne
+                pas à eux : une fiche inventée n'est ni « Top » ni « Vérifiée »,
+                et l'afficher comme telle serait exactement ce qu'on cherche à
+                éviter. Le visiteur doit savoir en un coup d'œil qu'il regarde
+                à quoi ressemblera la plateforme, pas ce qui s'y trouve déjà. */}
+            {creator.isDemo ? (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 shadow-sm ring-1 ring-amber-200">
+                Exemple
+              </span>
+            ) : (
+              <>
             {creator.isTop && (
               <span className="rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
                 ★ Top
@@ -68,6 +80,8 @@ export default function CreatorCard({
               <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
                 ✨ Nouveau
               </span>
+            )}
+              </>
             )}
           </div>
         )}
