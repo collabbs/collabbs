@@ -32,21 +32,21 @@ export type Deliverable = {
 
 const ACCEPTED =
   "video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp,image/gif,application/pdf,application/zip";
-/* La limite RÉELLE, mesurée le 14/10/2026 : 45 Mo passent, 55 Mo sont refusés.
-   Ce n'est pas le seau qui plafonne — il est réglé à 500 Mo — mais la limite
-   globale du projet Supabase, qui s'applique par-dessus et vaut 50 Mo sur le
-   plan gratuit.
+/* La limite RÉELLE, mesurée — jamais celle qu'un écran annonce.
+   14/10/2026 : 45 Mo passaient, 55 Mo étaient refusés. Le seau était pourtant
+   réglé à 500 Mo ; c'est la limite GLOBALE du projet Supabase qui plafonnait à
+   50 Mo sur le plan gratuit. L'écran promettait 500 Mo : dix fois trop.
+   15/10/2026 : passage au plan Pro, limite du projet montée à 2 Go et seau
+   `deliverables` relevé d'autant — il plafonnait encore à 500 Mo de son côté.
+   Remesuré : 600 Mo acceptés en 20 s, 1,2 Go en 38 s depuis une bonne
+   connexion.
 
-   L'écran annonçait 500 Mo : dix fois trop. Un créateur livrant une vidéo de
-   téléphone tombait donc presque à coup sûr sur un refus, et recevait le
-   message brut de Supabase, en anglais.
-
-   Pour accepter davantage, il faut relever la limite du projet dans Supabase
-   (Storage → Settings), ce que le plan gratuit ne permet pas. Le jour où le
-   projet passe au plan supérieur, c'est CETTE constante qu'il faut changer :
-   l'affichage et les messages en découlent tous. */
-const MAX_BYTES = 50 * 1024 * 1024;
-const MAX_LABEL = `${MAX_BYTES / 1024 / 1024} Mo`;
+   Deux plafonds se superposent donc, et le plus bas gagne : celui du PROJET
+   (Storage → Settings) et celui du SEAU. Relever l'un sans l'autre ne change
+   rien, et le réglage affiché ne dit pas ce qui s'applique. Avant de toucher
+   à cette constante : mesurer. */
+const MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_LABEL = "2 Go";
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
