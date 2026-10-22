@@ -186,9 +186,27 @@ export async function requestPasswordReset(formData: FormData) {
 
   const origin = (await headers()).get("origin") ?? "";
   const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/auth/update-password`,
   });
+  /* L'ÉCRAN continue de dire « c'est envoyé » quoi qu'il arrive — c'est le
+     silence sur l'existence des comptes, et il n'est pas négociable.
+     Mais NOUS devons savoir quand rien n'est parti.
+
+     Sans ce signalement, un service d'envoi tombé rend la réinitialisation
+     muette : chaque visiteur lit « vérifie ta boîte mail », personne ne reçoit
+     rien, et rien nulle part ne le dit. C'est exactement le défaut corrigé le
+     22/10/2026 sur l'inscription, deux fonctions plus haut dans ce fichier —
+     celle-ci avait été oubliée au passage.
+
+     L'adresse ne part PAS dans le signalement : elle n'aide pas à diagnostiquer
+     une panne d'envoi, et un journal d'erreurs n'a pas à collectionner les
+     adresses de gens qui ont oublié leur mot de passe. */
+  if (error) {
+    await reportError("auth/reset", error, {
+      detail: `message Supabase : ${error.message}`,
+    });
+  }
   redirect("/reset?sent=1");
 }
 
