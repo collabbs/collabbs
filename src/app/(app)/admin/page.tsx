@@ -1,6 +1,6 @@
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, isAdmin } from "@/lib/admin";
 import Tunnel from "./Tunnel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { eurExact } from "@/lib/deal";
@@ -13,7 +13,22 @@ import {
   resolveError,
 } from "./actions";
 
-export const metadata = { title: "Administration — Collabbs" };
+/**
+ * Le titre se décide APRÈS le contrôle d'accès.
+ *
+ * `requireAdmin` renvoie un non-admin vers le tableau de bord, en expliquant
+ * qu'on ne signale pas l'existence d'une administration à qui n'y a pas droit.
+ * Mais un titre statique est rendu AVANT que le garde ne s'exécute : la coquille
+ * de la page partait avec « Administration — Collabbs » dans l'onglet et dans le
+ * HTML, pour tout le monde. L'intention écrite n'était pas tenue.
+ *
+ * Aucune donnée n'a jamais fuité — la redirection voyage bien dans le flux —
+ * mais le titre, lui, se contente désormais de dire la même chose que la
+ * redirection.
+ */
+export async function generateMetadata() {
+  return { title: (await isAdmin()) ? "Administration — Collabbs" : "Collabbs" };
+}
 
 /**
  * Poste de pilotage interne.
