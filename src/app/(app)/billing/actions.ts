@@ -12,6 +12,7 @@ import {
   settleSale,
 } from "@/lib/affiliate-billing";
 import { notify } from "@/lib/notifications";
+import { euros } from "@/lib/validation";
 import { valider, nombreDuFormulaire } from "@/lib/validation";
 import { approvisionnementSchema, rechargeAutoSchema } from "@/lib/schemas/billing";
 import { reportError } from "@/lib/report-error";
@@ -254,6 +255,37 @@ export async function confirmPixelSale(formData: FormData) {
     commission: Number(ev.commission_amount ?? 0),
     saleAmount: Number(ev.sale_amount ?? 0),
   });
+
+  /* ─── Le créateur attend ce verdict ───
+     Mesuré le 22/10/2026 : le REFUS le prévenait (« Une vente attribuée a été
+     refusée »), la CONFIRMATION non. Sa vente était pourtant marquée « en
+     attente de financement » — il attendait une réponse, et seule la mauvaise
+     nouvelle lui parvenait.
+
+     Les deux issues méritent un mot, et elles ne disent pas la même chose :
+     confirmée ET couverte, sa commission est réservée et court vers sa date
+     d'acquisition ; confirmée mais la provision est à sec, la marque doit
+     réapprovisionner avant que quoi que ce soit lui soit acquis. Mélanger les
+     deux lui ferait croire qu'il est payé alors que rien n'est couvert. */
+  const creatorId = ev.affiliate_links?.creator_id;
+  if (creatorId) {
+    const commission = Number(ev.commission_amount ?? 0);
+    await notify({
+      userId: creatorId,
+      type: "affiliate_sale_confirmed",
+      title:
+        res === "unfunded"
+          ? `Vente confirmée — ${euros(commission)} en attente de financement`
+          : `Vente confirmée — ${euros(commission)} mis de côté pour toi`,
+      body:
+        res === "unfunded"
+          ? "La marque a retrouvé la commande. Sa provision ne couvre pas encore cette commission : " +
+            "elle te sera acquise dès qu'elle aura réapprovisionné."
+          : "La marque a retrouvé la commande dans son back-office. Ta commission est réservée sur sa " +
+            "provision et te sera versée à la fin du délai de validation.",
+      link: "/payouts",
+    });
+  }
 
   revalidatePath("/billing");
   redirect(
