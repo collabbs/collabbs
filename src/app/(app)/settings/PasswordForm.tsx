@@ -8,6 +8,7 @@ import { updatePassword } from "./actions";
 export default function PasswordForm() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [currentP, setCurrentP] = useState("");
   const [newP, setNewP] = useState("");
   const [confirmP, setConfirmP] = useState("");
 
@@ -20,6 +21,7 @@ export default function PasswordForm() {
     setBusy(false);
     if (res.ok) {
       toast.success("Mot de passe mis à jour.");
+      setCurrentP("");
       setNewP("");
       setConfirmP("");
     } else {
@@ -29,6 +31,25 @@ export default function PasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="mt-5 space-y-4">
+      {/* Le mot de passe actuel d'abord : sans lui, une session récupérée
+          suffisait à changer le mot de passe et à exclure le propriétaire du
+          compte. */}
+      <div>
+        <label className="block text-sm font-medium text-ink" htmlFor="current_password">
+          Mot de passe actuel
+        </label>
+        <input
+          id="current_password"
+          name="current_password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={currentP}
+          onChange={(e) => setCurrentP(e.target.value)}
+          className="mt-1.5 w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-purple-400"
+          placeholder="Celui que tu utilises aujourd'hui"
+        />
+      </div>
       <div>
         <label className="block text-sm font-medium text-ink" htmlFor="new_password">
           Nouveau mot de passe
@@ -67,7 +88,7 @@ export default function PasswordForm() {
         />
       </div>
       <BoutonSoumettre
-        disabled={busy || newP.length < 8 || newP !== confirmP}
+        disabled={busy || !currentP || newP.length < 8 || newP !== confirmP}
         className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-40"
       >
         {busy ? "Mise à jour…" : "Mettre à jour le mot de passe"}

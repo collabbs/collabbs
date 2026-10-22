@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { blocagesAvantSuppression, archiverContratsDe } from "@/lib/suppression-compte";
 import { reportError } from "@/lib/report-error";
@@ -15,6 +16,7 @@ import { reportError } from "@/lib/report-error";
 export async function updatePassword(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
+  const currentPassword = String(formData.get("current_password") ?? "");
   const newPassword = String(formData.get("new_password") ?? "");
   const confirm = String(formData.get("confirm_password") ?? "");
 
@@ -24,12 +26,46 @@ export async function updatePassword(
   if (newPassword !== confirm) {
     return { ok: false, error: "Les deux mots de passe ne correspondent pas." };
   }
+  if (!currentPassword) {
+    return { ok: false, error: "Saisis ton mot de passe actuel pour confirmer." };
+  }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  /* ─── Le mot de passe ACTUEL, et pourquoi il est exigé ───
+     Avant, une session suffisait. Vérifié le 22/10/2026 sur le projet de
+     développement : en postant ce formulaire avec un simple cookie de session,
+     le mot de passe change — sans jamais fournir l'ancien.
+     Autrement dit, une session récupérée — un ordinateur resté ouvert, un
+     cookie volé — ne donnait pas seulement l'accès au compte : elle permettait
+     d'en changer le mot de passe et d'en EXCLURE son propriétaire.
+
+     Supabase sait exiger une réauthentification, mais ce n'est pas son
+     comportement par défaut et ça ne se règle pas dans le code. On le fait
+     donc ici, explicitement.
+
+     ⚠️ Un client À PART, qui ne persiste rien. Avec le client de la requête,
+     `signInWithPassword` réécrirait les cookies de session de la personne au
+     milieu de sa propre requête. On ne veut que la réponse à la question
+     « ce mot de passe est-il le bon ? ». */
+  const verif = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } },
+  );
+  const { error: errVerif } = await verif.auth.signInWithPassword({
+    email: user.email ?? "",
+    password: currentPassword,
+  });
+  if (errVerif) {
+    /* Le message reste volontairement le même quelle que soit la cause : on ne
+       dit pas à quelqu'un qui tâtonne s'il s'est trompé de peu. */
+    return { ok: false, error: "Le mot de passe actuel est incorrect." };
+  }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { ok: false, error: error.message };
