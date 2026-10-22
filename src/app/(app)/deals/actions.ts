@@ -847,7 +847,13 @@ export async function setDeliverableSubmission(
   url: string,
   notes: string,
 ): Promise<Result> {
-  const trimmedUrl = url.trim();
+  /* `String(...)` avant `.trim()` : une action serveur est une adresse HTTP
+     publique, et le type annoncé ici n'est qu'une promesse du client. Un corps
+     de requête qui envoie un nombre faisait planter l'action sur
+     « .trim is not a function » — une erreur non rattrapée, au lieu du refus
+     lisible écrit juste en dessous. Rien ne fuyait, mais le contrôle était
+     sauté et le journal d'erreurs se remplissait pour rien. */
+  const trimmedUrl = String(url ?? "").trim();
   if (!trimmedUrl) return { ok: false, error: "Lien requis." };
   try {
     const u = new URL(trimmedUrl);
@@ -1167,7 +1173,13 @@ export async function requestRevision(
   deliverableId: string,
   message: string,
 ): Promise<Result> {
-  const trimmed = message.trim();
+  /* `String(...)` avant `.trim()` : une action serveur est une adresse HTTP
+     publique, et le type annoncé ici n'est qu'une promesse du client. Un corps
+     de requête qui envoie un nombre faisait planter l'action sur
+     « .trim is not a function » — une erreur non rattrapée, au lieu du refus
+     lisible écrit juste en dessous. Rien ne fuyait, mais le contrôle était
+     sauté et le journal d'erreurs se remplissait pour rien. */
+  const trimmed = String(message ?? "").trim();
   if (trimmed.length < 5) {
     return { ok: false, error: "Donne un message de retouche clair (5 caractères min)." };
   }
