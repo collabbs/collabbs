@@ -239,11 +239,51 @@ export async function adminResolveInKind(formData: FormData) {
   if (!id) back("Déclaration introuvable.", "error");
 
   const admin = createAdminClient();
+  /* On relit la déclaration AVANT de la trancher : après, on ne saurait plus
+     à qui annoncer la décision. */
+  const { data: avantage } = await admin
+    .from("in_kind_benefits")
+    .select("brand_id, creator_id, label, value")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await admin
     .from("in_kind_benefits")
     .update({ status: keep ? "declared" : "cancelled" })
     .eq("id", id);
   if (error) back(error.message, "error");
+
+  /* ─── Les deux parties attendent ce verdict ───
+     Mesuré le 22/10/2026 : cette action trancheait le litige et ne prévenait
+     PERSONNE. Or c'est le seul endroit du produit où Collabbs arbitre entre
+     une marque et un créateur qui se contredisent — et la valeur en jeu entre
+     dans le seuil légal des 1 000 € annuels.
+
+     Les quatre autres actions d'arbitrage préviennent bien les deux côtés
+     (libération, remboursement, écartement d'une vente, régularisation de
+     provision). Celle-ci était la seule muette, et c'est celle où l'attente
+     est la plus forte : chacun a écrit sa version et attend qu'on tranche.
+
+     Le texte dit aussi l'effet sur le cumul, parce que c'est la seule
+     conséquence concrète de la décision. */
+  const quoi = avantage?.label ?? "un avantage déclaré";
+  const contexte = `avantage en nature ${id}`;
+  await prevenir(avantage?.creator_id ?? null, "créateur", contexte, {
+    type: "in_kind_resolved",
+    title: keep ? "Ta contestation a été écartée" : "Ta contestation a été retenue",
+    body: keep
+      ? `Après vérification, « ${quoi} » est maintenu tel que la marque l'a déclaré. Sa valeur reste comptée dans ton cumul annuel avec elle.`
+      : `Après vérification, « ${quoi} » est retiré : sa valeur ne compte plus dans ton cumul annuel avec cette marque.`,
+    link: "/contracts",
+  });
+  await prevenir(avantage?.brand_id ?? null, "marque", contexte, {
+    type: "in_kind_resolved",
+    title: keep ? "Ta déclaration est maintenue" : "Ta déclaration a été retirée",
+    body: keep
+      ? `Le créateur contestait « ${quoi} ». Après vérification, ta déclaration est maintenue et sa valeur reste dans le cumul.`
+      : `Le créateur contestait « ${quoi} ». Après vérification, la déclaration est retirée du cumul. Si la valeur était inexacte, redéclare-la au bon montant.`,
+    link: "/contracts",
+  });
 
   revalidatePath("/admin");
   revalidatePath("/contracts");
