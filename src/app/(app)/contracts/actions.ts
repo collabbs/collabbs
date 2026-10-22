@@ -103,13 +103,43 @@ export async function cancelInKind(formData: FormData) {
     .update({ status: "cancelled" })
     .eq("id", id)
     .eq("brand_id", user.id)
-    .select("id");
+    .select("id, label, value, creator_id");
   if (error) back(error.message, "error");
   if (!modifiees || modifiees.length === 0)
     back("Cette déclaration est introuvable, ou elle n'est pas la tienne.", "error");
 
+  /* Le créateur doit l'apprendre, et pour une raison qui n'est pas de la
+     politesse : `thresholdFor` ne compte que les avantages `declared`. Ce
+     retrait fait donc VRAIMENT baisser son cumul annuel — de la valeur
+     déclarée — et c'est ce cumul qui décide si un contrat écrit est
+     obligatoire.
+
+     Or on lui a écrit, à la déclaration, « cette valeur compte dans ton cumul
+     annuel au même titre qu'un paiement ». Annuler sans rien dire laisse cette
+     phrase debout alors qu'elle est devenue fausse : un créateur qui se croyait
+     au-dessus du seuil peut être repassé en dessous sans le savoir.
+
+     Les trois autres fonctions de ce fichier prévenaient déjà la partie
+     concernée — déclarer, contester, arbitrer. Celle-ci était la seule muette. */
+  const retiree = modifiees[0];
+  const { data: brand } = await supabase
+    .from("brands")
+    .select("name")
+    .eq("id", user.id)
+    .maybeSingle();
+  await notify({
+    userId: retiree.creator_id,
+    type: "in_kind_cancelled",
+    title: `${brand?.name ?? "Une marque"} a retiré un cadeau déclaré`,
+    body:
+      `« ${retiree.label} », ${Number(retiree.value).toFixed(2)} €, ne compte plus ` +
+      `dans ton cumul annuel avec cette marque. Ton cumul baisse d'autant : si tu ` +
+      `étais au-dessus du seuil légal de 1 000 €, vérifie où tu en es.`,
+    link: "/contracts",
+  });
+
   revalidatePath("/contracts");
-  back("Déclaration retirée du cumul.");
+  back("Déclaration retirée du cumul. Le créateur en est informé.");
 }
 
 /**
