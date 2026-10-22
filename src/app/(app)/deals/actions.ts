@@ -1022,9 +1022,34 @@ export async function removeDeliverableFile(
     return { ok: false, error: "Action non autorisée." };
   if (d.approved) return { ok: false, error: "Déjà validé — fichier non modifiable." };
 
-  await supabase.storage.from("deliverables").remove([path]);
+  /* Le chemin vient du client, et l'autorisation ci-dessus ne porte que sur le
+     LIVRABLE. Sans ce contrôle, un créateur pouvait passer le chemin d'un
+     fichier appartenant à un AUTRE de ses livrables : la politique de stockage
+     l'autorise (c'est bien un deal où il est créateur), le fichier partait, et
+     la liste mise à jour était celle de ce livrable-ci. L'autre collaboration
+     se retrouvait avec un fichier annoncé dans ses métadonnées et absent du
+     stockage — la marque cliquait sur une pièce jointe qui n'existait plus.
 
+     On n'autorise donc le retrait que d'un fichier réellement rattaché à ce
+     livrable. */
   const existing = Array.isArray(d.submission_files) ? (d.submission_files as SubmissionFile[]) : [];
+  if (!existing.some((f) => f.path === path))
+    return { ok: false, error: "Ce fichier n'appartient pas à ce livrable." };
+
+  /* Le résultat du retrait est LU. S'il échoue, on s'arrête : retirer le
+     fichier de la liste sans l'avoir retiré du stockage laisserait le créateur
+     convaincu qu'il a supprimé sa vidéo, alors qu'elle y est encore. Sur du
+     contenu qu'un créateur veut faire disparaître, c'est la seule réponse
+     honnête. */
+  const { error: errStockage } = await supabase.storage.from("deliverables").remove([path]);
+  if (errStockage) {
+    await reportError("livrable/retrait-fichier", errStockage, {
+      userId: user.id,
+      detail: `livrable ${deliverableId}`,
+    });
+    return { ok: false, error: "Le fichier n'a pas pu être retiré. Réessaie." };
+  }
+
   const filtered = existing.filter((f) => f.path !== path);
 
   /* ⚠️ RETIRER LE DERNIER FICHIER, C'EST NE PLUS AVOIR LIVRÉ.
