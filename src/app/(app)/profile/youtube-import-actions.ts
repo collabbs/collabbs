@@ -19,7 +19,12 @@ import { reportError } from "@/lib/report-error";
 export async function importYouTubeVideos(
   input: string,
 ): Promise<{ ok: boolean; error?: string; imported?: number }> {
-  const trimmed = input.trim();
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. Un
+     corps de requête portant autre chose qu'une chaîne faisait planter l'action
+     sur « .trim is not a function » — une erreur non rattrapée, au lieu du
+     contrôle écrit juste après. */
+  const trimmed = String(input ?? "").trim();
   if (!trimmed) return { ok: false, error: "URL ou @handle YouTube requis." };
 
   if (!process.env.YOUTUBE_API_KEY) {

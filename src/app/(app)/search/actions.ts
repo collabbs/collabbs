@@ -21,7 +21,12 @@ export type SearchHit = {
  * Limité aux résultats publics + ceux accessibles via RLS au viewer.
  */
 export async function searchEverything(query: string): Promise<SearchHit[]> {
-  const q = query.trim();
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. Un
+     corps de requête portant autre chose qu'une chaîne faisait planter l'action
+     sur « .trim is not a function » — une erreur non rattrapée, au lieu du
+     contrôle écrit juste après. */
+  const q = String(query ?? "").trim();
   if (q.length < 2) return [];
 
   const supabase = await createClient();
@@ -32,7 +37,25 @@ export async function searchEverything(query: string): Promise<SearchHit[]> {
     supabase
       .from("creators")
       .select("id, handle, profiles!inner(display_name, avatar_url)")
-      .or(`handle.ilike.${like}`)
+      /* `.ilike("handle", like)` et NON `.or(`handle.ilike.${like}`)`.
+
+         `.or()` attend une chaîne écrite dans la grammaire de filtres de
+         PostgREST, et la saisie de l'utilisateur y était concaténée telle
+         quelle. Une recherche contenant une virgule ou un point n'était donc
+         plus une valeur : elle devenait de la structure, et pouvait modifier
+         la condition appliquée à la table.
+
+         La politique de lecture sur `creators` est `using (true)` : toutes les
+         lignes sont visibles de tout inscrit, et un filtre porte sur TOUTES
+         les colonnes, y compris celles qu'on ne sélectionne pas ici
+         (`total_earnings`, `stripe_account_id`). Une condition choisie par
+         l'appelant n'a donc rien à faire dans cette requête.
+
+         `.ilike()` passe la valeur en PARAMÈTRE : elle ne peut plus être lue
+         comme de la structure. C'est déjà ce que font les deux requêtes
+         suivantes, sur `brands` et `campaigns`. Et cette clause n'avait de
+         toute façon qu'une seule condition — le `.or()` était inutile. */
+      .ilike("handle", like)
       .limit(5),
     supabase
       .from("brands")
@@ -91,7 +114,7 @@ export async function searchEverything(query: string): Promise<SearchHit[]> {
  * compléter les résultats si on n'a pas assez de match handle.
  */
 export async function searchCreatorsByName(query: string): Promise<SearchHit[]> {
-  const q = query.trim();
+  const q = String(query ?? "").trim();
   if (q.length < 2) return [];
 
   const supabase = await createClient();

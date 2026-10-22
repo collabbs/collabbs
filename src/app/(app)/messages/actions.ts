@@ -63,7 +63,12 @@ export async function sendMessage(
   body: string,
   clientId?: string,
 ): Promise<{ ok: boolean; error?: string; message?: ThreadMessage }> {
-  const trimmed = body.trim();
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. Un
+     corps de requête portant autre chose qu'une chaîne faisait planter l'action
+     sur « .trim is not a function » — une erreur non rattrapée, au lieu du
+     contrôle écrit juste après. */
+  const trimmed = String(body ?? "").trim();
   if (!trimmed) return { ok: false, error: "Message vide." };
 
   const supabase = await createClient();

@@ -22,7 +22,14 @@ export async function addPortfolioItem(
   title: string,
   thumbnailUrl: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const u = url.trim();
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. Un
+     corps de requête portant autre chose qu'une chaîne faisait planter l'action
+     sur « .trim is not a function » — une erreur non rattrapée, au lieu du
+     contrôle écrit juste après. */
+  const u = String(url ?? "").trim();
+  const titre = String(title ?? "").trim();
+  const vignette = String(thumbnailUrl ?? "").trim();
   if (!u) return { ok: false, error: "L'URL est obligatoire." };
   if (!/^https?:\/\//i.test(u)) {
     return { ok: false, error: "L'URL doit commencer par http:// ou https://." };
@@ -46,8 +53,8 @@ export async function addPortfolioItem(
   const { error } = await supabase.from("creator_portfolio_items").insert({
     creator_id: user.id,
     url: u,
-    title: title.trim() || null,
-    thumbnail_url: thumbnailUrl.trim() || null,
+    title: titre || null,
+    thumbnail_url: vignette || null,
     platform_slug: detectPlatform(u),
     position,
   });

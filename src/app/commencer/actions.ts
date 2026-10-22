@@ -48,8 +48,19 @@ const VIDE: IdentiteLue = {
 };
 
 export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
-  if (!site.trim()) return VIDE;
-  const url = site.startsWith("http") ? site : `https://${site.trim()}`;
+  /* Nettoyé UNE fois, avant tout le reste.
+     Le test du préfixe portait sur la chaîne non nettoyée : un site collé avec
+     une espace devant — ce que produit presque tout copier-coller — ne
+     commençait pas par « http », et on lui ajoutait donc le préfixe par-dessus
+     le sien : « https://https://maboutique.fr ». L'identité ne se chargeait
+     pas, au premier écran de l'inscription d'une marque, sans rien dire.
+
+     `String(...)` pour la même raison qu'ailleurs : une action serveur est une
+     adresse HTTP publique, le type de la signature n'est qu'une promesse du
+     client. */
+  const propre = String(site ?? "").trim();
+  if (!propre) return VIDE;
+  const url = propre.startsWith("http") ? propre : `https://${propre}`;
   try {
     // ⏱ Chaque branche a son plafond.
     //

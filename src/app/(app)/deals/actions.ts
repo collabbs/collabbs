@@ -883,7 +883,7 @@ export async function setDeliverableSubmission(
     .from("deliverables")
     .update({
       submission_url: trimmedUrl,
-      submission_notes: notes.trim() || null,
+      submission_notes: String(notes ?? "").trim() || null,
       submitted_at: new Date().toISOString(),
       done: true,
       // La nouvelle version est là : l'attente s'arrête ici.
@@ -1612,8 +1612,11 @@ export async function leaveReview(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const r = Math.round(rating);
-  if (r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+  const r = Math.round(Number(rating));
+  if (!Number.isFinite(r) || r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. */
+  const avis = String(comment ?? "").trim();
 
   const { data: deal } = await supabase
     .from("deals")
@@ -1636,7 +1639,7 @@ export async function leaveReview(
     brand_id: user.id,
     creator_id: deal.creator_id,
     rating: r,
-    comment: comment.trim() || null,
+    comment: avis || null,
   });
   if (error) return { ok: false, error: error.message };
 
@@ -1644,7 +1647,9 @@ export async function leaveReview(
     userId: deal.creator_id,
     type: "review_received",
     title: `Tu as reçu un avis ${"⭐".repeat(r)}`,
-    body: comment.trim() ? `"${comment.trim().slice(0, 200)}"` : "La marque vient de noter votre collaboration.",
+    body: avis
+      ? `« ${avis.slice(0, 200)} »`
+      : "La marque vient de noter votre collaboration.",
     link: `/deals/${dealId}`,
   });
 
@@ -1671,8 +1676,11 @@ export async function leaveBrandReview(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const r = Math.round(rating);
-  if (r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+  const r = Math.round(Number(rating));
+  if (!Number.isFinite(r) || r < 1 || r > 5) return { ok: false, error: "Note invalide." };
+  /* Converti une fois, ici : une action serveur est une adresse HTTP publique
+     et le type annoncé dans la signature n'est qu'une promesse du client. */
+  const avis = String(comment ?? "").trim();
 
   const { data: deal } = await supabase
     .from("deals")
@@ -1702,7 +1710,7 @@ export async function leaveBrandReview(
     brand_id: deal.brand_id,
     creator_id: user.id,
     rating: r,
-    comment: comment.trim() || null,
+    comment: avis || null,
   });
   if (error) return { ok: false, error: error.message };
 
@@ -1710,8 +1718,8 @@ export async function leaveBrandReview(
     userId: deal.brand_id,
     type: "brand_review_received",
     title: `Un créateur vous a noté ${"⭐".repeat(r)}`,
-    body: comment.trim()
-      ? `« ${comment.trim().slice(0, 200)} »`
+    body: avis
+      ? `« ${avis.slice(0, 200)} »`
       : "Un créateur vient de noter votre collaboration.",
     link: `/deals/${dealId}`,
   });
