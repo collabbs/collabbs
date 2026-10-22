@@ -107,6 +107,28 @@ export async function ensureCheckoutSessionRecorded(
     link: `/deals/${dealId}`,
   });
 
+  /* ─── Et le créateur ───
+     Mesuré le 22/10/2026 en parcourant le produit : seule la marque était
+     avertie. Or l'étape qui suit s'appelle « En attente du créateur » — c'est
+     lui qui doit agir, et c'était lui qu'on laissait dans le noir.
+
+     Ce n'est pas un détail de confort. Le séquestre EST la promesse de
+     Collabbs : « l'argent est bloqué, tu peux produire sereinement ». Tant que
+     le créateur l'ignore, soit il ne commence pas, soit il travaille sans
+     savoir qu'il est couvert — et dans les deux cas la garantie qu'on vend ne
+     lui sert à rien.
+
+     On lui annonce le NET : c'est ce qu'il touchera, la commission étant à la
+     charge de la marque. Lui montrer les 66 € encaissés laisserait croire à
+     une retenue au moment du versement. */
+  await notify({
+    userId: deal.creator_id,
+    type: "payment_received_creator",
+    title: `${eur(b.net)} sont sécurisés pour toi`,
+    body: `La marque a payé : les fonds sont bloqués chez Collabbs jusqu'à ta livraison. Tu peux produire le contenu, tu seras payé à la validation.`,
+    link: `/deals/${dealId}`,
+  });
+
   return { ok: true, dealId };
 }
 
