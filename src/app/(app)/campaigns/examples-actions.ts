@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { reportError } from "@/lib/report-error";
 
 /** Ajoute un exemple de contenu (URL + caption) à une campagne. */
 export async function addCampaignExample(
@@ -49,7 +50,25 @@ export async function addCampaignExample(
     caption: cap || null,
     position,
   });
-  if (error) return { ok: false, error: error.message };
+  /* Le message de Postgres ne remonte PAS tel quel.
+     Il remontait : une marque qui visait une campagne qui n'est pas la sienne
+     lisait « new row violates row-level security policy for table
+     "campaign_examples" ». La RLS fait bien son travail — c'est le seul
+     contrôle ici, comme le dit le commentaire au-dessus de la requête — mais
+     ce texte n'est ni en français ni utile, et il nomme la table.
+
+     Même doctrine que `sendMessage` et les versements. L'erreur réelle part
+     dans `error_reports`, où elle sert à quelqu'un. */
+  if (error) {
+    await reportError("campagne/exemple", error, {
+      userId: user.id,
+      detail: `campagne ${campaignId}`,
+    });
+    return {
+      ok: false,
+      error: "Cet exemple n'a pas pu être ajouté. Vérifie que la campagne est bien la tienne.",
+    };
+  }
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath(`/opportunities/${campaignId}`);
