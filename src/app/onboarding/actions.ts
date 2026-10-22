@@ -109,6 +109,49 @@ export type OnboardingData = {
  * antérieurs à ce déclencheur — et elle, a bien le droit d'écrire `id`.
  */
 
+/**
+ * Le compte a-t-il bien le rôle qu'il prétend remplir ?
+ *
+ * ─── Ce que l'absence de ce contrôle permettait ───
+ * Ni `saveCreatorOnboarding` ni `saveBrandOnboarding` ne regardaient le rôle.
+ * N'importe quel compte connecté pouvait donc appeler l'autre — une action
+ * serveur est une adresse HTTP publique, il n'y a pas besoin de voir l'écran
+ * pour l'appeler. Mesuré le 22/10/2026 sur le projet de développement :
+ *
+ *   • une MARQUE appelant `saveCreatorOnboarding` obtenait une ligne dans
+ *     `creators` et le pseudo de son choix. `/creators/<pseudo>` répondait 200
+ *     à un visiteur anonyme, avec une page de profil créateur au nom de la
+ *     marque, et le compte sortait dans la recherche de créateurs. Les pseudos
+ *     sont uniques et publics : c'est l'identité des créateurs qu'on pouvait
+ *     réserver, y compris un pseudo ressemblant à celui d'un vrai créateur ;
+ *
+ *   • un CRÉATEUR appelant `saveBrandOnboarding` obtenait une ligne dans
+ *     `brands` et une page publique `/brands/<id>` à son nom d'emprunt.
+ *
+ * Aucun des deux ne donnait de pouvoir sur l'argent : `requireBrand` et les
+ * autres portes lisent `profiles.role`, qui ne bougeait pas. Mais les deux
+ * fabriquaient des pages publiques décrivant un compte pour ce qu'il n'est pas.
+ *
+ * Le rôle ne s'établit que par `confirmerRole`, qui passe par la fonction SQL
+ * `confirm_user_role` : une transaction, et un refus si le rôle est déjà fixé.
+ * C'est donc lui qu'on interroge ici, et rien d'autre.
+ */
+async function roleAttendu(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  attendu: "creator" | "brand",
+): Promise<string | null> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profile?.role === attendu) return null;
+  return attendu === "creator"
+    ? "Ce compte n'est pas un compte créateur."
+    : "Ce compte n'est pas un compte marque.";
+}
+
 export async function saveCreatorOnboarding(
   data: OnboardingData,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -117,6 +160,9 @@ export async function saveCreatorOnboarding(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const mauvaisRole = await roleAttendu(supabase, user.id, "creator");
+  if (mauvaisRole) return { ok: false, error: mauvaisRole };
 
   // Photo de profil (sur le profil). On log si ça échoue mais on ne bloque pas :
   // l'utilisateur peut avoir voulu juste mettre à jour ses infos sans photo.
@@ -167,10 +213,15 @@ export async function saveCreatorOnboarding(
     console.error("saveCreatorOnboarding: niches delete failed", nichesDelErr);
     return { ok: false, error: `Niches : ${nichesDelErr.message}` };
   }
-  if (data.niches.length > 0) {
+  /* `?? []` : la forme de `data` n'est pas plus garantie que son type — un
+     corps de requête sans `niches` faisait planter l'action sur « Cannot read
+     properties of undefined », APRÈS avoir déjà écrit la fiche. Le compte
+     restait à moitié créé. */
+  const niches = data.niches ?? [];
+  if (niches.length > 0) {
     const { error: nichesInsErr } = await supabase
       .from("creator_niches")
-      .insert(data.niches.map((niche_id) => ({ creator_id: user.id, niche_id })));
+      .insert(niches.map((niche_id) => ({ creator_id: user.id, niche_id })));
     if (nichesInsErr) {
       console.error("saveCreatorOnboarding: niches insert failed", nichesInsErr);
       return { ok: false, error: `Niches : ${nichesInsErr.message}` };
@@ -186,9 +237,10 @@ export async function saveCreatorOnboarding(
     console.error("saveCreatorOnboarding: platforms delete failed", platDelErr);
     return { ok: false, error: `Réseaux : ${platDelErr.message}` };
   }
-  if (data.platforms.length > 0) {
+  const platforms = data.platforms ?? [];
+  if (platforms.length > 0) {
     const { error: platInsErr } = await supabase.from("creator_platforms").insert(
-      data.platforms.map((p) => ({
+      platforms.map((p) => ({
         creator_id: user.id,
         platform_id: p.platformId,
         handle: p.handle || null,
@@ -211,11 +263,12 @@ export async function saveCreatorOnboarding(
     console.error("saveCreatorOnboarding: offers delete failed", offDelErr);
     return { ok: false, error: `Offres : ${offDelErr.message}` };
   }
-  if (data.offers.length > 0) {
+  const offers = data.offers ?? [];
+  if (offers.length > 0) {
     const { error: offInsErr } = await supabase
       .from("creator_offers")
       .insert(
-        data.offers.map((o) => ({ creator_id: user.id, offer: o.offer, price: o.price })),
+        offers.map((o) => ({ creator_id: user.id, offer: o.offer, price: o.price })),
       );
     if (offInsErr) {
       console.error("saveCreatorOnboarding: offers insert failed", offInsErr);
@@ -254,6 +307,9 @@ export async function saveBrandOnboarding(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
+
+  const mauvaisRole = await roleAttendu(supabase, user.id, "brand");
+  if (mauvaisRole) return { ok: false, error: mauvaisRole };
 
   // UPSERT pour la même raison que côté créateur — robuste si la row n'existe pas.
   const fiche = {
