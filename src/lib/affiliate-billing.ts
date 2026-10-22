@@ -317,7 +317,7 @@ export async function releaseReservation(params: {
       await notify({
         userId: linkRow.creator_id,
         type: "affiliate_clawback",
-        title: `Une vente a été remboursée — ${owed.toFixed(2)} €`,
+        title: `Une vente a été remboursée — ${euros(owed)}`,
         body:
           "La marque a remboursé son client sur une vente qui t'avait déjà été " +
           "commissionnée. Ce montant sera déduit de ton prochain versement — rien " +
