@@ -121,7 +121,12 @@ export function campaignReward(c: RewardInput): string {
   }
 }
 
-export const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
+/* Les deux formateurs d'euros vivent dans `lib/deal.ts`, avec la règle qui les
+   distingue : `eur` pour un tarif affiché, `eurExact` dès que la somme est due
+   ou réglée. Ce fichier en gardait une COPIE de `eur` — donc la règle ne
+   voyageait pas avec, et les appelants qui importaient d'ici n'avaient même pas
+   accès à `eurExact`. Une seule définition, réexportée. */
+export { eur, eurExact } from "@/lib/deal";
 
 /** Paliers de commission par taille d'audience (affiliation / hybride). */
 export const TIER_LABELS: { key: "nano" | "micro" | "mid" | "macro"; label: string }[] = [

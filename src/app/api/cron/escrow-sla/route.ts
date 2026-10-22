@@ -4,7 +4,13 @@ import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { notify } from "@/lib/notifications";
-import { eur } from "@/lib/deal";
+/* `eurExact` et non `eur` : ici l'argent a bougé ou il est dû, donc il
+   s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
+   les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
+   d'argent (provision, registre, versements, factures) la respectaient déjà ;
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
+import { eurExact as eur } from "@/lib/deal";
 import { reportError } from "@/lib/report-error";
 
 /**

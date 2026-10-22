@@ -7,7 +7,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe, stripeConfigured } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
 import { releaseReservation } from "@/lib/affiliate-billing";
-import { eur } from "@/lib/deal";
+/* `eurExact` et non `eur` : ici l'argent a bougé ou il est dû, donc il
+   s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
+   les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
+   d'argent (provision, registre, versements, factures) la respectaient déjà ;
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
+import { eurExact as eur } from "@/lib/deal";
 import { reportError } from "@/lib/report-error";
 
 /**

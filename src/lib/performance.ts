@@ -19,9 +19,15 @@ const PALIER_VUES = 1000;
 /**
  * Ce que doit la marque, en euros.
  *
- * Arrondi à l'euro parce que `deals.amount` et `transactions.net_amount` le
- * sont : rendre ici des centimes qu'aucune colonne ne sait stocker produirait
- * un écart entre le montant annoncé au créateur et le montant versé.
+ * Arrondi à l'euro à cause de `deals.amount`, qui est un `integer` : c'est là
+ * que vit le plafond séquestré, et il ne sait pas stocker de centimes. Rendre
+ * ici 50,40 € sur un plafond qui ne connaît que 50 € produirait un écart entre
+ * le montant annoncé au créateur et celui que le séquestre peut couvrir.
+ * (`transactions.net_amount`, lui, est un `numeric(12,2)` et accepte les
+ * centimes — la contrainte vient bien du deal, pas de la transaction.)
+ *
+ * L'arrondi est symétrique : 6 200 vues à 8 €/1000 donnent 49,60 € → 50 €, et
+ * 6 300 en donnent 50,40 € → 50 €. Personne n'est systématiquement perdant.
  *
  * L'arrondi est fait AVANT le plafonnement. Dans l'autre ordre, un dû de
  * 300,4 € sur un plafond de 300 € donnerait 300 €, puis un arrondi sans effet :

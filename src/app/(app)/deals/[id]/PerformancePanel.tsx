@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { declarerVues, validerVues } from "../actions";
 import { montantAuxVues, vuesPourAtteindreLePlafond, vues as fmtVues } from "@/lib/performance";
-import { eur } from "@/lib/deal";
+/* `eur` ne sert plus qu'à la ligne du tarif — « 8€ / 1000 vues · plafond
+   100€ ». Tous les autres montants de ce panneau sont de l'argent dû, versé
+   ou remboursé : ils s'écrivent au centime, comme dans le registre. */
+import { eur, eurExact } from "@/lib/deal";
 
 /**
  * Le panneau des vues, des deux côtés de la collaboration.
@@ -99,12 +102,12 @@ export default function PerformancePanel({
       {validatedAt ? (
         <div className="mt-4 rounded-xl bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-800">
-            ✅ Vues validées — {eur(duValide)}
+            ✅ Vues validées — {eurExact(duValide)}
           </p>
           <p className="mt-1 text-xs text-emerald-700">
             {fmtVues(Number(views ?? 0))} vues retenues.
             {reliquat != null && reliquat > 0 && (
-              <> Le reliquat de {eur(reliquat)} a été remboursé à la marque, commission comprise.</>
+              <> Le reliquat de {eurExact(reliquat)} a été remboursé à la marque, commission comprise.</>
             )}
           </p>
           {proofUrl && (
@@ -157,7 +160,7 @@ export default function PerformancePanel({
               qu'il tape, plutôt que de découvrir le montant après coup. */}
           {saisieNombre > 0 && (
             <p className="text-sm text-zinc-600">
-              Soit <strong className="text-ink">{eur(apercu)}</strong>
+              Soit <strong className="text-ink">{eurExact(apercu)}</strong>
               {apercu >= cap && <> — le plafond est atteint.</>}
             </p>
           )}
@@ -187,18 +190,18 @@ export default function PerformancePanel({
             <p className="text-sm text-zinc-600">
               Le créateur déclare{" "}
               <strong className="text-ink">{fmtVues(Number(views ?? 0))} vues</strong>, soit{" "}
-              <strong className="text-ink">{eur(duValide)}</strong>.
+              <strong className="text-ink">{eurExact(duValide)}</strong>.
             </p>
             {duValide < cap && (
               <p className="mt-1 text-xs text-zinc-500">
                 {reliquat != null ? (
                   <>
-                    {eur(reliquat)} te seront remboursés à la validation — les {eur(cap - duValide)}{" "}
+                    {eurExact(reliquat)} te seront remboursés à la validation — les {eurExact(cap - duValide)}{" "}
                     non consommés sur ton plafond, plus la commission correspondante.
                   </>
                 ) : (
                   <>
-                    Les {eur(cap - duValide)} non consommés sur ton plafond te seront remboursés à la
+                    Les {eurExact(cap - duValide)} non consommés sur ton plafond te seront remboursés à la
                     validation, avec la commission correspondante.
                   </>
                 )}
@@ -227,7 +230,7 @@ export default function PerformancePanel({
             disabled={busy}
             className="rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? "Validation…" : `Valider ${fmtVues(Number(views ?? 0))} vues — ${eur(duValide)}`}
+            {busy ? "Validation…" : `Valider ${fmtVues(Number(views ?? 0))} vues — ${eurExact(duValide)}`}
           </button>
         </div>
       ) : (

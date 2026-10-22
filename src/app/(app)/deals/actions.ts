@@ -22,7 +22,10 @@ import { notify } from "@/lib/notifications";
 import { buildContractSnapshot, LEGAL_FIELD_LABELS } from "@/lib/contract-snapshot";
 import { attemptDealPayout } from "@/lib/deal-payout";
 import { thresholdWith } from "@/lib/legal-threshold";
-import { eur } from "@/lib/campaign";
+/* Deux formateurs, et le choix se fait montant par montant : `eur` pour un
+   tarif proposé (« 300€ pour 2 contenus »), `eurExact` dès que la somme est
+   due ou réglée — elle se relit au centime dans le registre. */
+import { eur, eurExact } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
 import { valider } from "@/lib/validation";
 import {
@@ -1757,7 +1760,7 @@ export async function declarerVues(
     userId: deal.brand_id,
     type: "deal_delivered",
     title: `Vues déclarées — « ${deal.title ?? "collaboration"} »`,
-    body: `Le créateur déclare ${controle.data.views.toLocaleString("fr-FR")} vues, soit ${eur(du)}. Vérifie la publication puis valide pour déclencher le versement.`,
+    body: `Le créateur déclare ${controle.data.views.toLocaleString("fr-FR")} vues, soit ${eurExact(du)}. Vérifie la publication puis valide pour déclencher le versement.`,
     link: `/deals/${dealId}`,
   });
 
@@ -1816,7 +1819,7 @@ export async function validerVues(dealId: string): Promise<Result> {
   await notify({
     userId: deal.creator_id,
     type: "deal_validated",
-    title: `Tes vues sont validées — ${eur(reglement.du ?? 0)}`,
+    title: `Tes vues sont validées — ${eurExact(reglement.du ?? 0)}`,
     body: `La marque a validé les vues déclarées sur « ${deal.title ?? "la collaboration"} ». Le versement part à la clôture de la collaboration.`,
     link: `/deals/${dealId}`,
   });
