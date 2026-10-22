@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fabriquerCodePromo } from "@/lib/promo-code";
+import { notify } from "@/lib/notifications";
 
 /**
  * La création d'un lien d'affiliation — le SEUL endroit où elle se fait.
@@ -21,6 +22,16 @@ import { fabriquerCodePromo } from "@/lib/promo-code";
  *
  * Le code promo est fabriqué ici, à partir du préfixe de la marque et du
  * pseudo du créateur, et vérifié unique. Il n'est jamais fourni de l'extérieur.
+ *
+ * ─── Et l'avis à la marque aussi ───
+ * Il vivait dans la page des opportunités. L'entrée publique — celle du lien
+ * qu'une marque diffuse pour recruter — ne prévenait donc personne : un
+ * créateur devenait affilié et la marque ne l'apprenait jamais. Mesuré le
+ * 22/10/2026 sur un créateur neuf arrivé par /c/<campagne>.
+ *
+ * L'avis part maintenant d'ici, avec la création. C'est la même raison que
+ * pour le code promo : ce qui doit accompagner la naissance d'un lien n'a pas
+ * à être réécrit par chaque appelant.
  *
  * ─── Pourquoi les deux entrées passent par ici ───
  * Il y avait deux créations de lien : la page des opportunités et la page
@@ -50,7 +61,7 @@ export async function creerLienAffilie(
 
   const { data: camp } = await admin
     .from("campaigns")
-    .select("id, status, with_promo_code, promo_code")
+    .select("id, status, with_promo_code, promo_code, brand_id, name")
     .eq("id", campaignId)
     .maybeSingle();
   if (!camp) return { ok: false, error: "Cette campagne n'existe plus." };
@@ -87,6 +98,25 @@ export async function creerLienAffilie(
     .from("affiliate_links")
     .insert({ campaign_id: campaignId, creator_id: creatorId, code, promo_code: promoCode });
   if (error) return { ok: false, error: error.message };
+
+  /* Le lien existe : la marque a un affilié de plus et doit l'apprendre.
+     On est après l'insertion et dans la branche `existait === false`, donc
+     l'avis ne part qu'une fois — un créateur qui recharge sa page ne renvoie
+     pas la même notification en boucle. */
+  if (camp.brand_id) {
+    const { data: moi } = await admin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", creatorId)
+      .maybeSingle();
+    await notify({
+      userId: camp.brand_id,
+      type: "affiliate_joined",
+      title: `${moi?.display_name ?? "Un créateur"} vient de rejoindre "${camp.name}"`,
+      body: "Tu as un nouvel affilié actif. Suis ses performances depuis la page de ta campagne.",
+      link: `/campaigns/${campaignId}`,
+    });
+  }
 
   return { ok: true, code, existait: false };
 }

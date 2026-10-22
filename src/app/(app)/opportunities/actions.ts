@@ -19,31 +19,10 @@ export async function activateAffiliateLink(
 
   // La fabrication du lien — et surtout du code promo — vit dans
   // `lib/lien-affilie` : le navigateur n'écrit plus dans `affiliate_links`.
-  const { data: camp } = await supabase
-    .from("campaigns")
-    .select("brand_id, name")
-    .eq("id", campaignId)
-    .single();
-  const { data: meProfile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .single();
-
+  // La fabrique prévient la marque elle-même — ici comme depuis la page
+  // publique. Dupliquer l'avis à cet endroit en enverrait deux.
   const lien = await creerLienAffilie(user.id, campaignId);
   if (!lien.ok) return { ok: false, error: lien.error };
-
-  // On ne prévient la marque que d'un affilié RÉELLEMENT nouveau : sinon un
-  // créateur qui recharge sa page lui envoie la même notification en boucle.
-  if (!lien.existait && camp?.brand_id) {
-    await notify({
-      userId: camp.brand_id,
-      type: "affiliate_joined",
-      title: `${meProfile?.display_name ?? "Un créateur"} vient de rejoindre "${camp.name}"`,
-      body: "Tu as un nouvel affilié actif. Suis ses performances depuis la page de ta campagne.",
-      link: `/campaigns/${campaignId}`,
-    });
-  }
 
   revalidatePath("/opportunities");
   revalidatePath(`/opportunities/${campaignId}`);

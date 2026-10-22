@@ -394,7 +394,20 @@ export default async function BillingPage({
       <PlansAbonnement
         planActuel={planActuel}
         volumeMensuel={volumeMensuel}
-        resiliationLe={brand?.plan_cancel_at ?? null}
+        /* Une résiliation déjà consommée ne s'annonce plus au futur. Sans ce
+           test, le 22/10/2026 la page disait « ton abonnement s'arrête le
+           14 octobre » et « d'ici là tu gardes ton taux », à une marque
+           retombée au gratuit huit jours plus tôt. `plan_cancel_at` n'est
+           nettoyée que par le webhook de clôture, qui n'arrive pas toujours
+           (migration 0087) : ce que l'écran affirme ne doit pas dépendre du
+           passage d'un traitement ailleurs.
+
+           `estEchu` plutôt qu'une comparaison écrite ici : lire l'heure
+           courante pendant un rendu est impur et le compilateur React le
+           refuse — ce module existe pour ça. */
+        resiliationLe={
+          estEchu(brand?.plan_cancel_at) ? null : (brand?.plan_cancel_at ?? null)
+        }
       />
 
       {/* Recharge automatique */}

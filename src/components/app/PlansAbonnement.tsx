@@ -23,26 +23,21 @@ export default function PlansAbonnement({
   planActuel: Plan;
   /** Ce que la marque a versé en collaborations sur les 30 derniers jours. */
   volumeMensuel: number;
-  /** Fin programmée de l'abonnement, si la marque a demandé à s'arrêter. */
+  /**
+   * Fin programmée de l'abonnement, si la marque a demandé à s'arrêter —
+   * et SEULEMENT si cette date est encore devant nous. C'est l'appelant qui
+   * le vérifie : comparer à « maintenant » dans un rendu est impur, le
+   * résultat changerait d'un rendu à l'autre. Voir `billing/page.tsx`.
+   */
   resiliationLe?: string | null;
 }) {
-  /* La date doit encore être devant nous. Sans ce test, une résiliation déjà
-     consommée continuait de s'annoncer au futur : le 22/10/2026 la page disait
-     « ton abonnement s'arrête le 14 octobre » et « d'ici là tu gardes ton
-     taux », à une marque retombée au gratuit huit jours plus tôt. La colonne
-     `plan_cancel_at` n'était nettoyée que par le webhook de clôture, qui
-     n'arrive pas toujours (migration 0087). On ne fait donc pas dépendre ce
-     que l'écran affirme du passage d'un traitement ailleurs : s'il est trop
-     tard pour que la phrase soit vraie, on ne l'écrit pas. */
-  const dateFin = resiliationLe ? new Date(resiliationLe) : null;
-  const finProgrammee =
-    dateFin && dateFin.getTime() > Date.now()
-      ? dateFin.toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })
-      : null;
+  const finProgrammee = resiliationLe
+    ? new Date(resiliationLe).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   return (
     <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">

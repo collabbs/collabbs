@@ -133,7 +133,7 @@
   try {
     var fetchOriginal = window.fetch;
     if (typeof fetchOriginal === "function") {
-      window.fetch = function (entree, options) {
+      window.fetch = function (entree, _options) {
         var url = typeof entree === "string" ? entree : (entree && entree.url) || "";
         var promesse = fetchOriginal.apply(this, arguments);
         if (estUnAjoutAuPanier(url)) {

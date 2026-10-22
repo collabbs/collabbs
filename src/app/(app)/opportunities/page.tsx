@@ -13,7 +13,16 @@ import { demoVisible } from "@/lib/demo-data";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
-type Params = { q?: string; type?: string; niche?: string; platform?: string };
+type Params = {
+  q?: string;
+  type?: string;
+  niche?: string;
+  platform?: string;
+  /** Campagne dont le lien vient d'être activé, depuis la page publique. */
+  activated?: string;
+  /** Le lien existait déjà : on ne félicite pas d'une activation imaginaire. */
+  existing?: string;
+};
 
 const TYPE_FILTERS: { id: string; label: string }[] = [
   { id: "affiliation", label: "Affiliation" },
@@ -39,7 +48,7 @@ export default async function OpportunitiesPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { q, type, niche, platform } = await searchParams;
+  const { q, type, niche, platform, activated, existing } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -272,8 +281,37 @@ export default async function OpportunitiesPage({
   // vers lequel elle renvoie ne montrait rien.
   const invitations = (campaignsRes.data ?? []).filter((c) => invitedSet.has(c.id));
 
+  /* Le créateur arrive de la page publique d'une campagne, où il vient de
+     cliquer « Devenir affilié ». L'action posait bien son lien, puis le
+     déposait ici avec un `?activated=1` que PERSONNE ne lisait : il atterrissait
+     sur une liste de campagnes, sans un mot, sans son lien, et sans savoir si
+     son clic avait servi à quelque chose. C'est la dernière marche de
+     l'entonnoir de recrutement — celle où on perd quelqu'un qui avait dit oui. */
+  const lienActive = activated
+    ? linkRows.find((l) => l.campaign_id === activated)
+    : undefined;
+
   return (
     <>
+      {lienActive && (
+        <div
+          role="status"
+          className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
+        >
+          <p className="font-semibold text-emerald-900">
+            {existing
+              ? "Ton lien était déjà actif 🔗"
+              : "Ton lien d'affiliation est actif 🎉"}
+          </p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Partage-le : chaque vente passée par ce lien t&apos;est attribuée.
+          </p>
+          <p className="mt-2 font-mono text-sm font-semibold text-emerald-900">
+            collabbs.com/r/{lienActive.code}
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-black tracking-tight text-ink sm:text-4xl lg:text-5xl">

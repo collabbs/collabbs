@@ -44,5 +44,10 @@ export async function joinAffiliationFromPublic(campaignId: string) {
   const lien = await creerLienAffilie(user.id, campaignId);
   if (!lien.ok) redirect(`/c/${campaignId}?error=activation`);
 
-  redirect(`/opportunities?activated=1${lien.existait ? "&existing=1" : ""}`);
+  /* La campagne voyage dans l'adresse : sans elle, la page d'arrivée ne peut
+     afficher qu'un « c'est fait » sans dire quoi. Avec elle, elle montre le
+     lien lui-même — ce que le créateur est venu chercher. */
+  redirect(
+    `/opportunities?activated=${campaignId}${lien.existait ? "&existing=1" : ""}`,
+  );
 }
