@@ -1281,7 +1281,7 @@ export async function completeDeal(dealId: string): Promise<Result> {
 
   const { data: deal } = await supabase
     .from("deals")
-    .select("brand_id, creator_id, status")
+    .select("brand_id, creator_id, status, amount, title")
     .eq("id", dealId)
     .single();
   if (!deal || deal.brand_id !== user.id) return { ok: false, error: "Action non autorisée." };
@@ -1294,6 +1294,46 @@ export async function completeDeal(dealId: string): Promise<Result> {
   const allApproved = (dels ?? []).length > 0 && (dels ?? []).every((d) => d.approved);
   if (!allApproved)
     return { ok: false, error: "Tous les livrables doivent être validés avant de clôturer." };
+
+  /* ═══ ON NE CLÔTURE PAS UNE COLLABORATION QUI N'A JAMAIS ÉTÉ PAYÉE ═══
+
+     Rien n'empêchait d'arriver ici sans séquestre. Parcouru en entier le
+     22/10/2026 sur le projet de développement : la marque propose, le créateur
+     accepte, il dépose ses deux vidéos, la marque les valide et clique
+     « Clôturer » — sans avoir jamais payé. Le deal passait à `completed`.
+
+     Ce qui le rend grave, c'est l'APRÈS. Le guetteur quotidien a deux
+     passages, et la collaboration sortait des deux : celui qui relance les
+     impayés ne regarde que les deals `active`, et celui qui reprend les
+     versements exige une transaction en séquestre. Plus aucune relance, plus
+     aucune reprise, jamais.
+
+     Et le créateur recevait « Collaboration terminée 🎉 … ton versement n'a pas
+     encore pu être effectué ; nous le relançons, tu n'as rien à faire. » On lui
+     demandait d'attendre tranquillement un virement qui n'existait pas, pour un
+     contenu déjà livré et déjà utilisable par la marque.
+
+     Le garde-fou va donc ici, côté serveur : le bouton de l'écran est masqué
+     lui aussi, mais une action serveur est une adresse publique.
+
+     `amount <= 0` reste autorisé : une affiliation pure ou un produit offert ne
+     séquestre rien, et le guetteur applique déjà exactement ce filtre pour ne
+     pas réclamer « Paiement en retard — 0 € ». */
+  if (Number(deal.amount ?? 0) > 0) {
+    const { data: paiement } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("deal_id", dealId)
+      .eq("type", "deal_payment")
+      .maybeSingle();
+    if (!paiement)
+      return {
+        ok: false,
+        error:
+          "Le séquestre n'a pas été réglé : il n'y a rien à verser au créateur. " +
+          "Règle le paiement avant de clôturer — c'est ce qui garantit qu'il sera payé.",
+      };
+  }
 
   const { error } = await supabase
     .from("deals")

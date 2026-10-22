@@ -96,6 +96,11 @@ export default function DealControls({
   const aFixer = role === "brand" && status === "negotiation" && terms.amount === 0;
   const [editing, setEditing] = useState(aFixer);
 
+  /* Clôturer suppose qu'il y a quelque chose à verser. Même exception que le
+     serveur et que le guetteur quotidien : un montant nul — affiliation pure,
+     produit offert — ne séquestre rien et se clôture librement. */
+  const peutCloturer = sequestreRegle || Number(terms.amount ?? 0) <= 0;
+
   const [quantity, setQuantity] = useState(terms.quantity);
   // Le format était figé à « vidéo postée » dès la création, sans jamais
   // pouvoir être corrigé : le contrat annonçait une vidéo pour trois stories.
@@ -491,10 +496,23 @@ export default function DealControls({
 
           {role === "brand" && status === "active" && (
             <>
+              {/* `sequestreRegle` conditionne aussi la CLÔTURE, pas seulement
+                  l'annulation juste au-dessus. Sans ça, on pouvait clôturer une
+                  collaboration jamais payée : le créateur avait livré, le deal
+                  passait à « terminée », et plus aucun passage du guetteur ne
+                  réclamait le règlement — le contenu était livré et l'argent ne
+                  venait jamais. Le refus réel est côté serveur ; ici on évite
+                  surtout de proposer un geste qui sera refusé. */}
               <button
                 type="button"
-                disabled={busy || !allApproved}
-                title={!allApproved ? "Valide tous les livrables d'abord" : undefined}
+                disabled={busy || !allApproved || !peutCloturer}
+                title={
+                  !allApproved
+                    ? "Valide tous les livrables d'abord"
+                    : !peutCloturer
+                      ? "Règle le séquestre avant de clôturer"
+                      : undefined
+                }
                 onClick={() => run(() => completeDeal(dealId))}
                 className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
               >
@@ -502,6 +520,12 @@ export default function DealControls({
               </button>
               {!allApproved && (
                 <span className="text-xs text-zinc-400">Valide tous les livrables pour clôturer</span>
+              )}
+              {allApproved && !peutCloturer && (
+                <span className="text-xs text-amber-700">
+                  Règle le séquestre avant de clôturer : sans lui, il n&apos;y a rien à verser au
+                  créateur.
+                </span>
               )}
               {contenuLibre && (
                 <span className="text-xs text-zinc-400">
