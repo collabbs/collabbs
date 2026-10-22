@@ -91,6 +91,45 @@ export async function applyToCampaign(
   });
   if (error) return { ok: false, error: error.message };
 
+  /* ─── Prévenir la marque ───
+     Mesuré le 22/10/2026 en parcourant le produit de bout en bout : une
+     candidature n'avertissait PERSONNE. Elle s'écrivait en base, et la marque
+     ne l'apprenait qu'en rouvrant le site d'elle-même.
+
+     Les deux actions voisines de ce fichier préviennent pourtant la marque —
+     `activerLienAffilie` quand un affilié arrive, `repondreInvitation` quand
+     une invitation est tranchée. L'omission portait sur le seul geste qui
+     ouvre une collaboration.
+
+     Ce que ça coûte sur un marketplace à deux côtés : le créateur attend une
+     réponse qui ne viendra pas, et la marque croit que sa campagne n'intéresse
+     personne. Les deux concluent que la place est vide, et aucun des deux ne
+     se plaint — ils s'en vont.
+
+     `notify` ne lève jamais et se charge de l'e-mail ; on ne garde donc pas
+     l'appelant en attente d'un échec d'envoi. */
+  const { data: camp } = await supabase
+    .from("campaigns")
+    .select("name, brand_id")
+    .eq("id", campaignId)
+    .maybeSingle();
+  const { data: moi } = await supabase
+    .from("creators")
+    .select("handle")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (camp?.brand_id) {
+    const pseudo = moi?.handle ? `@${moi.handle}` : "Un créateur";
+    await notify({
+      userId: camp.brand_id,
+      type: "application_received",
+      title: `${pseudo} candidate sur « ${camp.name} »`,
+      body: "Regarde son profil et réponds-lui : une candidature sans réponse est un créateur qui ne revient pas.",
+      link: `/campaigns/${campaignId}`,
+    });
+  }
+
   revalidatePath("/opportunities");
   revalidatePath(`/opportunities/${campaignId}`);
   return { ok: true };
