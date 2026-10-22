@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { eurExact } from "@/lib/deal";
+import { MIN_PAYOUT } from "@/lib/affiliate-billing";
 
 /**
  * Ce qu'il faut vérifier, et sauver, avant d'effacer un compte.
@@ -108,10 +109,25 @@ export async function blocagesAvantSuppression(userId: string): Promise<Blocage[
 
     if (commissions && commissions.length > 0) {
       const total = commissions.reduce((s, c) => s + Number(c.commission_amount ?? 0), 0);
+      /* Le seuil de versement ne porte PAS sur ce total.
+         `verserLesCommissions` le compare au net des commissions CONFIRMÉES,
+         dette éventuelle déduite : une commission `pending` est encore dans sa
+         période de confirmation et ne compte pas.
+
+         L'ancienne phrase était donc fausse dès que le total dépassait 20 € —
+         « elles partent dès qu'elles atteignent 20 € » à quelqu'un qui en a
+         119,50 € le renvoie vers une condition déjà remplie, et laisse croire
+         que son argent est bloqué par un palier alors qu'il attend simplement
+         le passage quotidien. Mesuré le 22/10/2026 sur ce cas exact. */
+      const confirme = commissions
+        .filter((c) => c.status === "validated")
+        .reduce((s, c) => s + Number(c.commission_amount ?? 0), 0);
       blocages.push({
         quoi: `${commissions.length} commission${commissions.length > 1 ? "s" : ""} d'affiliation ${commissions.length > 1 ? "sont" : "est"} en attente de versement, pour ${eurExact(total)}.`,
         issue:
-          "Elles partent dès qu'elles atteignent 20 €. Attends le prochain versement — sinon cet argent est perdu pour toi.",
+          confirme >= MIN_PAYOUT
+            ? `${eurExact(confirme)} sont déjà confirmés : le prochain versement les emportera. Attends-le — sinon cet argent est perdu pour toi.`
+            : `Le versement part quand les commissions confirmées atteignent ${eurExact(MIN_PAYOUT)} — il y en a ${eurExact(confirme)} pour l'instant, le reste est encore dans sa période de confirmation. Attends — sinon cet argent est perdu pour toi.`,
       });
     }
   }
