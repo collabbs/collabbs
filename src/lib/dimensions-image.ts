@@ -113,6 +113,50 @@ export function dimensionsImage(octets: Uint8Array): Dimensions | null {
   return null;
 }
 
+/**
+ * Le format réel d'une image, lu dans ses premiers octets.
+ *
+ * ─── Pourquoi on ne croit pas ce qu'on nous dit ───
+ * Un téléversement arrive avec deux renseignements, et les deux viennent du
+ * CLIENT : le type MIME déclaré et le nom du fichier. Les trois actions de
+ * dépôt ne regardaient que ça. Vérifié le 22/10/2026 sur le projet de
+ * développement : un fichier texte de 32 octets simplement déclaré
+ * « image/png » était accepté et écrit dans un seau PUBLIC, sous l'extension
+ * de son choix.
+ *
+ * Le cas qui compte vraiment est le SVG : accepté par `type.startsWith
+ * ("image/")`, il était servi en `image/svg+xml` — et le SVG est un format
+ * ACTIF, qui exécute son script quand on l'ouvre directement dans un onglet.
+ * (Supabase neutralise `.html` en le servant en `text/plain`, mais pas le SVG :
+ * les deux ont été mesurés.)
+ *
+ * Les octets, eux, ne mentent pas. On ne garde donc que ce qu'on sait
+ * reconnaître, et c'est cette fonction — pas le client — qui décide de
+ * l'extension et du type servi.
+ *
+ * `null` pour tout le reste : SVG, texte, archive, exécutable.
+ */
+export type FormatImage = "png" | "jpg" | "gif" | "webp" | "avif";
+
+export function formatImage(octets: Uint8Array): FormatImage | null {
+  if (octets.length < 16) return null;
+  if (octets[0] === 0x89 && texte(octets, 1, 4) === "PNG") return "png";
+  if (texte(octets, 0, 3) === "GIF") return "gif";
+  if (texte(octets, 0, 4) === "RIFF" && texte(octets, 8, 12) === "WEBP") return "webp";
+  if (texte(octets, 4, 8) === "ftyp") return "avif";
+  if (octets[0] === 0xff && octets[1] === 0xd8) return "jpg";
+  return null;
+}
+
+/** Le type à servir, déduit du format RÉEL et jamais du client. */
+export const TYPE_SERVI: Record<FormatImage, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+};
+
 /** Largeur minimale d'une image digne d'occuper une carte entière. */
 export const LARGEUR_MINIMALE = 500;
 

@@ -8,6 +8,7 @@ import { settleSale } from "@/lib/affiliate-billing";
 import { valider } from "@/lib/validation";
 import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
 import { reportError } from "@/lib/report-error";
+import { validerImage } from "@/lib/image-televersee";
 import { capaciteCampagnes, messageCapaciteAtteinte } from "@/lib/limites";
 import { peutDecider } from "@/lib/invitations";
 import { fenetreValide } from "@/lib/attribution";
@@ -40,15 +41,14 @@ import { fenetreValide } from "@/lib/attribution";
 export async function televerserVisuelCampagne(
   formData: FormData,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const file = formData.get("file");
-  if (!(file instanceof File)) return { ok: false, error: "Aucun fichier reçu." };
-  if (file.size === 0) return { ok: false, error: "Fichier vide." };
-  if (file.size > 5 * 1024 * 1024) {
-    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
-  }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "Format non supporté — utilise une image (JPG, PNG, WEBP)." };
-  }
+  /* `validerImage` lit les OCTETS. L'ancien contrôle croyait le type MIME et
+     l'extension du nom de fichier, tous deux fournis par le client : un fichier
+     texte déclaré « image/png » passait, et un SVG aussi — servi en
+     `image/svg+xml`, il exécute son script quand on l'ouvre dans un onglet.
+     Mesuré le 22/10/2026. */
+  const controle = await validerImage(formData.get("file"));
+  if (!controle.ok) return { ok: false, error: controle.error };
+  const { octets, ext: extSure, type: typeServi } = controle.image;
 
   const supabase = await createClient();
   const {
@@ -56,16 +56,15 @@ export async function televerserVisuelCampagne(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const extSure = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
   // Chemin verrouillé sur l'identifiant authentifié : impossible d'écrire
-  // dans le dossier de quelqu'un d'autre par cette action.
+  // dans le dossier de quelqu'un d'autre par cette action. L'extension vient
+  // du format RÉEL, pas du nom du fichier.
   const chemin = `${user.id}/${crypto.randomUUID()}.${extSure}`;
 
   const admin = createAdminClient();
   const { error } = await admin.storage
     .from("visuels-campagne")
-    .upload(chemin, file, { cacheControl: "3600", contentType: file.type });
+    .upload(chemin, octets, { cacheControl: "3600", contentType: typeServi });
   if (error) {
     await reportError("campagne/visuel", error);
     return { ok: false, error: "Le téléversement a échoué. Réessaie." };

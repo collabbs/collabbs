@@ -2,6 +2,7 @@
 
 import { identiteDeMarque, visuelsDeMarque } from "@/lib/identite-site";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validerImage } from "@/lib/image-televersee";
 
 export type IdentiteLue = {
   logo: string | null;
@@ -118,25 +119,26 @@ export async function lireIdentiteMarque(site: string): Promise<IdentiteLue> {
 export async function televerserVisuelAnonyme(
   formData: FormData,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const file = formData.get("file");
-  if (!(file instanceof File)) return { ok: false, error: "Aucun fichier reçu." };
-  if (file.size === 0) return { ok: false, error: "Fichier vide." };
-  if (file.size > 5 * 1024 * 1024) {
-    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
-  }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "Format non supporté — une image (JPG, PNG, WEBP)." };
-  }
+  /* `validerImage` lit les OCTETS. L'ancien contrôle croyait le type MIME et
+     l'extension du nom de fichier, tous deux fournis par le client : un fichier
+     texte déclaré « image/png » passait, et un SVG aussi — servi en
+     `image/svg+xml`, il exécute son script quand on l'ouvre dans un onglet.
+     Mesuré le 22/10/2026. */
+  const controle = await validerImage(formData.get("file"));
+  if (!controle.ok) return { ok: false, error: controle.error };
+  const { octets, ext: extSure, type: typeServi } = controle.image;
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const extSure = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
+  /* Ce dépôt-ci n'est PAS authentifié : il sert au questionnaire public, avant
+     la création du compte. Le contrôle des octets y compte donc double —
+     c'était la seule porte par laquelle un visiteur anonyme pouvait écrire un
+     fichier quelconque dans un seau public. */
   const chemin = `anonymes/${crypto.randomUUID()}.${extSure}`;
 
   try {
     const admin = createAdminClient();
     const { error } = await admin.storage
       .from("visuels-campagne")
-      .upload(chemin, file, { cacheControl: "3600", contentType: file.type });
+      .upload(chemin, octets, { cacheControl: "3600", contentType: typeServi });
     if (error) return { ok: false, error: "Le téléversement a échoué. Réessaie." };
     const { data } = admin.storage.from("visuels-campagne").getPublicUrl(chemin);
     return { ok: true, url: data.publicUrl };

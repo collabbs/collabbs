@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { citySlug } from "@/lib/city";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OfferId } from "@/components/landing/creators";
+import { validerImage } from "@/lib/image-televersee";
 
 /**
  * Upload d'avatar / logo côté SERVEUR.
@@ -24,20 +25,15 @@ export async function uploadAvatar(
   formData: FormData,
   kind: "avatar" | "logo" = "avatar",
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const file = formData.get("file");
-  if (!(file instanceof File)) {
-    return { ok: false, error: "Aucun fichier reçu." };
-  }
-  if (file.size === 0) {
-    return { ok: false, error: "Fichier vide." };
-  }
-  // 5 MB max — large mais évite des uploads abusifs depuis un mobile photo brute.
-  if (file.size > 5 * 1024 * 1024) {
-    return { ok: false, error: "L'image fait plus de 5 Mo. Compresse-la et réessaie." };
-  }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "Format non supporté — utilise une image (JPG, PNG, WEBP)." };
-  }
+  /* `validerImage` lit les OCTETS. L'ancien contrôle se contentait de
+     `file.type.startsWith("image/")` et prenait l'extension dans le nom du
+     fichier — deux renseignements fournis par le client. Un fichier texte
+     déclaré « image/png » passait, et un SVG aussi : servi en `image/svg+xml`,
+     il exécute son script quand on l'ouvre dans un onglet. Mesuré le
+     22/10/2026. */
+  const controle = await validerImage(formData.get("file"));
+  if (!controle.ok) return { ok: false, error: controle.error };
+  const { octets, ext: safeExt, type: typeServi } = controle.image;
 
   // Vérification d'identité avec le client SSR (lecture du cookie session).
   const supabase = await createClient();
@@ -46,10 +42,9 @@ export async function uploadAvatar(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const safeExt = ext.length > 0 && ext.length <= 5 ? ext : "jpg";
   // Path verrouillé sur l'user.id authentifié → impossible d'écrire dans le
-  // dossier d'un autre user via cette action.
+  // dossier d'un autre user via cette action. L'extension vient du format
+  // RÉEL : le nom du fichier n'entre pas dans le chemin.
   const path = `${user.id}/${kind}.${safeExt}`;
 
   // L'upload lui-même est fait avec le client admin (service-role) qui
@@ -60,7 +55,7 @@ export async function uploadAvatar(
   const admin = createAdminClient();
   const { error: upErr } = await admin.storage
     .from("avatars")
-    .upload(path, file, { upsert: true, cacheControl: "3600", contentType: file.type });
+    .upload(path, octets, { upsert: true, cacheControl: "3600", contentType: typeServi });
   if (upErr) {
     console.error("uploadAvatar: storage upload failed", upErr);
     return { ok: false, error: upErr.message };
