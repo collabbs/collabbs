@@ -537,11 +537,23 @@ export async function decideApplication(
   // Notif au créateur
   const campaignName = app.campaigns?.name ?? "ta campagne";
   if (decision === "accepted") {
+    /* « Ouvre la collaboration » envoyait le créateur chercher ce qui n'existe
+       pas encore. Accepter une candidature et ouvrir la collaboration sont DEUX
+       gestes distincts côté marque : ce message partait au premier, et le deal
+       n'était créé qu'au second. Le créateur cliquait, atterrissait sur la
+       liste des opportunités, et n'avait rien à y faire — au moment précis où
+       il venait d'apprendre une bonne nouvelle.
+
+       `createDealFromApplication` le prévient, lui, quand la collaboration
+       existe vraiment, avec son lien. Ce message-ci n'a donc qu'à dire où on en
+       est. */
     await notify({
       userId: app.creator_id,
       type: "application_accepted",
-      title: `Ta candidature à "${campaignName}" a été acceptée 🎉`,
-      body: "La marque te propose de collaborer. Ouvre la collaboration pour voir les prochaines étapes.",
+      title: `Ta candidature à "${campaignName}" a été retenue 🎉`,
+      body:
+        "La marque va maintenant ouvrir la collaboration et te proposer ses termes. " +
+        "Tu recevras un message dès qu'elle sera prête — il n'y a rien à faire d'ici là.",
       link: "/opportunities",
     });
   } else {
