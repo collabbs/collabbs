@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import { isUuid, type ThreadMessage } from "@/lib/messages";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Trouve (ou crée) la conversation entre l'utilisateur courant et `otherUserId`,
@@ -87,7 +88,27 @@ export async function sendMessage(
     })
     .select("id, sender_id, body, created_at")
     .single();
-  if (error) return { ok: false, error: error.message };
+  /* Le message de Postgres ne remonte PAS tel quel.
+     Il remontait : quelqu'un qui n'est pas dans la conversation lisait
+     « new row violates row-level security policy for table "messages" » dans
+     son fil de discussion. La sécurité, elle, tient — c'est bien la RLS qui a
+     refusé l'écriture, et c'est le seul contrôle ici : la participation n'est
+     pas revérifiée dans ce code, elle est garantie par la politique.
+
+     Mais un message d'erreur de base de données n'a rien à faire sous les yeux
+     d'un utilisateur. Il est en anglais, il nomme la table, et dans le cas
+     ordinaire — une panne passagère — il ne dit pas à la personne la seule
+     chose utile : son message n'est pas parti, elle peut réessayer.
+
+     Même doctrine que les versements dans `lib/deal-payout.ts`. L'erreur réelle
+     part dans `error_reports`, où elle sert à quelqu'un. */
+  if (error) {
+    await reportError("messages/envoi", error, {
+      userId: user.id,
+      detail: `conversation ${conversationId}`,
+    });
+    return { ok: false, error: "Ton message n'a pas pu être envoyé. Réessaie." };
+  }
 
   // Remonte la conversation (updated_at) pour le tri de la boîte de réception.
   await supabase
