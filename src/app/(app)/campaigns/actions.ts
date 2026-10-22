@@ -581,12 +581,37 @@ export async function setCampaignStatus(
     if (!capacite.disponible) return { ok: false, error: messageCapaciteAtteinte(capacite) };
   }
 
-  const { error } = await supabase
+  /* Le type de `status` n'est qu'une promesse du client : une action serveur
+     est une adresse HTTP publique. La colonne est un enum Postgres, qui
+     refusait bien toute autre valeur — mais en renvoyant son propre message,
+     « invalid input value for enum campaign_status », sous les yeux de la
+     marque. On tranche ici, en français. */
+  if (status !== "active" && status !== "ended")
+    return { ok: false, error: "Ce statut de campagne n'existe pas." };
+
+  /* On LIT les lignes touchées, au lieu de se contenter de l'absence d'erreur.
+     Une mise à jour qui ne correspond à aucune ligne — campagne d'une autre
+     marque, campagne supprimée entre-temps — n'est PAS une erreur pour
+     Postgres : il n'a simplement rien eu à faire. L'action répondait donc
+     « c'est fait » sans que rien ne bouge.
+
+     Mesuré le 22/10 : un créateur appelant cette action sur la campagne d'une
+     marque recevait `{ ok: true }`, la campagne restant active. La RLS avait
+     bien bloqué l'écriture ; c'est la réponse qui mentait.
+
+     Ce qui compte n'est pas ce créateur — il n'obtient rien — mais la marque :
+     elle clique « mettre en pause », lit que c'est fait, et la campagne
+     continue d'accepter des candidatures et de payer des commissions. Même
+     correctif que `cancelInKind`, pour la même raison. */
+  const { data: modifiees, error } = await supabase
     .from("campaigns")
     .update({ status })
     .eq("id", campaignId)
-    .eq("brand_id", user.id);
+    .eq("brand_id", user.id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  if (!modifiees || modifiees.length === 0)
+    return { ok: false, error: "Cette campagne est introuvable, ou elle n'est pas la tienne." };
 
   revalidatePath(`/campaigns/${campaignId}`);
   revalidatePath("/campaigns");
