@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { notify } from "@/lib/notifications";
+import { euros } from "@/lib/validation";
 import { alerterAdmins } from "@/lib/alerte-admin";
 import { reportError } from "@/lib/report-error";
 import { TARIFS } from "@/lib/tarifs";
@@ -425,6 +426,47 @@ export async function releaseReservation(params: {
         detail: `événement ${eventId}, ${total} € à rendre à la marque ${brandId}`,
       });
       return { ok: false, message: "La provision n'a pas pu être recréditée." };
+    }
+
+    /* ─── Le créateur perd une commission : il doit l'apprendre ───
+       Mesuré le 22/10/2026. Jusqu'ici, `releaseReservation` ne prévenait le
+       créateur que sur la branche `paid`, pour lui annoncer la retenue sur son
+       prochain versement. Sur celle-ci — la commission était réservée mais pas
+       encore versée — l'argent repartait chez la marque et le créateur ne
+       recevait RIEN. Ses gains en attente diminuaient tout seuls.
+
+       L'asymétrie était difficile à défendre : il perd exactement la même
+       somme dans les deux cas. On ne l'avertissait que lorsqu'il avait déjà
+       l'argent en main, c'est-à-dire quand il l'aurait vu de toute façon.
+
+       Le bouton voisin « Aucune commande » (`rejectPixelSale`) prévient bien
+       le créateur, et pour la raison qui vaut ici mot pour mot : une vente
+       légitime peut être écartée par erreur, et il doit pouvoir contester. */
+    const creatorId = linkRow?.creator_id;
+    if (creatorId) {
+      /* Le créateur lit SA commission, pas `total`.
+         `total` vaut commission + frais de plateforme : c'est ce qui revient à
+         la marque, pas ce que le créateur perd. Lui annoncer 7,20 € quand sa
+         commission était de 6,00 € lui ferait croire qu'on lui retire des
+         frais qu'il n'a jamais payés — ils sont à la charge de la marque, et
+         tout le produit le lui répète. */
+      const sien = Number(ev.commission_amount ?? 0);
+      await notify({
+        userId: creatorId,
+        type: status === "refunded" ? "affiliate_sale_refunded" : "affiliate_sale_rejected",
+        title:
+          status === "refunded"
+            ? `Une vente a été remboursée — ${euros(sien)} annulés`
+            : `Une vente a été écartée — ${euros(sien)} annulés`,
+        body:
+          status === "refunded"
+            ? "La marque a remboursé son client : cette commission ne te sera pas versée. " +
+              "Rien ne t'est repris, elle n'était pas encore partie. Si tu penses qu'il s'agit " +
+              "d'une erreur, contacte la marque depuis la messagerie."
+            : "La marque n'a pas retrouvé de commande correspondante, cette commission est annulée. " +
+              "Si tu penses qu'il s'agit d'une erreur, contacte-la depuis la messagerie.",
+        link: "/payouts",
+      });
     }
   }
 
