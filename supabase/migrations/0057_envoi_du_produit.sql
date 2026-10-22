@@ -23,6 +23,25 @@
 --     livraison n'aurait aucun point de départ honnête.
 -- ============================================================
 
+-- ─── Rattrapage (ajouté le 22/10/2026) ───
+-- Le commentaire ci-dessus dit que `deals` porte « depuis longtemps »
+-- `shipping_address`, `shipped_at`, `shipping_carrier` et `tracking_number`.
+-- C'est vrai en production — et faux partout ailleurs : AUCUNE migration ne
+-- les crée. Elles ont été ajoutées à la main dans le tableau de bord, comme
+-- les trois que 0062 avait déjà rattrapées. La contrainte plus bas s'appuie
+-- sur `shipped_at` : sur une base reconstruite depuis zéro, cette migration
+-- échouait donc ici, et le dossier `migrations` ne savait pas rebâtir la base.
+--
+-- `if not exists` rend ces quatre lignes totalement inertes en production.
+-- Les types sont relevés dans `database.types.ts`, généré depuis la vraie
+-- base. Même réserve que 0062 : si la production diffère sur un détail (une
+-- valeur par défaut, une précision), `if not exists` ne le corrigera pas.
+alter table public.deals
+  add column if not exists shipping_address  jsonb,
+  add column if not exists shipped_at        timestamptz,
+  add column if not exists shipping_carrier  text,
+  add column if not exists tracking_number   text;
+
 alter table public.deals
   add column if not exists shipping_required boolean not null default false,
   add column if not exists received_at timestamptz;
