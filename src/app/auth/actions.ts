@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { cheminInterne } from "@/lib/redirection";
+import { reportError } from "@/lib/report-error";
 import {
   checkRateLimit,
   clientIp,
@@ -68,6 +69,12 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    /* `messageAuth` est fait pour le visiteur : il réduit toutes les causes à
+       une poignée de phrases rassurantes. C'est bien pour lui, et aveuglant
+       pour nous — « La connexion n'a pas pu aboutir » recouvre aussi bien un
+       mot de passe faux qu'une clé d'API invalide ou un fournisseur en panne.
+       On garde donc le message D'ORIGINE de notre côté. Sans ça, on devine. */
+    await reportError("auth/login", error, { detail: `message Supabase : ${error.message}` });
     redirect(`/login?error=${encodeURIComponent(messageAuth(error.message))}`);
   }
 
@@ -117,6 +124,10 @@ export async function signup(formData: FormData) {
   });
 
   if (error) {
+    // Même raison qu'à la connexion : le visiteur lit une phrase douce, nous
+    // devons lire la cause. Le 22/10/2026, une inscription refusée sur une
+    // base neuve n'a laissé AUCUNE trace — ni console, ni table d'erreurs.
+    await reportError("auth/signup", error, { detail: `message Supabase : ${error.message}` });
     redirect(`/signup?error=${encodeURIComponent(messageAuth(error.message))}`);
   }
 

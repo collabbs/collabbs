@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Configuration Supabase déclarée en clair
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `supabase config push` n'applique QUE les propriétés déclarées ici ; tout
+# ce qui n'y figure pas est laissé tel quel sur le projet. Ce fichier est donc
+# volontairement minuscule.
+#
+# ⚠️ AVANT TOUT `config push` : vérifier sur quel projet on est branché.
+#       cat supabase/.temp/linked-project.json
+#    Et lancer `supabase config diff` d'abord, qui ne modifie rien.
+#    `collabbs-dev` = ucxtmwxecukugrvnjynl · PRODUCTION = muuyrrvetwegkrmpkkad
+#
+# ─── Pourquoi ce fichier existe (22/10/2026) ───
+# La leçon de la journée : une configuration qui n'est écrite nulle part finit
+# par diverger sans que personne le voie. Un projet Supabase neuf échouait à
+# rejouer les migrations parce qu'une case cochée à sa création n'était
+# consignée dans aucun fichier.
+# ═══════════════════════════════════════════════════════════════════════════
+
+project_id = "collabbs"
+
+[auth.email]
+# Confirmation d'e-mail désactivée.
+#
+# Deux raisons, dans cet ordre :
+#  1. C'est déjà le comportement voulu du produit. `signup()` le documente :
+#     faire sortir quelqu'un du site pour ouvrir sa boîte mail avant qu'il ait
+#     rien vu est la plus grosse déperdition d'un tunnel.
+#  2. Sur un projet neuf, le service d'envoi intégré de Supabase plafonne à
+#     quelques messages par heure. Deux inscriptions de test ont suffi à le
+#     saturer, et l'erreur remontée était « email rate limit exceeded ».
+enable_confirmations = false
