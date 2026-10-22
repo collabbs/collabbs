@@ -25,6 +25,29 @@ function back(msg: string, kind: "ok" | "error" = "ok"): never {
 }
 
 /**
+ * `redirect()` ne retourne pas : il LÈVE une exception que Next intercepte plus
+ * haut pour faire la redirection. Un `try { … back("c'est fait") } catch` attrape
+ * donc son propre succès.
+ *
+ * Constaté le 22/10/2026 en relisant les journaux : un remboursement de séquestre
+ * était parti chez Stripe, la transaction était passée à « remboursée », les deux
+ * parties avaient été prévenues — et l'écran annonçait « Le remboursement a été
+ * refusé par Stripe ». L'administrateur lisait un échec sur un mouvement d'argent
+ * irréversible qui avait réussi.
+ *
+ * Le même `catch` écrasait aussi les messages écrits DANS le `try`, dont
+ * « Le virement est parti mais son enregistrement a échoué. Ne relance pas. » —
+ * remplacé par « refusé par Stripe », qui dit l'exact contraire et invite à
+ * relancer.
+ *
+ * On relaie donc la redirection au lieu de la traiter comme une panne.
+ */
+function estUneRedirection(err: unknown): boolean {
+  const digest = (err as { digest?: unknown } | null)?.digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
+/**
  * Libère le séquestre au bénéfice du créateur, hors du parcours normal.
  * Usage : la marque ne valide jamais alors que la livraison est faite.
  */
@@ -130,6 +153,7 @@ export async function adminReleaseEscrow(formData: FormData) {
     revalidatePath("/admin");
     back(`Séquestre libéré (${transfer.id}).`);
   } catch (err) {
+    if (estUneRedirection(err)) throw err;
     console.error("[admin] libération impossible", err);
     back("Le virement a été refusé par Stripe.", "error");
   }
@@ -198,6 +222,7 @@ export async function adminRefundEscrow(formData: FormData) {
     revalidatePath("/admin");
     back("Séquestre remboursé à la marque.");
   } catch (err) {
+    if (estUneRedirection(err)) throw err;
     console.error("[admin] remboursement impossible", err);
     back("Le remboursement a été refusé par Stripe.", "error");
   }
