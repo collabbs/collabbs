@@ -57,8 +57,6 @@ function Stat({
       <p className={`font-display text-2xl font-black tabular-nums ${color}`}>{value}</p>
       <p className="text-xs font-medium text-zinc-600">{label}</p>
       {hint && <p className="mt-0.5 text-[11px] text-zinc-400">{hint}</p>}
-      <Tunnel />
-
     </div>
   );
 }
@@ -199,6 +197,14 @@ export default async function AdminPage({
         <Stat value={eurExact(provisions)} label="Provisions marques" hint="Solde total" />
         <Stat value={String(deals.length)} label="Collaborations" hint="Toutes périodes" />
       </div>
+
+      {/* Le tunnel est une section de la page, pas un morceau de tuile.
+          Il était appelé DANS `Stat` : il se dessinait donc une fois par
+          indicateur, soit cinq fois de suite, cinq blocs identiques annonçant
+          « Aucun passage enregistré pour l'instant ». Sur une base vide ça
+          passe pour un choix de mise en page ; dès qu'il y a du trafic, c'est
+          le même tableau répété cinq fois. */}
+      <Tunnel />
 
       {/* Séquestres en attente */}
       {erreurs.length > 0 && (
