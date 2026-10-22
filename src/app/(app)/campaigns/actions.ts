@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notify } from "@/lib/notifications";
+import { notify, notifyOnce } from "@/lib/notifications";
 import { settleSale } from "@/lib/affiliate-billing";
 import { valider } from "@/lib/validation";
 import { valeursCampagneSchema, grilleCommissionSchema } from "@/lib/schemas/campaigns";
@@ -459,6 +459,28 @@ export async function recordManualPromoSale(input: {
     commission,
     saleAmount: input.amount,
   });
+
+  /* La vente saisie à la main vaut celle qui arrive par le postback : c'est
+     le même argent pour le créateur. `/api/track/promo` marque sa première
+     vente par un `notifyOnce` — « 🎟️ Première vente via ton code promo ! » —
+     et se tait ensuite, volontairement, pour ne pas le harceler à chaque
+     commande.
+
+     Ce chemin-ci ne le faisait pas du tout. Conséquence étroite mais réelle :
+     un créateur dont la toute première vente est saisie manuellement par la
+     marque ratait ce moment-là, et n'apprenait jamais que son code avait
+     servi. `notifyOnce` est idempotent — si le postback l'a déjà prévenu,
+     cet appel ne fait rien. */
+  notifyOnce({
+    userId: link.creator_id,
+    type: "first_promo_sale",
+    title: "🎟️ Première vente via ton code promo !",
+    body:
+      `Une vente de ${input.amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} ` +
+      `vient d'être attribuée à ton code. Commission : ` +
+      `${commission.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}.`,
+    link: "/opportunities",
+  }).catch(() => {});
 
   revalidatePath(`/campaigns/${input.campaignId}`);
   revalidatePath("/billing");
