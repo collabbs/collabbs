@@ -23,13 +23,33 @@ export default function DangerZone({ error }: { error: string | null }) {
           <p className="text-sm font-bold text-red-700">
             Cette action est définitive.
           </p>
+          {/* Ces trois lignes décrivaient un comportement que le produit n'a
+              pas. `deleteAccount` n'annule AUCUNE collaboration et ne rembourse
+              AUCUN séquestre : il REFUSE la suppression tant que quelque chose
+              est en cours, et dit quoi faire pour partir proprement.
+
+              Constaté le 22/10/2026 en tentant la suppression pour de vrai :
+              l'écran promettait « les fonds en séquestre seront remboursés à la
+              marque », et le refus répondait « Une somme de 108,00 € est encore
+              immobilisée […] il faut d'abord que ces collaborations aillent à
+              leur terme ». Une promesse fausse sur le seul bouton irréversible
+              du produit.
+
+              L'ordre compte aussi : on annonce d'abord ce qui bloque, ensuite
+              seulement ce qui est définitif. Quelqu'un qui a de l'argent en
+              cours doit comprendre qu'il ne peut pas encore partir, pas croire
+              qu'il va tout perdre. */}
           <ul className="mt-2 space-y-1 text-xs text-red-600">
-            <li>• Ton profil et toutes tes données seront supprimées.</li>
-            <li>• Tes deals en cours seront annulés.</li>
             <li>
-              • Si tu as des paiements en cours, les fonds en séquestre seront
-              remboursés à la marque.
+              • Tant qu&apos;une collaboration ou un paiement est en cours, la
+              suppression est refusée — on te dira quoi terminer d&apos;abord.
             </li>
+            <li>
+              • Tes commissions d&apos;affiliation non versées sont perdues :
+              attends le prochain versement avant de partir.
+            </li>
+            <li>• Tes contrats signés sont archivés pour l&apos;autre partie.</li>
+            <li>• Ton profil et toutes tes données seront supprimés.</li>
             <li>• Tu ne pourras pas récupérer ton compte.</li>
           </ul>
 
