@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { reportError } from "@/lib/report-error";
 import { checkRateLimit, RATE_POLICIES, clientIp } from "@/lib/rate-limit";
 import { resend, RESEND_FROM } from "@/lib/resend";
 import { SITE } from "@/lib/legal-entity";
@@ -70,6 +71,17 @@ export async function capturerProspect(params: {
   // Une adresse déjà connue n'est pas un échec pour la personne en face : elle
   // veut son document. On journalise et on continue.
   if (error) {
+    /* `reportError` et pas seulement la console : ce formulaire EST l'entonnoir
+       d'acquisition. Si cette écriture se met à échouer, on perd des prospects
+       un par un, et une trace en console n'est lue par personne — elle
+       disparaît avec le processus. Au journal d'erreurs, elle apparaît dans
+       l'écran d'administration avec son compteur d'occurrences.
+
+       On continue malgré tout : la personne en face veut son document, et
+       l'échec de notre enregistrement n'est pas son problème. */
+    await reportError("outils/prospect", error, {
+      detail: `source ${params.source}`,
+    });
     console.error("[outils] enregistrement du prospect impossible", error.message);
   }
 
@@ -84,6 +96,17 @@ export async function capturerProspect(params: {
     // Resend NE LÈVE PAS sur un refus : il renvoie l'erreur dans la réponse.
     if (erreurEnvoi) throw new Error(erreurEnvoi.message ?? "Resend a refusé l'envoi");
   } catch (e) {
+    /* La personne est prévenue honnêtement juste en dessous, et c'est le plus
+       important. Mais NOUS devons l'apprendre aussi : si le service d'envoi
+       tombe, chaque visiteur lit « l'e-mail n'a pas pu partir », et rien
+       nulle part ne le signale. Même défaut que le mot de passe oublié,
+       corrigé le 22/10/2026.
+
+       L'adresse ne part pas dans le signalement : elle n'aide pas à
+       diagnostiquer une panne d'envoi. */
+    await reportError("outils/envoi-modele", e, {
+      detail: `source ${params.source}`,
+    });
     console.error("[outils] envoi du modèle impossible", e);
     // Le document est une page publique : si l'e-mail échoue, la personne
     // peut quand même l'obtenir. On le dit plutôt que d'afficher un succès
