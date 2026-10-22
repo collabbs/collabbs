@@ -92,7 +92,29 @@ export async function ouvrirAbonnement(params: {
       subscription_data: {
         metadata: { brand_id: params.brandId, plan: params.plan },
       },
-      success_url: `${params.origin}/billing?abonnement=1`,
+      /* Le retour passe par `/api/stripe/return`, comme le séquestre et la
+         provision — et PAS directement sur /billing.
+ 
+         Constaté le 22/10/2026 en souscrivant pour de vrai : cette ligne
+         renvoyait sur `/billing?abonnement=1`, c'est-à-dire sur un message de
+         succès affiché sans condition. Personne n'enregistrait l'abonnement
+         sur ce chemin ; tout reposait sur le webhook.
+ 
+         Le filet existait pourtant : `/api/stripe/return` sait traiter
+         `kind === "abonnement"`, et son commentaire dit « si le webhook tarde,
+         le retour a déjà fait le travail ». Ce code n'était jamais atteint —
+         aucune session d'abonnement ne pointait vers lui. Du code mort écrit
+         exprès pour une panne, qui n'aurait pas servi le jour de la panne.
+ 
+         Ce que ça coûtait : le webhook a été muet cinq jours en septembre. Sur
+         cette fenêtre, une marque payait 99 ou 299 €, lisait « abonnement
+         souscrit », et gardait le taux du plan gratuit. Elle n'avait aucune
+         raison de se plaindre tout de suite — l'écran lui disait que c'était
+         bon.
+ 
+         La route redirige elle-même vers `/billing?abonnement=1` en cas de
+         succès, et vers une erreur lisible sinon : l'écran ne ment plus. */
+      success_url: `${params.origin}/api/stripe/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${params.origin}/billing?abonnement=annule`,
     });
     return session.url ? { ok: true, url: session.url } : { ok: false, error: "Stripe n'a pas renvoyé d'URL." };
