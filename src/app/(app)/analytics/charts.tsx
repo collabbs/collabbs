@@ -1,5 +1,9 @@
 "use client";
 
+/* Les nombres s'écrivent à la française : « 14,5 k » et « 4,2 % », pas
+   « 14.5k » ni « 4.2% ». Les deux formateurs vivent dans `lib/performance`. */
+import { abrege, pourcent } from "@/lib/performance";
+
 import {
   Area,
   AreaChart,
@@ -73,10 +77,10 @@ export function KpiTrend({
             title={
               delta === null
                 ? "Pas de période précédente"
-                : `vs période précédente : ${delta >= 0 ? "+" : ""}${delta.toFixed(0)}%`
+                : `vs période précédente : ${delta >= 0 ? "+" : ""}${pourcent(delta)}`
             }
           >
-            {deltaArrow} {delta === null ? "—" : `${Math.abs(delta).toFixed(0)}%`}
+            {deltaArrow} {delta === null ? "—" : pourcent(Math.abs(delta))}
           </span>
         )}
       </div>
@@ -135,7 +139,7 @@ export function RevenueChart({
             tickFormatter={(v: number) =>
               format === "eur"
                 ? v >= 1000
-                  ? `${(v / 1000).toFixed(1)}k`
+                  ? abrege(v)
                   : String(Math.round(v))
                 : String(Math.round(v))
             }
@@ -251,7 +255,7 @@ export function FunnelStages({
                 {s.label}
                 {conv !== null && (
                   <span className="ml-2 text-xs font-normal text-zinc-400">
-                    ({conv.toFixed(1)}% du précédent)
+                    ({pourcent(conv, 1)} du précédent)
                   </span>
                 )}
               </p>
@@ -310,7 +314,7 @@ export function DistributionBars({
             tickFormatter={(v: number) =>
               format === "eur"
                 ? v >= 1000
-                  ? `${(v / 1000).toFixed(1)}k`
+                  ? abrege(v)
                   : String(Math.round(v))
                 : String(Math.round(v))
             }

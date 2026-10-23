@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { abrege } from "@/lib/performance";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,10 +22,9 @@ export type PortfolioItem = {
 };
 
 function fmtViews(n: number | null | undefined): string | null {
-  if (n == null) return null;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
+  // L'abrégé vit dans `lib/performance` : il rendait « 14.5k » ici, avec un
+  // point décimal qui ne se lit pas en français.
+  return n == null ? null : abrege(n);
 }
 
 function fmtDuration(sec: number | null | undefined): string | null {

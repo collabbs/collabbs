@@ -225,7 +225,8 @@ export default async function BrandPublicPage({
               {reviewAvg !== null && (
                 <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-ink shadow-md ring-1 ring-zinc-100">
                   <span className="text-amber-400">★</span>
-                  {reviewAvg.toFixed(1)}
+                  {/* « 4,5 » et non « 4.5 » : cette note est sur une page publique. */}
+                  {reviewAvg.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                   <span className="text-zinc-400">· {reviews.length}</span>
                 </span>
               )}

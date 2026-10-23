@@ -88,3 +88,29 @@ export function etatDesVues(deal: {
 
 /** Vues formatées : 1234567 → « 1 234 567 ». */
 export const vues = (n: number) => n.toLocaleString("fr-FR");
+
+/**
+ * Un nombre abrégé, à la française : 14 500 → « 14,5 k », 2 800 000 → « 2,8 M ».
+ *
+ * `toFixed(1)` rendait « 14.5k » : un POINT décimal, qui ne se lit pas en
+ * français — et qui, dans une colonne de chiffres, se confond avec le
+ * séparateur de milliers. Les abréviations traînaient en trois copies (le
+ * portfolio, deux axes de graphique) ; il n'y en a plus qu'une.
+ */
+export function abrege(n: number): string {
+  const unVrai = (x: number) => x.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+  if (Math.abs(n) >= 1_000_000) return `${unVrai(n / 1_000_000)} M`;
+  if (Math.abs(n) >= 1_000) return `${unVrai(n / 1_000)} k`;
+  return unVrai(n);
+}
+
+/**
+ * Un pourcentage à la française : 4,2 % — virgule, et espace avant le signe.
+ *
+ * `decimales` est un PLAFOND, pas un minimum : un chiffre rond s'écrit « 700 % »
+ * et non « 700,0 % ». La décimale ne sert qu'à distinguer 4,2 de 4,8 ; quand il
+ * n'y a rien à distinguer, elle encombre.
+ */
+export function pourcent(n: number, decimales = 0): string {
+  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: decimales })} %`;
+}
