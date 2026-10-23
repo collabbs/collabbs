@@ -57,6 +57,17 @@ const photosEnCache = unstable_cache(
 export type BriefDefile = {
   id: string;
   marque: string;
+  /**
+   * Cette campagne appartient-elle à une marque de démonstration ?
+   *
+   * `is_demo` était déjà lu par la requête, mais seulement pour FILTRER : il
+   * ne montait pas jusqu'à la carte. Les fiches de créateurs fictifs portent
+   * un badge « Exemple » depuis le 3 septembre, et son commentaire dit
+   * pourquoi — « le visiteur doit savoir en un coup d'œil qu'il regarde à quoi
+   * ressemblera la plateforme, pas ce qui s'y trouve déjà ». Le raisonnement
+   * vaut mot pour mot dans l'autre sens, et le badge manquait.
+   */
+  estExemple: boolean;
   produit: string | null;
   type: string;
   /** Montant fixe en euros, si la campagne en propose un. */
@@ -209,6 +220,7 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
   const briefs: BriefDefile[] = data.map((c) => ({
     id: c.id,
     marque: c.brands?.name ?? "Une marque",
+    estExemple: Boolean(c.brands?.is_demo),
     // La carte n'en montre que deux lignes, mais la FICHE a besoin du texte
     // entier : on ne tronque donc plus ici. Une campagne dont on ne peut pas
     // lire les attentes ne se choisit pas.

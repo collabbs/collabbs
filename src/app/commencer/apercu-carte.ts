@@ -36,6 +36,7 @@ export function apercuDeLaCarte(carte: CarteMarque): BriefDefile {
     enseigneSombre: carte.enseigneSombre,
     enseigneCarree: carte.enseigneCarree,
     modele: carte.modele,
+    estExemple: false,
     dejaInteressee: false,
   };
 }

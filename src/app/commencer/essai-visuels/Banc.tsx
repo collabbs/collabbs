@@ -49,6 +49,7 @@ function briefExemple(
     enseigneSombre,
     enseigneCarree,
     modele: photos.length > 0 ? "photo" : "logo",
+    estExemple: false,
     dejaInteressee: false,
   };
 }

@@ -715,11 +715,19 @@ export default function CarteBrief({
           </span>
           </>
           )}
-          {brief.dejaInteressee && (
+          {/* « Exemple » passe AVANT « T'a repéré » et l'exclut : une campagne
+              inventée ne peut pas avoir repéré qui que ce soit, et l'afficher
+              ainsi serait exactement ce qu'on cherche à éviter. Même règle et
+              même allure que le badge des fiches de créateurs. */}
+          {brief.estExemple ? (
+            <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-800 ring-1 ring-amber-200">
+              Exemple
+            </span>
+          ) : brief.dejaInteressee ? (
             <span className="ml-auto shrink-0 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-950">
               T&apos;a repéré
             </span>
-          )}
+          ) : null}
         </div>
         )}
 
