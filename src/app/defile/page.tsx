@@ -4,7 +4,7 @@ import Logo from "@/components/landing/Logo";
 import Trace from "@/components/Trace";
 import { createClient } from "@/lib/supabase/server";
 import { briefsDuDefile } from "@/lib/defile";
-import { getMarketplaceCreators } from "@/lib/creators-data";
+import { createursDuDefile } from "@/lib/creators-data";
 import Defile from "./Defile";
 import DefileCreateurs from "./DefileCreateurs";
 import { SITE } from "@/lib/legal-entity";
@@ -49,7 +49,11 @@ export default async function PageDefile({
   } = await (await createClient()).auth.getUser();
 
   const briefs = cotéMarque ? [] : await briefsDuDefile(utilisateur?.id);
-  const createurs = cotéMarque ? await getMarketplaceCreators() : [];
+  /* `createursDuDefile` et NON `getMarketplaceCreators` : le second renvoie
+     l'annuaire entier — 330 ko de propriétés pour un écran où la marque verra
+     douze cartes, et une mémoire du « déjà vu » qui ne survivait pas au
+     changement d'appareil. */
+  const createurs = cotéMarque ? await createursDuDefile(utilisateur?.id) : [];
 
   return (
     /* ⚠️ `h-dvh` et non `min-h-dvh`, avec une colonne.

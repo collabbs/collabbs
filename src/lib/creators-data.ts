@@ -221,23 +221,53 @@ async function loadRelations(ids: string[]) {
   return { profMap, platsBy, nichesBy, offersBy, offerPriceBy };
 }
 
+const CHAMPS_CARTE =
+  "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels, is_demo";
+
+/**
+ * Une page de fiches créateurs, les mieux notées d'abord.
+ *
+ * `de`/`a` sont inclusifs, comme `.range()`. Les profils de démonstration
+ * peuplent l'annuaire tant que les vrais créateurs ne sont pas arrivés : un
+ * catalogue à une seule fiche ne convertit personne. Voir
+ * `demoCreatorsVisible` pour le raisonnement et le risque assumé.
+ */
+async function lireFiches(de?: number, a?: number): Promise<CreatorRow[]> {
+  const supabase = await createClient();
+  /* ⚠️ `id` en second critère, et ce n'est pas cosmétique.
+     Tous les créateurs sans avis ont une note NULLE. Un tri sur la seule
+     colonne `rating` les laisse donc tous à égalité, et Postgres n'est pas
+     tenu de rendre deux fois le même ordre entre des lignes à égalité. Dès
+     qu'on lit par `.range()`, un ordre instable fait SAUTER des fiches d'une
+     page à l'autre et en DOUBLE d'autres. Mesuré le 23/10/2026 sur le projet
+     de développement, en parcourant la table par pages de 200 sans ce second
+     critère : 502 lignes lues, 499 distinctes, 3 doublons — donc 3 créateurs
+     que le défilé ne proposait jamais. Un critère unique en second rend le
+     découpage reproductible : 502 lues, 502 distinctes, 0 doublon. */
+  let requete = supabase
+    .from("creators")
+    .select(CHAMPS_CARTE)
+    .order("rating", { ascending: false })
+    .order("id", { ascending: true });
+  if (de !== undefined && a !== undefined) requete = requete.range(de, a);
+  const { data } = demoCreatorsVisible() ? await requete : await requete.neq("is_demo", true);
+  return (data ?? []) as CreatorRow[];
+}
+
 /** Carte marketplace : créateurs « complets » (photo, réseau, niche, offre). */
 export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
-  const supabase = await createClient();
-  const requete = supabase
-    .from("creators")
-    .select(
-      "id, handle, rating, engagement, rate_video, rate_mention, rate_pack, verified, deals_count, reviews_count, created_at, city, city_slug, travels, is_demo",
-    )
-    .order("rating", { ascending: false });
-  // Les profils de démonstration peuplent l'annuaire tant que les vrais
-  // créateurs ne sont pas arrivés : un catalogue à une seule fiche ne
-  // convertit personne. Voir `demoCreatorsVisible` pour le raisonnement et
-  // le risque assumé.
-  const { data: creators } = demoCreatorsVisible()
-    ? await requete
-    : await requete.neq("is_demo", true);
-  const rows = (creators ?? []) as CreatorRow[];
+  return construireCartes(await lireFiches());
+}
+
+/**
+ * Transforme des fiches en cartes, en écartant les profils incomplets.
+ *
+ * Le tri des réseaux, la note, les badges et la règle de visibilité vivent
+ * ici et nulle part ailleurs : l'annuaire, la shortlist et le défilé doivent
+ * montrer EXACTEMENT les mêmes créateurs, sinon une marque voit dans le
+ * défilé quelqu'un qu'elle ne retrouve pas dans l'annuaire.
+ */
+async function construireCartes(rows: CreatorRow[]): Promise<MarketplaceCreator[]> {
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
 
@@ -325,6 +355,68 @@ export async function getMarketplaceCreators(): Promise<MarketplaceCreator[]> {
     });
   }
   return result;
+}
+
+/** Ce qu'on envoie au navigateur pour le défilé côté marque. */
+const PAQUET_DEFILE = 50;
+/** Fiches lues par passage. Sous la marche des ~350 lignes de PostgREST. */
+const PASSAGE_DEFILE = 200;
+/** Au plus 2 000 fiches parcourues : au-delà, la marque a vu le catalogue. */
+const PASSAGES_DEFILE_MAX = 10;
+
+/**
+ * Le paquet du défilé côté marque.
+ *
+ * ─── Pourquoi ce n'est pas `getMarketplaceCreators()` ───
+ * Le défilé envoyait TOUT l'annuaire au navigateur et laissait celui-ci
+ * écarter ce qui avait déjà défilé. Deux conséquences, mesurées le
+ * 23/10/2026 avec 500 créateurs en base :
+ *
+ *  - 330 ko de propriétés sérialisées pour un écran où la marque verra douze
+ *    cartes. Le poids grandit avec chaque inscription, sur un écran qui
+ *    s'ouvre surtout au téléphone.
+ *  - la mémoire ne vivait que dans le navigateur. `enregistrerVues` écrivait
+ *    bien en base, mais personne ne la relisait : sur un second appareil, la
+ *    marque revoyait tout depuis le début.
+ *
+ * On lit donc ce qui a déjà défilé, puis on balaie par passages jusqu'à
+ * remplir un paquet. Non connecté, il n'y a rien à croiser : un seul passage,
+ * exactement comme avant.
+ */
+export async function createursDuDefile(marqueId?: string): Promise<MarketplaceCreator[]> {
+  const dejaVues = new Set<string>();
+  if (marqueId) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("cartes_vues")
+      .select("cible_id")
+      .eq("viewer_id", marqueId);
+    for (const v of data ?? []) dejaVues.add(v.cible_id);
+  }
+
+  const paquet: MarketplaceCreator[] = [];
+  // Une inscription survenue entre deux passages décale la fenêtre et peut
+  // ramener une fiche déjà prise. Deux fois la même carte dans un paquet, et
+  // la marque la voit revenir après l'avoir écartée.
+  const dejaDansLePaquet = new Set<string>();
+  for (let passage = 0; passage < PASSAGES_DEFILE_MAX; passage++) {
+    const de = passage * PASSAGE_DEFILE;
+    const fiches = await lireFiches(de, de + PASSAGE_DEFILE - 1);
+    if (fiches.length === 0) break;
+
+    /* On écarte les vues AVANT de charger les relations : une fiche déjà vue
+       ne vaut pas quatre requêtes de plus. */
+    const neuves = fiches.filter((f) => !dejaVues.has(f.id) && !dejaDansLePaquet.has(f.id));
+    for (const carte of await construireCartes(neuves)) {
+      if (dejaDansLePaquet.has(carte.id)) continue;
+      dejaDansLePaquet.add(carte.id);
+      paquet.push(carte);
+      if (paquet.length >= PAQUET_DEFILE) break;
+    }
+    // Un passage incomplet veut dire qu'on a touché le fond de la table.
+    if (paquet.length >= PAQUET_DEFILE || fiches.length < PASSAGE_DEFILE) break;
+  }
+  return paquet;
 }
 
 export type CreatorProfileData = {

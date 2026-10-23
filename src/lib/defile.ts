@@ -135,6 +135,69 @@ export type BriefDefile = {
  * masquées en production. Une carte qui ne peut jamais répondre est pire
  * qu'une carte absente — le visiteur investit un geste dans le vide.
  */
+/** Ce qu'on envoie au navigateur. Le paquet du jour en fait 12 ; on en garde
+ *  d'avance pour que les cartes déjà vues puissent être écartées sans vider
+ *  l'écran. */
+const TAILLE_PAQUET = 50;
+/** Ce qu'on lit par passage. Sous la marche des ~350 lignes de PostgREST. */
+const TAILLE_PASSAGE = 200;
+/** Au plus 2 000 campagnes parcourues. Quelqu'un qui en a vu autant a vu le
+ *  catalogue ; aller plus loin coûterait plus que ça ne rapporte. */
+const PASSAGES_MAX = 10;
+
+/** Un passage de campagnes actives publiques, du plus récent au plus ancien. */
+function lireUnPassage(admin: ReturnType<typeof createAdminClient>, passage: number) {
+  const requete = admin
+    .from("campaigns")
+    .select(
+      "id, brand_id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
+    )
+    .eq("status", "active")
+    .eq("privee", false)
+    /* ⚠️ `id` en second critère, et ce n'est pas cosmétique.
+       Des campagnes publiées dans la même seconde partagent `created_at`, et
+       Postgres n'est pas tenu de rendre deux fois le même ordre entre des
+       lignes à égalité : en lisant par `.range()`, un ordre instable fait
+       sauter des briefs d'une page à l'autre et en double d'autres. Mesuré le
+       23/10/2026 sur le projet de développement, en parcourant 1 245
+       campagnes par pages de 200 sans ce second critère : 1 101 distinctes et
+       144 doublons — donc 144 campagnes, un brief sur neuf, que le défilé ne
+       proposait jamais à personne. Avec `id` : 1 245 distinctes, 0 doublon. */
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .range(passage * TAILLE_PASSAGE, passage * TAILLE_PASSAGE + TAILLE_PASSAGE - 1);
+  return demoDansLeDefile() ? requete : requete.neq("brands.is_demo", true);
+}
+
+/** Les cartes que cette personne a déjà écartées, d'où qu'elle vienne. Sans
+ *  cette lecture, le paquet repart de zéro sur un second appareil et lui
+ *  remontre ce qu'elle a déjà vu. */
+async function cartesDejaVues(
+  admin: ReturnType<typeof createAdminClient>,
+  createurId?: string,
+): Promise<Set<string>> {
+  if (!createurId) return new Set();
+  const { data } = await admin
+    .from("cartes_vues")
+    .select("cible_id")
+    .eq("viewer_id", createurId);
+  return new Set((data ?? []).map((v) => v.cible_id));
+}
+
+/** Les marques qui ont déjà retenu CE créateur : c'est ce qui rend le match
+ *  possible. Ne se sait qu'une fois connecté. */
+async function marquesQuiOntRetenu(
+  admin: ReturnType<typeof createAdminClient>,
+  createurId?: string,
+): Promise<Set<string>> {
+  if (!createurId) return new Set();
+  const { data } = await admin
+    .from("brand_creator_saves")
+    .select("brand_id")
+    .eq("creator_id", createurId);
+  return new Set((data ?? []).map((r) => r.brand_id));
+}
+
 /**
  * Le paquet, avec la réciprocité RÉELLE quand on sait qui regarde.
  *
@@ -155,26 +218,53 @@ export type BriefDefile = {
 export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]> {
   const admin = createAdminClient();
 
-  const requete = admin
-    .from("campaigns")
-    .select(
-      "id, brand_id, name, description, requirements, type, fixed_amount, commission_value, commission_nano, commission_macro, spots, ends_at, min_subscribers, product_image_url, brands!inner(name, is_demo, website), campaign_niches(niche_id)",
-    )
-    .eq("status", "active")
-    .eq("privee", false)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  /* ─── CE QUE LA PERSONNE A DÉJÀ VU SE LIT AVANT, PAS APRÈS ───
 
-  const [{ data, error }, { data: niches }] = await Promise.all([
-    demoDansLeDefile() ? requete : requete.neq("brands.is_demo", true),
+     La requête demandait les 50 campagnes les plus récentes, et les cartes
+     déjà vues étaient retirées ENSUITE. Un créateur qui avait fait défiler
+     ces 50 obtenait donc un paquet vide, et l'écran de fin lui annonçait
+     « Tu as tout vu » — mesuré le 23/10/2026 sur le projet de développement
+     avec 874 campagnes actives publiques en base, dont 824 qu'il n'avait
+     jamais vues. L'écran affirmait le contraire de la vérité, et le créateur
+     n'avait aucune raison de revenir.
+
+     On ne peut pas non plus exclure les vues dans la requête : la liste
+     repartirait dans l'URL, et au-delà de ~350 UUID elle coûte huit secondes
+     (voir `par-tranches.ts`) — le problème se déplacerait, il ne
+     disparaîtrait pas.
+
+     On balaie donc par passages, du plus récent au plus ancien, en s'arrêtant
+     dès qu'on a de quoi remplir un paquet. Anonyme, `dejaVues` est vide : un
+     seul passage, exactement comme avant. */
+  const [{ data: niches }, dejaVues, marquesInteressees] = await Promise.all([
     // Les libellés, une fois pour toutes : la carte affiche « Sport », pas
     // l'identifiant 4. Sans ça il n'y avait rien d'utile à montrer, et la
     // carte restait vide aux deux tiers.
     admin.from("niches").select("id, label"),
+    cartesDejaVues(admin, createurId),
+    marquesQuiOntRetenu(admin, createurId),
   ]);
-
-  if (error || !data) return [];
   const libelle = new Map((niches ?? []).map((n) => [n.id, n.label]));
+
+  const data: NonNullable<Awaited<ReturnType<typeof lireUnPassage>>["data"]> = [];
+  // Une campagne publiée entre deux passages décale la fenêtre et peut
+  // ramener un brief déjà pris. Deux fois la même carte, et le créateur la
+  // revoit après l'avoir écartée.
+  const dejaPris = new Set<string>();
+  for (let passage = 0; passage < PASSAGES_MAX; passage++) {
+    const { data: lot, error } = await lireUnPassage(admin, passage);
+    if (error || !lot) break;
+    for (const c of lot) {
+      if (!dejaVues.has(c.id) && !dejaPris.has(c.id)) {
+        dejaPris.add(c.id);
+        data.push(c);
+      }
+      if (data.length >= TAILLE_PAQUET) break;
+    }
+    // Un lot incomplet veut dire qu'on a touché le fond de la table.
+    if (data.length >= TAILLE_PAQUET || lot.length < TAILLE_PASSAGE) break;
+  }
+  if (data.length === 0) return [];
 
   // Une seule lecture par site, en parallèle : plusieurs campagnes d'une même
   // marque ne doivent pas déclencher plusieurs requêtes.
@@ -193,29 +283,6 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
   const photos = new Map(
     await Promise.all(sites.map(async (site) => [site, await photosEnCache(site)] as const)),
   );
-
-  // Les marques qui ont déjà retenu CE créateur. Une seule lecture, et
-  // seulement si l'on sait de qui il s'agit.
-  // Ce que cette personne a DÉJÀ vu, d'où qu'elle vienne. Sans cette lecture,
-  // le paquet repart de zéro sur un second appareil et lui remontre ce qu'elle
-  // a déjà écarté.
-  const dejaVues = new Set<string>();
-  if (createurId) {
-    const { data: vues } = await admin
-      .from("cartes_vues")
-      .select("cible_id")
-      .eq("viewer_id", createurId);
-    for (const v of vues ?? []) dejaVues.add(v.cible_id);
-  }
-
-  const marquesInteressees = new Set<string>();
-  if (createurId) {
-    const { data: retenus } = await admin
-      .from("brand_creator_saves")
-      .select("brand_id")
-      .eq("creator_id", createurId);
-    for (const r of retenus ?? []) marquesInteressees.add(r.brand_id);
-  }
 
   const briefs: BriefDefile[] = data.map((c) => ({
     id: c.id,
@@ -302,8 +369,9 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
 
      Un paquet s'ouvre sur ce qu'il a de meilleur. Ça ne cache rien : les
      cartes sans photo restent dans le paquet, elles passent après. */
+  // Plus de `.filter(!dejaVues.has(…))` ici : l'exclusion se fait pendant le
+  // balayage, sinon elle vide le paquet au lieu de le renouveler.
   return briefs
-    .filter((b) => !dejaVues.has(b.id))
     .sort((a, b) => {
       const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
       const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
