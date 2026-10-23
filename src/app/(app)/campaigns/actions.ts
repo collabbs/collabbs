@@ -154,6 +154,33 @@ export async function createCampaign(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Non connecté." };
 
+  /* ═══ LE RÔLE, EXPLICITEMENT ═══
+
+     Il n'y avait aucun contrôle de rôle ici. Ce qui empêchait un créateur de
+     créer une campagne, c'était la clé étrangère `campaigns_brand_id_fkey` :
+     pas de ligne dans `brands`, donc pas d'insertion. Vérifié le 23/10/2026 à
+     l'exécution — un créateur recevait « insert or update on table
+     "campaigns" violates foreign key constraint », ce qui marche mais ne
+     s'explique pas.
+
+     Deux raisons de ne pas s'en contenter. D'abord ce message, que personne ne
+     peut comprendre. Ensuite, et surtout : ce garde-là est IMPLICITE. Jusqu'au
+     22/10, `saveBrandOnboarding` ne vérifiait pas le rôle non plus — un
+     créateur pouvait donc se fabriquer une ligne `brands`, et la clé étrangère
+     l'aurait alors laissé créer des campagnes. Les deux trous se composaient,
+     et refermer l'un sans nommer l'autre laisse la règle suspendue à un
+     détail du schéma.
+
+     La politique RLS ne couvre pas ce cas : `campaigns_insert_own` vérifie
+     seulement `brand_id = auth.uid()`, pas que l'auteur soit une marque. */
+  const { data: profil } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profil?.role !== "brand")
+    return { ok: false, error: "Seule une marque peut créer une campagne." };
+
   const withAffiliation = data.type === "affiliation" || data.type === "hybrid";
   const withFixed = data.type === "video" || data.type === "hybrid";
   const isPerformance = data.type === "performance";
