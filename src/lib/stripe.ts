@@ -31,6 +31,27 @@ function getStripeInstance(): Stripe {
         "(Project → Settings → Environment Variables) puis redéploie.",
     );
   }
+  /* ═══ UNE CLÉ « LIVE » NE TOURNE PAS EN DÉVELOPPEMENT ═══
+
+     `.env.development.local` ne redéfinit que Supabase. Tout le reste — dont
+     cette clé — est donc hérité de `.env.local`, qui porte les valeurs de
+     production. Constaté le 22/10/2026 : le serveur local tournait avec la clé
+     Stripe du projet réel. Elle était en mode test, donc rien n'a été risqué ;
+     mais le jour où une clé `sk_live_` y atterrit, un essai local déplace de
+     l'argent réel sans que rien ne le signale.
+
+     On refuse donc explicitement. En production `NODE_ENV` vaut
+     « production » et ce garde ne s'applique jamais : il ne peut rien casser
+     de légitime, et il rend impossible la seule erreur qu'on ne pourrait pas
+     défaire. */
+  if (key.includes("_live_") && process.env.NODE_ENV !== "production") {
+    throw new Error(
+      "Refus de démarrer : STRIPE_SECRET_KEY est une clé LIVE et nous ne sommes " +
+        "pas en production. Un essai local déplacerait de l'argent réel. Mets une " +
+        "clé sk_test_… dans .env.development.local.",
+    );
+  }
+
   _stripeInstance = new Stripe(key);
   return _stripeInstance;
 }
