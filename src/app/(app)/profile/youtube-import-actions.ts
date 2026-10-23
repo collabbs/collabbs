@@ -218,7 +218,13 @@ export async function refreshYouTubeStats(): Promise<{
     const s = stats.get(videoId);
     if (!s) continue;
     const dur = s.durSec;
-    const { error: upErr } = await supabase
+    /* `.select("id")` et le compte des lignes TOUCHÉES, pas l'absence d'erreur.
+       Une mise à jour qui ne correspond à aucune ligne — la vidéo a été retirée
+       du portfolio pendant que l'import tournait — n'est pas une erreur pour
+       Postgres. On annonçait donc « 8 vidéos actualisées » quand il y en avait
+       sept. Le chiffre est petit, mais c'est celui qu'on montre à la personne
+       pour lui dire que son geste a servi. */
+    const { data: touchees, error: upErr } = await supabase
       .from("creator_portfolio_items")
       .update({
         view_count: s.views,
@@ -227,8 +233,9 @@ export async function refreshYouTubeStats(): Promise<{
         is_short: dur != null && dur <= 60,
       })
       .eq("id", rowId)
-      .eq("creator_id", user.id);
-    if (!upErr) updated++;
+      .eq("creator_id", user.id)
+      .select("id");
+    if (!upErr && touchees && touchees.length > 0) updated++;
   }
 
   revalidatePath("/profile");

@@ -119,10 +119,21 @@ export async function reglerCollaborationAuxVues(dealId: string): Promise<Reglem
       link: "/admin",
       fenetreMinutes: 1,
     });
+    /* ⚠️ On ne promet PAS de relancer : rien ne le fait.
+       `reglerCollaborationAuxVues` n'est appelé que par `validerVues`, une
+       action manuelle — aucun passage quotidien ne reprend un reliquat non
+       remboursé. La phrase précédente disait « nous la relançons, tu n'as rien
+       à faire » : la marque était donc invitée à attendre alors que sa seule
+       issue est de revalider, puisque `perf_validated_at` est resté vide.
+       Vérifié le 23/10/2026 en provoquant l'échec sur une référence de paiement
+       que Stripe ne connaît pas.
+       L'alerte à l'administration, elle, est bien partie : c'est le second
+       chemin, et il est vrai. */
     return {
       ok: false,
       error:
-        "Le remboursement du reliquat n'a pas pu être effectué. La somme te reste due — nous la relançons, tu n'as rien à faire.",
+        "Le remboursement du reliquat n'a pas pu être effectué. La somme te reste due : " +
+        "retente la validation dans un moment. Nous avons été prévenus de notre côté.",
     };
   }
 
