@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
+/* `euros()` et non `toFixed(2)` : `toFixed` produit un POINT décimal — le
+   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
+   français le séparateur est la virgule, et sur un produit qui manipule de
+   l'argent ce détail décide de la confiance qu'on lui accorde. `euros()`
+   groupe aussi les milliers. */
+import { euros } from "@/lib/validation";
 
 /**
  * Avantages en nature — déclaration, annulation, contestation.
@@ -73,7 +79,7 @@ export async function declareInKind(formData: FormData) {
     type: "in_kind_declared",
     title: `${brand?.name ?? "Une marque"} a déclaré un cadeau`,
     body:
-      `« ${label} », valeur déclarée ${value.toFixed(2)} €. Cette valeur compte dans ` +
+      `« ${label} », valeur déclarée ${euros(value)}. Cette valeur compte dans ` +
       `ton cumul annuel avec cette marque, au même titre qu'un paiement. Si c'est ` +
       `inexact, tu peux le contester.`,
     link: "/contracts",
@@ -132,7 +138,7 @@ export async function cancelInKind(formData: FormData) {
     type: "in_kind_cancelled",
     title: `${brand?.name ?? "Une marque"} a retiré un cadeau déclaré`,
     body:
-      `« ${retiree.label} », ${Number(retiree.value).toFixed(2)} €, ne compte plus ` +
+      `« ${retiree.label} », ${euros(Number(retiree.value))}, ne compte plus ` +
       `dans ton cumul annuel avec cette marque. Ton cumul baisse d'autant : si tu ` +
       `étais au-dessus du seuil légal de 1 000 €, vérifie où tu en es.`,
     link: "/contracts",

@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+/* `euros()` et non `toFixed(2)` : `toFixed` produit un POINT décimal — le
+   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
+   français le séparateur est la virgule, et sur un produit qui manipule de
+   l'argent ce détail décide de la confiance qu'on lui accorde. `euros()`
+   groupe aussi les milliers. */
+import { euros } from "@/lib/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportError } from "@/lib/report-error";
 import { alerterAdmins } from "@/lib/alerte-admin";
@@ -240,7 +246,7 @@ async function traiterRemboursement(corpsBrut: string, brandId: string, boutique
       userId: brandId,
       type: "pixel_sale_to_review",
       title: "Remboursement partiel sur une vente commissionnée",
-      body: `Tu as remboursé ${montantRembourse.toFixed(2)} € sur une commande de ${total.toFixed(2)} € qui a rapporté une commission. À toi de décider si elle reste due — depuis ta provision.`,
+      body: `Tu as remboursé ${euros(montantRembourse)} sur une commande de ${euros(total)} qui a rapporté une commission. À toi de décider si elle reste due — depuis ta provision.`,
       link: "/billing",
     });
     return NextResponse.json({ ok: true, partiel: true });

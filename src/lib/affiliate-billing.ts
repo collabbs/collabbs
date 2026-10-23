@@ -1091,7 +1091,7 @@ export async function runAffiliatePayouts(): Promise<{
       await notify({
         userId: creatorId,
         type: "affiliate_payout_blocked",
-        title: `${net.toFixed(2)} € t'attendent`,
+        title: `${euros(net)} t'attendent`,
         body:
           "Tes commissions d'affiliation sont acquises, mais il te manque ton compte " +
           "de paiement pour les recevoir. Ça prend deux minutes.",
@@ -1280,10 +1280,10 @@ export async function runAffiliatePayouts(): Promise<{
       await notify({
         userId: creatorId,
         type: "affiliate_payout_sent",
-        title: `💸 ${net.toFixed(2)} € en route`,
+        title: `💸 ${euros(net)} en route`,
         body:
           (owed > 0
-            ? `Tes commissions d'affiliation viennent d'être versées, après déduction de ${owed.toFixed(2)} € correspondant à des ventes remboursées par la marque. `
+            ? `Tes commissions d'affiliation viennent d'être versées, après déduction de ${euros(owed)} correspondant à des ventes remboursées par la marque. `
             : "Tes commissions d'affiliation viennent d'être versées sur ton compte. ") +
           "Compte 2 à 3 jours ouvrés avant de les voir sur ton compte bancaire.",
         link: "/payouts",
@@ -1365,7 +1365,7 @@ async function onProvisionExhausted(brandId: string, creatorId: string, missing:
     title: "Ta provision est épuisée",
     body:
       `Une vente vient d'être enregistrée mais ta provision ne couvre plus la commission ` +
-      `(${missing.toFixed(2)} € manquants). Recharge maintenant pour que tes créateurs ` +
+      `(${euros(missing)} manquants). Recharge maintenant pour que tes créateurs ` +
       `soient payés — sans provision, tes campagnes d'affiliation ne peuvent plus tourner.`,
     link: "/billing",
     throttleMinutes: 60,
