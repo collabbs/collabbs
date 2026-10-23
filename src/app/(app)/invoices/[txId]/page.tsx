@@ -1,3 +1,4 @@
+import { montant as eur } from "@/lib/euros";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,7 +10,6 @@ export const metadata = {
   title: "Récapitulatif de paiement — Collabbs",
 };
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /**
  * Deux conventions ont coexisté dans `platform_fee_rate` : un taux (0,1) pour

@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import type { Reperes } from "@/lib/benchmark";
 import { phraseObservations } from "@/lib/benchmark";
 
@@ -34,7 +35,7 @@ export default function ReperesTarifaires({
       return (
         <p className="mt-2 text-xs text-zinc-500">
           Médiane sur Collabbs :{" "}
-          <strong className="tabular-nums text-zinc-700">{median} €</strong>{" "}
+          <strong className="tabular-nums text-zinc-700">{tarif(median)}</strong>{" "}
           <span className="text-zinc-400">({n} tarifs affichés)</span>
         </p>
       );
@@ -55,15 +56,15 @@ export default function ReperesTarifaires({
           Ce qui se pratique sur Collabbs
         </p>
         <p className="mt-2 text-2xl font-black tabular-nums text-ink">
-          {median} €
+          {tarif(median)}
           <span className="ml-2 align-middle text-sm font-medium text-zinc-500">
             médiane
           </span>
         </p>
         <p className="mt-1 text-sm text-zinc-600">
           La moitié des créateurs demandent entre{" "}
-          <strong className="tabular-nums">{q1} €</strong> et{" "}
-          <strong className="tabular-nums">{q3} €</strong>.
+          <strong className="tabular-nums">{tarif(q1)}</strong> et{" "}
+          <strong className="tabular-nums">{tarif(q3)}</strong>.
         </p>
         <p className="mt-2 text-xs text-zinc-400">
           Calculé sur {n}{" "}tarifs affichés. Médiane et non moyenne : un tarif

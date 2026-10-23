@@ -1,5 +1,6 @@
 "use client";
 
+import { montant, tarif } from "@/lib/euros";
 import { useState } from "react";
 import Link from "next/link";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -102,25 +103,25 @@ function rewardParts(o: Opportunity): { main: string; sub: string } {
       };
     case "video":
       return o.fixedAmount
-        ? { main: `${o.fixedAmount}€`, sub: "par contenu" }
+        ? { main: tarif(o.fixedAmount), sub: "par contenu" }
         : { main: "Fixe", sub: "à définir" };
     case "performance":
       return o.commissionValue
-        ? { main: `${o.commissionValue}€`, sub: "pour 1 000 vues" }
+        ? { main: tarif(o.commissionValue), sub: "pour 1 000 vues" }
         : { main: "Perf", sub: "à définir" };
     case "hybrid":
       return {
-        main: `${o.fixedAmount ?? 0}€`,
+        main: tarif(o.fixedAmount ?? 0),
         sub: `+ ${o.tiers.nano ?? "?"}–${o.tiers.macro ?? "?"}% comm.`,
       };
     case "cpa_flat":
       return o.cpaValuePerAction
-        ? { main: `${o.cpaValuePerAction}€`, sub: `par ${o.cpaActionLabel ?? "action"}` }
+        ? { main: tarif(o.cpaValuePerAction), sub: `par ${o.cpaActionLabel ?? "action"}` }
         : { main: "CPA", sub: "à définir" };
     case "cpa_tiers":
       return o.cpaTopTierPayout
         ? {
-            main: `${o.cpaTopTierPayout.toLocaleString("fr-FR")}€`,
+            main: tarif(o.cpaTopTierPayout),
             sub: "au palier max",
           }
         : { main: "Paliers", sub: "à définir" };
@@ -140,33 +141,33 @@ function monthlyProjection(o: Opportunity): string | null {
       const pct = o.tiers.macro;
       if (!pct) return null;
       const monthly = Math.round((10 * 50 * pct) / 100);
-      return monthly > 0 ? `jusqu'à ~${monthly}€/mois` : null;
+      return monthly > 0 ? `jusqu'à ~${tarif(monthly)}/mois` : null;
     }
     case "hybrid": {
       const fix = o.fixedAmount ?? 0;
       const pct = o.tiers.macro ?? 0;
       const monthly = Math.round(fix * 2 + (10 * 50 * pct) / 100);
-      return monthly > 0 ? `jusqu'à ~${monthly}€/mois` : null;
+      return monthly > 0 ? `jusqu'à ~${tarif(monthly)}/mois` : null;
     }
     case "video": {
       const amt = o.fixedAmount;
       if (!amt) return null;
-      return `≈ ${amt * 4}€ pour 4 contenus`;
+      return `≈ ${tarif(amt * 4)} pour 4 contenus`;
     }
     case "performance": {
       const v = o.commissionValue;
       if (!v) return null;
-      return `≈ ${v * 100}€ pour 100k vues`;
+      return `≈ ${tarif(v * 100)} pour 100k vues`;
     }
     case "cpa_flat": {
       const v = o.cpaValuePerAction;
       if (!v) return null;
       // Heuristique : 100 actions/mois pour une campagne CPA crédible.
-      return `≈ ${v * 100}€ pour 100 ${o.cpaActionLabel ?? "actions"}`;
+      return `≈ ${tarif(v * 100)} pour 100 ${o.cpaActionLabel ?? "actions"}`;
     }
     case "cpa_tiers": {
       const top = o.cpaTopTierPayout;
-      return top ? `jusqu'à ${top.toLocaleString("fr-FR")}€` : null;
+      return top ? `jusqu'à ${tarif(top)}` : null;
     }
   }
 }
@@ -307,7 +308,7 @@ export default function OpportunityCard({
             <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
               🎁{" "}
               {o.giveawayPrizeValue
-                ? `${o.giveawayPrizeValue}€ à gagner`
+                ? `${tarif(o.giveawayPrizeValue)} à gagner`
                 : "Concours"}
             </span>
           )}
@@ -400,7 +401,7 @@ export default function OpportunityCard({
               </a>
               <p className="mt-2 text-[11px] font-medium text-emerald-700">
                 <strong>{clicks}</strong> clic{clicks > 1 ? "s" : ""} ·{" "}
-                <strong>{gains}€</strong> gagnés
+                <strong>{montant(gains)}</strong> gagnés
               </p>
               <Link
                 href={`/opportunities/${o.id}`}

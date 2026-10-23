@@ -7,6 +7,7 @@ import { capaciteCampagnes } from "@/lib/limites";
 import ReprendreQuestionnaire from "./ReprendreQuestionnaire";
 import Arrivee from "./Arrivee";
 import { parTranches } from "@/lib/par-tranches";
+import { montant as eur } from "@/lib/euros";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -17,7 +18,6 @@ const TYPE_LABEL: Record<string, string> = {
   hybrid: "Hybride",
 };
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
 export default async function MyCampaignsPage() {
   const supabase = await createClient();

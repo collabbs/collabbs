@@ -23,6 +23,7 @@
  *     rémunération, dans un sens ou dans l'autre.
  */
 
+import { tarif } from "@/lib/euros";
 import { z } from "zod";
 
 /**
@@ -52,12 +53,7 @@ export const LIEN_MAX = 2_000;
  * (espace fine insécable ici, espace normale là), et un message d'erreur qu'on
  * teste ne doit pas changer selon la machine qui l'exécute.
  */
-export function euros(n: number): string {
-  const [entier, decimales] = Math.abs(n).toFixed(2).split(".");
-  const groupe = entier.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  const signe = n < 0 ? "-" : "";
-  return decimales === "00" ? `${signe}${groupe} €` : `${signe}${groupe},${decimales} €`;
-}
+export { tarif as euros };
 
 /**
  * Vrai si le nombre s'arrête au centime.
@@ -116,10 +112,10 @@ export function montantEuros(opts: {
         opts.messageMin ??
         (min === 0
           ? `${opts.quoi} ne peut pas être négatif. Saisis 0 ou plus.`
-          : `${opts.quoi} doit être d'au moins ${euros(min)}.`),
+          : `${opts.quoi} doit être d'au moins ${tarif(min)}.`),
     })
     .refine((n) => n <= max, {
-      error: `${opts.quoi} ne peut pas dépasser ${euros(max)}. Vérifie la virgule ; si le montant est bien celui-là, écris-nous et on l'ouvre.`,
+      error: `${opts.quoi} ne peut pas dépasser ${tarif(max)}. Vérifie la virgule ; si le montant est bien celui-là, écris-nous et on l'ouvre.`,
     })
     .refine(estAuCentime, {
       error: `${opts.quoi} s'arrête au centime : deux chiffres après la virgule au maximum (49,90 et non 49,9012).`,

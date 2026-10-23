@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import type { BriefDefile } from "@/lib/defile";
@@ -200,7 +201,7 @@ export function FicheCreateur({
 
       {createur.priceFrom !== null && (
         <p className="mt-5 font-display text-4xl font-black leading-none tabular-nums tracking-tight text-ink">
-          dès {createur.priceFrom.toLocaleString("fr-FR")} €
+          dès {tarif(createur.priceFrom)}
         </p>
       )}
 

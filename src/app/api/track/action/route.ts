@@ -1,3 +1,4 @@
+import { montant as eur } from "@/lib/euros";
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -46,8 +47,7 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(aBuf, bBuf);
 }
 
-const eur = (n: number) =>
-  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
 
 async function handle(p: Payload) {
   if (!p.code || !p.actionId) {

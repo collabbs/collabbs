@@ -5,10 +5,10 @@ import EmptyState from "@/components/EmptyState";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
 import { pluralizeAction } from "@/lib/cpa";
 import { parTranches } from "@/lib/par-tranches";
+import { montant as eur } from "@/lib/euros";
 
 export const metadata = { title: "Mon activité — Collabbs" };
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
 const APP_STATUS_META: Record<
   string,

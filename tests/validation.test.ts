@@ -89,13 +89,17 @@ describe("identifiants", () => {
 
 describe("montants en euros dans les messages", () => {
   it("écrit les montants lisiblement, sans dépendre de la machine", () => {
-    // Volontairement fait à la main : `toLocaleString` produit une espace
-    // fine insécable ici et une espace normale ailleurs, ce qui rendrait les
-    // messages d'erreur différents selon l'environnement.
-    expect(euros(20)).toBe("20 €");
-    expect(euros(1400)).toBe("1 400 €");
-    expect(euros(49.9)).toBe("49,90 €");
-    expect(euros(1_000_000)).toBe("1 000 000 €");
+    /* Volontairement fait à la main : `toLocaleString` produit une espace
+       fine insécable ici et une espace normale ailleurs, ce qui rendrait les
+       messages d'erreur différents selon l'environnement.
+       Les espaces sont INSÉCABLES, écrites en clair — un montant ne se coupe
+       pas en fin de ligne. `euros` n'est plus qu'un nom pour `tarif` de
+       `lib/euros.ts`, où vit désormais la seule écriture de l'argent. */
+    const NB = "\u00a0";
+    expect(euros(20)).toBe(`20${NB}€`);
+    expect(euros(1400)).toBe(`1${NB}400${NB}€`);
+    expect(euros(49.9)).toBe(`49,90${NB}€`);
+    expect(euros(1_000_000)).toBe(`1${NB}000${NB}000${NB}€`);
   });
 });
 

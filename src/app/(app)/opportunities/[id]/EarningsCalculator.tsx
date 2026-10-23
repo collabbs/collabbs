@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { useState } from "react";
 import type { CampaignType } from "@/lib/campaign";
 import { cpaTotalFor, cpaTierLabel, type CpaTier } from "@/lib/cpa";
@@ -45,7 +46,9 @@ export default function EarningsCalculator({
   // ===== CPA =====
   const [actions, setActions] = useState(100);
 
-  const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")}€`;
+  // Estimation : on arrondit à l'euro, le centime n'ajoute rien à une
+  // projection. Le format vient de `lib/euros.ts`.
+  const eur = (n: number) => tarif(Math.round(n));
 
   const ca = sales * basket;
 

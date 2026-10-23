@@ -60,7 +60,7 @@ describe("ce qui empêche un compte de disparaître", () => {
     expect(b).toHaveLength(1);
     // Le montant est dit : « une somme est immobilisée » ne fait pas
     // comprendre qu'il s'agit de 1 260 €.
-    expect(b[0].quoi).toContain("1\u202f260,00€");
+    expect(b[0].quoi).toContain("1\u00a0260,00\u00a0€");
     expect(b[0].issue).toMatch(/remboursement|terme/i);
   });
 
@@ -92,7 +92,7 @@ describe("ce qui empêche un compte de disparaître", () => {
       ],
     });
     const b = await blocagesAvantSuppression(MOI);
-    expect(b[0].quoi).toContain("52,50€");
+    expect(b[0].quoi).toContain("52,50\u00a0€");
   });
 
   it("additionne les raisons plutôt que de s'arrêter à la première", async () => {

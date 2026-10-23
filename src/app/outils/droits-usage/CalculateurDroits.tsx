@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -40,7 +41,7 @@ export default function CalculateurDroits() {
   const total = base + supplement;
   const pct = base > 0 ? Math.round((supplement / base) * 100) : 0;
 
-  const eur = (n: number) => `${n.toLocaleString("fr-FR")} €`;
+  const eur = tarif;
 
   return (
     <div className="mt-8 rounded-3xl border border-zinc-100 bg-white p-6 shadow-sm sm:p-8">

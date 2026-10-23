@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { useEffect, useRef, useState } from "react";
 import type { BriefDefile } from "@/lib/defile";
 import { assombrir, eclaircir, encreLisible, versRvb } from "@/lib/teinte";
@@ -49,7 +50,7 @@ export type Direction = "gauche" | "droite";
 export function remunerationLisible(brief: BriefDefile) {
   const c = brief.commission;
   const taux = c ? (c.min === c.max ? `${c.min} %` : `${c.min}–${c.max} %`) : null;
-  const montant = brief.montant !== null ? `${brief.montant.toLocaleString("fr-FR")} €` : null;
+  const montant = brief.montant !== null ? tarif(brief.montant) : null;
 
   if (montant && taux) {
     // Les deux : on dit d'abord ce que le forfait paie, puis la part variable.

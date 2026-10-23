@@ -1,3 +1,4 @@
+import { montant as enEuros } from "@/lib/euros";
 import { describe, it, expect } from "vitest";
 import { buildContractDocument } from "@/lib/contract-template";
 import { dealBreakdown } from "@/lib/deal";
@@ -250,15 +251,15 @@ describe("contrat de collaboration", () => {
         .paragraphs.join(" ");
 
       const { gross, fee, net } = dealBreakdown(montant);
-      // Le contrat écrit les montants au centime, comme tout document
-      // juridique : « 1 400,00 € », pas « 1400€ ».
-      // Même formatage que le modèle : espace ORDINAIRE avant l'euro, pas
-      // l'espace insécable de `style: "currency"`.
-      const fmt = (n: number) =>
-        `${n.toLocaleString("fr-FR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} €`;
+      /* Le contrat écrit les montants au centime, comme tout document
+         juridique : « 1 400,00 € », pas « 1400€ ».
+         On compare au formateur du produit (`montant`) plutôt qu'à un
+         `toLocaleString` recopié ici : la version recopiée dépendait des
+         données de langue de la machine — elle rendait une espace fine
+         insécable (U+202F) avec l'ICU installé — et le contrat, lui, doit
+         rendre la même chose partout. C'est précisément l'écart que
+         `contract-pdf.tsx` devait rattraper avant de dessiner. */
+      const fmt = enEuros;
       // Les trois montants sont énoncés, et le net est celui du calcul.
       expect(clause, `brut pour ${montant}`).toContain(fmt(gross));
       expect(clause, `frais pour ${montant}`).toContain(fmt(fee));

@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import Link from "next/link";
 import PlatformIcon from "@/components/PlatformIcon";
 import { type Creator, OFFER_BY_ID } from "./creators";
@@ -170,7 +171,7 @@ export default function CreatorCard({
               <>
                 dès{" "}
                 <span className="text-sm font-extrabold text-ink">
-                  {creator.priceFrom}€
+                  {tarif(creator.priceFrom)}
                 </span>
               </>
             ) : (

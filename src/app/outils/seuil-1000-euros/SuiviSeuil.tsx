@@ -4,6 +4,7 @@ import { useState } from "react";
 import DemandeModele from "./DemandeModele";
 import { useStockageLocal } from "@/hooks/useStockageLocal";
 import Link from "next/link";
+import { tarif as eur } from "@/lib/euros";
 import {
   etatParMarque,
   anneesPresentes,
@@ -26,7 +27,6 @@ const CLE = "collabbs.seuil.v1";
  */
 const VIDE: Ligne[] = [];
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR")} €`;
 
 /**
  * Le suivi du seuil légal, entièrement dans le navigateur.

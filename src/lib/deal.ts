@@ -83,16 +83,20 @@ export function dealBreakdown(
   return { gross: commissionCollabbs(amount + fee, 1), fee, net: amount };
 }
 
-export const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
+/* ─── Les deux formateurs d'euros n'ont plus qu'une implémentation ───
 
-/**
- * Montant financier, toujours au centime : 12 → "12,00€", 562.5 → "562,50€".
- * À utiliser partout où l'on montre de l'argent réellement dû ou versé
- * (provision, registre, commissions, versements). `eur` reste pour les
- * tarifs affichés, où "300€" se lit mieux que "300,00€".
- */
-export const eurExact = (n: number) =>
-  `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
+   Ils étaient définis ici, et sept autres fichiers en avaient recopié une
+   variante : huit façons d'écrire la même somme, dont deux se croisaient sur
+   un même écran (voir l'inventaire dans `lib/euros.ts`). Ils sont désormais
+   des NOMS pour la paire unique, gardés parce qu'une vingtaine de fichiers
+   les importent et qu'un renommage de masse n'apporterait rien de plus.
+
+   Deux changements visibles par rapport aux anciennes définitions, tous deux
+   voulus : l'espace avant l'euro, qu'impose la typographie française, et les
+   centimes de `eur` — il écrivait « 1 400,5€ » pour 1 400,50 €.
+
+   `eur` pour un tarif affiché, `eurExact` dès que la somme est due ou réglée. */
+export { tarif as eur, montant as eurExact } from "@/lib/euros";
 
 /* ══════════════════════════════════════ comment le créateur est payé ══════
 

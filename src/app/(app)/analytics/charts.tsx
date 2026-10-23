@@ -2,6 +2,7 @@
 
 /* Les nombres s'écrivent à la française : « 14,5 k » et « 4,2 % », pas
    « 14.5k » ni « 4.2% ». Les deux formateurs vivent dans `lib/performance`. */
+import { tarif } from "@/lib/euros";
 import { abrege, pourcent } from "@/lib/performance";
 
 import {
@@ -17,8 +18,11 @@ import {
   Cell,
 } from "recharts";
 
-const eur = (n: number) =>
-  `${Math.round(n).toLocaleString("fr-FR")}€`;
+/* Axes et libellés de graphique : on arrondit à l'euro. Un axe qui affiche
+   « 1 400,50 € » tous les trois pixels devient illisible, et on y lit une
+   TENDANCE, pas une somme à payer. L'espace avant l'euro vient de
+   `lib/euros.ts`, pour ne pas rouvrir une neuvième convention. */
+const eur = (n: number) => tarif(Math.round(n));
 
 /* ============ KpiTrend ============ */
 

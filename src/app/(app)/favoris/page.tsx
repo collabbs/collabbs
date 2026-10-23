@@ -3,10 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LIBELLES_TYPE, objetDuMontant } from "@/lib/collaboration";
 import { parTranches } from "@/lib/par-tranches";
+import { tarif as eur } from "@/lib/euros";
 
 export const metadata = { title: "Mes favoris — Collabbs" };
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR")} €`;
 
 /**
  * Ce qu'on a retenu pendant le défilé, retrouvé dans son espace.

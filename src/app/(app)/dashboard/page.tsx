@@ -11,6 +11,7 @@ import { dealBreakdown } from "@/lib/deal";
 import { notifyOnce } from "@/lib/notifications";
 import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
 import { parTranches } from "@/lib/par-tranches";
+import { montant as eur } from "@/lib/euros";
 
 /**
  * Le tableau de bord était la SEULE page sans titre propre : l'onglet affichait
@@ -19,7 +20,6 @@ import { parTranches } from "@/lib/par-tranches";
  */
 export const metadata = { title: "Tableau de bord — Collabbs" };
 
-const eur = (n: number) => `${n.toLocaleString("fr-FR")}€`;
 
 type Kpi = {
   label: string;

@@ -1,3 +1,4 @@
+import { montant as eur } from "@/lib/euros";
 import "server-only";
 import type { ContractSnapshot, PartySnapshot } from "@/lib/contract-snapshot";
 // Taux unique, celui qu'applique réellement le calcul du versement.
@@ -88,12 +89,6 @@ function formatLabelFor(format: string, quantity: number): string {
   return quantity > 1 ? entry.many : entry.one;
 }
 
-function eur(n: number): string {
-  return `${n.toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} €`;
-}
 
 function dateFr(iso: string | null): string {
   if (!iso) return "non précisée";

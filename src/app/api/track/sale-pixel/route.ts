@@ -1,3 +1,4 @@
+import { montant as eur } from "@/lib/euros";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { limitByIp, RATE_POLICIES } from "@/lib/rate-limit";
@@ -24,9 +25,6 @@ function pixelResponse(status = 200, extra?: Record<string, string>) {
   });
 }
 
-function eur(n: number): string {
-  return n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-}
 
 function hostOf(input: string | null): string | null {
   if (!input) return null;

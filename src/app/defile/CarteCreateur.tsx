@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import type { MarketplaceCreator } from "@/lib/creators-data";
@@ -142,7 +143,7 @@ export default function CarteCreateur({
 
         {createur.priceFrom !== null && (
           <p className="mt-4 font-display text-3xl font-black leading-none tabular-nums tracking-tight text-white">
-            dès {createur.priceFrom.toLocaleString("fr-FR")} €
+            dès {tarif(createur.priceFrom)}
           </p>
         )}
       </div>

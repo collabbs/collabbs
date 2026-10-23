@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { affiliateBreakdown, AFFILIATE_FEE_RATE, MIN_PAYOUT, VALIDATION_DAYS } from "@/lib/affiliate-billing";
 import { eur, eurExact, dealBreakdown } from "@/lib/deal";
+import { montant, tarif } from "@/lib/euros";
 
 /**
  * Les calculs d'argent.
@@ -80,12 +81,25 @@ describe("commission sur les collaborations", () => {
 describe("affichage des montants", () => {
   it("les montants financiers gardent toujours les centimes", () => {
     // Le 29 août, /billing affichait « 12€ » et « 562,5€ » à côté de « 274,46€ ».
-    expect(eurExact(12)).toBe("12,00€");
-    expect(eurExact(562.5)).toBe("562,50€");
-    expect(eurExact(274.46)).toBe("274,46€");
+    expect(eurExact(12)).toBe("12,00\u00a0€");
+    expect(eurExact(562.5)).toBe("562,50\u00a0€");
+    expect(eurExact(274.46)).toBe("274,46\u00a0€");
   });
 
   it("les tarifs affichés restent lisibles sans décimales inutiles", () => {
-    expect(eur(300)).toBe("300€");
+    expect(eur(300)).toBe("300\u00a0€");
+  });
+
+  it("une seule écriture de l'argent dans tout le produit", () => {
+    /* `eur` et `eurExact` ne sont plus que des noms pour la paire de
+       `lib/euros.ts`. Huit formateurs cohabitaient, dont deux se croisaient
+       sur l'écran /payouts : l'argent des collaborations s'y affichait
+       « 32€ » et celui de l'affiliation « 32,00€ », pour la même somme due à
+       la même personne. L'espace avant l'euro est insécable, et elle y est
+       désormais partout. */
+    expect(eur(300)).toBe(tarif(300));
+    expect(eurExact(300)).toBe(montant(300));
+    expect(eur(1400.5)).toBe("1\u00a0400,50\u00a0€");
+    expect(eurExact(1400.5)).toBe("1\u00a0400,50\u00a0€");
   });
 });
