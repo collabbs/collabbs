@@ -238,3 +238,27 @@ input[type="button"]:not(:disabled):active {
     transform: scaleX(0.6);
   }
 }
+
+/* ─── AUCUN CHAMP DE SAISIE SOUS 16 PX SUR TÉLÉPHONE ───
+
+   Safari sur iOS zoome automatiquement quand on touche un champ dont le texte
+   fait moins de 16 px : la page saute, grossit, et il faut pincer pour
+   revenir. Ça arrive au moment exact où quelqu'un tape son adresse — mesuré
+   le 23/10/2026 sur `/signup` à 375 px de large, où les trois champs étaient
+   à 14 px (`text-sm`). Vingt-neuf champs du produit étaient dans ce cas.
+
+   La règle est ici plutôt que sur chaque champ, pour deux raisons : vingt-neuf
+   classes à corriger, c'est vingt-neuf occasions d'en oublier une ; et le
+   prochain champ écrit sera couvert sans que personne y pense.
+
+   Au-delà de 640 px, les classes du produit reprennent la main : le texte des
+   formulaires reste à 14 px sur ordinateur, où le zoom n'existe pas.
+
+   `font-size` seulement — rien d'autre n'est touché. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
