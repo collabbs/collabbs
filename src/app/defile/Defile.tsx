@@ -49,10 +49,13 @@ const PAQUET_DU_JOUR = 12;
 
 export default function Defile({
   briefs,
+  restants,
   apercuMatch,
   connecte,
 }: {
   briefs: BriefDefile[];
+  /** Ce qui reste à découvrir après ce paquet. Compté par le serveur. */
+  restants: number;
   /** Connecté : la mémoire du paquet peut suivre la personne. */
   connecte?: boolean;
   /** Aperçu de l'écran de match, demandé par `?apercu=match`. */
@@ -107,20 +110,27 @@ export default function Defile({
   /**
    * Ce qui reste à découvrir, et qu'on annonce à l'écran.
    *
-   * ─── Le compteur qui mentait ───
-   * Il existait en DEUX exemplaires, avec deux formules différentes : l'écran
-   * de fin disait `briefs - vues`, l'écran de relance `briefs - vues - index - 1`.
-   * Or `vues` grandit à CHAQUE décision, et `index` compte exactement les mêmes
-   * cartes : la relance retranchait donc la progression deux fois. Après six
-   * coups de cœur elle annonçait une trentaine de campagnes là où il y en avait
-   * plus de trente-cinq — et le chiffre baissait deux fois plus vite que la
-   * réalité.
+   * ─── Deux corrections, dans cet ordre ───
+   * Le compteur existait d'abord en DEUX exemplaires, avec deux formules
+   * différentes : l'écran de fin disait `briefs - vues`, l'écran de relance
+   * `briefs - vues - index - 1`. Or `vues` grandit à CHAQUE décision, et
+   * `index` compte exactement les mêmes cartes : la relance retranchait donc
+   * la progression deux fois, et le chiffre baissait deux fois plus vite que
+   * la réalité.
    *
-   * Une promesse chiffrée qui se dément à la visite suivante coûte plus cher
-   * que pas de chiffre du tout. Il n'y en a donc plus qu'une définition, et les
-   * deux écrans la partagent : elles ne peuvent plus diverger.
+   * Il ne restait qu'une formule, mais elle comptait LE PAQUET et non le
+   * catalogue : `briefs.length - vues.length`. C'était vrai du temps où le
+   * paquet était tout ce qui existait. Depuis qu'il se renouvelle, mesuré avec
+   * 874 campagnes actives publiques en base, l'écran de fin annonçait « 38
+   * autres t'attendent demain » après douze cartes — alors qu'il en restait
+   * 862. Vingt-deux fois moins, sur le seul écran dont le métier est de faire
+   * revenir quelqu'un.
+   *
+   * Le navigateur ne peut pas connaître ce nombre : il ne voit que son paquet.
+   * Il vient donc du serveur, qui le compte (voir `PaquetDeBriefs.restants`),
+   * et les deux écrans lisent la même valeur — elles ne peuvent pas diverger.
    */
-  const restantsAVoir = Math.max(0, briefs.length - vues.length);
+  const restantsAVoir = restants;
 
   const brief = paquet[index];
   const suivant = paquet[index + 1];

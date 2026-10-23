@@ -48,12 +48,16 @@ export default async function PageDefile({
     data: { user: utilisateur },
   } = await (await createClient()).auth.getUser();
 
-  const briefs = cotéMarque ? [] : await briefsDuDefile(utilisateur?.id);
+  const paquetBriefs = cotéMarque
+    ? { briefs: [], restants: 0 }
+    : await briefsDuDefile(utilisateur?.id);
   /* `createursDuDefile` et NON `getMarketplaceCreators` : le second renvoie
      l'annuaire entier — 330 ko de propriétés pour un écran où la marque verra
      douze cartes, et une mémoire du « déjà vu » qui ne survivait pas au
      changement d'appareil. */
-  const createurs = cotéMarque ? await createursDuDefile(utilisateur?.id) : [];
+  const paquetCreateurs = cotéMarque
+    ? await createursDuDefile(utilisateur?.id)
+    : { createurs: [], restants: 0 };
 
   return (
     /* ⚠️ `h-dvh` et non `min-h-dvh`, avec une colonne.
@@ -115,9 +119,19 @@ export default async function PageDefile({
       <Trace etape="defile_ouvert" cote={cotéMarque ? "marque" : "createur"} />
       <div className="min-h-0 flex-1">
       {cotéMarque ? (
-        <DefileCreateurs createurs={createurs} apercuMatch={apercu === "match"} connecte={Boolean(utilisateur)} />
+        <DefileCreateurs
+          createurs={paquetCreateurs.createurs}
+          restants={paquetCreateurs.restants}
+          apercuMatch={apercu === "match"}
+          connecte={Boolean(utilisateur)}
+        />
       ) : (
-        <Defile briefs={briefs} apercuMatch={apercu === "match"} connecte={Boolean(utilisateur)} />
+        <Defile
+          briefs={paquetBriefs.briefs}
+          restants={paquetBriefs.restants}
+          apercuMatch={apercu === "match"}
+          connecte={Boolean(utilisateur)}
+        />
       )}
       </div>
     </div>

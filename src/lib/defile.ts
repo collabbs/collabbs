@@ -215,7 +215,30 @@ async function marquesQuiOntRetenu(
  * d'identité à croiser. Le match devient donc une raison d'avoir un compte,
  * au lieu d'un artifice pour en faire créer un.
  */
-export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]> {
+export type PaquetDeBriefs = {
+  briefs: BriefDefile[];
+  /**
+   * Combien de campagnes la personne n'a pas encore vues, APRÈS ce paquet.
+   *
+   * C'est ce nombre que l'écran de fin annonce — « N autres t'attendent
+   * demain » — et c'est lui qui donne une raison de revenir. Il était calculé
+   * côté navigateur comme « taille du paquet moins cartes vues » : vrai du
+   * temps où le paquet ÉTAIT tout ce qui existait, faux depuis qu'il se
+   * renouvelle. Mesuré le 23/10/2026 avec 874 campagnes actives publiques en
+   * base : après douze cartes, l'écran annonçait 38 autres alors qu'il en
+   * restait 862. Vingt-deux fois moins, sur le seul écran dont le métier est
+   * de faire revenir quelqu'un.
+   *
+   * C'est une BORNE INFÉRIEURE, volontairement : on retranche toutes les
+   * cartes déjà vues du total des campagnes actives, alors que certaines de
+   * ces cartes portent des campagnes depuis terminées — qui ne comptent plus
+   * dans le total. Le vrai nombre est donc supérieur ou égal. Annoncer moins
+   * que la réalité ne se démentira jamais ; annoncer plus, si.
+   */
+  restants: number;
+};
+
+export async function briefsDuDefile(createurId?: string): Promise<PaquetDeBriefs> {
   const admin = createAdminClient();
 
   /* ─── CE QUE LA PERSONNE A DÉJÀ VU SE LIT AVANT, PAS APRÈS ───
@@ -264,7 +287,7 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
     // Un lot incomplet veut dire qu'on a touché le fond de la table.
     if (data.length >= TAILLE_PAQUET || lot.length < TAILLE_PASSAGE) break;
   }
-  if (data.length === 0) return [];
+  if (data.length === 0) return { briefs: [], restants: 0 };
 
   // Une seule lecture par site, en parallèle : plusieurs campagnes d'une même
   // marque ne doivent pas déclencher plusieurs requêtes.
@@ -371,10 +394,38 @@ export async function briefsDuDefile(createurId?: string): Promise<BriefDefile[]
      cartes sans photo restent dans le paquet, elles passent après. */
   // Plus de `.filter(!dejaVues.has(…))` ici : l'exclusion se fait pendant le
   // balayage, sinon elle vide le paquet au lieu de le renouveler.
-  return briefs
-    .sort((a, b) => {
-      const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
-      const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
-      return forceB - forceA;
-    });
+  const classes = briefs.sort((a, b) => {
+    const forceA = a.photos.length > 0 ? 2 : a.enseigne ? 1 : 0;
+    const forceB = b.photos.length > 0 ? 2 : b.enseigne ? 1 : 0;
+    return forceB - forceA;
+  });
+
+  return { briefs: classes, restants: await restantsApres(admin, dejaVues.size, classes.length) };
+}
+
+/**
+ * Borne inférieure du nombre de campagnes encore à découvrir.
+ *
+ * Un `count` et rien d'autre : pas de liste d'identifiants dans l'URL, donc
+ * pas de falaise à 350 UUID (voir `par-tranches.ts`). Le raisonnement sur la
+ * borne est dans `PaquetDeBriefs.restants`.
+ */
+async function restantsApres(
+  admin: ReturnType<typeof createAdminClient>,
+  dejaVues: number,
+  paquet: number,
+): Promise<number> {
+  /* La MÊME condition que `lireUnPassage`, jointure de marque comprise. Si
+     le compte portait sur plus de campagnes que le paquet n'en sert, il
+     dépasserait la borne inférieure et la promesse pourrait se démentir. */
+  const base = admin
+    .from("campaigns")
+    .select(demoDansLeDefile() ? "id" : "id, brands!inner(is_demo)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("status", "active")
+    .eq("privee", false);
+  const { count } = demoDansLeDefile() ? await base : await base.neq("brands.is_demo", true);
+  return Math.max(0, (count ?? 0) - dejaVues - paquet);
 }

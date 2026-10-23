@@ -48,7 +48,7 @@ const PROPOSITIONS = [
 ];
 
 export default async function PageEssais() {
-  const briefs = await briefsDuDefile();
+  const { briefs } = await briefsDuDefile();
   // On prend une campagne qui a un logo : c'est le cas qui départage vraiment
   // les propositions. Sans logo, elles se ressemblent toutes.
   const brief = briefs.find((b) => b.image) ?? briefs[0];

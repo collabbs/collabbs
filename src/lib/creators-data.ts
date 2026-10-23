@@ -383,7 +383,26 @@ const PASSAGES_DEFILE_MAX = 10;
  * remplir un paquet. Non connecté, il n'y a rien à croiser : un seul passage,
  * exactement comme avant.
  */
-export async function createursDuDefile(marqueId?: string): Promise<MarketplaceCreator[]> {
+export type PaquetDeCreateurs = {
+  createurs: MarketplaceCreator[];
+  /**
+   * Combien de créateurs la marque n'a pas encore vus, APRÈS ce paquet.
+   *
+   * Même raisonnement que `PaquetDeBriefs.restants` dans `lib/defile.ts` :
+   * c'est le nombre que l'écran de fin annonce, il était calculé sur la
+   * taille du paquet, et c'est lui qui donne une raison de revenir.
+   *
+   * BORNE INFÉRIEURE : on retranche toutes les cartes déjà vues du total des
+   * fiches, alors que certaines portent des profils devenus incomplets —
+   * donc sortis du catalogue, donc hors du total. Et le total compte les
+   * fiches, pas les profils COMPLETS : une fiche sans photo n'apparaît
+   * jamais dans le défilé. Les deux écarts vont dans le même sens, celui de
+   * la prudence. Annoncer moins que la réalité ne se démentira pas.
+   */
+  restants: number;
+};
+
+export async function createursDuDefile(marqueId?: string): Promise<PaquetDeCreateurs> {
   const dejaVues = new Set<string>();
   if (marqueId) {
     const supabase = await createClient();
@@ -416,7 +435,18 @@ export async function createursDuDefile(marqueId?: string): Promise<MarketplaceC
     // Un passage incomplet veut dire qu'on a touché le fond de la table.
     if (paquet.length >= PAQUET_DEFILE || fiches.length < PASSAGE_DEFILE) break;
   }
-  return paquet;
+
+  /* Un `count` et rien d'autre : pas de liste d'identifiants dans l'URL, donc
+     pas de falaise à 350 UUID (voir `par-tranches.ts`). La condition est
+     celle de `lireFiches`. */
+  const supabase = await createClient();
+  const total = supabase.from("creators").select("id", { count: "exact", head: true });
+  const { count } = demoCreatorsVisible() ? await total : await total.neq("is_demo", true);
+
+  return {
+    createurs: paquet,
+    restants: Math.max(0, (count ?? 0) - dejaVues.size - paquet.length),
+  };
 }
 
 export type CreatorProfileData = {

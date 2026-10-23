@@ -46,10 +46,13 @@ const PAQUET_DU_JOUR = 12;
 
 export default function DefileCreateurs({
   createurs,
+  restants,
   apercuMatch,
   connecte,
 }: {
   createurs: MarketplaceCreator[];
+  /** Ce qui reste à découvrir après ce paquet. Compté par le serveur. */
+  restants: number;
   /** Connecté : la mémoire du paquet peut suivre la personne. */
   connecte?: boolean;
   /** Aperçu de l'écran de match, demandé par `?apercu=match`. */
@@ -177,6 +180,22 @@ export default function DefileCreateurs({
               Crée ton compte pour leur envoyer ton brief. Contrat généré tout
               seul, paiement bloqué jusqu&apos;à la livraison.
             </p>
+            {/* ─── CE QUI RESTE SE DIT AUSSI DE CE CÔTÉ ───
+                L'écran de fin côté créateur annonce « N autres t'attendent
+                demain » ; celui de la marque ne disait rien. Une marque qui
+                avait fait défiler douze profils repartait sans savoir s'il y
+                en avait treize ou cinq cents — donc sans raison de revenir,
+                et avec le sentiment d'avoir vu le catalogue. C'est le seul
+                argument qu'une place de marché possède vraiment, et il est
+                vrai : le nombre vient du serveur. */}
+            {restants > 0 && (
+              <p className="mt-4 text-[15px] font-semibold text-ink">
+                <span className="bg-[linear-gradient(135deg,#5b21b6_0%,#7c3aed_50%,#06b6d4_100%)] bg-clip-text text-transparent">
+                  {restants} autres
+                </span>{" "}
+                t&apos;attendent demain.
+              </p>
+            )}
             {/* Connectée, la marque n'a pas de compte à créer : elle a des
                 créateurs à contacter depuis son espace. */}
             <Link
@@ -231,7 +250,11 @@ export default function DefileCreateurs({
               couleur: "#3b2a52",
             }))}
           nombre={reperages.length}
-          restants={Math.max(0, createurs.length - vues.length - index - 1)}
+          /* Le navigateur ne voit que son paquet : il comptait donc le
+             paquet, pas le catalogue, et l'écran de fin annonçait une
+             poignée de créateurs alors que des centaines restaient. Le
+             nombre vient du serveur (voir `PaquetDeCreateurs.restants`). */
+          restants={restants}
           cote="marque"
           onContinuer={() => setRelance(false)}
         />
