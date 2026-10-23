@@ -10,11 +10,23 @@ import Link from "next/link";
  *     /creators        4,9 Mo de HTML
  *     /opportunities   2,8 Mo de HTML
  *
- * Le serveur répondait vite (1,7 s et 0,9 s), donc rien ne paraissait cassé de
- * ce côté. Mais 4,9 Mo, c'est une quinzaine de secondes d'écran blanc sur un
- * téléphone en 4G moyenne — et le créateur qui attend ne sait pas qu'il
- * attend du HTML, il croit que le site ne marche pas. La page la plus lourde
- * du produit est celle qu'un créateur ouvre en premier.
+ * ─── CE QUE CES MÉGAOCTETS COÛTENT VRAIMENT (corrigé) ───
+ * J'ai d'abord écrit que 4,9 Mo faisaient « une quinzaine de secondes d'écran
+ * blanc en 4G ». C'était faux d'un ordre de grandeur : le HTML part compressé,
+ * et ce balisage-là, répété cinq cents fois, se comprime quinze fois. Mesuré
+ * le 23/10/2026, annuaire complet contre annuaire paginé :
+ *
+ *     500 fiches   5 311 040 o bruts →   360 448 o compressés  (~1,0 s à 3 Mbit/s)
+ *      24 fiches     321 228 o bruts →    34 395 o compressés  (~0,1 s)
+ *
+ * Les quinze secondes étaient du TEMPS SERVEUR, et rien d'autre — c'est le
+ * correctif `par-tranches.ts` qui les a enlevées, pas celui-ci.
+ *
+ * La pagination reste justifiée, pour trois raisons qui ne sont pas le
+ * transfert : dix fois moins de données sur un forfait mobile ; un téléphone
+ * de milieu de gamme doit analyser puis hydrater ces 5,3 Mo de balisage, ce
+ * qui se paie en secondes de processeur ; et surtout, le poids grandissait
+ * à CHAQUE inscription, sur la première page qu'un créateur ouvre.
  *
  * Ce n'est pas un défaut d'aujourd'hui : il grandit tout seul. Chaque
  * créateur qui s'inscrit ajoute une dizaine de kilo-octets à la page que
