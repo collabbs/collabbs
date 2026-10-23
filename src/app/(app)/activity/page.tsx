@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
 import { pluralizeAction } from "@/lib/cpa";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Mon activité — Collabbs" };
 
@@ -50,12 +51,14 @@ export default async function ActivityPage() {
 
   // Events de chaque lien
   const linkIds = linkRows.map((l) => l.id);
-  const { data: events } = linkIds.length
-    ? await supabase
-        .from("affiliate_events")
-        .select("link_id, type, status, commission_amount, sale_amount, action_count")
-        .in("link_id", linkIds)
-    : { data: [] };
+  // Découpé : un créateur affilié à plus de ~350 campagnes ferait basculer
+  // cette requête de cent millisecondes à huit secondes (`par-tranches.ts`).
+  const events = await parTranches(linkIds, (t) =>
+    supabase
+      .from("affiliate_events")
+      .select("link_id, type, status, commission_amount, sale_amount, action_count")
+      .in("link_id", t),
+  );
   const perfByLink = new Map<
     string,
     { clicks: number; sales: number; actions: number; gains: number }
@@ -111,24 +114,24 @@ export default async function ActivityPage() {
       ...appRows.map((a) => a.campaign_id),
     ]),
   );
-  const { data: campaignsData } = campaignIds.length
-    ? await supabase
-        .from("campaigns")
-        .select("id, name, type, status, brand_id, cpa_action_label, brands(name, logo_url)")
-        .in("id", campaignIds)
-    : { data: [] };
-  const campaignMap = new Map((campaignsData ?? []).map((c) => [c.id, c]));
+  const campaignsData = await parTranches(campaignIds, (t) =>
+    supabase
+      .from("campaigns")
+      .select("id, name, type, status, brand_id, cpa_action_label, brands(name, logo_url)")
+      .in("id", t),
+  );
+  const campaignMap = new Map(campaignsData.map((c) => [c.id, c]));
 
   const brandIds = Array.from(
     new Set([
       ...dealRows.map((d) => d.brand_id),
-      ...(campaignsData ?? []).map((c) => c.brand_id),
+      ...campaignsData.map((c) => c.brand_id),
     ]),
   );
-  const { data: brandsData } = brandIds.length
-    ? await supabase.from("brands").select("id, name, logo_url").in("id", brandIds)
-    : { data: [] };
-  const brandMap = new Map((brandsData ?? []).map((b) => [b.id, b]));
+  const brandsData = await parTranches(brandIds, (t) =>
+    supabase.from("brands").select("id, name, logo_url").in("id", t),
+  );
+  const brandMap = new Map(brandsData.map((b) => [b.id, b]));
 
   // Stats top
   const totalClicks = Array.from(perfByLink.values()).reduce(

@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "./supabase/admin";
 import { notify } from "./notifications";
+import { parTranches } from "@/lib/par-tranches";
 
 /**
  * Le match : quand les deux côtés se sont choisis, sans le savoir.
@@ -58,13 +59,20 @@ export async function verifierMatch(brandId: string, creatorId: string): Promise
        retient deux campagnes de la même marque est le cas normal, pas le cas
        rare. Le match échouait donc précisément quand il avait le plus de
        raisons de se produire. */
-    const { data: favoris } = await admin
-      .from("campagnes_favorites")
-      .select("campaign_id")
-      .eq("creator_id", creatorId)
-      .in("campaign_id", ids)
-      .limit(1);
-    const favori = favoris?.[0];
+    /* Découpé : une marque-agence peut porter des centaines de campagnes, et
+       une liste de plus de ~350 UUID coûte huit secondes au lieu de cent
+       millisecondes (voir `par-tranches.ts`). Le `.limit(1)` ne vaut qu'à
+       l'intérieur d'une tranche, ce qui est exactement ce qu'on veut : on
+       cherche s'il existe AU MOINS un favori, pas lequel. */
+    const favoris = await parTranches(ids, (t) =>
+      admin
+        .from("campagnes_favorites")
+        .select("campaign_id")
+        .eq("creator_id", creatorId)
+        .in("campaign_id", t)
+        .limit(1),
+    );
+    const favori = favoris[0];
     if (!favori) return false;
 
     // Les deux se sont choisis. On le dit — aux deux.

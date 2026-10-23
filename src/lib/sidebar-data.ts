@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { compterParTranches } from "@/lib/par-tranches";
 
 export type SidebarData = {
   role: "creator" | "brand";
@@ -71,27 +72,38 @@ export const fetchSidebarData = cache(
     );
 
     // Phase 2 : les requêtes qui dépendent des résultats phase 1.
-    const [unreadMsgsRes, pendingAppsRes, brandRowRes] = await Promise.all([
-      convIds.length > 0
-        ? supabase
-            .from("messages")
-            .select("*", { count: "exact", head: true })
-            .in("conversation_id", convIds)
-            .neq("sender_id", userId)
-            .is("read_at", null)
-        : Promise.resolve({ count: 0 }),
+    /* ⚠️ `compterParTranches` et NON un `.in(…)` direct sur les deux
+       premieres requetes.
+       Ce bandeau est rendu a CHAQUE page de l'espace connecte. Une liste
+       d'UUID passee dans l'URL d'une requete PostgREST franchit une marche
+       vers 350 entrees : au-dela, huit secondes au lieu de cent
+       millisecondes (voir `par-tranches.ts`). Une marque-agence avec 400
+       campagnes, ou un compte avec 400 conversations, ne verrait pas une
+       page lente — il verrait TOUT le produit lent, y compris les ecrans qui
+       n'ont rien a voir. */
+    const [unreadMsgs, pendingApps, brandRowRes] = await Promise.all([
+      compterParTranches(convIds, (t) =>
+        supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .in("conversation_id", t)
+          .neq("sender_id", userId)
+          .is("read_at", null),
+      ),
       // Côté marque, le badge annonce « des candidatures à traiter ». Sans le
       // filtre sur `initiated_by`, ses propres invitations en attente s'y
       // ajouteraient : elle verrait un compteur monter en invitant des gens,
       // et cliquerait pour trouver un écran où il n'y a rien à décider.
-      role === "brand" && campIds.length > 0
-        ? supabase
-            .from("applications")
-            .select("*", { count: "exact", head: true })
-            .in("campaign_id", campIds)
-            .eq("initiated_by", "creator")
-            .eq("status", "pending")
-        : Promise.resolve({ count: 0 }),
+      role === "brand"
+        ? compterParTranches(campIds, (t) =>
+            supabase
+              .from("applications")
+              .select("*", { count: "exact", head: true })
+              .in("campaign_id", t)
+              .eq("initiated_by", "creator")
+              .eq("status", "pending"),
+          )
+        : Promise.resolve(0),
       role === "brand" && hasAffiliation
         ? supabase
             .from("brands")
@@ -102,9 +114,9 @@ export const fetchSidebarData = cache(
     ]);
 
     const badges: Record<string, number> = {};
-    if (unreadMsgsRes.count) badges["/messages"] = unreadMsgsRes.count;
+    if (unreadMsgs) badges["/messages"] = unreadMsgs;
     if (unreadNotifsRes.count) badges["/notifications"] = unreadNotifsRes.count;
-    if (pendingAppsRes.count) badges["/campaigns"] = pendingAppsRes.count;
+    if (pendingApps) badges["/campaigns"] = pendingApps;
 
     // Badge "Mon activité" côté créateur : nb liens actifs + candidatures pending
     if (role === "creator") {

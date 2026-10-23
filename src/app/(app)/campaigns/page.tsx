@@ -6,6 +6,7 @@ import { countsAsEarning } from "@/lib/affiliate-earnings";
 import { capaciteCampagnes } from "@/lib/limites";
 import ReprendreQuestionnaire from "./ReprendreQuestionnaire";
 import Arrivee from "./Arrivee";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -52,23 +53,26 @@ export default async function MyCampaignsPage() {
     .eq("brand_id", user.id);
   const campaignIds = campaigns.map((c) => c.id);
 
-  const [linksRes, appsRes] = await Promise.all([
-    supabase.from("affiliate_links").select("id, campaign_id").in("campaign_id", campaignIds),
-    supabase
-      .from("applications")
-      .select("campaign_id, initiated_by")
-      .in("campaign_id", campaignIds),
+  // Trois découpages : les campagnes d'une marque-agence, leurs liens, puis
+  // les ventes de ces liens. Chaque liste peut passer les ~350 UUID au-delà
+  // desquels la requête coûte huit secondes (voir `par-tranches.ts`).
+  const [links, apps] = await Promise.all([
+    parTranches(campaignIds, (t) =>
+      supabase.from("affiliate_links").select("id, campaign_id").in("campaign_id", t),
+    ),
+    parTranches(campaignIds, (t) =>
+      supabase.from("applications").select("campaign_id, initiated_by").in("campaign_id", t),
+    ),
   ]);
-  const links = linksRes.data ?? [];
 
-  const eventsRes = await supabase
-    .from("affiliate_events")
-    .select("link_id, type, status, sale_amount, commission_amount")
-    .in(
-      "link_id",
-      links.map((l) => l.id),
-    );
-  const events = eventsRes.data ?? [];
+  const events = await parTranches(
+    links.map((l) => l.id),
+    (t) =>
+      supabase
+        .from("affiliate_events")
+        .select("link_id, type, status, sale_amount, commission_amount")
+        .in("link_id", t),
+  );
 
   // Agrégations par campagne
   const linkToCampaign = new Map(links.map((l) => [l.id, l.campaign_id]));
@@ -86,7 +90,7 @@ export default async function MyCampaignsPage() {
   // Le compteur s'appelle « Candidatures » : il ne doit compter que ce que des
   // créateurs ont envoyé. Y mêler les invitations de la marque lui ferait lire
   // sa propre activité comme de la demande entrante.
-  for (const a of appsRes.data ?? [])
+  for (const a of apps)
     if (a.initiated_by === "creator") add(applications, a.campaign_id, 1);
   for (const e of events) {
     const cid = linkToCampaign.get(e.link_id);

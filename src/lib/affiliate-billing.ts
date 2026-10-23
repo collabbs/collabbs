@@ -9,6 +9,7 @@ import { reportError } from "@/lib/report-error";
 import { TARIFS } from "@/lib/tarifs";
 import { tauxAffiliation } from "@/lib/tarifs";
 import { planDeLaMarque } from "@/lib/abonnement";
+import { parTranches, parTranchesSuivi } from "@/lib/par-tranches";
 
 /**
  * Circuit d'argent de l'affiliation.
@@ -691,11 +692,18 @@ export async function reserveOutstanding(
   const campaignIds = ((campaigns ?? []) as { id: string }[]).map((c) => c.id);
   if (campaignIds.length === 0) return { reserved: 0, total: 0 };
 
-  const { data: links } = await admin
-    .from("affiliate_links")
-    .select("id")
-    .in("campaign_id", campaignIds);
-  const linkIds = ((links ?? []) as { id: string }[]).map((l) => l.id);
+  /* ⚠️ `parTranches` et NON un `.in(ids)` direct, ici et juste en dessous.
+     Une marque-agence peut porter des centaines de campagnes, et chaque
+     campagne d'affiliation un lien par créateur : les deux listes passent le
+     cap des 350 UUID bien avant d'être exotiques. Au-delà, la requête coûte
+     huit secondes au lieu de cent millisecondes (voir `par-tranches.ts`), et
+     c'est ici qu'on décide quelles commissions sont provisionnées — donc qui
+     sera payé. Une page lente est désagréable ; un approvisionnement qui
+     expire est de l'argent qui n'arrive pas. */
+  const links = await parTranches<{ id: string }>(campaignIds, (t) =>
+    admin.from("affiliate_links").select("id").in("campaign_id", t),
+  );
+  const linkIds = links.map((l) => l.id);
   if (linkIds.length === 0) return { reserved: 0, total: 0 };
 
   // ⚠️ `needs_review` EXCLU — et c'est tout le sujet.
@@ -709,19 +717,29 @@ export async function reserveOutstanding(
   // approvisionnement finançait donc silencieusement des ventes que personne
   // n'avait confirmées : le portillon existait, et le versement passait à côté.
   // Une vente en revue ne se finance que par `confirmerVente`.
-  const { data: dues } = await admin
-    .from("affiliate_events")
-    .select("id, commission_amount, platform_fee")
-    .eq("status", "unfunded")
-    .eq("needs_review", false)
-    .in("link_id", linkIds)
-    .order("occurred_at", { ascending: true });
-
-  const lignes = ((dues ?? []) as {
+  /* `occurred_at` est demandé dans le SELECT uniquement pour pouvoir
+     retrier après coup : le tri d'une requête ne vaut qu'à l'intérieur d'une
+     tranche, et l'ordre compte — la provision finance les commissions les
+     plus anciennes d'abord. Sans ce retri, une provision insuffisante
+     paierait les ventes d'hier et laisserait celles du mois dernier. */
+  const dues = await parTranches<{
     id: string;
     commission_amount: number | null;
     platform_fee: number | null;
-  }[]).filter((e) => Number(e.commission_amount ?? 0) > 0);
+    occurred_at: string;
+  }>(linkIds, (t) =>
+    admin
+      .from("affiliate_events")
+      .select("id, commission_amount, platform_fee, occurred_at")
+      .eq("status", "unfunded")
+      .eq("needs_review", false)
+      .in("link_id", t)
+      .order("occurred_at", { ascending: true }),
+  );
+
+  const lignes = dues
+    .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
+    .filter((e) => Number(e.commission_amount ?? 0) > 0);
 
   let reserved = 0;
   for (const e of lignes) {
@@ -988,8 +1006,14 @@ async function libererLotsAbandonnes(): Promise<number> {
   if (!mortes || mortes.length === 0) return 0;
 
   const ids = mortes.map((t) => t.id);
-  await admin.from("affiliate_events").update({ payout_id: null }).in("payout_id", ids);
-  await admin.from("transactions").update({ status: "cancelled" }).in("id", ids);
+  // Un passage coupé en boucle peut laisser des centaines de lots en attente ;
+  // ce serait exactement le moment où cette reprise doit marcher.
+  await parTranches(ids, (t) =>
+    admin.from("affiliate_events").update({ payout_id: null }).in("payout_id", t).select("id"),
+  );
+  await parTranches(ids, (t) =>
+    admin.from("transactions").update({ status: "cancelled" }).in("id", t).select("id"),
+  );
   // Signalé sans faire échouer : le versement reprend son cours, mais un lot
   // abandonné veut dire qu'un passage a été coupé, et ça doit se savoir.
   void reportError("affiliate/lots-abandonnes", `${ids.length} lot(s) repris`, {
@@ -1145,15 +1169,25 @@ export async function runAffiliatePayouts(): Promise<{
     // Si on faisait le virement d'abord, une écriture ratée juste après
     // laisserait les ventes « validées » et le passage suivant les paierait
     // une seconde fois — de l'argent réel, deux fois.
-    const { data: prises, error: errPrise } = await admin
-      .from("affiliate_events")
-      .update({ payout_id: tx.id })
-      .in("id", bucket.ids)
-      .eq("status", "validated")
-      .is("payout_id", null)
-      .select("id");
+    /* Découpé : le lot d'un créateur prolifique peut compter des centaines de
+       ventes, et une liste d'UUID au-delà de ~350 fait basculer la requête de
+       cent millisecondes à huit secondes (voir `par-tranches.ts`). La
+       restitution juste en dessous passe par `.eq("payout_id", tx.id)` et non
+       par une liste : elle rend tout, quelle que soit la tranche qui a
+       échoué. */
+    const { data: prises, error: errPrise } = await parTranchesSuivi<{ id: string }>(
+      bucket.ids,
+      (t) =>
+        admin
+          .from("affiliate_events")
+          .update({ payout_id: tx.id })
+          .in("id", t)
+          .eq("status", "validated")
+          .is("payout_id", null)
+          .select("id"),
+    );
 
-    if (errPrise || !prises || prises.length !== bucket.ids.length) {
+    if (errPrise || prises.length !== bucket.ids.length) {
       // Lot incomplet : une autre exécution est passée en même temps, ou
       // l'écriture a échoué. On rend ce qu'on avait pris et on laisse le
       // prochain passage refaire le compte proprement — rien n'est perdu.
@@ -1163,7 +1197,7 @@ export async function runAffiliatePayouts(): Promise<{
         .eq("payout_id", tx.id);
       await admin.from("transactions").update({ status: "cancelled" }).eq("id", tx.id);
       void reportError("affiliate/payout-prise", errPrise ?? "lot incomplet", {
-        detail: `créateur ${creatorId} · ${prises?.length ?? 0}/${bucket.ids.length} ventes prises`,
+        detail: `créateur ${creatorId} · ${prises.length}/${bucket.ids.length} ventes prises`,
       });
       result.failed++;
       continue;
@@ -1208,10 +1242,13 @@ export async function runAffiliatePayouts(): Promise<{
         });
       }
 
-      const { error: errVentes } = await admin
-        .from("affiliate_events")
-        .update({ status: "paid", paid_at: new Date().toISOString(), payout_id: tx.id })
-        .in("id", bucket.ids);
+      const { error: errVentes } = await parTranchesSuivi(bucket.ids, (t) =>
+        admin
+          .from("affiliate_events")
+          .update({ status: "paid", paid_at: new Date().toISOString(), payout_id: tx.id })
+          .in("id", t)
+          .select("id"),
+      );
       if (errVentes) {
         // Les ventes restent rattachées à cette transaction (`payout_id`), donc
         // elles ne repartiront pas dans un autre lot. Il reste à corriger leur
@@ -1235,12 +1272,20 @@ export async function runAffiliatePayouts(): Promise<{
       // exécutions concurrentes solderaient la même dette deux fois et
       // rendraient l'argent deux fois à la marque plus bas.
       if (owed > 0) {
-        const { data: soldees } = await admin
-          .from("affiliate_clawbacks")
-          .update({ settled_at: new Date().toISOString(), settled_by_tx: tx.id })
-          .in("id", (clawbacks ?? []).map((c) => c.id))
-          .is("settled_at", null)
-          .select("id, amount, brand_id");
+        const { data: soldees } = await parTranchesSuivi<{
+          id: string;
+          amount: number;
+          brand_id: string;
+        }>(
+          (clawbacks ?? []).map((c) => c.id),
+          (t) =>
+            admin
+              .from("affiliate_clawbacks")
+              .update({ settled_at: new Date().toISOString(), settled_by_tx: tx.id })
+              .in("id", t)
+              .is("settled_at", null)
+              .select("id, amount, brand_id"),
+        );
 
         // ─── La commission récupérée revient à la marque ───
         //

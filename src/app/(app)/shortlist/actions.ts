@@ -132,6 +132,8 @@ export async function inviterCreateurs(
   // Qui est déjà en relation avec cette campagne — candidature reçue comme
   // invitation déjà envoyée. La contrainte d'unicité en base ne fait pas la
   // différence entre les deux, la lecture non plus.
+  // Pas de découpage : `MAX_INVITATIONS_PAR_ENVOI` plafonne `creatorIds` à 50,
+  // bien en dessous de la marche des ~350 UUID (voir `par-tranches.ts`).
   const { data: existantes } = await supabase
     .from("applications")
     .select("creator_id")

@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import Pagination, { decouper } from "@/components/Pagination";
 import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 import { demoVisible } from "@/lib/demo-data";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Opportunités — Collabbs" };
 
@@ -122,17 +123,20 @@ export default async function OpportunitiesPage({
   );
 
   // Clics par campagne (le créateur peut lire les events de ses propres liens)
-  const myEventsRes = await supabase
-    .from("affiliate_events")
-    .select("link_id, type, status, commission_amount")
-    .in(
-      "link_id",
-      linkRows.map((l) => l.id),
-    );
+  // Découpé : un créateur affilié à plus de ~350 campagnes verrait cette
+  // page coûter huit secondes au lieu de une (voir `par-tranches.ts`).
+  const myEvents = await parTranches(
+    linkRows.map((l) => l.id),
+    (t) =>
+      supabase
+        .from("affiliate_events")
+        .select("link_id, type, status, commission_amount")
+        .in("link_id", t),
+  );
   const linkToCampaign = new Map(linkRows.map((l) => [l.id, l.campaign_id]));
   const clicksByCampaign = new Map<string, number>();
   const gainsByCampaign = new Map<string, number>();
-  for (const e of myEventsRes.data ?? []) {
+  for (const e of myEvents) {
     const cid = linkToCampaign.get(e.link_id);
     if (!cid) continue;
     if (e.type === "click")
@@ -284,7 +288,7 @@ export default async function OpportunitiesPage({
   );
 
   // Stats du créateur connecté : nb d'opportunités, gains affil cumulés.
-  const allEvents = myEventsRes.data ?? [];
+  const allEvents = myEvents;
   const totalClicks = allEvents.filter((e) => e.type === "click").length;
   // Encore une définition divergente des gains : celle-ci ne comptait que les
   // ventes — donc pas les actions au CPA — et ignorait le statut, donc

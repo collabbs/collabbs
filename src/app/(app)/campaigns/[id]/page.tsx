@@ -16,6 +16,7 @@ import { pluralizeAction } from "@/lib/cpa";
 import TrackingStatusCard from "./TrackingStatusCard";
 import ShareCampaignCard from "./ShareCampaignCard";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
+import { parTranches } from "@/lib/par-tranches";
 
 export async function generateMetadata({
   params,
@@ -110,26 +111,29 @@ export default async function CampaignManagePage({
     const linksWithCode = (linksRes.data ?? []).filter((l) => l.promo_code);
     if (linksWithCode.length > 0) {
       const linkIds = linksWithCode.map((l) => l.id);
-      const [eventsRes, profilesRes, creatorsRes] = await Promise.all([
-        supabase
-          .from("affiliate_events")
-          .select("link_id, type, status, sale_amount, commission_amount")
-          .in("link_id", linkIds)
-          .eq("source", "promo_code")
-          .in("type", ["sale", "action"]),
-        supabase
-          .from("profiles")
-          .select("id, display_name")
-          .in("id", linksWithCode.map((l) => l.creator_id)),
-        supabase
-          .from("creators")
-          .select("id, handle")
-          .in("id", linksWithCode.map((l) => l.creator_id)),
+      // Découpé : au-delà de ~350 UUID, huit secondes au lieu de cent
+      // millisecondes (voir `par-tranches.ts`).
+      const creatorIdsCodes = linksWithCode.map((l) => l.creator_id);
+      const [evenements, profils, fiches] = await Promise.all([
+        parTranches(linkIds, (t) =>
+          supabase
+            .from("affiliate_events")
+            .select("link_id, type, status, sale_amount, commission_amount")
+            .in("link_id", t)
+            .eq("source", "promo_code")
+            .in("type", ["sale", "action"]),
+        ),
+        parTranches(creatorIdsCodes, (t) =>
+          supabase.from("profiles").select("id, display_name").in("id", t),
+        ),
+        parTranches(creatorIdsCodes, (t) =>
+          supabase.from("creators").select("id, handle").in("id", t),
+        ),
       ]);
-      const profMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
-      const credMap = new Map((creatorsRes.data ?? []).map((c) => [c.id, c]));
+      const profMap = new Map(profils.map((p) => [p.id, p]));
+      const credMap = new Map(fiches.map((c) => [c.id, c]));
       const agg = new Map<string, { count: number; amount: number; commission: number }>();
-      for (const ev of eventsRes.data ?? []) {
+      for (const ev of evenements) {
         // Une vente annulée par la marque ne compte ni au volume ni en
         // commission — l'afficher gonflerait les résultats du code promo.
         if (!countsAsEarning(ev)) continue;
@@ -189,39 +193,31 @@ export default async function CampaignManagePage({
       ...links.map((l) => l.creator_id),
     ]),
   ];
-  const [profRes, cpRes] = await Promise.all([
-    creatorIds.length
-      ? supabase.from("profiles").select("id, display_name, avatar_url").in("id", creatorIds)
-      : Promise.resolve({ data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] }),
-    creatorIds.length
-      ? supabase.from("creator_platforms").select("creator_id, subscribers").in("creator_id", creatorIds)
-      : Promise.resolve({ data: [] as { creator_id: string; subscribers: number | null }[] }),
+  // Une campagne très demandée peut avoir des centaines de candidats.
+  const [profs, plateformes] = await Promise.all([
+    parTranches(creatorIds, (t) =>
+      supabase.from("profiles").select("id, display_name, avatar_url").in("id", t),
+    ),
+    parTranches(creatorIds, (t) =>
+      supabase.from("creator_platforms").select("creator_id, subscribers").in("creator_id", t),
+    ),
   ]);
-  const profMap = new Map((profRes.data ?? []).map((p) => [p.id, p]));
+  const profMap = new Map(profs.map((p) => [p.id, p]));
   const subsMap = new Map<string, number>();
-  for (const cp of cpRes.data ?? []) {
+  for (const cp of plateformes) {
     const cur = subsMap.get(cp.creator_id) ?? 0;
     subsMap.set(cp.creator_id, Math.max(cur, cp.subscribers ?? 0));
   }
 
   // Performance des liens d'affiliation.
-  const eventsRes = links.length
-    ? await supabase
+  const evenementsLiens = await parTranches(
+    links.map((l) => l.id),
+    (t) =>
+      supabase
         .from("affiliate_events")
         .select("link_id, type, status, sale_amount, commission_amount")
-        .in(
-          "link_id",
-          links.map((l) => l.id),
-        )
-    : {
-        data: [] as {
-          link_id: string;
-          type: string;
-          status: string | null;
-          sale_amount: number | null;
-          commission_amount: number | null;
-        }[],
-      };
+        .in("link_id", t),
+  );
 
   const perLink = new Map<string, { clicks: number; sales: number; ca: number; commissions: number }>();
   for (const l of links) perLink.set(l.id, { clicks: 0, sales: 0, ca: 0, commissions: 0 });
@@ -229,7 +225,7 @@ export default async function CampaignManagePage({
   let totalSales = 0;
   let totalCA = 0;
   let totalCommissions = 0;
-  for (const e of eventsRes.data ?? []) {
+  for (const e of evenementsLiens) {
     const agg = perLink.get(e.link_id);
     if (!agg) continue;
     if (e.type === "click") {

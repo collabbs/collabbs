@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LIBELLES_TYPE, objetDuMontant } from "@/lib/collaboration";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Mes favoris — Collabbs" };
 
@@ -51,13 +52,13 @@ export default async function FavorisPage({
     .order("created_at", { ascending: false });
 
   const ids = (liens ?? []).map((l) => l.campaign_id);
-  const { data: campagnes } = ids.length
-    ? await supabase
-        .from("campaigns")
-        .select("id, name, type, fixed_amount, commission_mid, status, brands(name)")
-        .in("id", ids)
-    : { data: [] };
-  const parId = new Map((campagnes ?? []).map((c) => [c.id, c]));
+  const campagnes = await parTranches(ids, (t) =>
+    supabase
+      .from("campaigns")
+      .select("id, name, type, fixed_amount, commission_mid, status, brands(name)")
+      .in("id", t),
+  );
+  const parId = new Map(campagnes.map((c) => [c.id, c]));
 
   // Une campagne close reste dans la liste mais se signale : la retirer en
   // silence donnerait l'impression d'avoir perdu ce qu'on avait gardé.

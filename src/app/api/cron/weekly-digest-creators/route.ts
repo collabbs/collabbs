@@ -31,15 +31,23 @@ export async function GET(request: Request) {
     arr.push(l.id);
     byCreator.set(l.creator_id, arr);
   }
-  const allLinkIds = (links ?? []).map((l) => l.id);
-  if (allLinkIds.length === 0) {
+  if ((links ?? []).length === 0) {
     return NextResponse.json({ ok: true, creators: 0, digests: 0 });
   }
 
+  /* Pas de `.in("link_id", …)` ici — et ce n'est pas un oubli.
+     La liste contenait TOUS les liens de la plateforme, et une liste d'UUID
+     passée dans l'URL d'une requête PostgREST franchit une marche vers 350
+     entrees : au-dela, la meme requete coute huit secondes au lieu de cent
+     millisecondes (voir `par-tranches.ts`). Ce cron y tombait des le 500e
+     lien, donc aujourd'hui.
+     Le filtre etait de toute facon sans effet : `affiliate_events.link_id`
+     est `not null references affiliate_links(id)`, donc tout evenement
+     appartient deja a un lien existant. La fenetre d'une semaine borne ce
+     qu'on lit ; la liste ne bornait rien. */
   const { data: events } = await admin
     .from("affiliate_events")
     .select("link_id, type, status, sale_amount, commission_amount, occurred_at")
-    .in("link_id", allLinkIds)
     .gte("occurred_at", since);
 
   // Compte les digests PRODUITS, pas les e-mails délivrés : `notify` crée

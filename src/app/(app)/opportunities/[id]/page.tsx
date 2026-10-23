@@ -19,6 +19,7 @@ import FaqAccordion from "./FaqAccordion";
 import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 import { demoVisible, marqueDeDemo } from "@/lib/demo-data";
 import { besoinLienDeSuivi, besoinCandidature } from "@/lib/campaign";
+import { parTranches } from "@/lib/par-tranches";
 
 export async function generateMetadata({
   params,
@@ -134,13 +135,14 @@ export default async function OpportunityDetailPage({
       .eq("campaign_id", id),
   ]);
   const campaignLinkIds = (campaignLinksRes.data ?? []).map((l) => l.id);
-  const { data: campaignEvents } = campaignLinkIds.length
-    ? await supabase
-        .from("affiliate_events")
-        .select("type, status, sale_amount, commission_amount")
-        .in("link_id", campaignLinkIds)
-    : { data: [] };
-  const campaignEv = campaignEvents ?? [];
+  // Découpé : une campagne d'affiliation très suivie peut porter des
+  // centaines de liens (voir `par-tranches.ts`).
+  const campaignEv = await parTranches(campaignLinkIds, (t) =>
+    supabase
+      .from("affiliate_events")
+      .select("type, status, sale_amount, commission_amount")
+      .in("link_id", t),
+  );
   const totalClicks = campaignEv.filter((e) => e.type === "click").length;
   const totalSales = campaignEv.filter((e) => e.type === "sale" && countsAsEarning(e)).length;
   // Les actions (CPA) comptent, le rejeté et le remboursé non.

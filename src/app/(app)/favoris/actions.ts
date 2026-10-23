@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifierMatch } from "@/lib/match";
+import { parTranches } from "@/lib/par-tranches";
 
 /**
  * Ce qu'on a retenu pendant le défilé, rapatrié dans le compte.
@@ -51,6 +52,9 @@ export async function reprendreFavoris(
   // Les campagnes qui n'existent plus sont ignorées plutôt que de faire
   // échouer toute la reprise : une campagne close ne doit pas coûter les sept
   // autres.
+  // Pas de découpage ici : `propres` est coupé à 200 juste au-dessus, soit en
+  // dessous de la marche des ~350 UUID (voir `par-tranches.ts`). Si cette
+  // borne change, celle-ci doit être découpée.
   const { data: vivantes } = await supabase
     .from("campaigns")
     .select("id, brand_id")
@@ -99,6 +103,7 @@ export async function reprendreReperages(
     .slice(0, 200);
   if (propres.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
 
+  // Même raison qu'au-dessus : `propres` est borné à 200.
   const { data: vivants } = await supabase.from("creators").select("id").in("id", propres);
   const valides = (vivants ?? []).map((c) => c.id);
   if (valides.length === 0) return { ok: true, ajoutes: 0, matchs: 0 };
@@ -127,12 +132,16 @@ export async function reprendreReperages(
   let matchs = 0;
   const idsCampagnes = (sesCampagnes ?? []).map((c) => c.id);
   if (idsCampagnes.length > 0) {
-    const { data: reciproques } = await supabase
-      .from("campagnes_favorites")
-      .select("creator_id")
-      .in("campaign_id", idsCampagnes)
-      .in("creator_id", valides);
-    matchs = new Set((reciproques ?? []).map((r) => r.creator_id)).size;
+    // `valides` est borné à 200 plus haut ; les campagnes de la marque ne le
+    // sont pas — d'où le découpage sur elles seulement (`par-tranches.ts`).
+    const reciproques = await parTranches(idsCampagnes, (t) =>
+      supabase
+        .from("campagnes_favorites")
+        .select("creator_id")
+        .in("campaign_id", t)
+        .in("creator_id", valides),
+    );
+    matchs = new Set(reciproques.map((r) => r.creator_id)).size;
   }
 
   revalidatePath("/favoris");

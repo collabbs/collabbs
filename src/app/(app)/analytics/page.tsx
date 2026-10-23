@@ -12,6 +12,7 @@ import {
 import EmptyState from "@/components/EmptyState";
 import Link from "next/link";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = {
   title: "Analytics — Collabbs",
@@ -84,31 +85,30 @@ async function CreatorAnalytics({
     .select("id, campaign_id")
     .eq("creator_id", userId);
   const linkIds = (links ?? []).map((l) => l.id);
-  const { data: events } = linkIds.length
-    ? await supabase
-        .from("affiliate_events")
-        .select("created_at, type, status, commission_amount, sale_amount, link_id")
-        .in("link_id", linkIds)
-        .gte("created_at", previous.start.toISOString())
-        .lte("created_at", current.end.toISOString())
-    : { data: [] };
+  // Découpé : au-delà de ~350 UUID dans la liste, la requête coûte huit
+  // secondes au lieu de cent millisecondes (voir `par-tranches.ts`).
+  const events = await parTranches(linkIds, (t) =>
+    supabase
+      .from("affiliate_events")
+      .select("created_at, type, status, commission_amount, sale_amount, link_id")
+      .in("link_id", t)
+      .gte("created_at", previous.start.toISOString())
+      .lte("created_at", current.end.toISOString()),
+  );
 
   // 3. Marques (pour top)
   const dealIds = (txAll ?? []).map((t) => t.deal_id).filter((x): x is string => Boolean(x));
-  const { data: deals } = dealIds.length
-    ? await supabase.from("deals").select("id, brand_id").in("id", dealIds)
-    : { data: [] };
-  const dealToBrand = new Map((deals ?? []).map((d) => [d.id, d.brand_id]));
+  const deals = await parTranches(dealIds, (t) =>
+    supabase.from("deals").select("id, brand_id").in("id", t),
+  );
+  const dealToBrand = new Map(deals.map((d) => [d.id, d.brand_id]));
 
   // 4. Campagnes (pour top liens affiliation)
   const campaignIds = Array.from(new Set((links ?? []).map((l) => l.campaign_id)));
-  const { data: campaigns } = campaignIds.length
-    ? await supabase
-        .from("campaigns")
-        .select("id, name, brand_id")
-        .in("id", campaignIds)
-    : { data: [] };
-  const campMap = new Map((campaigns ?? []).map((c) => [c.id, c]));
+  const campaigns = await parTranches(campaignIds, (t) =>
+    supabase.from("campaigns").select("id, name, brand_id").in("id", t),
+  );
+  const campMap = new Map(campaigns.map((c) => [c.id, c]));
   const linkToCampaign = new Map((links ?? []).map((l) => [l.id, l.campaign_id]));
 
   // Les noms de marques se chargent APRÈS les campagnes : une marque connue
@@ -116,14 +116,14 @@ async function CreatorAnalytics({
   // nom manquait — le classement affichait « Marque ».
   const brandIds = Array.from(
     new Set([
-      ...(deals ?? []).map((d) => d.brand_id),
-      ...(campaigns ?? []).map((c) => c.brand_id),
+      ...deals.map((d) => d.brand_id),
+      ...campaigns.map((c) => c.brand_id),
     ].filter(Boolean)),
   );
-  const { data: brands } = brandIds.length
-    ? await supabase.from("brands").select("id, name").in("id", brandIds)
-    : { data: [] };
-  const brandName = new Map((brands ?? []).map((b) => [b.id, b.name]));
+  const brands = await parTranches(brandIds, (t) =>
+    supabase.from("brands").select("id, name").in("id", t),
+  );
+  const brandName = new Map(brands.map((b) => [b.id, b.name]));
 
   // ===== Split current vs previous =====
   const inRange = (d: Date, r: { start: Date; end: Date }) =>
@@ -383,25 +383,24 @@ async function BrandAnalytics({
   const campIds = (campaigns ?? []).map((c) => c.id);
 
   // Liens d'affiliation rattachés
-  const { data: links } = campIds.length
-    ? await supabase
-        .from("affiliate_links")
-        .select("id, campaign_id, creator_id")
-        .in("campaign_id", campIds)
-    : { data: [] };
-  const linkIds = (links ?? []).map((l) => l.id);
-  const linkToCampaign = new Map((links ?? []).map((l) => [l.id, l.campaign_id]));
-  const linkToCreator = new Map((links ?? []).map((l) => [l.id, l.creator_id]));
+  // Découpé : au-delà de ~350 UUID dans la liste, la requête coûte huit
+  // secondes au lieu de cent millisecondes (voir `par-tranches.ts`).
+  const links = await parTranches(campIds, (t) =>
+    supabase.from("affiliate_links").select("id, campaign_id, creator_id").in("campaign_id", t),
+  );
+  const linkIds = links.map((l) => l.id);
+  const linkToCampaign = new Map(links.map((l) => [l.id, l.campaign_id]));
+  const linkToCreator = new Map(links.map((l) => [l.id, l.creator_id]));
 
   // Events affiliation (clics + ventes)
-  const { data: events } = linkIds.length
-    ? await supabase
-        .from("affiliate_events")
-        .select("created_at, type, status, sale_amount, commission_amount, link_id")
-        .in("link_id", linkIds)
-        .gte("created_at", previous.start.toISOString())
-        .lte("created_at", current.end.toISOString())
-    : { data: [] };
+  const events = await parTranches(linkIds, (t) =>
+    supabase
+      .from("affiliate_events")
+      .select("created_at, type, status, sale_amount, commission_amount, link_id")
+      .in("link_id", t)
+      .gte("created_at", previous.start.toISOString())
+      .lte("created_at", current.end.toISOString()),
+  );
 
   // Transactions deals payées par la marque (escrow + release)
   const { data: txAll } = await supabase
@@ -414,14 +413,11 @@ async function BrandAnalytics({
 
   // Créateurs pour le top
   const creatorIds = Array.from(new Set((txAll ?? []).map((t) => t.creator_id)));
-  const { data: creators } = creatorIds.length
-    ? await supabase
-        .from("creators")
-        .select("id, handle, profiles(display_name)")
-        .in("id", creatorIds)
-    : { data: [] };
+  const creators = await parTranches(creatorIds, (t) =>
+    supabase.from("creators").select("id, handle, profiles(display_name)").in("id", t),
+  );
   const creatorLabel = new Map(
-    (creators ?? []).map((c) => [c.id, c.profiles?.display_name ?? `@${c.handle ?? "?"}`]),
+    creators.map((c) => [c.id, c.profiles?.display_name ?? `@${c.handle ?? "?"}`]),
   );
   const campMap = new Map((campaigns ?? []).map((c) => [c.id, c]));
 

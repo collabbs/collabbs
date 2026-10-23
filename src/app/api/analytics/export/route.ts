@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parsePeriod, periodRange } from "@/app/(app)/analytics/period";
 import { earningStatusLabel } from "@/lib/affiliate-earnings";
+import { parTranches } from "@/lib/par-tranches";
 
 /**
  * Export CSV des données analytics.
@@ -90,13 +91,23 @@ export async function GET(req: Request) {
         ["Date", "Type", "Statut", "Montant vente", "Commission", "Campagne", "Lien"],
       ]);
     } else {
-      const { data: events } = await supabase
-        .from("affiliate_events")
-        .select("created_at, type, status, sale_amount, commission_amount, link_id")
-        .in("link_id", linkIds)
-        .gte("created_at", startIso)
-        .lte("created_at", endIso)
-        .order("created_at", { ascending: false });
+      /* Découpé, puis RE-trié : le tri d'une requête ne vaut qu'à
+         l'intérieur de sa tranche, et un export comptable dont les lignes
+         sont dans un ordre arbitraire ne se rapproche pas. Au-delà de ~350
+         UUID dans la liste, la requête coûte huit secondes au lieu de cent
+         millisecondes (voir `par-tranches.ts`). */
+      const brut = await parTranches(linkIds, (t) =>
+        supabase
+          .from("affiliate_events")
+          .select("created_at, type, status, sale_amount, commission_amount, link_id")
+          .in("link_id", t)
+          .gte("created_at", startIso)
+          .lte("created_at", endIso)
+          .order("created_at", { ascending: false }),
+      );
+      const events = brut.sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at)),
+      );
 
       const linkCampaign = new Map(
         links.map((l) => [l.id, l.campaigns?.name ?? l.campaign_id]),

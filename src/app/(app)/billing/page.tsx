@@ -22,6 +22,7 @@ import PlansAbonnement from "@/components/app/PlansAbonnement";
 import { planValide } from "@/lib/tarifs";
 import { estEchu } from "@/lib/temps";
 import { volumeCollaborations30j } from "@/lib/volume-collaborations";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Provision — Collabbs" };
 
@@ -63,16 +64,25 @@ async function chargerVentes(
   supabase: Awaited<ReturnType<typeof createClient>>,
   linkIds: string[],
 ) {
-  const { data } = await supabase
-    .from("affiliate_events")
-    .select(
-      "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
-    )
-    .in("type", ["sale", "action"])
-    .in("link_id", linkIds)
-    .order("occurred_at", { ascending: false })
-    .limit(30);
-  return data ?? [];
+  /* Découpé, puis RE-trié et RE-limité en mémoire : un `.limit(30)` ne vaut
+     qu'à l'intérieur d'une tranche, donc trois tranches rendraient quatre-
+     vingt-dix lignes dont les trente plus récentes ne sont pas forcément
+     celles de la première. Sans ce retri, la marque verrait « les 30
+     dernières ventes » sans qu'elles soient ni les dernières ni trente. */
+  const toutes = await parTranches(linkIds, (t) =>
+    supabase
+      .from("affiliate_events")
+      .select(
+        "id, status, sale_amount, commission_amount, platform_fee, occurred_at, source, needs_review, affiliate_links(creators(handle))",
+      )
+      .in("type", ["sale", "action"])
+      .in("link_id", t)
+      .order("occurred_at", { ascending: false })
+      .limit(30),
+  );
+  return toutes
+    .sort((a, b) => String(b.occurred_at).localeCompare(String(a.occurred_at)))
+    .slice(0, 30);
 }
 
 type VenteAffichee = Awaited<ReturnType<typeof chargerVentes>>[number];
@@ -152,11 +162,10 @@ export default async function BillingPage({
   let sales: VenteAffichee[] = [];
   let toReview: VenteAffichee[] = [];
   if (campaignIds.length > 0) {
-    const { data: links } = await supabase
-      .from("affiliate_links")
-      .select("id")
-      .in("campaign_id", campaignIds);
-    const linkIds = (links ?? []).map((l) => l.id);
+    const links = await parTranches(campaignIds, (t) =>
+      supabase.from("affiliate_links").select("id").in("campaign_id", t),
+    );
+    const linkIds = links.map((l) => l.id);
 
     if (linkIds.length > 0) {
       const all = await chargerVentes(supabase, linkIds);

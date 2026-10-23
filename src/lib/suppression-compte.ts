@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { eurExact } from "@/lib/deal";
 import { MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { parTranches } from "@/lib/par-tranches";
 
 /**
  * Ce qu'il faut vérifier, et sauver, avant d'effacer un compte.
@@ -101,13 +102,18 @@ export async function blocagesAvantSuppression(userId: string): Promise<Blocage[
   const idsLiens = (liens ?? []).map((l) => l.id);
 
   if (idsLiens.length > 0) {
-    const { data: commissions } = await admin
-      .from("affiliate_events")
-      .select("id, commission_amount, status")
-      .in("link_id", idsLiens)
-      .in("status", ["pending", "validated"]);
+    // Découpé : un créateur affilié à plus de ~350 campagnes verrait cette
+    // vérification coûter huit secondes (voir `par-tranches.ts`) — et c'est
+    // elle qui empêche de supprimer un compte à qui on doit de l'argent.
+    const commissions = await parTranches(idsLiens, (t) =>
+      admin
+        .from("affiliate_events")
+        .select("id, commission_amount, status")
+        .in("link_id", t)
+        .in("status", ["pending", "validated"]),
+    );
 
-    if (commissions && commissions.length > 0) {
+    if (commissions.length > 0) {
       const total = commissions.reduce((s, c) => s + Number(c.commission_amount ?? 0), 0);
       /* Le seuil de versement ne porte PAS sur ce total.
          `verserLesCommissions` le compare au net des commissions CONFIRMÉES,

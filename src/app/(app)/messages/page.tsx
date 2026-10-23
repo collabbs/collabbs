@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Messages — Collabbs" };
 
@@ -41,23 +42,31 @@ export default async function MessagesPage() {
   ];
   const convIds = convs.map((c) => c.id);
 
-  const [profRes, msgRes] = await Promise.all([
-    otherIds.length
-      ? supabase.from("profiles").select("id, display_name, avatar_url").in("id", otherIds)
-      : Promise.resolve({ data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] }),
-    convIds.length
-      ? supabase
-          .from("messages")
-          .select("conversation_id, body, sender_id, read_at, created_at")
-          .in("conversation_id", convIds)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as { conversation_id: string; body: string; sender_id: string; read_at: string | null; created_at: string }[] }),
+  /* ⚠️ `parTranches` et non un `.in(ids)` direct : une marque qui a parlé à
+     plus de ~350 créateurs ferait basculer ces deux requêtes de cent
+     millisecondes à huit secondes (voir `par-tranches.ts`).
+     Le tri du second appel survit au découpage : les messages d'une
+     conversation tombent tous dans la MÊME tranche, et chaque tranche est
+     triée du plus récent au plus ancien. Le premier message rencontré pour
+     une conversation reste donc le dernier reçu — ce que la boucle en
+     dessous suppose. */
+  const [profs, messages] = await Promise.all([
+    parTranches(otherIds, (t) =>
+      supabase.from("profiles").select("id, display_name, avatar_url").in("id", t),
+    ),
+    parTranches(convIds, (t) =>
+      supabase
+        .from("messages")
+        .select("conversation_id, body, sender_id, read_at, created_at")
+        .in("conversation_id", t)
+        .order("created_at", { ascending: false }),
+    ),
   ]);
 
-  const profMap = new Map((profRes.data ?? []).map((p) => [p.id, p]));
+  const profMap = new Map(profs.map((p) => [p.id, p]));
   const lastMsg = new Map<string, { body: string; sender_id: string; created_at: string }>();
   const unread = new Map<string, number>();
-  for (const m of msgRes.data ?? []) {
+  for (const m of messages) {
     if (!lastMsg.has(m.conversation_id)) {
       lastMsg.set(m.conversation_id, { body: m.body, sender_id: m.sender_id, created_at: m.created_at });
     }

@@ -28,6 +28,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 export { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
 import { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
+import { parTranches } from "@/lib/par-tranches";
 
 /** À partir de quelle part du seuil on prévient qu'on s'en approche. */
 const WARN_RATIO = 0.7;
@@ -101,13 +102,16 @@ export async function thresholdFor(
     .eq("campaigns.brand_id", brandId);
   const linkIds = (links ?? []).map((l) => l.id);
 
-  let fromAffiliate = 0;
-  if (linkIds.length > 0) {
-    const { data: events } = await admin
+  // Découpé : c'est ce calcul qui déclenche l'obligation de contrat écrit.
+  // Une liste de plus de ~350 UUID y coûterait huit secondes au lieu de cent
+  // millisecondes (voir `par-tranches.ts`), sur un chemin qui s'exécute à
+  // chaque nouvelle collaboration.
+  const events = await parTranches(linkIds, (t) =>
+    admin
       .from("affiliate_events")
       .select("commission_amount, status, occurred_at")
       .in("type", ["sale", "action"])
-      .in("link_id", linkIds)
+      .in("link_id", t)
       // Ce que la loi regarde, c'est la rémunération DUE sur l'année, pas
       // seulement celle déjà encaissée. Une commission réservée ou en attente
       // de provision est due au créateur : la compter plus tard retarderait
@@ -115,12 +119,12 @@ export async function thresholdFor(
       // Seules les commissions annulées ne comptent pas — rien n'est dû.
       .not("status", "in", "(refunded,rejected)")
       .gte("occurred_at", from)
-      .lt("occurred_at", to);
-    fromAffiliate = (events ?? []).reduce(
-      (s: number, e) => s + Number(e.commission_amount ?? 0),
-      0,
-    );
-  }
+      .lt("occurred_at", to),
+  );
+  const fromAffiliate = events.reduce(
+    (s: number, e) => s + Number(e.commission_amount ?? 0),
+    0,
+  );
 
   // Avantages en nature : la loi les compte au même titre que l'argent.
   // On ne retient que ceux qui sont déclarés — un avantage contesté par le

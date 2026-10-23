@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dealBreakdown } from "@/lib/deal";
 import { notifyOnce } from "@/lib/notifications";
 import { isLegalInfoComplete } from "@/app/(app)/profile/legal-utils";
+import { parTranches } from "@/lib/par-tranches";
 
 /**
  * Le tableau de bord était la SEULE page sans titre propre : l'onglet affichait
@@ -196,11 +197,11 @@ export default async function DashboardPage() {
       supabase.from("deals").select("status, amount").eq("creator_id", user.id),
     ]);
     const linkIds = (linksRes.data ?? []).map((l) => l.id);
-    const eventsRes = await supabase
-      .from("affiliate_events")
-      .select("type, status, commission_amount")
-      .in("link_id", linkIds);
-    const ev = eventsRes.data ?? [];
+    // Découpé : un créateur affilié à plus de ~350 campagnes ferait basculer
+    // cette requête de cent millisecondes à huit secondes (`par-tranches.ts`).
+    const ev = await parTranches(linkIds, (t) =>
+      supabase.from("affiliate_events").select("type, status, commission_amount").in("link_id", t),
+    );
     const clicks = ev.filter((e) => e.type === "click").length;
     // Deux corrections du 30 août 2026 :
     //  - les actions (CPA) comptent au même titre que les ventes ; les exclure
@@ -302,16 +303,18 @@ export default async function DashboardPage() {
     const campaigns = campaignsRes.data ?? [];
     const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
     const campaignIds = campaigns.map((c) => c.id);
-    const linksRes = await supabase
-      .from("affiliate_links")
-      .select("id")
-      .in("campaign_id", campaignIds);
-    const linkIds = (linksRes.data ?? []).map((l) => l.id);
-    const eventsRes = await supabase
-      .from("affiliate_events")
-      .select("type, status, sale_amount, commission_amount")
-      .in("link_id", linkIds);
-    const ev = eventsRes.data ?? [];
+    // Deux découpages : une marque-agence peut porter des centaines de
+    // campagnes, et chaque campagne d'affiliation un lien par créateur.
+    const liens = await parTranches(campaignIds, (t) =>
+      supabase.from("affiliate_links").select("id").in("campaign_id", t),
+    );
+    const linkIds = liens.map((l) => l.id);
+    const ev = await parTranches(linkIds, (t) =>
+      supabase
+        .from("affiliate_events")
+        .select("type, status, sale_amount, commission_amount")
+        .in("link_id", t),
+    );
     // Une vente ou une action rejetée ou remboursée ne compte nulle part :
     // ni dans le chiffre d'affaires attribué, ni dans les commissions dues.
     const compte = (e: { status?: string | null }) =>

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DEAL_STATUS_META, eur, type DealStatus } from "@/lib/deal";
 
 import { moisRestants, libelleEngagement, prochaineEcheance } from "@/lib/ambassadeur";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Collaborations — Collabbs" };
 
@@ -50,10 +51,10 @@ export default async function DealsPage() {
       ...engagements.map((e) => (iAmBrand ? e.creator_id : e.brand_id)),
     ]),
   ];
-  const { data: profs } = otherIds.length
-    ? await supabase.from("profiles").select("id, display_name, avatar_url").in("id", otherIds)
-    : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
-  const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
+  const profs = await parTranches(otherIds, (t) =>
+    supabase.from("profiles").select("id, display_name, avatar_url").in("id", t),
+  );
+  const profMap = new Map(profs.map((p) => [p.id, p]));
 
   const order: DealStatus[] = ["active", "negotiation", "completed", "cancelled"];
   const sorted = deals

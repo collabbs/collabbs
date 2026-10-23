@@ -494,11 +494,10 @@ export async function getCreatorReviews(creatorId: string): Promise<CreatorRevie
   if (rows.length === 0) return [];
 
   const brandIds = [...new Set(rows.map((r) => r.brand_id))];
-  const { data: brands } = await supabase
-    .from("brands")
-    .select("id, name")
-    .in("id", brandIds);
-  const nameMap = new Map((brands ?? []).map((b) => [b.id, b.name]));
+  const brands = await parTranches(brandIds, (t) =>
+    supabase.from("brands").select("id, name").in("id", t),
+  );
+  const nameMap = new Map(brands.map((b) => [b.id, b.name]));
 
   return rows.map((r) => ({
     brandName: nameMap.get(r.brand_id) ?? "Marque",

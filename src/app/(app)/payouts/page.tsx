@@ -7,6 +7,7 @@ import { startCreatorPayoutOnboarding } from "../deals/actions";
 import { eur, eurExact } from "@/lib/deal";
 import EmptyState from "@/components/EmptyState";
 import { VALIDATION_DAYS, MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { parTranches } from "@/lib/par-tranches";
 
 export const metadata = { title: "Paiements — Collabbs" };
 
@@ -66,15 +67,17 @@ export default async function PayoutsPage({
 
   // Titres des deals correspondants pour humaniser la liste
   const dealIds = txList.map((t) => t.deal_id).filter((id): id is string => Boolean(id));
-  const { data: dealsData } = dealIds.length
-    ? await supabase.from("deals").select("id, title, brand_id").in("id", dealIds)
-    : { data: [] };
-  const dealMap = new Map((dealsData ?? []).map((d) => [d.id, d]));
-  const brandIds = (dealsData ?? []).map((d) => d.brand_id);
-  const { data: brandsData } = brandIds.length
-    ? await supabase.from("brands").select("id, name").in("id", brandIds)
-    : { data: [] };
-  const brandMap = new Map((brandsData ?? []).map((b) => [b.id, b.name]));
+  // Découpé : au-delà de ~350 UUID dans la liste, la requête coûte huit
+  // secondes au lieu de cent millisecondes (voir `par-tranches.ts`).
+  const dealsData = await parTranches(dealIds, (t) =>
+    supabase.from("deals").select("id, title, brand_id").in("id", t),
+  );
+  const dealMap = new Map(dealsData.map((d) => [d.id, d]));
+  const brandIds = dealsData.map((d) => d.brand_id);
+  const brandsData = await parTranches(brandIds, (t) =>
+    supabase.from("brands").select("id, name").in("id", t),
+  );
+  const brandMap = new Map(brandsData.map((b) => [b.id, b.name]));
 
   // Commissions d'affiliation : trois états distincts, parce qu'un créateur
   // doit savoir ce qui est encore réversible, ce qui lui est acquis, et ce qui
@@ -90,13 +93,15 @@ export default async function PayoutsPage({
   let affPaid = 0;      // déjà versée
   let affUnfunded = 0;  // la marque doit réapprovisionner
   let affToReview = 0;  // déclarée par la boutique, la marque doit confirmer
-  if (myLinkIds.length > 0) {
-    const { data: affEvents } = await supabase
-      .from("affiliate_events")
-      .select("status, commission_amount, needs_review")
-      .in("type", ["sale", "action"])
-      .in("link_id", myLinkIds);
-    for (const e of (affEvents ?? [])) {
+  {
+    const affEvents = await parTranches(myLinkIds, (t) =>
+      supabase
+        .from("affiliate_events")
+        .select("status, commission_amount, needs_review")
+        .in("type", ["sale", "action"])
+        .in("link_id", t),
+    );
+    for (const e of affEvents) {
       const c = Number(e.commission_amount ?? 0);
       // Une vente déclarée par le script de la boutique attend la confirmation
       // de la marque. La compter comme « non financée » l'accuserait à tort

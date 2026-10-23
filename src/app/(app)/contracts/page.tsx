@@ -6,6 +6,7 @@ import { eurExact } from "@/lib/deal";
 import { LEGAL_THRESHOLD, thresholdFor } from "@/lib/legal-threshold";
 import EmptyState from "@/components/EmptyState";
 import { declareInKind, cancelInKind, disputeInKind } from "./actions";
+import { parTranches } from "@/lib/par-tranches";
 
 
 export const metadata = { title: "Contrats — Collabbs" };
@@ -130,17 +131,17 @@ export default async function ContractsPage({
       ].filter((id): id is string => Boolean(id)),
     ),
   ];
-  const [brandsRes, creatorsRes] = await Promise.all([
-    otherIds.length
-      ? supabase.from("brands").select("id, name").in("id", otherIds)
-      : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
-    otherIds.length
-      ? supabase.from("creators").select("id, handle").in("id", otherIds)
-      : Promise.resolve({ data: [] as { id: string; handle: string | null }[] }),
+  const [marques, createurs] = await Promise.all([
+    parTranches(otherIds, (t) =>
+      supabase.from("brands").select("id, name").in("id", t),
+    ),
+    parTranches(otherIds, (t) =>
+      supabase.from("creators").select("id, handle").in("id", t),
+    ),
   ]);
   const nameOf = new Map<string, string>();
-  for (const b of brandsRes.data ?? []) if (b.name) nameOf.set(b.id, b.name);
-  for (const c of creatorsRes.data ?? []) if (c.handle) nameOf.set(c.id, `@${c.handle}`);
+  for (const b of marques) if (b.name) nameOf.set(b.id, b.name);
+  for (const c of createurs) if (c.handle) nameOf.set(c.id, `@${c.handle}`);
 
   // Avantages en nature. Si la migration 0036 n'est pas encore appliquée, la
   // requête échoue proprement et la section reste masquée plutôt que de casser
