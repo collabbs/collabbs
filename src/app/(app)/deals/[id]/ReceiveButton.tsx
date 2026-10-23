@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,7 +20,7 @@ export default function ReceiveButton({
   async function go() {
     setBusy(true);
     setError(null);
-    const res = await releaseDealPayout(dealId);
+    const res = await tenter(() => releaseDealPayout(dealId));
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");

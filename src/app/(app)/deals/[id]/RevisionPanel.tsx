@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useToast } from "@/components/Toast";
@@ -45,7 +46,7 @@ export default function RevisionPanel({
     e.preventDefault();
     if (busy || message.trim().length < 5) return;
     setBusy(true);
-    const res = await requestRevision(deliverableId, message);
+    const res = await tenter(() => requestRevision(deliverableId, message));
     setBusy(false);
     if (res.ok) {
       toast.success("Demande de retouche envoyée.");

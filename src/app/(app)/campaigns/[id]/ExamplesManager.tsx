@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
@@ -37,7 +38,7 @@ export default function ExamplesManager({
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    const res = await addCampaignExample(campaignId, url, caption);
+    const res = await tenter(() => addCampaignExample(campaignId, url, caption));
     setBusy(false);
     if (res.ok) {
       toast.success("Exemple ajouté.");
@@ -53,7 +54,7 @@ export default function ExamplesManager({
   async function onRemove(exId: string) {
     if (busy) return;
     setBusy(true);
-    const res = await removeCampaignExample(exId, campaignId);
+    const res = await tenter(() => removeCampaignExample(exId, campaignId));
     setBusy(false);
     if (res.ok) {
       toast.success("Exemple supprimé.");

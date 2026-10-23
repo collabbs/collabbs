@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
@@ -64,7 +65,7 @@ export default function FormulaireProposition({
     e.preventDefault();
     setEnvoi(true);
     setErreur(null);
-    const res = await creerPropositionDirecte(creatorId, {
+    const res = await tenter(() => creerPropositionDirecte(creatorId, {
       amount: Number(montant),
       quantity: contenuLibre ? 0 : Number(quantite),
       deadline: echeance || null,
@@ -75,11 +76,14 @@ export default function FormulaireProposition({
       perfRate: modele === "performance" ? Number(tarifVues) : null,
       commission: avecCommission(modele) ? Number(commission) : null,
       urlDestination: avecCommission(modele) ? urlDestination.trim() : null,
-    });
+    }));
     setEnvoi(false);
-    // Même refusée, la réponse peut porter la collaboration déjà ouverte :
-    // on y emmène plutôt que d'afficher une impasse.
-    if (res.dealId) {
+    /* Même refusée, la réponse peut porter la collaboration déjà ouverte :
+       on y emmène plutôt que d'afficher une impasse.
+       `"dealId" in res` parce que `tenter` peut rendre un refus qui ne vient
+       pas de l'action — un appel qui n'a pas abouti ne porte évidemment pas
+       de collaboration. */
+    if ("dealId" in res && res.dealId) {
       router.push(`/deals/${res.dealId}`);
       return;
     }

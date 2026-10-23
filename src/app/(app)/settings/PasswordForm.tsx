@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useToast } from "@/components/Toast";
@@ -17,7 +18,7 @@ export default function PasswordForm() {
     if (busy) return;
     setBusy(true);
     const fd = new FormData(e.currentTarget);
-    const res = await updatePassword(fd);
+    const res = await tenter(() => updatePassword(fd));
     setBusy(false);
     if (res.ok) {
       toast.success("Mot de passe mis à jour.");

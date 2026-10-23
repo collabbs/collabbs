@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { inviterCreateurs } from "./actions";
 import { MAX_INVITATIONS_PAR_ENVOI } from "@/lib/invitations";
@@ -56,7 +57,7 @@ export default function InviterPanel({
     setBusy(true);
     setErreur(null);
     setResultat(null);
-    const res = await inviterCreateurs(campagneId, [...choisis]);
+    const res = await tenter(() => inviterCreateurs(campagneId, [...choisis]));
     setBusy(false);
     if (res.ok) setResultat(res.message ?? "Invitations envoyées.");
     else setErreur(res.error ?? "Erreur.");

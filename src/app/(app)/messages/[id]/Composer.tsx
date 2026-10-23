@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 
 /**
@@ -25,7 +26,7 @@ export default function Composer({
     // On vide la zone tout de suite : le message est déjà visible dans le fil.
     setBody("");
 
-    const res = await onSend(text);
+    const res = await tenter(() => onSend(text));
     setBusy(false);
     if (!res.ok) {
       // L'envoi a échoué : on rend son texte à l'utilisateur plutôt que de le

@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { montant, tarif } from "@/lib/euros";
 import { useState } from "react";
 import Link from "next/link";
@@ -217,7 +218,7 @@ export default function OpportunityCard({
   async function onActivate() {
     setBusy(true);
     setError(null);
-    const res = await activateAffiliateLink(o.id);
+    const res = await tenter(() => activateAffiliateLink(o.id));
     setBusy(false);
     if (res.ok && res.code) {
       setCode(res.code);
@@ -227,7 +228,7 @@ export default function OpportunityCard({
   async function onApply() {
     setBusy(true);
     setError(null);
-    const res = await applyToCampaign(o.id);
+    const res = await tenter(() => applyToCampaign(o.id));
     setBusy(false);
     if (res.ok) setStatus("applied");
     else setError(res.error ?? "Erreur.");

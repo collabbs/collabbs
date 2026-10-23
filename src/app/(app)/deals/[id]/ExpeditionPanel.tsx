@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -71,7 +72,7 @@ export default function ExpeditionPanel({
   async function lancer(action: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
     setError(null);
-    const res = await action();
+    const res = await tenter(() => action());
     setBusy(false);
     if (res.ok) {
       setEditionAdresse(false);

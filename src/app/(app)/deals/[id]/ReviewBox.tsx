@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { leaveReview, leaveBrandReview } from "../actions";
@@ -73,9 +74,11 @@ export default function ReviewBox({
   async function submit() {
     setBusy(true);
     setError(null);
-    const res = isBrand
-      ? await leaveReview(dealId, rating, comment)
-      : await leaveBrandReview(dealId, rating, comment);
+    const res = await tenter(() =>
+      isBrand
+        ? leaveReview(dealId, rating, comment)
+        : leaveBrandReview(dealId, rating, comment),
+    );
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");

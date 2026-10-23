@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { decideApplication, setCampaignStatus } from "../actions";
@@ -20,7 +21,7 @@ export function ApplicationDecision({
   async function decide(decision: "accepted" | "rejected") {
     setBusy(true);
     setError(null);
-    const res = await decideApplication(applicationId, decision);
+    const res = await tenter(() => decideApplication(applicationId, decision));
     setBusy(false);
     if (res.ok) {
       setStatus(decision);
@@ -90,7 +91,7 @@ export function StatusToggle({
     const next = status === "active" ? "ended" : "active";
     setBusy(true);
     setError(null);
-    const res = await setCampaignStatus(campaignId, next);
+    const res = await tenter(() => setCampaignStatus(campaignId, next));
     setBusy(false);
     if (res.ok) {
       setStatus(next);

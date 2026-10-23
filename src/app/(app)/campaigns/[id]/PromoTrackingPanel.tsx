@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { useRouter } from "next/navigation";
@@ -48,12 +49,12 @@ export default function PromoTrackingPanel({
       return;
     }
     setBusy(true);
-    const res = await recordManualPromoSale({
+    const res = await tenter(() => recordManualPromoSale({
       campaignId,
       code: code.trim(),
       amount: num,
       orderRef: orderRef.trim() || null,
-    });
+    }));
     setBusy(false);
     if (res.ok) {
       toast.success(

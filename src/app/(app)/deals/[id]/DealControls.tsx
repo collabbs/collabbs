@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -132,7 +133,7 @@ export default function DealControls({
   async function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
     setError(null);
-    const res = await fn();
+    const res = await tenter(() => fn());
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");
@@ -393,7 +394,7 @@ export default function DealControls({
               disabled={busy}
               onClick={() =>
                 run(async () => {
-                  const res = await updateDealTerms(dealId, {
+                  const res = await tenter(() => updateDealTerms(dealId, {
                     amount,
                     quantity,
                     deadline: deadline || null,
@@ -405,7 +406,7 @@ export default function DealControls({
                     exclusivityDays: excluJours === "" ? null : Number(excluJours),
                     shippingRequired: envoiRequis,
                     format,
-                  });
+                  }));
                   if (res.ok) setEditing(false);
                   return res;
                 })

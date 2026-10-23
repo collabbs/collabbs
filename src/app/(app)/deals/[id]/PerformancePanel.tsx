@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { declarerVues, validerVues } from "../actions";
@@ -65,7 +66,7 @@ export default function PerformancePanel({
   async function declarer() {
     setBusy(true);
     setError(null);
-    const res = await declarerVues(dealId, { views: saisieNombre, proofUrl: lien });
+    const res = await tenter(() => declarerVues(dealId, { views: saisieNombre, proofUrl: lien }));
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");
@@ -74,7 +75,7 @@ export default function PerformancePanel({
   async function valider() {
     setBusy(true);
     setError(null);
-    const res = await validerVues(dealId);
+    const res = await tenter(() => validerVues(dealId));
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");

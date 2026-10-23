@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -56,7 +57,7 @@ export default function ActionPanel({
   async function onActivate() {
     setBusy(true);
     setError(null);
-    const res = await activateAffiliateLink(campaignId);
+    const res = await tenter(() => activateAffiliateLink(campaignId));
     setBusy(false);
     if (res.ok && res.code) {
       setCode(res.code);
@@ -67,7 +68,7 @@ export default function ActionPanel({
   async function onApply() {
     setBusy(true);
     setError(null);
-    const res = await applyToCampaign(campaignId, message);
+    const res = await tenter(() => applyToCampaign(campaignId, message));
     setBusy(false);
     if (res.ok) setCandidatureEnvoyee(true);
     else setError(res.error ?? "Erreur.");
@@ -76,7 +77,7 @@ export default function ActionPanel({
   async function onRepondre(valeur: "accepted" | "rejected") {
     setBusy(true);
     setError(null);
-    const res = await repondreInvitation(campaignId, valeur);
+    const res = await tenter(() => repondreInvitation(campaignId, valeur));
     setBusy(false);
     if (res.ok) {
       setInvitation(null);

@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toggleSavedCreator } from "@/app/(app)/shortlist/actions";
@@ -21,7 +22,7 @@ export default function SaveCreatorButton({
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    const res = await toggleSavedCreator(creatorId);
+    const res = await tenter(() => toggleSavedCreator(creatorId));
     setBusy(false);
     if (res.ok) {
       setSaved(Boolean(res.saved));

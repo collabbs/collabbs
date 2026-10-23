@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { refundDeal } from "../actions";
@@ -13,7 +14,7 @@ export default function RefundButton({ dealId }: { dealId: string }) {
   async function doRefund() {
     setBusy(true);
     setError(null);
-    const res = await refundDeal(dealId);
+    const res = await tenter(() => refundDeal(dealId));
     setBusy(false);
     if (res.ok) router.refresh();
     else setError(res.error ?? "Erreur.");

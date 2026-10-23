@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -144,7 +145,7 @@ export default function CampaignForm({
       const n = Number(v);
       return Number.isFinite(n) && n >= 0 ? n : fallback;
     };
-    const res = await createCampaign({
+    const res = await tenter(() => createCampaign({
       type,
       format,
       paiementsCommissionnes,
@@ -188,7 +189,7 @@ export default function CampaignForm({
       giveawayPrizeValue: giveawayPrizeValue ? Number(giveawayPrizeValue) : null,
       giveawayWinnersCount: giveawayWinnersCount ? Number(giveawayWinnersCount) : null,
       giveawayRulesUrl,
-    });
+    }));
     if (res.ok) {
       // La campagne est créée mais incomplète (réseaux non enregistrés) : on
       // reste sur place pour le dire, sinon la marque part en croyant que tout
@@ -450,7 +451,7 @@ export default function CampaignForm({
                     setTeleversement(true);
                     const donnees = new FormData();
                     donnees.append("file", fichier);
-                    const r = await televerserVisuelCampagne(donnees);
+                    const r = await tenter(() => televerserVisuelCampagne(donnees));
                     setTeleversement(false);
                     if (r.ok && r.url) setProductImageUrl(r.url);
                     else setErreurVisuel(r.error ?? "Le téléversement a échoué.");

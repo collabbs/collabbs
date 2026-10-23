@@ -1,5 +1,6 @@
 "use client";
 
+import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { abrege } from "@/lib/performance";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
@@ -63,7 +64,7 @@ export default function PortfolioManager({
     e.preventDefault();
     if (busy || !ytInput.trim()) return;
     setBusy(true);
-    const res = await importYouTubeVideos(ytInput);
+    const res = await tenter(() => importYouTubeVideos(ytInput));
     setBusy(false);
     if (res.ok) {
       toast.success(
@@ -81,7 +82,7 @@ export default function PortfolioManager({
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    const res = await addPortfolioItem(url, title, thumb);
+    const res = await tenter(() => addPortfolioItem(url, title, thumb));
     setBusy(false);
     if (res.ok) {
       toast.success("Vidéo ajoutée.");
@@ -98,7 +99,7 @@ export default function PortfolioManager({
   async function onRefreshStats() {
     if (busy) return;
     setBusy(true);
-    const res = await refreshYouTubeStats();
+    const res = await tenter(() => refreshYouTubeStats());
     setBusy(false);
     if (res.ok) {
       toast.success(
@@ -120,7 +121,7 @@ export default function PortfolioManager({
   async function onRemove(id: string) {
     if (busy) return;
     setBusy(true);
-    const res = await removePortfolioItem(id);
+    const res = await tenter(() => removePortfolioItem(id));
     setBusy(false);
     if (res.ok) {
       setItems((cur) => cur.filter((it) => it.id !== id));
