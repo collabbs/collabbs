@@ -325,11 +325,19 @@ export async function resolveError(formData: FormData) {
   const errorId = String(formData.get("errorId") ?? "");
   if (!errorId) back("Erreur introuvable.", "error");
 
+  /* On LIT les lignes touchées, comme pour `setCampaignStatus` et
+     `cancelInKind` : une mise à jour qui ne correspond à aucune ligne n'est
+     pas une erreur pour Postgres, et l'écran annonçait « marquée traitée »
+     sans que rien ne bouge. L'enjeu est petit — c'est l'écran d'administration
+     — mais une liste qui ne bouge pas après un succès annoncé fait douter de
+     tout le reste de l'écran. */
   const admin = createAdminClient();
-  await admin
+  const { data: traitees } = await admin
     .from("error_reports")
     .update({ resolved_at: new Date().toISOString() })
-    .eq("id", errorId);
+    .eq("id", errorId)
+    .select("id");
+  if (!traitees || traitees.length === 0) back("Cette erreur n'existe plus.", "error");
 
   revalidatePath("/admin");
   back("Erreur marquée traitée.");
