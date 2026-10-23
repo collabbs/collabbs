@@ -8,6 +8,7 @@ import FiltersDrawer from "@/components/landing/FiltersDrawer";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
+import Pagination, { decouper } from "@/components/Pagination";
 import { countsAsEarning, sumEarnings } from "@/lib/affiliate-earnings";
 import { demoVisible } from "@/lib/demo-data";
 
@@ -22,7 +23,18 @@ type Params = {
   activated?: string;
   /** Le lien existait déjà : on ne félicite pas d'une activation imaginaire. */
   existing?: string;
+  page?: string;
 };
+
+/**
+ * Campagnes par page.
+ *
+ * Une carte d'opportunité est plus bavarde qu'une carte de créateur — elle
+ * porte le modèle de rémunération, les paliers, les clics et les gains. Avec
+ * 1 245 campagnes actives, la page faisait 2,8 Mo. Dix-huit se divisent par
+ * les 2 et 3 colonnes de la grille.
+ */
+const PAR_PAGE = 18;
 
 const TYPE_FILTERS: { id: string; label: string }[] = [
   { id: "affiliation", label: "Affiliation" },
@@ -48,7 +60,8 @@ export default async function OpportunitiesPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { q, type, niche, platform, activated, existing } = await searchParams;
+  const { q, type, niche, platform, activated, existing, page: pageDemandee } =
+    await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -161,6 +174,14 @@ export default async function OpportunitiesPage({
   const activeFilterCount =
     (type ? 1 : 0) + (niche ? 1 : 0) + (platform ? 1 : 0);
   const anyFilter = Boolean(q) || activeFilterCount > 0;
+
+  // Une page de campagnes, pas les mille deux cents.
+  const { page, pages, lignes, premier, dernier } = decouper(results, pageDemandee, PAR_PAGE);
+  // Les chips de filtre n'emportent pas le numéro : changer de filtre
+  // recommence à la page 1. `activated` et `existing` non plus — ce sont des
+  // messages qu'on affiche une fois, pas un état de navigation.
+  const hrefPage = (n: number) =>
+    buildHref({ q, type, niche, platform, page: n > 1 ? String(n) : undefined });
 
   // Chips réutilisées dans drawer mobile ET popovers desktop.
   const typeChips = (
@@ -477,7 +498,15 @@ export default async function OpportunitiesPage({
 
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-zinc-500">
-            {results.length} campagne{results.length > 1 ? "s" : ""}
+            {pages > 1 ? (
+              <>
+                {premier}–{dernier} sur {results.length} campagnes
+              </>
+            ) : (
+              <>
+                {results.length} campagne{results.length > 1 ? "s" : ""}
+              </>
+            )}
           </p>
           {anyFilter && !activeFilterCount && (
             <Link href="/opportunities" className="text-sm font-medium text-brand hover:underline">
@@ -501,7 +530,7 @@ export default async function OpportunitiesPage({
           </div>
         ) : (
           <div className="cards-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((c) => {
+            {lignes.map((c) => {
               const opportunity: Opportunity = {
                 id: c.id,
                 name: c.name,
@@ -556,6 +585,13 @@ export default async function OpportunitiesPage({
             })}
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          href={hrefPage}
+          libelle="Pages des opportunités"
+        />
     </>
   );
 }

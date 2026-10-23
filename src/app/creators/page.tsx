@@ -11,6 +11,7 @@ import FilterChip from "@/components/FilterChip";
 import FilterPopover from "@/components/FilterPopover";
 import PlatformIcon from "@/components/PlatformIcon";
 import EmptyState from "@/components/EmptyState";
+import Pagination, { decouper } from "@/components/Pagination";
 // Le taux affiché vient de la source qui l'applique réellement.
 import { PLATFORM_FEE_RATE } from "@/lib/deal";
 import { planDeLaMarque } from "@/lib/abonnement";
@@ -33,7 +34,18 @@ type Params = {
   platform?: string;
   offre?: string;
   ville?: string;
+  page?: string;
 };
+
+/**
+ * Profils par page.
+ *
+ * Une carte de créateur pèse une dizaine de kilo-octets de HTML. Vingt-quatre
+ * tiennent dans un quart de mégaoctet, se divisent proprement par 2, 3 et 4
+ * — le nombre de colonnes de la grille selon la largeur de l'écran — donc
+ * aucune page ne finit sur une rangée dépareillée.
+ */
+const PAR_PAGE = 24;
 
 function buildHref(params: Params): string {
   const sp = new URLSearchParams();
@@ -75,7 +87,7 @@ export default async function CreatorsPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  const { q, niche, platform, offre, ville } = await searchParams;
+  const { q, niche, platform, offre, ville, page: pageDemandee } = await searchParams;
 
   const query = (q ?? "").trim().toLowerCase();
   const all = await getMarketplaceCreators();
@@ -127,6 +139,14 @@ export default async function CreatorsPage({
 
   const activeCount =
     (niche ? 1 : 0) + (platform ? 1 : 0) + (offre ? 1 : 0) + (ville ? 1 : 0);
+
+  // Une page de résultats, pas les cinq cents.
+  const { page, pages, lignes, premier, dernier } = decouper(results, pageDemandee, PAR_PAGE);
+  // Changer de filtre ramène à la page 1 : rester sur la page 14 d'une liste
+  // qui vient d'en perdre douze afficherait un écran vide alors qu'il y a des
+  // résultats. Seuls les liens de pagination portent un numéro.
+  const hrefPage = (n: number) =>
+    buildHref({ q, niche, platform, offre, ville, page: n > 1 ? String(n) : undefined });
 
   // Villes réellement représentées, les plus fournies d'abord. On ne propose
   // que ce qui existe : un filtre qui renvoie zéro résultat est pire qu'absent.
@@ -368,13 +388,21 @@ export default async function CreatorsPage({
         {/* Résultats */}
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-zinc-500">
-            {results.length} créateur{results.length > 1 ? "s" : ""}
+            {pages > 1 ? (
+              <>
+                {premier}–{dernier} sur {results.length} créateurs
+              </>
+            ) : (
+              <>
+                {results.length} créateur{results.length > 1 ? "s" : ""}
+              </>
+            )}
           </p>
         </div>
 
         {results.length > 0 ? (
           <div className="cards-stagger mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {results.map((c) => (
+            {lignes.map((c) => (
               <CreatorCard
                 key={c.handle}
                 creator={c}
@@ -397,6 +425,13 @@ export default async function CreatorsPage({
             />
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          href={hrefPage}
+          libelle="Pages de l'annuaire"
+        />
     </AppOrLandingShell>
   );
 }
