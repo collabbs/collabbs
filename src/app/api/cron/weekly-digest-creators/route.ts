@@ -1,9 +1,15 @@
+import { montant } from "@/lib/euros";
 import { NextResponse } from "next/server";
 import { repondreEtNoter } from "@/lib/journal-taches";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { countsAsEarning } from "@/lib/affiliate-earnings";
+
+/** Digests envoyés ensemble. Séquentiellement, chacun coûtait ~150 ms. */
+const TAILLE_PAQUET = 20;
+/** Le temps qu'on s'autorise. Un digest non parti repart la semaine suivante. */
+const BUDGET_MS = 40_000;
 
 // Tourne tous les lundis matin : pour chaque créateur ayant au moins un lien
 // d'affiliation, calcule ses stats des 7 derniers jours (clics, ventes,
@@ -50,40 +56,77 @@ export async function GET(request: Request) {
     .select("link_id, type, status, sale_amount, commission_amount, occurred_at")
     .gte("occurred_at", since);
 
-  // Compte les digests PRODUITS, pas les e-mails délivrés : `notify` crée
-  // toujours la notification dans l'app, et l'e-mail peut échouer derrière.
-  // Le nommer « sent » laissait croire à un envoi réussi.
-  let digests = 0;
-  for (const [creatorId, linkIds] of byCreator) {
-    const linkSet = new Set(linkIds);
-    const myEvents = (events ?? []).filter((e) => linkSet.has(e.link_id));
-    if (myEvents.length === 0) continue;
+  /* Un passage par lien, pas un passage par créateur ET par événement.
+     Le compte se faisait en refiltrant TOUS les événements de la semaine pour
+     CHAQUE créateur : 502 créateurs × tous les événements. Ici on range une
+     fois par lien, puis on additionne par créateur. */
+  const parLien = new Map<string, typeof events extends (infer E)[] | null ? E[] : never>();
+  for (const e of events ?? []) {
+    const liste = parLien.get(e.link_id);
+    if (liste) liste.push(e);
+    else parLien.set(e.link_id, [e]);
+  }
 
+  const aEnvoyer: { creatorId: string; clicks: number; sales: number; gains: number }[] = [];
+  for (const [creatorId, linkIds] of byCreator) {
     let clicks = 0;
     let sales = 0;
     let gains = 0;
-    for (const e of myEvents) {
-      if (e.type === "click") clicks += 1;
-      else if (countsAsEarning(e)) {
-        // Annoncer par courriel des gains qui ont été rejetés serait la pire
-        // façon de les apprendre. Les actions (CPA) comptent, elles.
-        sales += 1;
-        gains += Number(e.commission_amount ?? 0);
+    let vus = 0;
+    for (const linkId of linkIds) {
+      for (const e of parLien.get(linkId) ?? []) {
+        vus += 1;
+        if (e.type === "click") clicks += 1;
+        else if (countsAsEarning(e)) {
+          // Annoncer par courriel des gains qui ont été rejetés serait la pire
+          // façon de les apprendre. Les actions (CPA) comptent, elles.
+          sales += 1;
+          gains += Number(e.commission_amount ?? 0);
+        }
       }
     }
-
-    const eurFmt = (n: number) =>
-      n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-
-    await notify({
-      userId: creatorId,
-      type: "weekly_digest_creator",
-      title: `Ta semaine sur Collabbs — ${clicks} clic${clicks > 1 ? "s" : ""}, ${eurFmt(gains)} gagnés`,
-      body: `Sur les 7 derniers jours : ${clicks} clic${clicks > 1 ? "s" : ""} sur tes liens, ${sales} vente${sales > 1 ? "s" : ""}, ${eurFmt(gains)} de commissions. Continue !`,
-      link: "/opportunities",
-    });
-    digests += 1;
+    if (vus === 0) continue;
+    aEnvoyer.push({ creatorId, clicks, sales, gains });
   }
 
-  return repondreEtNoter("weekly-digest-creators", debutTache, { ok: true, creators: byCreator.size, digests });
+  /* Par paquets, et sous un budget.
+     Les digests partaient un par un : mesuré aujourd'hui sur le projet de
+     développement, 59 envois pour 502 créateurs en 8,8 s — soit une centaine
+     de secondes à cinq mille créateurs actifs, et la plateforme couperait la
+     fonction en route. On s'arrête nous-mêmes, et ce qui n'est pas parti
+     repartira la semaine suivante : un digest est une nouvelle de la semaine
+     passée, pas une obligation.
+
+     Compte les digests PRODUITS, pas les e-mails délivrés : `notify` crée la
+     notification dans l'app, et l'e-mail peut échouer derrière. Le nommer
+     « sent » laissait croire à un envoi réussi. */
+  const finDuBudget = Date.now() + BUDGET_MS;
+  let digests = 0;
+  let restants = 0;
+  for (let i = 0; i < aEnvoyer.length; i += TAILLE_PAQUET) {
+    if (Date.now() > finDuBudget) {
+      restants = aEnvoyer.length - i;
+      break;
+    }
+    const paquet = aEnvoyer.slice(i, i + TAILLE_PAQUET);
+    await Promise.all(
+      paquet.map(({ creatorId, clicks, sales, gains }) =>
+        notify({
+          userId: creatorId,
+          type: "weekly_digest_creator",
+          title: `Ta semaine sur Collabbs — ${clicks} clic${clicks > 1 ? "s" : ""}, ${montant(gains)} gagnés`,
+          body: `Sur les 7 derniers jours : ${clicks} clic${clicks > 1 ? "s" : ""} sur tes liens, ${sales} vente${sales > 1 ? "s" : ""}, ${montant(gains)} de commissions. Continue !`,
+          link: "/opportunities",
+        }),
+      ),
+    );
+    digests += paquet.length;
+  }
+
+  return repondreEtNoter("weekly-digest-creators", debutTache, {
+    ok: true,
+    creators: byCreator.size,
+    digests,
+    restants,
+  });
 }
