@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import { notFound } from "next/navigation";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
@@ -209,7 +210,7 @@ export default async function CreatorProfilePage({
                   {/* Un lien, plus un formulaire qui créait la collaboration au
                       clic : on demande ce qu'on propose AVANT que la ligne
                       n'existe. Une marque qui change d'avis en route ne laisse
-                      plus de coquille à 0 € derrière elle. */}
+                      plus de coquille à 0 € derrière elle. */}
                   <Link
                     href={`/deals/nouveau?createur=${c.id}`}
                     className="block w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-center text-sm font-bold text-white shadow-md transition hover:opacity-90"
@@ -381,7 +382,7 @@ export default async function CreatorProfilePage({
                       <p className="mt-3 border-t border-zinc-100 pt-3 text-sm">
                         <span className="text-zinc-500">À partir de </span>
                         <span className="font-display text-lg font-black text-ink">
-                          {price}€
+                          {tarif(price)}
                         </span>
                       </p>
                     )}

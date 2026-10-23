@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import { TARIFS, PLANS, type Plan } from "@/lib/tarifs";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
@@ -51,7 +52,7 @@ export default function PlansAbonnement({
         <p className="mt-3 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
           Tu as versé{" "}
           <strong className="text-ink">
-            {volumeMensuel.toLocaleString("fr-FR")} €
+            {tarif(volumeMensuel)}
           </strong>{" "}
           de collaborations ces 30 derniers jours.
         </p>
@@ -81,7 +82,7 @@ export default function PlansAbonnement({
             >
               <p className="font-display text-lg font-black text-ink">{t.libelle}</p>
               <p className="text-sm text-zinc-500">
-                {t.prix === 0 ? "Sans engagement" : `${t.prix} €/mois`}
+                {t.prix === 0 ? "Sans engagement" : `${tarif(t.prix)}/mois`}
               </p>
               <p className="mt-3 text-sm">
                 <strong className="text-ink">
@@ -97,23 +98,23 @@ export default function PlansAbonnement({
               </p>
 
               {/* Sur un plan sans abonnement, l'addition n'a qu'un seul terme :
-                  écrire « 52 € de commission = 52 € » donne un total qui semble
+                  écrire « 52 € de commission = 52 € » donne un total qui semble
                   faux, sur la carte même qu'on quitte pour payer. */}
               {volumeMensuel > 0 && (
                 <p className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-500">
                   Sur ton volume :{" "}
                   {t.prix > 0 ? (
                     <>
-                      {commission.toLocaleString("fr-FR")} € de commission +{" "}
-                      {t.prix.toLocaleString("fr-FR")} € d&apos;abonnement ={" "}
+                      {tarif(commission)} de commission +{" "}
+                      {tarif(t.prix)} d&apos;abonnement ={" "}
                       <strong className="text-ink">
-                        {coutTotal.toLocaleString("fr-FR")} €
+                        {tarif(coutTotal)}
                       </strong>
                     </>
                   ) : (
                     <>
                       <strong className="text-ink">
-                        {commission.toLocaleString("fr-FR")} €
+                        {tarif(commission)}
                       </strong>{" "}
                       de commission, sans abonnement
                     </>

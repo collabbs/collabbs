@@ -1,3 +1,5 @@
+import { MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { tarif } from "@/lib/euros";
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
@@ -362,7 +364,7 @@ export default async function OpportunityDetailPage({
                         {pluralizeAction(c.cpa_action_label || "action", t.min_actions)}
                       </p>
                       <p className="mt-1.5 font-display text-2xl font-black text-emerald-700">
-                        {t.payout.toLocaleString("fr-FR")}€
+                        {tarif(t.payout)}
                       </p>
                     </div>
                   ))}
@@ -379,7 +381,7 @@ export default async function OpportunityDetailPage({
               <p className="mt-3 text-sm text-zinc-700">
                 Tu touches{" "}
                 <span className="font-display text-2xl font-black text-emerald-700">
-                  {c.cpa_value_per_action}€
+                  {tarif(c.cpa_value_per_action)}
                 </span>{" "}
                 pour chaque{" "}
                 <strong className="text-ink">{c.cpa_action_label || "action"}</strong>{" "}
@@ -434,7 +436,7 @@ export default async function OpportunityDetailPage({
                   )}
                   {c.promo_min_purchase != null && c.promo_min_purchase > 0 && (
                     <p className="text-xs text-zinc-500">
-                      Dès {c.promo_min_purchase}€ d&apos;achat
+                      Dès {tarif(c.promo_min_purchase)} d&apos;achat
                     </p>
                   )}
                   {c.promo_expires_at && (
@@ -465,7 +467,7 @@ export default async function OpportunityDetailPage({
                   </div>
                   <div className="rounded-xl bg-emerald-50 p-3 text-center ring-1 ring-emerald-100 sm:col-span-2">
                     <p className="font-display text-xl font-black text-emerald-700">
-                      {promoCommissionTotal.toLocaleString("fr-FR")}€
+                      {tarif(promoCommissionTotal)}
                     </p>
                     <p className="text-[11px] uppercase tracking-wide text-emerald-700">
                       Commission cumulée
@@ -503,7 +505,7 @@ export default async function OpportunityDetailPage({
                       Valeur
                     </p>
                     <p className="mt-1 font-display text-xl font-black text-ink">
-                      {c.giveaway_prize_value.toLocaleString("fr-FR")} €
+                      {tarif(c.giveaway_prize_value)}
                     </p>
                   </div>
                 )}
@@ -761,7 +763,7 @@ export default async function OpportunityDetailPage({
                     },
                     {
                       n: 4,
-                      t: "Tu es payé·e dès 20 € atteints",
+                      t: `Tu es payé·e dès ${tarif(MIN_PAYOUT)} atteints`,
                       d: "Versement automatique des commissions sur ton compte (Stripe Connect, ~2 jours ouvrés).",
                     },
                   ]
@@ -812,7 +814,7 @@ export default async function OpportunityDetailPage({
                   ? [
                       {
                         q: "Quand est-ce que je suis payé·e ?",
-                        a: "Les commissions sont calculées en temps réel. Dès que tes commissions acquises atteignent 20 €, le versement part le lendemain matin, automatiquement sur ton compte connecté (Stripe Connect, 2-3 jours ouvrés). En dessous de 20 €, elles restent acquises et s'ajoutent aux suivantes.",
+                        a: `Les commissions sont calculées en temps réel. Dès que tes commissions acquises atteignent ${tarif(MIN_PAYOUT)}, le versement part le lendemain matin, automatiquement sur ton compte connecté (Stripe Connect, 2-3 jours ouvrés). En dessous de ${tarif(MIN_PAYOUT)}, elles restent acquises et s'ajoutent aux suivantes.`,
                       },
                       {
                         q: "Combien est-ce que je peux gagner ?",

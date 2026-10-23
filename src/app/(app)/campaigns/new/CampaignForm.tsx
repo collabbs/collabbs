@@ -784,9 +784,9 @@ export default function CampaignForm({
           {/* ═══ COMBIEN DE FOIS L'ABONNEMENT RAPPORTE ═══
 
               La question décisive d'un programme SaaS, et elle n'était posée
-              nulle part. 20 % de 29 € sur le premier paiement font 5,80 € :
+              nulle part. 20 % de 29 € sur le premier paiement font 5,80 € :
               aucun créateur ne se déplace. Les mêmes 20 % sur douze mois font
-              70 €, et le programme se vend. */}
+              70 €, et le programme se vend. */}
           <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-400">
             Le créateur touche sur…
           </h2>

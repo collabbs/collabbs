@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
@@ -187,7 +188,7 @@ export default function FormulaireProposition({
                     // devenait impossible à proposer.
                     "Laisse 0 si tu n'envoies rien. Le créateur est payé à la commission."
                   : tarifDepart
-                    ? `Son tarif affiché est de ${tarifDepart} €. Tu peux proposer autre chose.`
+                    ? `Son tarif affiché est de ${tarif(tarifDepart)}. Tu peux proposer autre chose.`
                     : "Ce créateur n'affiche pas de tarif — à toi de proposer."}
           </p>
 

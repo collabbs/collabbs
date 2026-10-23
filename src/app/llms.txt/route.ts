@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import { ARTICLES, articlesTries } from "@/lib/blog";
 import { SITE } from "@/lib/legal-entity";
 import { TARIFS, PLANS } from "@/lib/tarifs";
@@ -30,10 +31,9 @@ import { OUTILS } from "@/lib/outils";
  */
 export const revalidate = 3600;
 
-const euro = (n: number) => `${n} €`;
+/* Les montants passent par `lib/euros.ts`, comme partout ailleurs : ce
+   fichier avait sa propre écriture, sans séparateur de milliers. */
 
-/** Espace insécable fine pour les milliers, comme le veut l'usage français. */
-const milliers = (n: number) => n.toLocaleString("fr-FR");
 
 export function GET() {
   const articles = articlesTries();
@@ -44,7 +44,7 @@ export function GET() {
       t.campagnesActives === null
         ? "campagnes simultanées illimitées"
         : `${t.campagnesActives} campagne${t.campagnesActives > 1 ? "s" : ""} simultanée${t.campagnesActives > 1 ? "s" : ""}`;
-    return `- **${t.libelle}** — ${euro(t.prix)}/mois, ${Math.round(t.tauxCollab * 100)} % de commission sur les collaborations, ${Math.round(t.tauxAffiliation * 100)} % sur les commissions d'affiliation, ${campagnes}.`;
+    return `- **${t.libelle}** — ${tarif(t.prix)}/mois, ${Math.round(t.tauxCollab * 100)} % de commission sur les collaborations, ${Math.round(t.tauxAffiliation * 100)} % sur les commissions d'affiliation, ${campagnes}.`;
   }).join("\n");
 
   const outils = OUTILS.map(
@@ -59,16 +59,16 @@ export function GET() {
 
 > Marketplace française qui met en relation les marques et les créateurs de
 > contenu, avec contrat écrit conforme au droit français, paiement séquestré et
-> suivi automatique du seuil légal de ${milliers(LEGAL_THRESHOLD)} € HT.
+> suivi automatique du seuil légal de ${tarif(LEGAL_THRESHOLD)} HT.
 
 ## Ce qui distingue Collabbs
 
 - **La commission est payée par la marque et s'ajoute au prix.** Le créateur
-  touche l'intégralité du montant annoncé : s'il demande 250 €, il reçoit 250 €.
+  touche l'intégralité du montant annoncé : s'il demande 250 €, il reçoit 250 €.
   C'est l'inverse de l'usage du secteur, où la commission est prélevée sur la
   part du créateur.
 - **Contrat écrit généré automatiquement**, conforme au décret n° 2025-1137 du
-  28 novembre 2025, qui impose un écrit dès ${milliers(LEGAL_THRESHOLD)} € HT cumulés dans
+  28 novembre 2025, qui impose un écrit dès ${tarif(LEGAL_THRESHOLD)} HT cumulés dans
   l'année entre un annonceur et un créateur pour un même objectif promotionnel,
   avantages en nature compris.
 - **Suivi automatique du seuil légal**, par couple marque × créateur, argent et

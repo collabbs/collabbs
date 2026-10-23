@@ -64,7 +64,7 @@ export default async function PageNouvelleProposition({
 
   /* Le tarif affiché du créateur sert de point de départ au montant. Une marque
      qui ne sait pas quoi mettre part de ce que le créateur demande — c'est
-     l'information la plus utile qu'on ait, et elle évite la proposition à 20 €
+     l'information la plus utile qu'on ait, et elle évite la proposition à 20 €
      qui fait fuir. */
   const tarifDepart = fiche?.rate_video ?? fiche?.rate_pack ?? fiche?.rate_mention ?? null;
 

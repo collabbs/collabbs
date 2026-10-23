@@ -8,6 +8,7 @@
  * pas planter une page : elle prélève.
  */
 
+import { tarif } from "@/lib/euros";
 import { z } from "zod";
 import { identifiant, montantEuros } from "@/lib/validation";
 
@@ -35,7 +36,7 @@ export const approvisionnementSchema = z.object({
     quoi: "Le montant à approvisionner",
     min: TOPUP_MIN_EUROS,
     max: TOPUP_MAX_EUROS,
-    messageMin: `Le montant minimum d'approvisionnement est de ${TOPUP_MIN_EUROS} €. Saisis 20 ou plus.`,
+    messageMin: `Le montant minimum d'approvisionnement est de ${tarif(TOPUP_MIN_EUROS)}. Saisis 20 ou plus.`,
   }),
 });
 
@@ -62,7 +63,7 @@ export const rechargeAutoSchema = z.object({
     quoi: "Le montant de recharge",
     min: TOPUP_MIN_EUROS,
     max: TOPUP_MAX_EUROS,
-    messageMin: `Le montant de recharge doit faire au moins ${TOPUP_MIN_EUROS} €. Saisis 20 ou plus.`,
+    messageMin: `Le montant de recharge doit faire au moins ${tarif(TOPUP_MIN_EUROS)}. Saisis 20 ou plus.`,
   }),
 });
 

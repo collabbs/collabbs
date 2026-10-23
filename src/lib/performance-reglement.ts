@@ -9,7 +9,7 @@ import { alerterAdmins } from "@/lib/alerte-admin";
    s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
    les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
    d'argent (provision, registre, versements, factures) la respectaient déjà ;
-   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
    « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
 import { eurExact as eur } from "@/lib/campaign";
 
@@ -115,7 +115,7 @@ export async function reglerCollaborationAuxVues(dealId: string): Promise<Reglem
     await alerterAdmins({
       type: "reliquat_non_rembourse",
       title: "Un reliquat de performance n'a pas pu être remboursé",
-      body: `Le remboursement de ${aRembourser} € au titre du deal ${dealId} a échoué. Cause rapportée par Stripe : ${message || "inconnue"}. La marque a avancé plus que les vues réalisées et attend cette somme : tant que ce n'est pas réglé, elle est créancière sans le savoir.`,
+      body: `Le remboursement de ${eur(aRembourser)} au titre du deal ${dealId} a échoué. Cause rapportée par Stripe : ${message || "inconnue"}. La marque a avancé plus que les vues réalisées et attend cette somme : tant que ce n'est pas réglé, elle est créancière sans le savoir.`,
       link: "/admin",
       fenetreMinutes: 1,
     });
@@ -154,7 +154,7 @@ export async function reglerCollaborationAuxVues(dealId: string): Promise<Reglem
     .eq("id", tx.id);
   if (errTx) {
     await reportError("performance/reglement", errTx, {
-      detail: `Reliquat de ${aRembourser} € remboursé à la marque pour le deal ${dealId}, mais la transaction ${tx.id} dit encore ${tx.gross_amount} €. Le versement au créateur porterait sur un montant qui n'est plus en séquestre.`,
+      detail: `Reliquat de ${eur(aRembourser)} remboursé à la marque pour le deal ${dealId}, mais la transaction ${tx.id} dit encore ${eur(Number(tx.gross_amount))}. Le versement au créateur porterait sur un montant qui n'est plus en séquestre.`,
     });
     return {
       ok: false,

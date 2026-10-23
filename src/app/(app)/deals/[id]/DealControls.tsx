@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -215,7 +216,7 @@ export default function DealControls({
               />
               {perfRate ? (
                 <span className="mt-1 block text-xs text-zinc-500">
-                  Payé {perfRate} € / 1000 vues, dans la limite de ce plafond
+                  Payé {tarif(perfRate)} / 1000 vues, dans la limite de ce plafond
                   {amount > 0 && (
                     <> — soit le maximum atteint à {Math.ceil((amount / perfRate) * 1000).toLocaleString("fr-FR")} vues</>
                   )}
@@ -312,7 +313,7 @@ export default function DealControls({
                           {PERIMETRE_LABEL[p]}
                         </span>
                         <span className="text-sm font-bold text-brand-deep">
-                          +{supplementDroits(contenu, moisDroits, p)}€
+                          +{tarif(supplementDroits(contenu, moisDroits, p))}
                         </span>
                       </span>
                       <span className="mt-1 block text-[11px] text-zinc-500">
@@ -324,9 +325,9 @@ export default function DealControls({
                 {/* La décomposition, en clair. Le créateur touche les deux
                     lignes : c'est son droit qu'on licencie. */}
                 <span className="mt-2 block rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
-                  Contenu <strong className="text-ink">{contenu}€</strong> + droits{" "}
-                  <strong className="text-ink">{fraisDroits}€</strong> ={" "}
-                  <strong className="text-ink">{amount}€</strong> pour le créateur.{" "}
+                  Contenu <strong className="text-ink">{tarif(contenu)}</strong> + droits{" "}
+                  <strong className="text-ink">{tarif(fraisDroits)}</strong> ={" "}
+                  <strong className="text-ink">{tarif(amount)}</strong> pour le créateur.{" "}
                   {libelleDroits(moisDroits, perimetre)}.
                 </span>
               </label>

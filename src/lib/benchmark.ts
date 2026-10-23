@@ -112,21 +112,21 @@ export type RepereMarche = {
 export const REPERES_MARCHE: RepereMarche[] = [
   {
     libelle: "Vidéo UGC de 30 s, prix moyen constaté en France",
-    valeur: "28 €",
+    valeur: "28 €",
     source: "Influee, simulateur de coût",
     url: "https://influee.co/fr/tarification/creation-ugc",
     releveLe: "2026-08-31",
   },
   {
     libelle: "Vidéo UGC, entrée de gamme annoncée aux créateurs",
-    valeur: "à partir de 80 €",
+    valeur: "à partir de 80 €",
     source: "Influee, page créateurs",
     url: "https://influee.co/fr/pour-createurs",
     releveLe: "2026-08-31",
   },
   {
     libelle: "Vidéo de 15 s livrée montée, droits pub 2 ans inclus",
-    valeur: "99 € HT",
+    valeur: "99 € HT",
     source: "Moggo, prix public",
     url: "https://www.moggo.fr/",
     releveLe: "2026-08-31",

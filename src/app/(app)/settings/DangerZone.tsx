@@ -30,7 +30,7 @@ export default function DangerZone({ error }: { error: string | null }) {
 
               Constaté le 22/10/2026 en tentant la suppression pour de vrai :
               l'écran promettait « les fonds en séquestre seront remboursés à la
-              marque », et le refus répondait « Une somme de 108,00 € est encore
+              marque », et le refus répondait « Une somme de 108,00 € est encore
               immobilisée […] il faut d'abord que ces collaborations aillent à
               leur terme ». Une promesse fausse sur le seul bouton irréversible
               du produit.

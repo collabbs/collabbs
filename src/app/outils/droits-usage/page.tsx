@@ -59,11 +59,11 @@ export default function PageDroitsUsage() {
         </h2>
         <div className="mt-4 space-y-4 text-[17px] leading-relaxed text-zinc-600">
           <p>
-            Un créateur facture 300 € une vidéo. La marque la trouve bonne, la passe en
+            Un créateur facture 300 € une vidéo. La marque la trouve bonne, la passe en
             publicité payante et la diffuse pendant un an. Sans cession écrite, deux
             choses sont vraies en même temps : la marque n&apos;en avait pas le droit, et
             le créateur n&apos;a rien touché pour ça. Cette vidéo valait
-            <strong className="font-semibold text-ink"> 780 €</strong>.
+            <strong className="font-semibold text-ink"> 780 €</strong>.
           </p>
           <p>
             C&apos;est le poste le plus souvent oublié d&apos;un devis UGC, et celui qui
@@ -72,7 +72,7 @@ export default function PageDroitsUsage() {
           </p>
           <p>
             Depuis le 1<sup>er</sup> janvier 2026, le contrat écrit est de toute façon
-            obligatoire dès 1 000 € HT cumulés dans l&apos;année entre une marque et un
+            obligatoire dès 1 000 € HT cumulés dans l&apos;année entre une marque et un
             créateur pour un même objectif promotionnel, avantages en nature compris. Et
             parmi les mentions imposées figurent précisément{" "}
             <strong className="font-semibold text-ink">les droits de propriété

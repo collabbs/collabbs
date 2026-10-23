@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { useState } from "react";
 import Link from "next/link";
 import { useStockageLocal, oublierStockageLocal } from "@/hooks/useStockageLocal";
@@ -410,7 +411,7 @@ export default function QuizMarque() {
                   affichera, plutôt que de laisser découvrir. */}
               {Object.keys(carte.prix).length > 1 && carte.montant !== null && (
                 <p className="text-[13px] leading-relaxed text-zinc-500">
-                  Ta carte annoncera {carte.montant.toLocaleString("fr-FR")} € — le
+                  Ta carte annoncera {tarif(carte.montant)} — le
                   plus bas de tes formats. Promettre plus ferait cliquer davantage
                   et décevrait autant.
                 </p>

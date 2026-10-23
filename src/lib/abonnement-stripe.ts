@@ -107,7 +107,7 @@ export async function ouvrirAbonnement(params: {
          exprès pour une panne, qui n'aurait pas servi le jour de la panne.
  
          Ce que ça coûtait : le webhook a été muet cinq jours en septembre. Sur
-         cette fenêtre, une marque payait 99 ou 299 €, lisait « abonnement
+         cette fenêtre, une marque payait 99 ou 299 €, lisait « abonnement
          souscrit », et gardait le taux du plan gratuit. Elle n'avait aucune
          raison de se plaindre tout de suite — l'écran lui disait que c'était
          bon.

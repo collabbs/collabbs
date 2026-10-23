@@ -1,3 +1,4 @@
+import { TOPUP_MIN_EUROS } from "@/lib/schemas/billing";
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
@@ -374,7 +375,7 @@ export default async function BillingPage({
       <div className="mt-6 rounded-2xl border border-zinc-100 bg-white p-6 shadow-sm">
         <h2 className="font-semibold text-ink">Approvisionner</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Minimum 20 €. Ta carte est enregistrée au passage, pour que les recharges
+          Minimum {eur(TOPUP_MIN_EUROS)}. Ta carte est enregistrée au passage, pour que les recharges
           suivantes se fassent sans toi.
         </p>
         <form action={startTopup} className="mt-4 flex flex-wrap items-center gap-3">
@@ -560,8 +561,8 @@ export default async function BillingPage({
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink">
                       {/* Une action au CPA n'a pas de montant de panier : la
-                          ligne affichait « Vente de 0,00 € » en face d'un
-                          engagement de 350 €. */}
+                          ligne affichait « Vente de 0,00 € » en face d'un
+                          engagement de 350 €. */}
                       {s.source === "cpa_action"
                         ? "Action réalisée"
                         : `Vente de ${eur(Number(s.sale_amount ?? 0))}`}

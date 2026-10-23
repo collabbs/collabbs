@@ -221,8 +221,8 @@ export default function EngagementPanel({
           </p>
 
           {/* Un partenariat récurrent franchit le seuil légal PAR CONSTRUCTION :
-              300 €/mois sur 6 mois font 1 800 €. Au mois où le cumul dépasse
-              1 000 €, `acceptDeal` exige les coordonnées légales complètes des
+              300 €/mois sur 6 mois font 1 800 €. Au mois où le cumul dépasse
+              1 000 €, `acceptDeal` exige les coordonnées légales complètes des
               deux parties — et sans elles, le créateur ne peut plus rien
               accepter. L'automate continuerait d'ouvrir des mois qu'il
               refuserait sans comprendre. On le dit AVANT de s'engager, pas au

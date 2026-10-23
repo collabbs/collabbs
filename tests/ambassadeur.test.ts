@@ -102,9 +102,11 @@ describe("coutTotal", () => {
 });
 
 describe("libelleEngagement", () => {
+  // Les montants passent par `lib/euros.ts` : une seule écriture pour tout le
+  // produit, avec l'espace insécable qu'impose la typographie française.
   it("accorde le pluriel des contenus", () => {
-    expect(libelleEngagement(6, 2, 400)).toBe("6 mois · 2 contenus/mois · 400€/mois");
-    expect(libelleEngagement(3, 1, 250)).toBe("3 mois · 1 contenu/mois · 250€/mois");
+    expect(libelleEngagement(6, 2, 400)).toBe("6 mois · 2 contenus/mois · 400\u00a0€/mois");
+    expect(libelleEngagement(3, 1, 250)).toBe("3 mois · 1 contenu/mois · 250\u00a0€/mois");
   });
 });
 

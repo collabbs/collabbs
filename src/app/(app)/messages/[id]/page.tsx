@@ -64,7 +64,7 @@ export default async function ThreadPage({
 
   /* ─── La conversation mène quelque part ───────────────────────────────────
      L'en-tête ne portait que le nom et le rôle. Or c'est ICI que le deal se
-     conclut — « ok, 200 € pour deux stories » — et à cet instant la marque
+     conclut — « ok, 200 € pour deux stories » — et à cet instant la marque
      devait quitter le chat, retrouver le créateur dans la recherche, et tout
      ressaisir. C'est le moment précis où l'on perd des collaborations.
 

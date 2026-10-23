@@ -1,3 +1,4 @@
+import { montant as enEuros } from "@/lib/euros";
 import { NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
 import { timingSafeEqual } from "crypto";
@@ -95,7 +96,7 @@ async function handle(p: Payload) {
   const expiration = link.campaigns?.promo_expires_at as string | null | undefined;
   let ecartee: string | null = null;
   if (minimum > 0 && amount < minimum) {
-    ecartee = `Panier de ${amount} € inférieur au minimum de ${minimum} € fixé par la marque`;
+    ecartee = `Panier de ${enEuros(amount)} inférieur au minimum de ${enEuros(minimum)} fixé par la marque`;
   } else if (expiration && new Date(expiration).getTime() < Date.now()) {
     ecartee = `Code expiré le ${new Date(expiration).toLocaleDateString("fr-FR")}`;
   }

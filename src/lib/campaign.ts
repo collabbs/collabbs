@@ -1,5 +1,7 @@
 // Helpers partagés pour l'affichage des campagnes (côté créateur et marque).
 
+import { tarif } from "@/lib/euros";
+
 /**
  * Les types de campagne réellement créables par le formulaire.
  *
@@ -96,16 +98,16 @@ export function campaignReward(c: RewardInput): string {
     case "affiliation":
       return `Commission ${c.commission_nano ?? "?"}%–${c.commission_macro ?? "?"}%`;
     case "video":
-      return c.fixed_amount ? `${c.fixed_amount}€ par contenu` : "Paiement fixe";
+      return c.fixed_amount ? `${tarif(c.fixed_amount)} par contenu` : "Paiement fixe";
     case "performance":
       return c.commission_value
-        ? `${c.commission_value}€ / 1000 ${c.commission_unit ?? "vues"}`
+        ? `${tarif(c.commission_value)} / 1000 ${c.commission_unit ?? "vues"}`
         : "À la performance";
     case "hybrid":
-      return `${c.fixed_amount ?? 0}€ + commission ${c.commission_nano ?? "?"}–${c.commission_macro ?? "?"}%`;
+      return `${tarif(c.fixed_amount ?? 0)} + commission ${c.commission_nano ?? "?"}–${c.commission_macro ?? "?"}%`;
     case "cpa_flat":
       return c.cpa_value_per_action
-        ? `${c.cpa_value_per_action}€ par ${c.cpa_action_label || "action"}`
+        ? `${tarif(c.cpa_value_per_action)} par ${c.cpa_action_label || "action"}`
         : "Paiement à l'action";
     case "cpa_tiers": {
       // On annonce le palier le plus haut : c'est le maximum atteignable, et
@@ -113,7 +115,7 @@ export function campaignReward(c: RewardInput): string {
       // affiché juste en dessous sur la page.
       const paliers = (c.campaign_cpa_tiers ?? []).map((t) => t.payout);
       return paliers.length > 0
-        ? `Jusqu'à ${Math.max(...paliers).toLocaleString("fr-FR")}€ par paliers`
+        ? `Jusqu'à ${tarif(Math.max(...paliers))} par paliers`
         : "Paliers à l'action";
     }
     default:

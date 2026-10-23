@@ -251,7 +251,7 @@ export default function SuiviSeuil() {
                 <p className="mt-1.5 text-xs text-zinc-500">
                   {/* `{" "}` explicite : JSX supprime l'espace qui suit une
                       expression quand le texte se poursuit à la ligne
-                      suivante. Sans lui, ça rend « 250 €en avantages ». */}
+                      suivante. Sans lui, ça rend « 250 €en avantages ». */}
                   Dont {eur(e.nature)}{" "}
                   en avantages en nature, qui comptent au même titre
                   que l&apos;argent versé.

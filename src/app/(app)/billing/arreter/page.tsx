@@ -1,3 +1,4 @@
+import { tarif as enEuros } from "@/lib/euros";
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
@@ -140,10 +141,10 @@ export default async function ArreterPage() {
           <p className="mt-3 text-sm text-zinc-600">
             Tu n&apos;as versé aucune collaboration ces 30 derniers jours, donc
             ton abonnement ne t&apos;a rien fait économiser : il t&apos;a coûté{" "}
-            <strong className="text-ink">{tarif.prix} €</strong>. Tant que tu ne
+            <strong className="text-ink">{enEuros(tarif.prix)}</strong>. Tant que tu ne
             dépenses pas au moins{" "}
             <strong className="text-ink">
-              {seuil?.toLocaleString("fr-FR")} € par mois
+              {seuil != null ? enEuros(seuil) : "—"} par mois
             </strong>
             , le plan Gratuit te revient moins cher. Arrêter est le bon calcul.
           </p>
@@ -156,10 +157,10 @@ export default async function ArreterPage() {
                     Ton mois en {tarif.libelle}
                   </td>
                   <td className="py-2 text-right tabular-nums text-zinc-500">
-                    {Math.round(volume * tarif.tauxCollab).toLocaleString("fr-FR")} €
-                    de commission + {tarif.prix} € ={" "}
+                    {enEuros(Math.round(volume * tarif.tauxCollab))}
+                    de commission + {enEuros(tarif.prix)} ={" "}
                     <strong className="text-ink">
-                      {coutActuel.toLocaleString("fr-FR")} €
+                      {enEuros(coutActuel)}
                     </strong>
                   </td>
                 </tr>
@@ -167,7 +168,7 @@ export default async function ArreterPage() {
                   <td className="py-2 text-zinc-600">Le même mois en Gratuit</td>
                   <td className="py-2 text-right tabular-nums text-zinc-500">
                     <strong className="text-ink">
-                      {coutGratuit.toLocaleString("fr-FR")} €
+                      {enEuros(coutGratuit)}
                     </strong>{" "}
                     de commission, sans abonnement
                   </td>
@@ -179,23 +180,23 @@ export default async function ArreterPage() {
               <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
                 À ton volume actuel, ton abonnement te coûte{" "}
                 <strong className="text-ink">
-                  {ecart.toLocaleString("fr-FR")} € de plus
+                  {enEuros(ecart)} de plus
                 </strong>{" "}
                 par mois qu&apos;il ne te fait économiser.{" "}
                 <strong className="text-ink">Arrêter est le bon calcul.</strong>{" "}
                 {tarif.libelle} devient intéressant à partir de{" "}
-                {seuil?.toLocaleString("fr-FR")} € de collaborations par mois —
+                {seuil != null ? enEuros(seuil) : "—"} de collaborations par mois —
                 reviens-y à ce moment-là.
               </p>
             ) : (
               <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
                 À ton volume actuel, ton abonnement te fait économiser{" "}
-                <strong>{Math.abs(ecart).toLocaleString("fr-FR")} €</strong> par
+                <strong>{enEuros(Math.abs(ecart))}</strong> par
                 mois. En arrêtant, ta commission passera de{" "}
                 {Math.round(tarif.tauxCollab * 100)} % à{" "}
                 {Math.round(TARIFS.free.tauxCollab * 100)} %, et ce mois-ci
-                t&apos;aurait coûté {coutGratuit.toLocaleString("fr-FR")} € au lieu
-                de {coutActuel.toLocaleString("fr-FR")} €.
+                t&apos;aurait coûté {enEuros(coutGratuit)} au lieu
+                de {enEuros(coutActuel)}.
               </p>
             )}
           </>

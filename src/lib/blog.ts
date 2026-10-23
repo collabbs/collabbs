@@ -53,7 +53,7 @@ export const ARTICLES: Article[] = [
     slug: "contrat-influenceur-obligatoire-2026",
     titre: "Contrat influenceur : ce que la loi impose depuis janvier 2026",
     description:
-      "Depuis le 1er janvier 2026, un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année entre une marque et un créateur. Marque, agence et créateur sont solidairement responsables. Ce qu'il faut savoir, et comment suivre le seuil.",
+      "Depuis le 1er janvier 2026, un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année entre une marque et un créateur. Marque, agence et créateur sont solidairement responsables. Ce qu'il faut savoir, et comment suivre le seuil.",
     intention: "contrat influenceur obligatoire 2026",
     categorie: "Réglementation",
     publieLe: "2026-08-31",
@@ -62,14 +62,14 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Depuis le **1er janvier 2026**, toute collaboration commerciale entre une marque et un créateur doit faire l'objet d'un **contrat écrit** dès que sa valeur dépasse **1 000 € hors taxes**. Ce n'est plus une bonne pratique : c'est une obligation, et elle engage les deux parties.",
+          "Depuis le **1er janvier 2026**, toute collaboration commerciale entre une marque et un créateur doit faire l'objet d'un **contrat écrit** dès que sa valeur dépasse **1 000 € hors taxes**. Ce n'est plus une bonne pratique : c'est une obligation, et elle engage les deux parties.",
       },
       {
         type: "p",
         texte:
           "La règle vient de la **loi n° 2023-451 du 9 juin 2023** sur l'influence commerciale, dont le **décret n° 2025-1137 du 28 novembre 2025** a fixé le seuil. Beaucoup de marques et de créateurs travaillent aujourd'hui sans contrat écrit, en pensant être en dessous — parce qu'ils comptent mal.",
       },
-      { type: "h2", texte: "Le seuil de 1 000 € ne s'apprécie pas par collaboration" },
+      { type: "h2", texte: "Le seuil de 1 000 € ne s'apprécie pas par collaboration" },
       {
         type: "p",
         texte:
@@ -78,7 +78,7 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Le seuil s'apprécie **par couple marque × créateur** et **sur l'année**. Deux collaborations à 600 € avec le même créateur dans la même année déclenchent l'obligation, même si aucune ne l'atteint seule.",
+          "Le seuil s'apprécie **par couple marque × créateur** et **sur l'année**. Deux collaborations à 600 € avec le même créateur dans la même année déclenchent l'obligation, même si aucune ne l'atteint seule.",
       },
       {
         type: "p",
@@ -97,14 +97,14 @@ export const ARTICLES: Article[] = [
         ton: "info",
         titre: "Un outil gratuit pour suivre ce cumul",
         texte:
-          "Ce calcul est le genre de chose qu'on ne fait pas de tête : par marque, sur l'année, argent et cadeaux additionnés. Nous avons mis en ligne un **suivi du seuil de 1 000 €** utilisable sans compte, où rien ne quitte votre navigateur : [ouvrir l'outil](/outils/seuil-1000-euros).",
+          "Ce calcul est le genre de chose qu'on ne fait pas de tête : par marque, sur l'année, argent et cadeaux additionnés. Nous avons mis en ligne un **suivi du seuil de 1 000 €** utilisable sans compte, où rien ne quitte votre navigateur : [ouvrir l'outil](/outils/seuil-1000-euros).",
       },
       {
         type: "encadre",
         ton: "alerte",
         titre: "Les avantages en nature comptent aussi",
         texte:
-          "La valeur des produits offerts, dotations et services gratuits entre dans le cumul, au même titre que l'argent versé. Une paire de sneakers à 400 € envoyée en gifting rapproche du seuil autant que 400 € virés. C'est ce qui fait basculer les marques qui pratiquent l'envoi de produits sans jamais payer un euro.",
+          "La valeur des produits offerts, dotations et services gratuits entre dans le cumul, au même titre que l'argent versé. Une paire de sneakers à 400 € envoyée en gifting rapproche du seuil autant que 400 € virés. C'est ce qui fait basculer les marques qui pratiquent l'envoi de produits sans jamais payer un euro.",
       },
       { type: "h2", texte: "Ce que le contrat doit contenir" },
       {
@@ -175,7 +175,7 @@ export const ARTICLES: Article[] = [
       {
         type: "liste",
         items: [
-          "Contrat écrit obligatoire dès **1 000 € HT cumulés** sur l'année, par couple marque × créateur, pour un même objectif promotionnel.",
+          "Contrat écrit obligatoire dès **1 000 € HT cumulés** sur l'année, par couple marque × créateur, pour un même objectif promotionnel.",
           "Les **avantages en nature** entrent dans le calcul.",
           "**Marque, agence et créateur** sont solidairement responsables.",
           "Le contrat doit exister **avant** la prestation, pas après.",
@@ -208,7 +208,7 @@ export const ARTICLES: Article[] = [
     slug: "combien-coute-une-video-ugc",
     titre: "Combien coûte une vidéo UGC en France en 2026 ?",
     description:
-      "Les fourchettes réellement pratiquées : 150 à 350 € pour une vidéo en usage organique, nettement plus dès qu'on y ajoute les droits publicitaires. Ce qui fait varier le prix, et ce qu'il faut prévoir en plus.",
+      "Les fourchettes réellement pratiquées : 150 à 350 € pour une vidéo en usage organique, nettement plus dès qu'on y ajoute les droits publicitaires. Ce qui fait varier le prix, et ce qu'il faut prévoir en plus.",
     intention: "combien coûte une vidéo UGC prix tarif",
     categorie: "Tarifs",
     publieLe: "2026-08-31",
@@ -229,15 +229,15 @@ export const ARTICLES: Article[] = [
         type: "tableau",
         entetes: ["Profil du créateur", "Fourchette constatée"],
         lignes: [
-          ["Débutant, script fourni par la marque", "150 – 200 €"],
-          ["Créateur confirmé, avec portfolio", "environ 350 €"],
-          ["Prix moyen toutes expériences confondues", "200 – 220 €"],
+          ["Débutant, script fourni par la marque", "150 – 200 €"],
+          ["Créateur confirmé, avec portfolio", "environ 350 €"],
+          ["Prix moyen toutes expériences confondues", "200 – 220 €"],
         ],
       },
       {
         type: "p",
         texte:
-          "Les sources divergent sur le haut de la fourchette : certaines grilles annoncent 300 à 1 000 € pour une vidéo organique, d'autres se stabilisent autour de 200 €. L'écart s'explique surtout par ce qu'on met derrière le mot « vidéo » — trente secondes filmées au téléphone et un tournage scénarisé de deux minutes ne sont pas le même métier.",
+          "Les sources divergent sur le haut de la fourchette : certaines grilles annoncent 300 à 1 000 € pour une vidéo organique, d'autres se stabilisent autour de 200 €. L'écart s'explique surtout par ce qu'on met derrière le mot « vidéo » — trente secondes filmées au téléphone et un tournage scénarisé de deux minutes ne sont pas le même métier.",
       },
       { type: "h2", texte: "Ce qui fait vraiment varier le prix" },
       {
@@ -256,18 +256,18 @@ export const ARTICLES: Article[] = [
         ton: "alerte",
         titre: "Une vidéo organique et une vidéo publicitaire n'ont pas le même prix",
         texte:
-          "Le marché facture les droits d'exploitation publicitaire environ 15 à 30 % du tarif par tranche de 30 jours de diffusion. Une vidéo à 300 € que la marque veut pousser en publicité pendant trois mois représente donc plusieurs centaines d'euros de plus. Un créateur qui ne facture pas ce supplément travaille à perte sans le savoir : c'est son visage qui sert de support publicitaire, potentiellement devant des gens qui ne le connaissent pas.",
+          "Le marché facture les droits d'exploitation publicitaire environ 15 à 30 % du tarif par tranche de 30 jours de diffusion. Une vidéo à 300 € que la marque veut pousser en publicité pendant trois mois représente donc plusieurs centaines d'euros de plus. Un créateur qui ne facture pas ce supplément travaille à perte sans le savoir : c'est son visage qui sert de support publicitaire, potentiellement devant des gens qui ne le connaissent pas.",
       },
       {
         type: "p",
         texte:
-          "Les grilles les plus complètes situent d'ailleurs la vidéo publicitaire — droits inclus — entre 700 et 3 000 €, contre 150 à 350 € pour la même vidéo en usage organique. Le contenu est identique ; c'est le droit qui change.",
+          "Les grilles les plus complètes situent d'ailleurs la vidéo publicitaire — droits inclus — entre 700 et 3 000 €, contre 150 à 350 € pour la même vidéo en usage organique. Le contenu est identique ; c'est le droit qui change.",
       },
       { type: "h2", texte: "Et pour un pack de plusieurs vidéos ?" },
       {
         type: "p",
         texte:
-          "La plupart des créateurs proposent un tarif dégressif à partir de trois ou cinq vidéos. C'est logique : le repérage, le brief et la mise en place se font une seule fois. Un tarif journalier médian d'environ 450 € est observé pour une journée de tournage regroupant plusieurs contenus.",
+          "La plupart des créateurs proposent un tarif dégressif à partir de trois ou cinq vidéos. C'est logique : le repérage, le brief et la mise en place se font une seule fois. Un tarif journalier médian d'environ 450 € est observé pour une journée de tournage regroupant plusieurs contenus.",
       },
       {
         type: "cta",
@@ -281,7 +281,7 @@ export const ARTICLES: Article[] = [
       {
         type: "liste",
         items: [
-          "**150 à 350 €** pour une vidéo en usage organique, selon l'expérience.",
+          "**150 à 350 €** pour une vidéo en usage organique, selon l'expérience.",
           "**+15 à 30 % par tranche de 30 jours** pour les droits publicitaires.",
           "Une vidéo destinée à la publicité se situe dans un tout autre ordre de grandeur.",
           "Le tarif dégressif commence généralement à trois vidéos.",
@@ -299,7 +299,7 @@ export const ARTICLES: Article[] = [
     slug: "avantages-en-nature-seuil-legal-influence",
     titre: "Gifting et produits offerts : ils comptent dans le seuil légal",
     description:
-      "Une marque qui envoie seulement des produits, sans jamais verser un euro, peut franchir le seuil des 1 000 € et déclencher l'obligation de contrat écrit. Ce que la loi compte, et comment le suivre.",
+      "Une marque qui envoie seulement des produits, sans jamais verser un euro, peut franchir le seuil des 1 000 € et déclencher l'obligation de contrat écrit. Ce que la loi compte, et comment le suivre.",
     intention: "avantages en nature gifting seuil 1000 euros influence",
     categorie: "Réglementation",
     publieLe: "2026-08-31",
@@ -315,22 +315,22 @@ export const ARTICLES: Article[] = [
         ton: "alerte",
         titre: "La valeur des avantages en nature entre dans le calcul",
         texte:
-          "Le seuil de 1 000 € HT qui déclenche l'obligation de contrat écrit s'apprécie sur la rémunération ET la valeur des avantages en nature, cumulées sur l'année pour un même couple marque × créateur, dès lors que les prestations poursuivent le même objectif promotionnel. Un produit à 400 € offert rapproche du seuil exactement autant que 400 € virés.",
+          "Le seuil de 1 000 € HT qui déclenche l'obligation de contrat écrit s'apprécie sur la rémunération ET la valeur des avantages en nature, cumulées sur l'année pour un même couple marque × créateur, dès lors que les prestations poursuivent le même objectif promotionnel. Un produit à 400 € offert rapproche du seuil exactement autant que 400 € virés.",
       },
       { type: "h2", texte: "Un exemple qui n'a rien d'extrême" },
       {
         type: "p",
         texte:
-          "Une marque de cosmétiques envoie chaque trimestre une box de produits d'une valeur commerciale de 300 € à la même créatrice, en échange de publications. Aucun euro ne change de main.",
+          "Une marque de cosmétiques envoie chaque trimestre une box de produits d'une valeur commerciale de 300 € à la même créatrice, en échange de publications. Aucun euro ne change de main.",
       },
       {
         type: "tableau",
         entetes: ["Mois", "Envoi", "Cumul annuel"],
         lignes: [
-          ["Janvier", "Box — 300 €", "300 €"],
-          ["Avril", "Box — 300 €", "600 €"],
-          ["Juillet", "Box — 300 €", "900 €"],
-          ["Octobre", "Box — 300 €", "**1 200 € — seuil franchi**"],
+          ["Janvier", "Box — 300 €", "300 €"],
+          ["Avril", "Box — 300 €", "600 €"],
+          ["Juillet", "Box — 300 €", "900 €"],
+          ["Octobre", "Box — 300 €", "**1 200 € — seuil franchi**"],
         ],
       },
       {
@@ -507,7 +507,7 @@ export const ARTICLES: Article[] = [
         ton: "info",
         titre: "Depuis janvier 2026, ce n'est plus à vous de le demander",
         texte:
-          "Un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année avec une même marque — avantages en nature compris. Et la marque n'est pas seule concernée : créateur, marque et agence sont solidairement responsables. Demander un contrat n'est plus une exigence inconfortable, c'est la loi.",
+          "Un contrat écrit est obligatoire dès 1 000 € HT cumulés sur l'année avec une même marque — avantages en nature compris. Et la marque n'est pas seule concernée : créateur, marque et agence sont solidairement responsables. Demander un contrat n'est plus une exigence inconfortable, c'est la loi.",
       },
       { type: "h3", texte: "3. Le nombre de retouches, écrit à l'avance" },
       {
@@ -578,12 +578,12 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Influee facture un abonnement à la plateforme, **et** prend une commission sur ce que vous versez aux créateurs. Sa page tarifs affiche Starter à **199 € / mois** (jusqu'à 10 créateurs par mois), Basic à **449 € / mois** (25 créateurs), Pro à **849 € / mois** (50 créateurs), et une offre Enterprise sur mesure. À chaque palier s'ajoutent **10 % de frais de marketplace sur les paiements aux créateurs**, qui ne sont pas compris dans l'abonnement.",
+          "Influee facture un abonnement à la plateforme, **et** prend une commission sur ce que vous versez aux créateurs. Sa page tarifs affiche Starter à **199 € / mois** (jusqu'à 10 créateurs par mois), Basic à **449 € / mois** (25 créateurs), Pro à **849 € / mois** (50 créateurs), et une offre Enterprise sur mesure. À chaque palier s'ajoutent **10 % de frais de marketplace sur les paiements aux créateurs**, qui ne sont pas compris dans l'abonnement.",
       },
       {
         type: "p",
         texte:
-          "Leur propre exemple de calcul : 199 € d'abonnement + 10 vidéos de 30 secondes à 28 € = **479 € le premier mois**. La plateforme annonce plus de 150 000 créateurs dans le monde et les droits d'utilisation inclus.",
+          "Leur propre exemple de calcul : 199 € d'abonnement + 10 vidéos de 30 secondes à 28 € = **479 € le premier mois**. La plateforme annonce plus de 150 000 créateurs dans le monde et les droits d'utilisation inclus.",
       },
       {
         type: "p",
@@ -594,7 +594,7 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Youdji ne fait payer ni abonnement ni commission à la marque. Sa page tarifs affiche pour les marques et agences : **abonnement 0 € / mois, commission 0 %**. Pour les créateurs, la même page affiche : **abonnement 0 € / mois, commission 20 %**.",
+          "Youdji ne fait payer ni abonnement ni commission à la marque. Sa page tarifs affiche pour les marques et agences : **abonnement 0 € / mois, commission 0 %**. Pour les créateurs, la même page affiche : **abonnement 0 € / mois, commission 20 %**.",
       },
       {
         type: "p",
@@ -606,24 +606,24 @@ export const ARTICLES: Article[] = [
         ton: "alerte",
         titre: "Une commission créateur se répercute presque toujours sur le prix",
         texte:
-          "Un créateur qui veut toucher 200 € net sur une plateforme à 20 % ne facture pas 200 €, il facture 250 €. La gratuité côté marque est donc en partie une gratuité de façade : elle est intégrée dans les tarifs affichés par les créateurs. Ce qui ne veut pas dire que le modèle est mauvais — mais il faut comparer des prix nets, pas des pourcentages.",
+          "Un créateur qui veut toucher 200 € net sur une plateforme à 20 % ne facture pas 200 €, il facture 250 €. La gratuité côté marque est donc en partie une gratuité de façade : elle est intégrée dans les tarifs affichés par les créateurs. Ce qui ne veut pas dire que le modèle est mauvais — mais il faut comparer des prix nets, pas des pourcentages.",
       },
       { type: "h3", texte: "3. Commission des deux côtés — Takema" },
       {
         type: "p",
         texte:
-          "Takema est le seul concurrent français à écrire noir sur blanc le mot « séquestre », et le seul à prélever **des deux côtés à la fois**. Sa page tarifs affiche **10 % du montant HT à la marque, plus 2,5 % de frais de transaction**, et **5 % au créateur — ramenés à 0 % avec un abonnement Pro à 19 € par mois**. Publier une annonce est gratuit. La plateforme annonce plus de 7 000 créateurs.",
+          "Takema est le seul concurrent français à écrire noir sur blanc le mot « séquestre », et le seul à prélever **des deux côtés à la fois**. Sa page tarifs affiche **10 % du montant HT à la marque, plus 2,5 % de frais de transaction**, et **5 % au créateur — ramenés à 0 % avec un abonnement Pro à 19 € par mois**. Publier une annonce est gratuit. La plateforme annonce plus de 7 000 créateurs.",
       },
       {
         type: "p",
         texte:
-          "**Le modèle est bon si** vous voulez la sécurité du séquestre sans abonnement côté marque. **Il est à regarder de près si** vous êtes créateur : sur 250 € facturés, il reste 237,50 € — ou 250 € si vous payez 228 € d'abonnement dans l'année, ce qui n'est rentable qu'au-delà d'environ 4 560 € de collaborations annuelles.",
+          "**Le modèle est bon si** vous voulez la sécurité du séquestre sans abonnement côté marque. **Il est à regarder de près si** vous êtes créateur : sur 250 € facturés, il reste 237,50 € — ou 250 € si vous payez 228 € d'abonnement dans l'année, ce qui n'est rentable qu'au-delà d'environ 4 560 € de collaborations annuelles.",
       },
       { type: "h3", texte: "4. Prix fixe par vidéo — Moggo" },
       {
         type: "p",
         texte:
-          "Moggo vend la vidéo, pas l'accès à un annuaire : **99 € HT** pour une vidéo de 15 secondes, sans abonnement et sans commission. Le site annonce plus de 4 000 créateurs vérifiés, deux demandes de retouche incluses, une livraison sous sept jours et les droits publicitaires pour deux ans compris dans le prix.",
+          "Moggo vend la vidéo, pas l'accès à un annuaire : **99 € HT** pour une vidéo de 15 secondes, sans abonnement et sans commission. Le site annonce plus de 4 000 créateurs vérifiés, deux demandes de retouche incluses, une livraison sous sept jours et les droits publicitaires pour deux ans compris dans le prix.",
       },
       {
         type: "p",
@@ -646,12 +646,12 @@ export const ARTICLES: Article[] = [
         type: "tableau",
         entetes: ["Plateforme", "Coût pour la marque", "Coût pour le créateur", "Modèle"],
         lignes: [
-          ["**Youdji**", "0 € / mois, 0 % de commission", "0 € / mois, **20 % de commission**", "Marketplace financée par les créateurs"],
-          ["**Influee**", "199 à 849 € / mois **+ 10 %** sur les paiements créateurs", "Non affiché sur la page tarifs marques", "Abonnement + commission"],
-          ["**Takema**", "10 % + 2,5 % de frais, sans abonnement", "**5 %** — ou 0 % avec un abonnement à 19 €/mois", "Commission des deux côtés, séquestre"],
-          ["**Moggo**", "99 € HT par vidéo de 15 s", "Non affiché", "Vente à l'unité, sans abonnement"],
+          ["**Youdji**", "0 € / mois, 0 % de commission", "0 € / mois, **20 % de commission**", "Marketplace financée par les créateurs"],
+          ["**Influee**", "199 à 849 € / mois **+ 10 %** sur les paiements créateurs", "Non affiché sur la page tarifs marques", "Abonnement + commission"],
+          ["**Takema**", "10 % + 2,5 % de frais, sans abonnement", "**5 %** — ou 0 % avec un abonnement à 19 €/mois", "Commission des deux côtés, séquestre"],
+          ["**Moggo**", "99 € HT par vidéo de 15 s", "Non affiché", "Vente à l'unité, sans abonnement"],
           ["**Skeepers**", "Sur devis, démo obligatoire", "Non affiché", "Suite entreprise"],
-          ["**Collabbs**", "0 € / mois + 10 %, ou 99 € / mois + 8 %, ou 299 € / mois + 5 %", "**0 %** — le créateur touche le montant annoncé", "Commission ajoutée au prix, à la charge de la marque"],
+          ["**Collabbs**", "0 € / mois + 10 %, ou 99 € / mois + 8 %, ou 299 € / mois + 5 %", "**0 %** — le créateur touche le montant annoncé", "Commission ajoutée au prix, à la charge de la marque"],
         ],
       },
       {
@@ -663,15 +663,15 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Prenez une marque qui commande **cinq vidéos à 200 € net pour le créateur** dans le mois. Voici ce qu'elle sort réellement, sur la base des tarifs publics ci-dessus :",
+          "Prenez une marque qui commande **cinq vidéos à 200 € net pour le créateur** dans le mois. Voici ce qu'elle sort réellement, sur la base des tarifs publics ci-dessus :",
       },
       {
         type: "liste",
         items: [
-          "**Influee, offre Starter** : 199 € d'abonnement + 1 000 € aux créateurs + 100 € de frais de marketplace = **1 299 €**.",
-          "**Youdji** : 0 € de frais, mais le créateur qui veut 200 € net facture 250 € pour absorber les 20 % — soit **1 250 €** si les tarifs affichés intègrent la commission, ce qui est l'usage.",
-          "**Moggo** : cinq vidéos de 15 s à 99 € HT = **495 €**, mais ce n'est pas le même produit — format court, pas de relation créateur, pas de publication sur le compte du créateur.",
-          "**Collabbs, offre gratuite** : 1 000 € aux créateurs + 100 € de commission = **1 100 €**, sans abonnement, et le créateur touche bien 200 €.",
+          "**Influee, offre Starter** : 199 € d'abonnement + 1 000 € aux créateurs + 100 € de frais de marketplace = **1 299 €**.",
+          "**Youdji** : 0 € de frais, mais le créateur qui veut 200 € net facture 250 € pour absorber les 20 % — soit **1 250 €** si les tarifs affichés intègrent la commission, ce qui est l'usage.",
+          "**Moggo** : cinq vidéos de 15 s à 99 € HT = **495 €**, mais ce n'est pas le même produit — format court, pas de relation créateur, pas de publication sur le compte du créateur.",
+          "**Collabbs, offre gratuite** : 1 000 € aux créateurs + 100 € de commission = **1 100 €**, sans abonnement, et le créateur touche bien 200 €.",
         ],
       },
       {
@@ -683,12 +683,12 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Depuis le **1er janvier 2026**, un contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une même marque et un même créateur** — avantages en nature compris. Marque, agence et créateur sont **solidairement responsables**.",
+          "Depuis le **1er janvier 2026**, un contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une même marque et un même créateur** — avantages en nature compris. Marque, agence et créateur sont **solidairement responsables**.",
       },
       {
         type: "p",
         texte:
-          "Ce seuil se franchit sans qu'on s'en aperçoive : quatre collaborations à 300 € avec le même créateur dans l'année, et vous y êtes. Une plateforme qui vous met en relation mais vous laisse gérer le contrat vous laisse aussi la responsabilité.",
+          "Ce seuil se franchit sans qu'on s'en aperçoive : quatre collaborations à 300 € avec le même créateur dans l'année, et vous y êtes. Une plateforme qui vous met en relation mais vous laisse gérer le contrat vous laisse aussi la responsabilité.",
       },
       {
         type: "cta",
@@ -727,18 +727,18 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Deux colonnes, deux chiffres. **Marques et agences : abonnement 0 € / mois, commission 0 %.** **Créateurs : abonnement 0 € / mois, commission 20 %.**",
+          "Deux colonnes, deux chiffres. **Marques et agences : abonnement 0 € / mois, commission 0 %.** **Créateurs : abonnement 0 € / mois, commission 20 %.**",
       },
       {
         type: "p",
         texte:
-          "C'est cohérent et assumé : la plateforme est financée par le côté créateur. Un créateur qui facture 250 € en reçoit 200. Aucun reproche à faire à un modèle affiché aussi clairement — mais il a trois conséquences qu'il vaut mieux avoir en tête avant de choisir.",
+          "C'est cohérent et assumé : la plateforme est financée par le côté créateur. Un créateur qui facture 250 € en reçoit 200. Aucun reproche à faire à un modèle affiché aussi clairement — mais il a trois conséquences qu'il vaut mieux avoir en tête avant de choisir.",
       },
       { type: "h2", texte: "Conséquence 1 : la gratuité côté marque est en partie apparente" },
       {
         type: "p",
         texte:
-          "Un créateur qui vise 200 € net ne peut pas afficher 200 €. Il affiche 250 €. La commission ne disparaît pas parce qu'elle est prélevée de l'autre côté : elle **remonte dans les prix du catalogue**.",
+          "Un créateur qui vise 200 € net ne peut pas afficher 200 €. Il affiche 250 €. La commission ne disparaît pas parce qu'elle est prélevée de l'autre côté : elle **remonte dans les prix du catalogue**.",
       },
       {
         type: "p",
@@ -760,14 +760,14 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Depuis le 1er janvier 2026, un contrat écrit est obligatoire dès **1 000 € HT cumulés dans l'année entre une marque et un créateur**, avantages en nature compris, avec **responsabilité solidaire** des deux parties. Ce cumul se suit par couple marque × créateur : c'est un travail de comptabilité que personne ne fait à la main correctement.",
+          "Depuis le 1er janvier 2026, un contrat écrit est obligatoire dès **1 000 € HT cumulés dans l'année entre une marque et un créateur**, avantages en nature compris, avec **responsabilité solidaire** des deux parties. Ce cumul se suit par couple marque × créateur : c'est un travail de comptabilité que personne ne fait à la main correctement.",
       },
       { type: "h2", texte: "Les alternatives, selon ce que vous cherchez" },
       {
         type: "liste",
         items: [
-          "**Vous voulez juste des fichiers vidéo, vite** : Moggo vend la vidéo de 15 secondes à 99 € HT, sans abonnement ni commission, droits publicitaires deux ans inclus.",
-          "**Vous produisez en gros volume tous les mois** : Influee propose des abonnements de 199 à 849 € / mois selon le nombre de créateurs, plus 10 % sur les paiements créateurs, avec plus de 150 000 créateurs annoncés.",
+          "**Vous voulez juste des fichiers vidéo, vite** : Moggo vend la vidéo de 15 secondes à 99 € HT, sans abonnement ni commission, droits publicitaires deux ans inclus.",
+          "**Vous produisez en gros volume tous les mois** : Influee propose des abonnements de 199 à 849 € / mois selon le nombre de créateurs, plus 10 % sur les paiements créateurs, avec plus de 150 000 créateurs annoncés.",
           "**Vous êtes une entreprise établie avec un besoin large** : Skeepers couvre avis clients, communautés et influence, sur devis après démo.",
           "**Vous voulez que le créateur touche le montant annoncé et que le contrat soit géré** : c'est le parti pris de Collabbs, détaillé ci-dessous.",
         ],
@@ -776,7 +776,7 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Sur Collabbs, **la commission est payée par la marque et s'ajoute au prix** au lieu d'être prélevée sur la part du créateur. Une collaboration à 300 € coûte 330 € à la marque en offre gratuite, et le créateur reçoit 300 €. Le taux baisse avec l'abonnement : 10 % sans abonnement, 8 % à 99 € / mois, 5 % à 299 € / mois.",
+          "Sur Collabbs, **la commission est payée par la marque et s'ajoute au prix** au lieu d'être prélevée sur la part du créateur. Une collaboration à 300 € coûte 330 € à la marque en offre gratuite, et le créateur reçoit 300 €. Le taux baisse avec l'abonnement : 10 % sans abonnement, 8 % à 99 € / mois, 5 % à 299 € / mois.",
       },
       {
         type: "p",
@@ -794,7 +794,7 @@ export const ARTICLES: Article[] = [
         type: "cta",
         titre: "Essayez sans abonnement",
         texte:
-          "L'offre gratuite de Collabbs permet de faire tourner deux campagnes en même temps, sans carte bancaire et sans engagement. Contrat conforme généré automatiquement, paiement séquestré, suivi du seuil de 1 000 €. Gratuit pour les créateurs, toujours.",
+          "L'offre gratuite de Collabbs permet de faire tourner deux campagnes en même temps, sans carte bancaire et sans engagement. Contrat conforme généré automatiquement, paiement séquestré, suivi du seuil de 1 000 €. Gratuit pour les créateurs, toujours.",
         libelle: "Créer un compte gratuitement",
         href: "/signup",
       },
@@ -825,7 +825,7 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "Si vous cherchez une alternative, ce n'est généralement pas un problème de fonctionnalités. C'est que **rien n'est accessible sans passer par une démo commerciale**, et qu'aucun tarif n'est publié. Pour une marque qui fait 30 000 € de chiffre d'affaires et veut lancer trois collaborations le mois prochain, ce n'est simplement pas le bon format.",
+          "Si vous cherchez une alternative, ce n'est généralement pas un problème de fonctionnalités. C'est que **rien n'est accessible sans passer par une démo commerciale**, et qu'aucun tarif n'est publié. Pour une marque qui fait 30 000 € de chiffre d'affaires et veut lancer trois collaborations le mois prochain, ce n'est simplement pas le bon format.",
       },
       { type: "h2", texte: "Ce que vous cherchez vraiment en cherchant une alternative" },
       {
@@ -842,32 +842,32 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "**Moggo** vend la vidéo à l'unité : 99 € HT pour un format de 15 secondes, sans abonnement ni commission, deux retouches et deux ans de droits publicitaires inclus, livraison annoncée sous sept jours. Vous commandez comme sur un site marchand.",
+          "**Moggo** vend la vidéo à l'unité : 99 € HT pour un format de 15 secondes, sans abonnement ni commission, deux retouches et deux ans de droits publicitaires inclus, livraison annoncée sous sept jours. Vous commandez comme sur un site marchand.",
       },
       { type: "h3", texte: "Si vous produisez beaucoup, tous les mois" },
       {
         type: "p",
         texte:
-          "**Influee** fonctionne à l'abonnement : 199 € / mois pour jusqu'à 10 créateurs, 449 € pour 25, 849 € pour 50, plus **10 % de frais de marketplace** sur les sommes versées aux créateurs. La plateforme annonce plus de 150 000 créateurs. Le modèle devient intéressant à partir d'une production régulière et soutenue.",
+          "**Influee** fonctionne à l'abonnement : 199 € / mois pour jusqu'à 10 créateurs, 449 € pour 25, 849 € pour 50, plus **10 % de frais de marketplace** sur les sommes versées aux créateurs. La plateforme annonce plus de 150 000 créateurs. Le modèle devient intéressant à partir d'une production régulière et soutenue.",
       },
       { type: "h3", texte: "Si vous ne voulez rien payer d'avance" },
       {
         type: "p",
         texte:
-          "**Youdji** n'applique ni abonnement ni commission aux marques — sa page tarifs affiche 0 € / mois et 0 %. En contrepartie, la même page affiche **20 % de commission côté créateur**, qui se retrouve mécaniquement dans les tarifs que les créateurs affichent.",
+          "**Youdji** n'applique ni abonnement ni commission aux marques — sa page tarifs affiche 0 € / mois et 0 %. En contrepartie, la même page affiche **20 % de commission côté créateur**, qui se retrouve mécaniquement dans les tarifs que les créateurs affichent.",
       },
       { type: "h3", texte: "Si le contrat et la conformité sont votre sujet" },
       {
         type: "p",
         texte:
-          "C'est la raison d'être de **Collabbs** : offre gratuite sans carte bancaire avec deux campagnes actives simultanées et 10 % de commission, puis 99 € / mois pour 8 % et cinq campagnes, ou 299 € / mois pour 5 % et un nombre illimité de campagnes. La commission est **à la charge de la marque** et s'ajoute au prix : le créateur touche l'intégralité du montant convenu.",
+          "C'est la raison d'être de **Collabbs** : offre gratuite sans carte bancaire avec deux campagnes actives simultanées et 10 % de commission, puis 99 € / mois pour 8 % et cinq campagnes, ou 299 € / mois pour 5 % et un nombre illimité de campagnes. La commission est **à la charge de la marque** et s'ajoute au prix : le créateur touche l'intégralité du montant convenu.",
       },
       {
         type: "encadre",
         ton: "alerte",
         titre: "Être une petite structure n'exonère de rien",
         texte:
-          "Depuis le 1er janvier 2026, le contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une marque et un créateur**, avantages en nature inclus, et la responsabilité est **solidaire**. Le seuil ne dépend ni de votre chiffre d'affaires ni de votre effectif. Trois collaborations à 400 € dans l'année avec le même créateur suffisent.",
+          "Depuis le 1er janvier 2026, le contrat écrit est obligatoire dès **1 000 € HT cumulés sur l'année entre une marque et un créateur**, avantages en nature inclus, et la responsabilité est **solidaire**. Le seuil ne dépend ni de votre chiffre d'affaires ni de votre effectif. Trois collaborations à 400 € dans l'année avec le même créateur suffisent.",
       },
       { type: "h2", texte: "Comment trancher en une question" },
       {
@@ -879,7 +879,7 @@ export const ARTICLES: Article[] = [
         type: "cta",
         titre: "Commencez sans rendez-vous commercial",
         texte:
-          "Compte créé en deux minutes, offre gratuite sans carte bancaire, deux campagnes actives en même temps. Contrat écrit conforme généré à l'accord, paiement séquestré jusqu'à validation, suivi automatique du seuil de 1 000 € par créateur.",
+          "Compte créé en deux minutes, offre gratuite sans carte bancaire, deux campagnes actives en même temps. Contrat écrit conforme généré à l'accord, paiement séquestré jusqu'à validation, suivi automatique du seuil de 1 000 € par créateur.",
         libelle: "Créer un compte gratuitement",
         href: "/signup",
       },
@@ -905,16 +905,16 @@ export const ARTICLES: Article[] = [
       {
         type: "p",
         texte:
-          "La première erreur d'un créateur UGC qui démarre n'est pas de facturer trop peu. C'est de **facturer un montant sans savoir ce qu'il en restera**. Sur certaines plateformes, un tarif de 200 € vous laisse 200 €. Sur d'autres, il vous en laisse 160.",
+          "La première erreur d'un créateur UGC qui démarre n'est pas de facturer trop peu. C'est de **facturer un montant sans savoir ce qu'il en restera**. Sur certaines plateformes, un tarif de 200 € vous laisse 200 €. Sur d'autres, il vous en laisse 160.",
       },
       { type: "h2", texte: "Ce que retiennent les principales plateformes en France" },
       {
         type: "tableau",
-        entetes: ["Plateforme", "Ce qu'elle retient au créateur", "Sur 250 € facturés, vous touchez"],
+        entetes: ["Plateforme", "Ce qu'elle retient au créateur", "Sur 250 € facturés, vous touchez"],
         lignes: [
-          ["**Youdji**", "20 % de commission, aucun abonnement", "**200 €**"],
-          ["**Collabbs**", "0 % — la commission est payée par la marque, en plus du prix", "**250 €**"],
-          ["**Takema**", "5 % de commission, ou 0 % avec un abonnement à 19 €/mois", "**237,50 €** (ou 250 € si vous payez l'abonnement)"],
+          ["**Youdji**", "20 % de commission, aucun abonnement", "**200 €**"],
+          ["**Collabbs**", "0 % — la commission est payée par la marque, en plus du prix", "**250 €**"],
+          ["**Takema**", "5 % de commission, ou 0 % avec un abonnement à 19 €/mois", "**237,50 €** (ou 250 € si vous payez l'abonnement)"],
           ["**Influee**", "Non affiché sur la page tarifs destinée aux marques", "À vérifier auprès d'eux"],
           ["**Moggo**", "Non affiché — la plateforme vend la vidéo à prix fixe et rémunère ses créateurs séparément", "À vérifier auprès d'eux"],
         ],
@@ -935,9 +935,9 @@ export const ARTICLES: Article[] = [
       {
         type: "liste",
         items: [
-          "Objectif 200 € net, commission 20 % → 200 ÷ 0,80 = **250 €** à afficher.",
-          "Objectif 400 € net, commission 20 % → 400 ÷ 0,80 = **500 €** à afficher.",
-          "L'erreur classique : afficher 200 + 20 % = 240 €, et toucher 192 €. Vous perdez 8 € à chaque fois sans le voir.",
+          "Objectif 200 € net, commission 20 % → 200 ÷ 0,80 = **250 €** à afficher.",
+          "Objectif 400 € net, commission 20 % → 400 ÷ 0,80 = **500 €** à afficher.",
+          "L'erreur classique : afficher 200 + 20 % = 240 €, et toucher 192 €. Vous perdez 8 € à chaque fois sans le voir.",
         ],
       },
       { type: "h2", texte: "Le vrai risque n'est pas la commission, c'est de ne pas être payé" },
@@ -951,20 +951,20 @@ export const ARTICLES: Article[] = [
         items: [
           "**L'argent est-il bloqué avant que vous tourniez ?** Un séquestre signifie que la marque a déjà payé, et que la somme vous attend. Sans séquestre, vous travaillez à crédit.",
           "**Que se passe-t-il si la marque ne valide jamais ?** Sur une plateforme sérieuse, la validation devient automatique après un délai. Sinon, votre paiement dépend du bon vouloir d'un interlocuteur silencieux.",
-          "**Y a-t-il un contrat écrit ?** Depuis le 1er janvier 2026, il est obligatoire dès 1 000 € HT cumulés dans l'année avec la même marque, avantages en nature compris — et vous êtes **solidairement responsable** de son absence, pas seulement la marque.",
+          "**Y a-t-il un contrat écrit ?** Depuis le 1er janvier 2026, il est obligatoire dès 1 000 € HT cumulés dans l'année avec la même marque, avantages en nature compris — et vous êtes **solidairement responsable** de son absence, pas seulement la marque.",
         ],
       },
       { type: "h2", texte: "Les produits offerts comptent dans le seuil" },
       {
         type: "p",
         texte:
-          "C'est le piège des créateurs qui travaillent beaucoup en gifting. La valeur des produits reçus entre dans le cumul annuel au même titre que l'argent. Trois envois à 350 € de valeur commerciale de la même marque, et vous êtes au-dessus du seuil : le contrat écrit est obligatoire, même si vous n'avez jamais reçu un euro.",
+          "C'est le piège des créateurs qui travaillent beaucoup en gifting. La valeur des produits reçus entre dans le cumul annuel au même titre que l'argent. Trois envois à 350 € de valeur commerciale de la même marque, et vous êtes au-dessus du seuil : le contrat écrit est obligatoire, même si vous n'avez jamais reçu un euro.",
       },
       {
         type: "cta",
         titre: "Sur Collabbs, vous touchez le montant affiché",
         texte:
-          "Zéro commission, zéro abonnement, à vie. La commission est payée par la marque et s'ajoute au prix : si vous annoncez 250 €, vous recevez 250 €. L'argent est bloqué en séquestre avant que vous tourniez, le contrat est généré et signé automatiquement, et la validation se déclenche seule si la marque ne répond pas.",
+          "Zéro commission, zéro abonnement, à vie. La commission est payée par la marque et s'ajoute au prix : si vous annoncez 250 €, vous recevez 250 €. L'argent est bloqué en séquestre avant que vous tourniez, le contrat est généré et signé automatiquement, et la validation se déclenche seule si la marque ne répond pas.",
         libelle: "Créer mon profil gratuitement",
         href: "/signup",
       },

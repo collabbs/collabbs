@@ -104,7 +104,7 @@ export default function EarningsCalculator({
           </p>
           <p className="mt-1 text-xs text-zinc-500">
             {type === "cpa_flat"
-              ? `${actions.toLocaleString("fr-FR")} × ${cpaValuePerAction ?? 0}€`
+              ? `${actions.toLocaleString("fr-FR")} × ${eur(cpaValuePerAction ?? 0)}`
               : palier
                 ? `Palier « ${palier} » atteint`
                 : "Aucun palier atteint pour l'instant"}
@@ -117,7 +117,7 @@ export default function EarningsCalculator({
               </strong>{" "}
               {label}s →{" "}
               <strong className="text-emerald-700">
-                {suivant.payout.toLocaleString("fr-FR")}€
+                {eur(suivant.payout)}
               </strong>
             </p>
           )}
@@ -159,7 +159,7 @@ export default function EarningsCalculator({
             {eur(total)}
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            {contentCount} × {fixedAmount}€ par contenu
+            {contentCount} × {eur(fixedAmount ?? 0)} par contenu
           </p>
         </div>
       </section>
@@ -203,7 +203,7 @@ export default function EarningsCalculator({
             {eur(totalGain)}
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            {(views / 1000).toLocaleString("fr-FR")} × {commissionValue}€ / 1 000 vues
+            {(views / 1000).toLocaleString("fr-FR")} × {eur(commissionValue ?? 0)} / 1 000 vues
           </p>
         </div>
       </section>
@@ -266,7 +266,7 @@ export default function EarningsCalculator({
         <div>
           <label className="flex justify-between text-xs font-semibold text-zinc-700">
             <span>Panier moyen</span>
-            <span className="text-brand">{basket}€</span>
+            <span className="text-brand">{eur(basket)}</span>
           </label>
           <input
             type="range"
@@ -306,7 +306,7 @@ export default function EarningsCalculator({
                 {disabled ? "—" : eur(gain)}
               </p>
               <p className="text-[10px] text-zinc-500">
-                {disabled ? "non défini" : type === "hybrid" ? `${fixedAmount}€ + ${pct}%` : `${pct}% comm.`}
+                {disabled ? "non défini" : type === "hybrid" ? `${eur(fixedAmount ?? 0)} + ${pct}%` : `${pct}% comm.`}
               </p>
             </div>
           );
@@ -315,7 +315,7 @@ export default function EarningsCalculator({
 
       <p className="mt-4 text-[11px] italic text-zinc-500">
         Estimation à titre indicatif. CA mensuel : {eur(ca)} (
-        {sales} × {basket}€){type === "hybrid" && fixedAmount ? ` + ${fixedAmount}€ fixe par contenu` : ""}.
+        {sales} × {eur(basket)}){type === "hybrid" && fixedAmount ? ` + ${eur(fixedAmount)} fixe par contenu` : ""}.
       </p>
     </section>
   );

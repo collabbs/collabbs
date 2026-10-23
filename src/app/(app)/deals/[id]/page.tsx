@@ -1,3 +1,4 @@
+import { tarif as enEuros } from "@/lib/euros";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { modeleValide, montantAFixer, contenuLibre, commissionCollabbs } from "@/lib/deal";
@@ -801,7 +802,7 @@ export default async function DealDetailPage({
           <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-sm">
             <h2 className="font-display text-lg font-black text-ink">Paiement</h2>
             {/* Sur une affiliation pure, ce décompte n'a rien à décompter :
-                « Pour le créateur 0 €, à régler 0 € » décrit une collaboration
+                « Pour le créateur 0 €, à régler 0 € » décrit une collaboration
                 qui, elle, rapportera et coûtera. Trois zéros qui rassurent à
                 tort valent moins que rien du tout. */}
             {modele !== "affiliation" && (
@@ -931,12 +932,12 @@ export default async function DealDetailPage({
                     : "mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500"
                 }
               >
-                {/* Un deal naît à 0 € : booking direct, ou candidature sur une
+                {/* Un deal naît à 0 € : booking direct, ou candidature sur une
                     campagne à la performance qui n'a pas de forfait. Tant que
                     la marque n'a rien fixé, le créateur ne peut pas accepter —
-                    il signerait un contrat à 0 €. On le dit ici, à côté du
+                    il signerait un contrat à 0 €. On le dit ici, à côté du
                     montant, plutôt que de laisser le bouton échouer. */}
-                {/* « À régler : 0 € » est vrai à la seconde près et faux sur
+                {/* « À régler : 0 € » est vrai à la seconde près et faux sur
                     le fond : la marque PAIERA, au fil des ventes, prélevé sur sa
                     provision. Lui laisser croire que la collaboration ne coûte
                     rien, c'est préparer la surprise du premier prélèvement. */}
@@ -947,12 +948,12 @@ export default async function DealDetailPage({
                     : aFixerLeMontant
                   ? role === "brand"
                     ? deal.perf_rate != null
-                      ? `✏️ Plafond à fixer. Cette campagne paie ${deal.perf_rate} € / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`
+                      ? `✏️ Plafond à fixer. Cette campagne paie ${enEuros(Number(deal.perf_rate))} / 1000 vues : indique dans « Modifier les termes » le maximum que tu acceptes de dépenser. C'est ce montant qui sera séquestré, et tout ce qui n'est pas dû te reviendra.`
                       : // Le formulaire s'ouvre désormais tout seul juste en dessous :
                         // la phrase dit donc ce qu'il faut faire, plus où le trouver.
                         "✏️ Indique ce que tu proposes — montant, format, échéance. Le créateur ne peut pas accepter avant, et il ne sera prévenu qu'à ce moment-là."
                     : deal.perf_rate != null
-                      ? `✏️ La marque n'a pas encore fixé le plafond de cette collaboration aux vues (${deal.perf_rate} € / 1000 vues). Tu seras prévenu·e dès qu'elle l'aura indiqué.`
+                      ? `✏️ La marque n'a pas encore fixé le plafond de cette collaboration aux vues (${enEuros(Number(deal.perf_rate))} / 1000 vues). Tu seras prévenu·e dès qu'elle l'aura indiqué.`
                       : "✏️ La marque n'a pas encore fixé le montant. Tu seras prévenu·e dès qu'elle l'aura indiqué."
                   : status === "negotiation"
                     ? "🔒 Le paiement sera mis en séquestre une fois le deal accepté."

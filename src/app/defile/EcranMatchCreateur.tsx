@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import Link from "next/link";
 import type { MarketplaceCreator } from "@/lib/creators-data";
 
@@ -54,7 +55,7 @@ export default function EcranMatchCreateur({
           </p>
           {createur.priceFrom !== null && (
             <p className="mt-3 font-display text-2xl font-black tabular-nums text-white">
-              dès {createur.priceFrom.toLocaleString("fr-FR")} €
+              dès {tarif(createur.priceFrom)}
             </p>
           )}
         </div>

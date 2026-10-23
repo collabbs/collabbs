@@ -1,8 +1,11 @@
+import { tarif } from "@/lib/euros";
 import Link from "next/link";
 
 type Plan = {
   name: string;
-  price: string;
+  /** En euros. C'était une chaîne (« 99 ») : un prix est un nombre, et
+   *  `tarif` sait l'écrire. */
+  price: number;
   desc: string;
   features: string[];
   cta: string;
@@ -32,7 +35,7 @@ type Plan = {
 const PLANS: Plan[] = [
   {
     name: "Free",
-    price: "0",
+    price: 0,
     desc: "Tout le produit, sans engagement",
     features: [
       "2 campagnes actives en même temps",
@@ -48,8 +51,8 @@ const PLANS: Plan[] = [
   },
   {
     name: "Growth",
-    price: "99",
-    desc: "Rentable dès 4 950 € de collabs / mois",
+    price: 99,
+    desc: "Rentable dès 4 950 € de collabs / mois",
     features: [
       "Tout le plan gratuit",
       "5 campagnes actives en même temps",
@@ -63,8 +66,8 @@ const PLANS: Plan[] = [
   },
   {
     name: "Scale",
-    price: "299",
-    desc: "Rentable dès 5 980 € de collabs / mois",
+    price: 299,
+    desc: "Rentable dès 5 980 € de collabs / mois",
     features: [
       "Tout le plan Growth",
       "Campagnes actives illimitées",
@@ -122,7 +125,7 @@ export default function Pricing() {
               </p>
               <p className="mt-5">
                 <span className="font-display text-4xl font-black">
-                  {plan.price}€
+                  {tarif(plan.price)}
                 </span>
                 <span
                   className={`text-sm ${

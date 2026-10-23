@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { notFound, redirect } from "next/navigation";
@@ -265,7 +266,7 @@ export default async function CampaignManagePage({
           value:
             type === "video"
               ? eur(c.fixed_amount ?? 0)
-              : `${c.commission_value ?? 0}€ / 1000 ${c.commission_unit ?? "vues"}`,
+              : `${tarif(c.commission_value ?? 0)} / 1000 ${c.commission_unit ?? "vues"}`,
         },
       ];
 
@@ -426,7 +427,7 @@ export default async function CampaignManagePage({
                   <span>
                     Dès <strong className="text-ink">{t.min_actions.toLocaleString("fr-FR")}</strong>{" "}
                     {pluralizeAction(c.cpa_action_label || "action", t.min_actions)} →{" "}
-                    <strong className="text-emerald-700">{t.payout.toLocaleString("fr-FR")}€</strong>
+                    <strong className="text-emerald-700">{tarif(t.payout)}</strong>
                   </span>
                 </div>
               ))}
@@ -441,7 +442,7 @@ export default async function CampaignManagePage({
             🎯 Paiement par action
           </h2>
           <p className="mt-2 text-sm text-zinc-600">
-            <strong className="text-emerald-700">{c.cpa_value_per_action}€</strong>{" "}
+            <strong className="text-emerald-700">{tarif(c.cpa_value_per_action)}</strong>{" "}
             par <strong className="text-ink">{c.cpa_action_label || "action"}</strong>{" "}
             déclarée.
           </p>
@@ -494,7 +495,7 @@ export default async function CampaignManagePage({
             )}
             {c.promo_min_purchase != null && c.promo_min_purchase > 0 && (
               <span className="text-xs text-zinc-500">
-                Dès {c.promo_min_purchase}€
+                Dès {tarif(c.promo_min_purchase)}
               </span>
             )}
             {c.promo_expires_at && (
@@ -525,7 +526,7 @@ export default async function CampaignManagePage({
                   Valeur
                 </p>
                 <p className="mt-0.5 font-display text-lg font-black text-ink">
-                  {c.giveaway_prize_value}€
+                  {tarif(c.giveaway_prize_value)}
                 </p>
               </div>
             )}

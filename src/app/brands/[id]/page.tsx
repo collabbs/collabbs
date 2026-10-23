@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import { notFound } from "next/navigation";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import Link from "next/link";
@@ -484,7 +485,7 @@ export default async function BrandPublicPage({
                   const meta = CAMPAIGN_TYPE_META[c.type] ?? CAMPAIGN_TYPE_META.affiliation;
                   const urgent = c.spots !== null && c.spots > 0 && c.spots <= 3;
                   const rewardMain = c.fixed_amount
-                    ? `${c.fixed_amount}€`
+                    ? tarif(c.fixed_amount)
                     : c.commission_value
                       ? `${c.commission_value}%`
                       : null;

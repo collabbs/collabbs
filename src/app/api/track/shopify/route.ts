@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 /* `euros()` et non `toFixed(2)` : `toFixed` produit un POINT décimal — le
-   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
+   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
    français le séparateur est la virgule, et sur un produit qui manipule de
    l'argent ce détail décide de la confiance qu'on lui accorde. `euros()`
    groupe aussi les milliers. */

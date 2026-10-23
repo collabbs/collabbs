@@ -22,6 +22,8 @@
  * qu'il obtient ailleurs, mais ce n'est pas un salaire.
  */
 
+import { tarif } from "@/lib/euros";
+
 /** Durées d'engagement proposées, en mois. */
 export const DUREES_ENGAGEMENT = [3, 6, 12] as const;
 
@@ -113,7 +115,7 @@ export function libelleEngagement(
   montantMensuel: number,
 ): string {
   const contenus = contenusParMois > 1 ? `${contenusParMois} contenus/mois` : "1 contenu/mois";
-  return `${moisTotal} mois · ${contenus} · ${montantMensuel.toLocaleString("fr-FR")}€/mois`;
+  return `${moisTotal} mois · ${contenus} · ${tarif(montantMensuel)}/mois`;
 }
 
 /**

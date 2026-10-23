@@ -168,7 +168,7 @@ export default async function PayoutsPage({
           <p className="mt-1 text-sm text-zinc-500">
             Dès qu&apos;une vente est enregistrée, la marque met ta commission de côté.
             Elle t&apos;est définitivement acquise au bout de {VALIDATION_DAYS} jours,
-            puis versée dès le lendemain à partir de {MIN_PAYOUT} €.
+            puis versée dès le lendemain à partir de {eur(MIN_PAYOUT)}.
           </p>
 
           <div className="mt-4 grid grid-cols-3 gap-3">

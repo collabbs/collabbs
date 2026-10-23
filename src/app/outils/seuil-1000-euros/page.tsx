@@ -3,12 +3,12 @@ import { SITE } from "@/lib/legal-entity";
 import SuiviSeuil from "./SuiviSeuil";
 
 export const metadata = {
-  title: "Suivi du seuil de 1 000 € — contrat influenceur obligatoire",
+  title: "Suivi du seuil de 1 000 € — contrat influenceur obligatoire",
   description:
-    "Depuis janvier 2026, un contrat écrit est obligatoire dès 1 000 € HT cumulés dans l'année avec une même marque, produits offerts compris. Suivez votre cumul marque par marque. Gratuit, sans compte, rien ne quitte votre navigateur.",
+    "Depuis janvier 2026, un contrat écrit est obligatoire dès 1 000 € HT cumulés dans l'année avec une même marque, produits offerts compris. Suivez votre cumul marque par marque. Gratuit, sans compte, rien ne quitte votre navigateur.",
   alternates: { canonical: `${SITE.url}/outils/seuil-1000-euros` },
   openGraph: {
-    title: "Suivi du seuil légal de 1 000 €",
+    title: "Suivi du seuil légal de 1 000 €",
     description:
       "Le cumul se fait par marque et par année, avantages en nature compris. Suivez-le sans compte.",
     url: `${SITE.url}/outils/seuil-1000-euros`,
@@ -48,7 +48,7 @@ export default function PageSeuil() {
       </h1>
       <p className="mt-4 max-w-2xl text-lg leading-relaxed text-zinc-600">
         Depuis le 1<sup>er</sup> janvier 2026, un contrat écrit est obligatoire dès que le
-        cumul dépasse 1 000 € HT dans l&apos;année avec une même marque —{" "}
+        cumul dépasse 1 000 € HT dans l&apos;année avec une même marque —{" "}
         <strong className="font-semibold text-ink">produits offerts compris</strong>. Le
         compteur se tient par marque, et c&apos;est précisément ce que personne ne suit à
         la main.

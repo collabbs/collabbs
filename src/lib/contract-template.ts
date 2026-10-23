@@ -227,7 +227,7 @@ export function buildContractDocument(params: {
             : "sur ses **propres supports de communication uniquement**, à l'exclusion de toute diffusion publicitaire payante"
         }.${
           deal.usage_rights_fee
-            ? ` Cette cession est rémunérée **${deal.usage_rights_fee} €**, compris dans le montant total de la collaboration.`
+            ? ` Cette cession est rémunérée **${eur(deal.usage_rights_fee)}**, compris dans le montant total de la collaboration.`
             : ""
         }`
       // La formulation précédente renvoyait « aux limites convenues entre les
@@ -293,7 +293,7 @@ export function buildContractDocument(params: {
       ]
     : [
         `Contrat référencé **${reference}**, établi le ${dateFr(snapshot.generated_at)} et signé électroniquement par les deux Parties via la plateforme Collabbs.`,
-        "Ce document est établi sous forme simplifiée : la rémunération cumulée entre ces deux Parties sur l'année civile en cours n'atteint pas le seuil de 1 000 € HT à partir duquel la loi impose un contrat écrit détaillé. Au franchissement de ce seuil, un contrat complet sera établi.",
+        "Ce document est établi sous forme simplifiée : la rémunération cumulée entre ces deux Parties sur l'année civile en cours n'atteint pas le seuil de 1 000 € HT à partir duquel la loi impose un contrat écrit détaillé. Au franchissement de ce seuil, un contrat complet sera établi.",
       ];
 
   return {

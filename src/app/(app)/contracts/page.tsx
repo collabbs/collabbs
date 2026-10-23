@@ -500,7 +500,7 @@ export default async function ContractsPage({
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
               Établis automatiquement dès que les rémunérations versées avec un
-              partenaire dépassent 1 000 € sur l&apos;année : la loi impose alors un
+              partenaire dépassent 1 000 € sur l&apos;année : la loi impose alors un
               contrat écrit, même sans collaboration ponctuelle.
             </p>
             <ul className="mt-3 divide-y divide-zinc-100">

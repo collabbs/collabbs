@@ -19,7 +19,7 @@ import {
 } from "recharts";
 
 /* Axes et libellés de graphique : on arrondit à l'euro. Un axe qui affiche
-   « 1 400,50 € » tous les trois pixels devient illisible, et on y lit une
+   « 1 400,50 € » tous les trois pixels devient illisible, et on y lit une
    TENDANCE, pas une somme à payer. L'espace avant l'euro vient de
    `lib/euros.ts`, pour ne pas rouvrir une neuvième convention. */
 const eur = (n: number) => tarif(Math.round(n));
@@ -35,6 +35,7 @@ export function KpiTrend({
   tone = "default",
   prefix = "",
   suffix = "",
+  euro = false,
 }: {
   label: string;
   value: number | string;
@@ -43,7 +44,18 @@ export function KpiTrend({
   icon: string;
   tone?: "default" | "brand" | "emerald" | "amber";
   prefix?: string;
+  /**
+   * Suffixe collé après le nombre — « % », « vues »…
+   *
+   * ⚠️ PAS pour l'euro. Cinq pastilles passaient `suffix="€"`, ce qui
+   * produisait « 540€ » : ni séparateur de milliers, ni espace avant le
+   * symbole, à deux pixels de graphiques qui écrivaient « 1 400 € ». C'était
+   * le dixième chemin de formatage de l'argent dans le produit. Les montants
+   * passent par `euro`, qui délègue à `lib/euros.ts`.
+   */
   suffix?: string;
+  /** Vrai pour un montant : le nombre s'écrit en euros, arrondi. */
+  euro?: boolean;
 }) {
   const tones: Record<NonNullable<"default" | "brand" | "emerald" | "amber">, string> = {
     default: "from-zinc-50 to-zinc-100 text-zinc-600",
@@ -65,7 +77,11 @@ export function KpiTrend({
         : "↘";
 
   const displayed =
-    typeof value === "number" ? `${prefix}${Math.round(value).toLocaleString("fr-FR")}${suffix}` : value;
+    typeof value !== "number"
+      ? value
+      : euro
+        ? `${prefix}${eur(value)}`
+        : `${prefix}${Math.round(value).toLocaleString("fr-FR")}${suffix}`;
 
   return (
     <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">

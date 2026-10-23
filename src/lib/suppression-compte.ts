@@ -120,9 +120,9 @@ export async function blocagesAvantSuppression(userId: string): Promise<Blocage[
          dette éventuelle déduite : une commission `pending` est encore dans sa
          période de confirmation et ne compte pas.
 
-         L'ancienne phrase était donc fausse dès que le total dépassait 20 € —
-         « elles partent dès qu'elles atteignent 20 € » à quelqu'un qui en a
-         119,50 € le renvoie vers une condition déjà remplie, et laisse croire
+         L'ancienne phrase était donc fausse dès que le total dépassait 20 € —
+         « elles partent dès qu'elles atteignent 20 € » à quelqu'un qui en a
+         119,50 € le renvoie vers une condition déjà remplie, et laisse croire
          que son argent est bloqué par un palier alors qu'il attend simplement
          le passage quotidien. Mesuré le 22/10/2026 sur ce cas exact. */
       const confirme = commissions

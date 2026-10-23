@@ -630,7 +630,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
   /* Un deal naît à 0 € : le booking direct part de zéro, et une candidature
      sur une campagne à la performance n'a pas de montant fixe à reprendre.
      Tant que la marque n'a rien fixé, accepter reviendrait à SIGNER UN CONTRAT
-     À 0 € — et le séquestre refuse ensuite ce montant, donc la collaboration
+     À 0 € — et le séquestre refuse ensuite ce montant, donc la collaboration
      serait bloquée avec un contrat signé pour rien.
 
      Mais zéro N'EST PAS toujours un oubli. Sur une affiliation pure, comme sur
@@ -643,7 +643,7 @@ export async function acceptDeal(dealId: string): Promise<Result> {
     return {
       ok: false,
       error:
-        "La marque n'a pas encore fixé le montant de cette collaboration. Accepter maintenant reviendrait à signer un contrat à 0 € — demande-lui de le préciser avant.",
+        "La marque n'a pas encore fixé le montant de cette collaboration. Accepter maintenant reviendrait à signer un contrat à 0 € — demande-lui de le préciser avant.",
     };
 
   // Le contrat écrit détaillé n'est légalement obligatoire qu'au-delà de
@@ -666,8 +666,8 @@ export async function acceptDeal(dealId: string): Promise<Result> {
         .join(", ");
       const who =
         build.missing.who === "creator"
-          ? "Cette collaboration porte le cumul annuel avec cette marque au-dessus de 1 000 €, seuil à partir duquel la loi impose un contrat écrit complet. Tu dois compléter tes infos légales avant d'accepter"
-          : "Cette collaboration dépasse le seuil légal de 1 000 € par an. La marque doit compléter ses infos légales pour que le contrat soit valable";
+          ? "Cette collaboration porte le cumul annuel avec cette marque au-dessus de 1 000 €, seuil à partir duquel la loi impose un contrat écrit complet. Tu dois compléter tes infos légales avant d'accepter"
+          : "Cette collaboration dépasse le seuil légal de 1 000 € par an. La marque doit compléter ses infos légales pour que le contrat soit valable";
       return { ok: false, error: `${who} : ${fields}.` };
     }
     return { ok: false, error: "Impossible de générer le contrat." };
@@ -1091,7 +1091,7 @@ export async function removeDeliverableFile(
      « Livré » et un bouton « Valider » au-dessus de la phrase « En attente du
      dépôt du contenu par le créateur ».
      Le danger n'est pas l'affichage : c'est que « Valider » débloquait le
-     séquestre. Une collaboration à 315 € pouvait être payée pour un contenu
+     séquestre. Une collaboration à 315 € pouvait être payée pour un contenu
      qui n'existait pas — sans mauvaise foi de personne, juste en cliquant sur
      la croix d'un aperçu en croyant replier une vignette. C'est exactement ce
      qui est arrivé pendant les essais du 10 septembre.
@@ -1370,7 +1370,7 @@ export async function completeDeal(dealId: string): Promise<Result> {
 
      `amount <= 0` reste autorisé : une affiliation pure ou un produit offert ne
      séquestre rien, et le guetteur applique déjà exactement ce filtre pour ne
-     pas réclamer « Paiement en retard — 0 € ». */
+     pas réclamer « Paiement en retard — 0 € ». */
   if (Number(deal.amount ?? 0) > 0) {
     const { data: paiement } = await supabase
       .from("transactions")
@@ -1960,7 +1960,7 @@ export async function validerVues(dealId: string): Promise<Result> {
     // montant, mais la validation n'est pas inscrite : le versement restera
     // bloqué. Personne ne perd d'argent, mais le créateur attend pour rien.
     await reportError("performance/validation", error, {
-      detail: `Règlement effectué pour le deal ${dealId} (dû ${reglement.du} €, remboursé ${reglement.rembourse} €) mais la validation n'a pas pu être inscrite.`,
+      detail: `Règlement effectué pour le deal ${dealId} (dû ${eurExact(reglement.du ?? 0)}, remboursé ${eurExact(reglement.rembourse ?? 0)}) mais la validation n'a pas pu être inscrite.`,
     });
     return {
       ok: false,

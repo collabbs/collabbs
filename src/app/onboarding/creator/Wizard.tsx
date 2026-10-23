@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Logo from "@/components/landing/Logo";
@@ -94,7 +95,7 @@ function PreviewCard({
           <p className="mt-2 text-xs text-zinc-500">
             {minPrice ? (
               <>
-                à partir de <span className="text-sm font-bold text-ink">{minPrice}€</span>
+                à partir de <span className="text-sm font-bold text-ink">{tarif(minPrice)}</span>
               </>
             ) : (
               <span className="font-semibold text-ink">Tarif à définir</span>

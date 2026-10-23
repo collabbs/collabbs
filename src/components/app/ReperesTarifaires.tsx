@@ -43,7 +43,7 @@ export default function ReperesTarifaires({
     return (
       <p className="mt-2 text-xs text-zinc-400">
         Pas encore assez de tarifs sur Collabbs pour ce format. Ailleurs, une
-        vidéo UGC va de 28 € à 99 € selon le montage et les droits inclus.
+        vidéo UGC va de 28 € à 99 € selon le montage et les droits inclus.
       </p>
     );
   }

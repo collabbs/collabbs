@@ -1,3 +1,4 @@
+import { tarif } from "@/lib/euros";
 import { LEGAL_THRESHOLD } from "@/lib/legal-threshold-const";
 
 /**
@@ -163,10 +164,10 @@ export function anneesPresentes(lignes: readonly Ligne[]): number[] {
  */
 export function resume(e: EtatMarque): string {
   if (e.obligatoire) {
-    return `Contrat écrit obligatoire. Le cumul avec ${e.marque} a dépassé ${LEGAL_THRESHOLD.toLocaleString("fr-FR")} € HT cette année.`;
+    return `Contrat écrit obligatoire. Le cumul avec ${e.marque} a dépassé ${tarif(LEGAL_THRESHOLD)} HT cette année.`;
   }
   if (e.approche) {
-    return `Il reste ${e.restant.toLocaleString("fr-FR")} € avant que le contrat écrit devienne obligatoire avec ${e.marque}.`;
+    return `Il reste ${tarif(e.restant)} avant que le contrat écrit devienne obligatoire avec ${e.marque}.`;
   }
-  return `${e.restant.toLocaleString("fr-FR")} € avant le seuil.`;
+  return `${tarif(e.restant)} avant le seuil.`;
 }

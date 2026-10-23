@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 /* `euros()` et non `toFixed(2)` : `toFixed` produit un POINT décimal — le
-   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
+   créateur lisait « 7.20 € t'attendent » dans un avis de versement. En
    français le séparateur est la virgule, et sur un produit qui manipule de
    l'argent ce détail décide de la confiance qu'on lui accorde. `euros()`
    groupe aussi les milliers. */
@@ -140,7 +140,7 @@ export async function cancelInKind(formData: FormData) {
     body:
       `« ${retiree.label} », ${euros(Number(retiree.value))}, ne compte plus ` +
       `dans ton cumul annuel avec cette marque. Ton cumul baisse d'autant : si tu ` +
-      `étais au-dessus du seuil légal de 1 000 €, vérifie où tu en es.`,
+      `étais au-dessus du seuil légal de 1 000 €, vérifie où tu en es.`,
     link: "/contracts",
   });
 

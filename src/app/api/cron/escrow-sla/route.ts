@@ -8,7 +8,7 @@ import { notify } from "@/lib/notifications";
    s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
    les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
    d'argent (provision, registre, versements, factures) la respectaient déjà ;
-   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
    « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
 import { eurExact as eur } from "@/lib/deal";
 import { reportError } from "@/lib/report-error";
@@ -182,7 +182,7 @@ export async function GET(request: Request) {
   for (const deal of (unpaid ?? [])) {
     /* Rien à régler, rien à relancer. Une affiliation pure et un produit
        offert ne séquestrent aucun argent : sans ce filtre, la marque recevait
-       tous les deux jours « Paiement en retard — 0 € » pour une collaboration
+       tous les deux jours « Paiement en retard — 0 € » pour une collaboration
        qui se déroule normalement. Une notification fausse et répétée apprend
        surtout à ignorer les vraies. */
     if (Number(deal.amount ?? 0) <= 0) continue;
@@ -260,7 +260,7 @@ export async function GET(request: Request) {
       if (reprise.reason !== "no_account" && reprise.reason !== "account_not_ready") {
         await reportError("cron/reprise-versement", reprise.error ?? "échec inconnu", {
           detail:
-            `deal ${deal.id} — transaction ${tx.id}, ${Number(tx.net_amount)} € en attente — ` +
+            `deal ${deal.id} — transaction ${tx.id}, ${eur(Number(tx.net_amount))} en attente — ` +
             `cause : ${reprise.reason ?? "inconnue"}`,
         });
       }

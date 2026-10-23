@@ -135,6 +135,7 @@ describe("tri et message", () => {
     const depasse = etatParMarque([l({ marque: "Alpha", montant: 1200 })], 2026)[0];
     expect(resume(depasse)).toContain("Contrat écrit obligatoire");
     const proche = etatParMarque([l({ marque: "Alpha", montant: 800 })], 2026)[0];
-    expect(resume(proche)).toContain("200 €");
+    // Espace insécable : le montant vient de `lib/euros.ts`.
+    expect(resume(proche)).toContain("200\u00a0€");
   });
 });

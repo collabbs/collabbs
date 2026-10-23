@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
    s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
    les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
    d'argent (provision, registre, versements, factures) la respectaient déjà ;
-   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
    « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
 import { dealBreakdown, eurExact as eur } from "@/lib/deal";
 import { notify } from "@/lib/notifications";
@@ -146,7 +146,7 @@ export async function ensureCheckoutSessionRecorded(
      lui sert à rien.
 
      On lui annonce le NET : c'est ce qu'il touchera, la commission étant à la
-     charge de la marque. Lui montrer les 66 € encaissés laisserait croire à
+     charge de la marque. Lui montrer les 66 € encaissés laisserait croire à
      une retenue au moment du versement. */
   await notify({
     userId: deal.creator_id,

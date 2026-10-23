@@ -1,5 +1,6 @@
 "use client";
 
+import { tarif } from "@/lib/euros";
 import PlatformIcon from "@/components/PlatformIcon";
 import { OFFER_BY_ID } from "@/components/landing/creators";
 import { libelleTranche, type CarteCreateur } from "@/lib/quiz";
@@ -71,7 +72,7 @@ export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
           )}
           {prixMini !== null && (
             <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black tabular-nums text-zinc-900">
-              dès {prixMini.toLocaleString("fr-FR")} €
+              dès {tarif(prixMini)}
             </span>
           )}
         </div>
@@ -122,7 +123,7 @@ export default function CarteApercu({ carte }: { carte: CarteCreateur }) {
                   </span>
                   <span className="shrink-0 text-[12px] font-bold tabular-nums text-white">
                     {typeof prix === "number"
-                      ? `${prix.toLocaleString("fr-FR")} €`
+                      ? tarif(prix)
                       : "% ventes"}
                   </span>
                 </div>

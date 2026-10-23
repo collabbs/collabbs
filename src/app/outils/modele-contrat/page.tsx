@@ -7,7 +7,7 @@ import ContractView from "@/app/(app)/contracts/ContractView";
 export const metadata = {
   title: "Modèle de contrat influenceur conforme au décret 2025-1137",
   description:
-    "Le contrat écrit est obligatoire dès 1 000 € HT cumulés dans l'année avec une même marque. Modèle gratuit reprenant toutes les mentions rendues obligatoires par le décret n° 2025-1137. À copier, compléter et imprimer.",
+    "Le contrat écrit est obligatoire dès 1 000 € HT cumulés dans l'année avec une même marque. Modèle gratuit reprenant toutes les mentions rendues obligatoires par le décret n° 2025-1137. À copier, compléter et imprimer.",
   alternates: { canonical: `${SITE.url}/outils/modele-contrat` },
   openGraph: {
     title: "Modèle de contrat influenceur — décret 2025-1137",
@@ -49,7 +49,7 @@ export default function PageModeleContrat() {
       </h1>
       <p className="mt-3 text-lg leading-relaxed text-zinc-600">
         Depuis le décret n° 2025-1137, un contrat écrit est obligatoire dès{" "}
-        <strong className="text-ink">1 000 € HT cumulés sur l&apos;année civile</strong>{" "}
+        <strong className="text-ink">1 000 € HT cumulés sur l&apos;année civile</strong>{" "}
         avec un même annonceur, avantages en nature compris. Ce modèle reprend les
         mentions que le décret rend obligatoires. Il est gratuit, il n&apos;y a rien
         à créer et rien à laisser.

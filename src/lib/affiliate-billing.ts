@@ -1,3 +1,5 @@
+import { TOPUP_MIN_EUROS } from "@/lib/schemas/billing";
+import { montant as montantEuros, tarif as tarifEuros } from "@/lib/euros";
 import "server-only";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -119,12 +121,12 @@ export async function settleSale(params: {
     .eq("id", eventId);
   if (errMontants) {
     await reportError("affiliate/montants-vente", errMontants, {
-      detail: `vente ${eventId}, marque ${brandId}, ${creatorAmount} € dus au créateur`,
+      detail: `vente ${eventId}, marque ${brandId}, ${montantEuros(creatorAmount)} dus au créateur`,
     });
     await alerterAdmins({
       type: "vente_sans_montants",
       title: "Une vente n'a pas enregistré la commission due",
-      body: `La vente ${eventId} (marque ${brandId}) devait porter ${creatorAmount} € pour le créateur, et l'écriture a échoué. Sans ce montant, le versement paiera zéro : le créateur aurait amené la vente et ne toucherait rien, sans qu'aucune erreur ne s'affiche nulle part.`,
+      body: `La vente ${eventId} (marque ${brandId}) devait porter ${montantEuros(creatorAmount)} pour le créateur, et l'écriture a échoué. Sans ce montant, le versement paiera zéro : le créateur aurait amené la vente et ne toucherait rien, sans qu'aucune erreur ne s'affiche nulle part.`,
       link: "/admin",
       fenetreMinutes: 1,
     });
@@ -149,7 +151,7 @@ export async function settleSale(params: {
      Or ce seuil n'était lu que pour être RÉAFFICHÉ. Aucune décision ne s'en
      servait : la recharge ne partait qu'au moment où une réservation ÉCHOUAIT,
      c'est-à-dire quand la provision était déjà à sec. La marque choisissait
-     60 € en croyant se donner une marge, et la recharge attendait 0 €.
+     60 € en croyant se donner une marge, et la recharge attendait 0 €.
 
      Ça marchait — la vente finissait réservée après recharge — mais pas comme
      annoncé, et pas sans risque : si la carte est refusée à ce moment-là, la
@@ -192,7 +194,7 @@ export async function settleSale(params: {
     // rien. On ne peut pas le corriger d'ici, mais ça ne doit pas rester
     // invisible.
     void reportError("affiliate/settle-statut", errStatut, {
-      detail: `événement ${eventId} : ${brandTotal} € réservés sur la marque ${brandId}, statut "pending" non enregistré.`,
+      detail: `événement ${eventId} : ${montantEuros(brandTotal)} réservés sur la marque ${brandId}, statut "pending" non enregistré.`,
     });
   }
 
@@ -358,7 +360,7 @@ export async function releaseReservation(params: {
         // créateur est déjà inscrite, et la rejouer la doublerait. On signale,
         // et la somme se régularise à la main.
         void reportError("affiliate/release-frais", error, {
-          detail: `événement ${eventId}, ${frais} € de frais à rendre à la marque ${brandOf}`,
+          detail: `événement ${eventId}, ${montantEuros(frais)} de frais à rendre à la marque ${brandOf}`,
         });
       }
     }
@@ -424,7 +426,7 @@ export async function releaseReservation(params: {
         .update({ status: ev.status, refunded_at: null, reject_reason: null })
         .eq("id", eventId);
       void reportError("affiliate/release-credit", error, {
-        detail: `événement ${eventId}, ${total} € à rendre à la marque ${brandId}`,
+        detail: `événement ${eventId}, ${montantEuros(total)} à rendre à la marque ${brandId}`,
       });
       return { ok: false, message: "La provision n'a pas pu être recréditée." };
     }
@@ -447,8 +449,8 @@ export async function releaseReservation(params: {
     if (creatorId) {
       /* Le créateur lit SA commission, pas `total`.
          `total` vaut commission + frais de plateforme : c'est ce qui revient à
-         la marque, pas ce que le créateur perd. Lui annoncer 7,20 € quand sa
-         commission était de 6,00 € lui ferait croire qu'on lui retire des
+         la marque, pas ce que le créateur perd. Lui annoncer 7,20 € quand sa
+         commission était de 6,00 € lui ferait croire qu'on lui retire des
          frais qu'il n'a jamais payés — ils sont à la charge de la marque, et
          tout le produit le lui répète. */
       const sien = Number(ev.commission_amount ?? 0);
@@ -760,12 +762,12 @@ export async function reserveOutstanding(
       .eq("id", e.id);
     if (errStatut) {
       await reportError("affiliate/reserve-statut", errStatut, {
-        detail: `vente ${e.id}, marque ${brandId}, ${total} € déjà réservés`,
+        detail: `vente ${e.id}, marque ${brandId}, ${montantEuros(total)} déjà réservés`,
       });
       await alerterAdmins({
         type: "vente_reservee_sans_statut",
         title: "Une commission a été prélevée sans que la vente soit marquée",
-        body: `${total} € ont été réservés sur la provision de la marque ${brandId} pour la vente ${e.id}, mais la vente n'a pas pu passer en « réservée ». Elle ne se validera donc jamais et le créateur ne sera pas payé — alors que la marque, elle, a déjà été débitée. À reprendre à la main.`,
+        body: `${montantEuros(total)} ont été réservés sur la provision de la marque ${brandId} pour la vente ${e.id}, mais la vente n'a pas pu passer en « réservée ». Elle ne se validera donc jamais et le créateur ne sera pas payé — alors que la marque, elle, a déjà été débitée. À reprendre à la main.`,
         link: "/admin",
         fenetreMinutes: 1,
       });
@@ -790,7 +792,10 @@ export async function createTopupCheckout(params: {
 }): Promise<{ ok: boolean; url?: string; error?: string }> {
   const { brandId, amount, origin } = params;
   if (!Number.isFinite(amount) || amount < 20) {
-    return { ok: false, error: "Le montant minimum d'approvisionnement est de 20 €." };
+    return {
+      ok: false,
+      error: `Le montant minimum d'approvisionnement est de ${tarifEuros(TOPUP_MIN_EUROS)}.`,
+    };
   }
 
   try {
@@ -1273,7 +1278,7 @@ export async function runAffiliatePayouts(): Promise<{
         .eq("id", tx.id);
       if (errTx) {
         void reportError("affiliate/payout-transaction", errTx, {
-          detail: `Virement ${transfer.id} parti (${net} € au créateur ${creatorId}) mais la transaction ${tx.id} n'a pas pu passer à "paid".`,
+          detail: `Virement ${transfer.id} parti (${montantEuros(net)} au créateur ${creatorId}) mais la transaction ${tx.id} n'a pas pu passer à "paid".`,
         });
         /* De l'argent réel est sorti et nos écritures l'ignorent. Aucun
            passage de cron ne réparera ça : seul un humain peut rapprocher le
@@ -1282,7 +1287,7 @@ export async function runAffiliatePayouts(): Promise<{
         await alerterAdmins({
           type: "versement_parti_non_enregistre",
           title: "Un virement est parti sans être enregistré",
-          body: `${net} € ont bien été versés au créateur ${creatorId} (virement Stripe ${transfer.id}), mais la transaction ${tx.id} est restée dans un état incohérent. L'argent est sorti ; nos comptes ne le disent pas. À rapprocher à la main — aucun traitement automatique ne le fera.`,
+          body: `${montantEuros(net)} ont bien été versés au créateur ${creatorId} (virement Stripe ${transfer.id}), mais la transaction ${tx.id} est restée dans un état incohérent. L'argent est sorti ; nos comptes ne le disent pas. À rapprocher à la main — aucun traitement automatique ne le fera.`,
           link: "/admin",
           fenetreMinutes: 1,
         });
@@ -1362,7 +1367,7 @@ export async function runAffiliatePayouts(): Promise<{
             // revient pas en arrière, on signale. Le contraire remettrait une
             // dette déjà déduite d'un virement parti.
             void reportError("affiliate/clawback-restitution", error, {
-              detail: `${montant} € récupérés à rendre à la marque ${brandId} (transaction ${tx.id})`,
+              detail: `${montantEuros(montant)} récupérés à rendre à la marque ${brandId} (transaction ${tx.id})`,
             });
           }
         }
@@ -1385,7 +1390,7 @@ export async function runAffiliatePayouts(): Promise<{
       // Transfert refusé (solde plateforme insuffisant, compte incomplet…) :
       // on annule la transaction, les ventes restent validées pour le prochain tour.
       void reportError("affiliate/transfer", err, {
-        detail: `créateur ${creatorId} · ${net} €`,
+        detail: `créateur ${creatorId} · ${montantEuros(net)}`,
       });
       /* Le rattrapage est bon — la transaction est annulée, les ventes
          repartent au tour suivant — mais il ne sert à rien si la cause
@@ -1404,8 +1409,8 @@ export async function runAffiliatePayouts(): Promise<{
           ? "Un versement à un créateur a échoué : solde Stripe insuffisant"
           : "Un versement à un créateur a été refusé par Stripe",
         body: soldeInsuffisant
-          ? `${net} € n'ont pas pu être versés. Stripe garde les encaissements en attente quelques jours avant de les rendre disponibles : le solde disponible ne suffit pas. Les ventes ne sont pas perdues, le passage de demain réessaiera — mais tant que le solde reste insuffisant, le créateur n'est pas payé. Ajoute des fonds depuis le tableau de bord Stripe.`
-          : `${net} € n'ont pas pu être versés au créateur ${creatorId}. Cause rapportée par Stripe : ${(err as Error)?.message ?? "inconnue"}. Les ventes repartent au prochain passage ; si la cause persiste, elles ne seront jamais versées.`,
+          ? `${montantEuros(net)} n'ont pas pu être versés. Stripe garde les encaissements en attente quelques jours avant de les rendre disponibles : le solde disponible ne suffit pas. Les ventes ne sont pas perdues, le passage de demain réessaiera — mais tant que le solde reste insuffisant, le créateur n'est pas payé. Ajoute des fonds depuis le tableau de bord Stripe.`
+          : `${montantEuros(net)} n'ont pas pu être versés au créateur ${creatorId}. Cause rapportée par Stripe : ${(err as Error)?.message ?? "inconnue"}. Les ventes repartent au prochain passage ; si la cause persiste, elles ne seront jamais versées.`,
         link: "/admin",
       });
       // On relâche le lot : les ventes redeviennent disponibles pour le

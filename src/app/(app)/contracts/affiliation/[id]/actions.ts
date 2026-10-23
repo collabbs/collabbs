@@ -96,7 +96,7 @@ export async function signAffiliateContract(formData: FormData) {
       ? "Contrat-cadre signé par les deux parties"
       : "Un contrat-cadre attend ta signature",
     body: autreSignee
-      ? "Votre relation d'affiliation est désormais couverte par un contrat écrit, comme la loi l'impose au-delà de 1 000 € par an."
+      ? "Votre relation d'affiliation est désormais couverte par un contrat écrit, comme la loi l'impose au-delà de 1 000 € par an."
       : "L'autre partie vient de signer. Il ne manque plus que toi pour que votre relation soit couverte par un contrat écrit.",
     link: "/contracts",
   }).catch(() => {});

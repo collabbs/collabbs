@@ -1,3 +1,4 @@
+import { montant as enEuros } from "@/lib/euros";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContractSnapshot } from "@/lib/contract-snapshot";
@@ -98,7 +99,7 @@ export default async function ContractPage({
 
           <dl className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-100">
             {[
-              ["Montant", legacy.amount != null ? `${legacy.amount} €` : "—"],
+              ["Montant", legacy.amount != null ? enEuros(Number(legacy.amount)) : "—"],
               ["Format", legacy.format ?? "—"],
               ["Quantité", legacy.quantity != null ? String(legacy.quantity) : "—"],
               ["Signé par la marque", dateTimeFr(contract.brand_signed_at)],
@@ -142,7 +143,7 @@ export default async function ContractPage({
               <p className="mt-4 rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600 print:border print:border-zinc-300">
                 <strong className="font-semibold text-ink">Forme simplifiée.</strong> La
                 rémunération cumulée entre ces deux parties sur l&apos;année civile
-                n&apos;atteint pas 1 000 € HT, seuil à partir duquel la loi impose un
+                n&apos;atteint pas 1 000 € HT, seuil à partir duquel la loi impose un
                 contrat écrit détaillé.
               </p>
             )}

@@ -103,7 +103,7 @@ export default async function AffiliateContractPage({
                 {signatureAutre || maSignature ? "" : "s"}.
               </strong>{" "}
               Les rémunérations versées entre ces deux parties cette année
-              dépassent 1 000 €, seuil à partir duquel la loi impose un contrat
+              dépassent 1 000 €, seuil à partir duquel la loi impose un contrat
               écrit. Les commissions déjà acquises restent dues et seront versées
               normalement — signer ne conditionne aucun paiement, c&apos;est une
               obligation des Parties entre elles.

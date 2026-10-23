@@ -219,7 +219,7 @@ export async function createCampaign(
   // c'est la seule raison qu'a un créateur de répondre.
   const remuneration = ((): string | null => {
     if (withFixed && !(data.fixedAmount && data.fixedAmount > 0))
-      return "Indique le montant que tu paies par contenu : une campagne à 0 € n'attirera personne.";
+      return "Indique le montant que tu paies par contenu : une campagne à 0 € n'attirera personne.";
     if (isPerformance && !(data.perfRate && data.perfRate > 0))
       return "Indique ce que tu paies pour 1 000 vues.";
     if (isCpaFlat && !(data.cpaValuePerAction && data.cpaValuePerAction > 0))

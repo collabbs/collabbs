@@ -1,3 +1,5 @@
+import { MIN_PAYOUT } from "@/lib/affiliate-billing";
+import { tarif } from "@/lib/euros";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { parsePeriod, periodRange, bucketize, bucketSize, pctDelta } from "./period";
@@ -261,7 +263,7 @@ async function CreatorAnalytics({
           icon="💸"
           tone="emerald"
           delta={pctDelta(totalCurrent, totalPrev)}
-          suffix="€"
+          euro
           hint={`Période : ${labelForPeriod(period)}`}
         />
         <KpiTrend
@@ -270,7 +272,7 @@ async function CreatorAnalytics({
           icon="🔗"
           tone="brand"
           delta={pctDelta(affilGains, affilGainsPrev)}
-          suffix="€"
+          euro
         />
         <KpiTrend
           label="Clics générés"
@@ -565,7 +567,7 @@ async function BrandAnalytics({
           icon="💰"
           tone="emerald"
           delta={pctDelta(caCurrent, caPrev)}
-          suffix="€"
+          euro
           hint={`Période : ${labelForPeriod(period)}`}
         />
         <KpiTrend
@@ -574,7 +576,7 @@ async function BrandAnalytics({
           icon="🤝"
           tone="brand"
           delta={pctDelta(investedCurrent, investedPrev)}
-          suffix="€"
+          euro
         />
         <KpiTrend
           label="Commissions générées"
@@ -582,8 +584,8 @@ async function BrandAnalytics({
           icon="🔗"
           tone="amber"
           delta={pctDelta(commissionsCurrent, commissionsPrev)}
-          suffix="€"
-          hint="Dues aux créateurs · versées dès 20 € atteints"
+          euro
+          hint={`Dues aux créateurs · versées dès ${tarif(MIN_PAYOUT)} atteints`}
         />
         <KpiTrend
           label="Clics affiliation"

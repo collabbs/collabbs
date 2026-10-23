@@ -7,7 +7,7 @@ import { capaciteCampagnes } from "@/lib/limites";
 import ReprendreQuestionnaire from "./ReprendreQuestionnaire";
 import Arrivee from "./Arrivee";
 import { parTranches } from "@/lib/par-tranches";
-import { montant as eur } from "@/lib/euros";
+import { montant as eur, tarif } from "@/lib/euros";
 
 export const metadata = { title: "Mes campagnes — Collabbs" };
 
@@ -132,7 +132,7 @@ export default async function MyCampaignsPage() {
     // performance
     return [
       { label: "Candidatures", value: String(applications.get(c.id) ?? 0) },
-      { label: "Tarif", value: `${c.commission_value ?? 0}€ / 1000 vues` },
+      { label: "Tarif", value: `${tarif(c.commission_value ?? 0)} / 1000 vues` },
     ];
   }
 

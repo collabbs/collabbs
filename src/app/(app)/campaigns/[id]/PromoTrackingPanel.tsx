@@ -1,5 +1,6 @@
 "use client";
 
+import { montant } from "@/lib/euros";
 import { tenter } from "@/lib/tenter";
 import { useState } from "react";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
@@ -58,7 +59,7 @@ export default function PromoTrackingPanel({
     setBusy(false);
     if (res.ok) {
       toast.success(
-        `Vente enregistrée. Commission créateur : ${res.commission ?? 0}€.`,
+        `Vente enregistrée. Commission créateur : ${montant(res.commission ?? 0)}.`,
       );
       setCode("");
       setAmount("");
@@ -103,13 +104,13 @@ export default function PromoTrackingPanel({
         </div>
         <div className="rounded-xl bg-zinc-50 p-3 text-center">
           <p className="font-display text-xl font-black text-ink">
-            {totalSales.toLocaleString("fr-FR")}€
+            {montant(totalSales)}
           </p>
           <p className="text-[11px] uppercase tracking-wide text-zinc-500">CA total</p>
         </div>
         <div className="rounded-xl bg-emerald-50 p-3 text-center">
           <p className="font-display text-xl font-black text-emerald-700">
-            {totalCommission.toLocaleString("fr-FR")}€
+            {montant(totalCommission)}
           </p>
           <p className="text-[11px] uppercase tracking-wide text-emerald-700">
             Commissions
@@ -197,10 +198,10 @@ export default function PromoTrackingPanel({
                       {r.salesCount}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {r.salesAmount.toLocaleString("fr-FR")}€
+                      {montant(r.salesAmount)}
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-700">
-                      {r.commissionAmount.toLocaleString("fr-FR")}€
+                      {montant(r.commissionAmount)}
                     </td>
                   </tr>
                 ))}

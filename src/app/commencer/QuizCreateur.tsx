@@ -349,7 +349,7 @@ export default function QuizCreateur() {
 
     {
       section: "Tes tarifs",
-      titre: "Un tarif affiché t'évite les propositions à 20 €.",
+      titre: "Un tarif affiché t'évite les propositions à 20 €.",
       aide: "Un prix par format — une vidéo UGC ne se facture pas comme une vidéo postée sur ton compte.",
       contenu: (
         <div>
@@ -408,8 +408,8 @@ export default function QuizCreateur() {
               Tu ne sais pas quoi mettre&nbsp;?
             </strong>{" "}
             Le prix moyen constaté en France pour une vidéo UGC de 30 secondes
-            est de 28 €, et les plateformes affichent une entrée de gamme à
-            partir de 80 €. À toi de te situer.
+            est de 28 €, et les plateformes affichent une entrée de gamme à
+            partir de 80 €. À toi de te situer.
           </p>
 
           <button

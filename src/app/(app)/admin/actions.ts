@@ -11,7 +11,7 @@ import { releaseReservation } from "@/lib/affiliate-billing";
    s'écrit au centime. La règle est posée dans `lib/deal.ts` — `eur` reste pour
    les tarifs affichés, où « 300€ » se lit mieux que « 300,00€ ». Les écrans
    d'argent (provision, registre, versements, factures) la respectaient déjà ;
-   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
+   les notifications sur ce MÊME argent, non. Un versement de 7,20 € s'annonçait
    « 7,2€ » puis se relisait « 7,20€ » dans le registre. */
 import { eurExact as eur } from "@/lib/deal";
 import { reportError } from "@/lib/report-error";
@@ -263,7 +263,7 @@ export async function adminResolveInKind(formData: FormData) {
      Mesuré le 22/10/2026 : cette action trancheait le litige et ne prévenait
      PERSONNE. Or c'est le seul endroit du produit où Collabbs arbitre entre
      une marque et un créateur qui se contredisent — et la valeur en jeu entre
-     dans le seuil légal des 1 000 € annuels.
+     dans le seuil légal des 1 000 € annuels.
 
      Les quatre autres actions d'arbitrage préviennent bien les deux côtés
      (libération, remboursement, écartement d'une vente, régularisation de

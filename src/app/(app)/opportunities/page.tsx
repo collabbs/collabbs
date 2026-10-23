@@ -1,3 +1,4 @@
+import { montant as enEuros } from "@/lib/euros";
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { redirect } from "next/navigation";
@@ -380,7 +381,7 @@ export default async function OpportunitiesPage({
             </div>
             <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 px-4 py-2.5 text-center shadow-sm">
               <p className="font-display text-xl font-black text-emerald-700">
-                {totalGains.toLocaleString("fr-FR")}€
+                {enEuros(totalGains)}
               </p>
               <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">
                 Gagnés

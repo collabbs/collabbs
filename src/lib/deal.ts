@@ -93,7 +93,7 @@ export function dealBreakdown(
 
    Deux changements visibles par rapport aux anciennes définitions, tous deux
    voulus : l'espace avant l'euro, qu'impose la typographie française, et les
-   centimes de `eur` — il écrivait « 1 400,5€ » pour 1 400,50 €.
+   centimes de `eur` — il écrivait « 1 400,5€ » pour 1 400,50 €.
 
    `eur` pour un tarif affiché, `eurExact` dès que la somme est due ou réglée. */
 export { tarif as eur, montant as eurExact } from "@/lib/euros";
