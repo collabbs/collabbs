@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { reportError } from "@/lib/report-error";
 import { fetchChannelAudience } from "@/lib/youtube";
 
 /**
@@ -76,7 +77,13 @@ export async function verifyYouTubeAudience(): Promise<{
   let audience: Awaited<ReturnType<typeof fetchChannelAudience>>;
   try {
     audience = await fetchChannelAudience(input);
-  } catch {
+  } catch (err) {
+    /* Le message à l'écran était déjà honnête — il ne reproche rien au
+       créateur. Ce qui manquait, c'est que NOUS l'apprenions : une clé
+       invalide ou un quota épuisé ne se résout pas d'elle-même, et chaque
+       créateur lisait « réessaie dans un instant » indéfiniment. Mesuré le
+       23/10/2026 : la clé YouTube de production est refusée par Google. */
+    await reportError("youtube/audience", err, { userId: user.id });
     return { ok: false, error: "YouTube n'a pas répondu. Réessaie dans un instant." };
   }
   if (!audience) {

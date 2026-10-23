@@ -45,17 +45,30 @@ export async function importYouTubeVideos(
   try {
     channelId = await resolveChannelId(trimmed);
   } catch (err) {
+    /* `ErreurYouTube` veut dire que l'API a refusé de répondre : clé invalide,
+       quota épuisé, panne. On ne renvoie donc PAS « vérifie ton @handle » — ce
+       serait reprocher au créateur une panne qui est la nôtre, et il chercherait
+       une faute de frappe inexistante. Mesuré le 23/10/2026 : la clé de
+       production est refusée par Google, et c'est exactement ce que lisait tout
+       le monde. Le message technique ne remonte pas non plus ; il part au
+       journal, où il sert. */
+    await reportError("youtube/resolution", err, {
+      userId: user.id,
+      detail: `saisie « ${trimmed.slice(0, 80)} »`,
+    });
     return {
       ok: false,
       error:
-        err instanceof Error ? err.message : "Erreur côté API YouTube.",
+        "L'import YouTube est momentanément indisponible. Ce n'est pas ta chaîne : " +
+        "c'est nous. Réessaie dans un moment, ou saisis tes contenus à la main.",
     };
   }
   if (!channelId) {
+    // Ici, et seulement ici, la chaîne n'existe vraiment pas.
     return {
       ok: false,
       error:
-        "Channel YouTube introuvable. Vérifie le @handle ou l'URL de la chaîne.",
+        "Chaîne YouTube introuvable. Vérifie le @handle ou l'URL de la chaîne.",
     };
   }
 
@@ -63,10 +76,16 @@ export async function importYouTubeVideos(
   try {
     videos = await fetchRecentVideos(channelId, 10);
   } catch (err) {
+    // Même raison : la chaîne est bien là, c'est la requête qui a échoué.
+    await reportError("youtube/videos", err, {
+      userId: user.id,
+      detail: `chaîne ${channelId}`,
+    });
     return {
       ok: false,
       error:
-        err instanceof Error ? err.message : "Erreur côté API YouTube.",
+        "L'import YouTube est momentanément indisponible. Ce n'est pas ta chaîne : " +
+        "c'est nous. Réessaie dans un moment, ou saisis tes contenus à la main.",
     };
   }
   if (videos.length === 0) {

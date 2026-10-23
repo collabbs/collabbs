@@ -13,6 +13,20 @@ import "server-only";
 
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 
+/**
+ * L'API a refusé de répondre — clé invalide, quota épuisé, panne.
+ *
+ * Distincte d'un résultat vide, qui veut dire « cette chaîne n'existe pas ».
+ * Confondre les deux revient à reprocher à l'utilisateur une panne qui est la
+ * nôtre.
+ */
+export class ErreurYouTube extends Error {
+  constructor(detail: string) {
+    super(`YouTube a refusé la requête : ${detail}`);
+    this.name = "ErreurYouTube";
+  }
+}
+
 export type YouTubeVideo = {
   videoId: string;
   title: string;
@@ -73,27 +87,46 @@ export async function resolveChannelId(input: string): Promise<string | null> {
 
   const key = apiKey();
 
+  /* ═══ « INTROUVABLE » ET « EN PANNE » NE SONT PAS LA MÊME CHOSE ═══
+
+     Les deux appels ci-dessous rendaient `null` indifféremment : quand la
+     chaîne n'existe pas, ET quand l'API refuse de répondre. L'appelant disait
+     alors au créateur « Chaîne YouTube introuvable. Vérifie le @handle ou
+     l'URL de la chaîne. »
+
+     Mesuré le 23/10/2026 : la clé de `.env.local` — celle de la production —
+     est refusée par Google, « API key not valid ». Donc aujourd'hui CHAQUE
+     créateur qui tente d'importer ses vidéos s'entend dire que sa chaîne
+     n'existe pas, cherche une faute de frappe qui n'est pas la sienne, et rien
+     nulle part ne le signale. Vérifié sur @TED, qui existe bel et bien.
+
+     On distingue donc : `null` veut dire « cette chaîne n'existe pas », et une
+     exception veut dire « nous n'avons pas pu demander ». À l'appelant de dire
+     la vérité correspondante, et de la signaler. */
+  const demander = async (parametre: string): Promise<string | null> => {
+    const r = await fetch(`${API_BASE}/channels?part=id&${parametre}&key=${key}`, {
+      cache: "no-store",
+    });
+    if (!r.ok) {
+      let detail = `HTTP ${r.status}`;
+      try {
+        const corps = await r.json();
+        detail = corps?.error?.message ?? detail;
+      } catch {
+        /* réponse illisible : le code HTTP suffit */
+      }
+      throw new ErreurYouTube(detail);
+    }
+    const d = await r.json();
+    return d.items?.[0]?.id ?? null;
+  };
+
   // 3. Resolve via forHandle (handles modernes 2023+)
-  const r1 = await fetch(
-    `${API_BASE}/channels?part=id&forHandle=@${encodeURIComponent(handle)}&key=${key}`,
-    { cache: "no-store" },
-  );
-  if (r1.ok) {
-    const d1 = await r1.json();
-    if (d1.items?.[0]?.id) return d1.items[0].id;
-  }
+  const parHandle = await demander(`forHandle=@${encodeURIComponent(handle)}`);
+  if (parHandle) return parHandle;
 
   // 4. Fallback : forUsername (anciens channels legacy)
-  const r2 = await fetch(
-    `${API_BASE}/channels?part=id&forUsername=${encodeURIComponent(handle)}&key=${key}`,
-    { cache: "no-store" },
-  );
-  if (r2.ok) {
-    const d2 = await r2.json();
-    if (d2.items?.[0]?.id) return d2.items[0].id;
-  }
-
-  return null;
+  return await demander(`forUsername=${encodeURIComponent(handle)}`);
 }
 
 /**
