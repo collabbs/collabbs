@@ -980,6 +980,19 @@ export async function runAffiliateValidation(): Promise<{ validated: number }> {
 const BUDGET_VERSEMENTS_MS = 45_000;
 
 /**
+ * Le temps qu'on s'autorise pour les rappels « relie ton compte ».
+ *
+ * Distinct du budget des versements, et volontairement plus court : une
+ * relance manquée se rattrape au passage du lendemain, un virement manqué
+ * laisse quelqu'un impayé.
+ */
+const BUDGET_RELANCES_MS = 20_000;
+
+/** Rappels envoyés ensemble. Séquentiellement, chacun coûtait plus de deux
+ *  cents millisecondes — mesuré le 23/10/2026 sur 174 créateurs. */
+const TAILLE_PAQUET_RELANCES = 20;
+
+/**
  * Répare les lots restés en suspens d'un passage interrompu.
  *
  * La prise de lot écrit `payout_id` AVANT le virement Stripe — c'est ce qui
@@ -1068,32 +1081,65 @@ export async function runAffiliatePayouts(): Promise<{
     byCreator.set(creatorId, bucket);
   }
 
-  const creatorsATraiter = [...byCreator.entries()];
-  let traites = 0;
+  /* ─── LE TRI SE FAIT AVANT, EN GROUPE ───
+     Ce qui suivait faisait, créateur par créateur, une lecture des
+     régularisations puis une lecture du compte Stripe, et n'écartait qu'après.
+     Mesuré le 23/10/2026 sur le projet de développement : 174 créateurs
+     examinés, ZÉRO versé, 40,9 s — pour un budget de 45 s. Le temps réservé
+     aux allers-retours Stripe était donc dépensé sur des créateurs qu'on ne
+     payait pas.
 
-  for (const [creatorId, bucket] of creatorsATraiter) {
-    /* On s'arrête avant d'être coupé. Un versement à moitié fait coûte plus
-       cher qu'un versement reporté d'un jour : le premier laisse un créateur
-       impayé sans trace, le second ne laisse rien du tout. */
-    if (Date.now() - debut > BUDGET_VERSEMENTS_MS) {
-      result.restants = creatorsATraiter.length - traites;
-      break;
-    }
-    traites++;
+     Conséquence au-delà du budget, et c'est le vrai danger : l'ordre vient de
+     la requête sur les ventes, donc il ne change pas d'un passage à l'autre.
+     Les mêmes créateurs seraient examinés en premier chaque jour, et ceux
+     placés après la coupure ne seraient JAMAIS payés — pas en retard,
+     jamais. Un créateur impayé indéfiniment, sans que rien ne le signale.
 
+     Deux lectures groupées remplacent donc 2 × N lectures, et le budget ne
+     protège plus que les versements réels. */
+  const idsCreateurs = [...byCreator.keys()];
+
+  const [regularisations, fiches] = await Promise.all([
     // Régularisations en attente : commissions versées puis annulées parce que
     // la marque a remboursé son client. On les déduit ici, jamais en reprenant
     // un virement déjà reçu.
-    const { data: clawbacks } = await admin
-      .from("affiliate_clawbacks")
-      .select("id, amount, brand_id")
-      .eq("creator_id", creatorId)
-      .is("settled_at", null);
-    const owed = round2(
-      (clawbacks ?? []).reduce((s: number, c) => s + Number(c.amount ?? 0), 0),
-    );
+    parTranches(idsCreateurs, (t) =>
+      admin
+        .from("affiliate_clawbacks")
+        .select("id, amount, brand_id, creator_id")
+        .in("creator_id", t)
+        .is("settled_at", null),
+    ),
+    parTranches(idsCreateurs, (t) =>
+      admin.from("creators").select("id, stripe_account_id").in("id", t),
+    ),
+  ]);
 
+  const detteDe = new Map<string, typeof regularisations>();
+  for (const c of regularisations) {
+    const liste = detteDe.get(c.creator_id) ?? [];
+    liste.push(c);
+    detteDe.set(c.creator_id, liste);
+  }
+  const compteDe = new Map(fiches.map((f) => [f.id, f.stripe_account_id]));
+
+  type ACredit = {
+    creatorId: string;
+    bucket: { ids: string[]; commission: number; fee: number };
+    clawbacks: typeof regularisations;
+    owed: number;
+    net: number;
+    /** Compte Stripe du créateur, non vide par construction. */
+    compte: string;
+  };
+  const aPayer: ACredit[] = [];
+  const aRelancer: { creatorId: string; net: number }[] = [];
+
+  for (const [creatorId, bucket] of byCreator) {
+    const clawbacks = detteDe.get(creatorId) ?? [];
+    const owed = round2(clawbacks.reduce((s: number, c) => s + Number(c.amount ?? 0), 0));
     const net = round2(bucket.commission - owed);
+
     if (net < MIN_PAYOUT) {
       // Sous le seuil — soit les gains sont faibles, soit la dette les absorbe.
       // Dans les deux cas on ne verse pas, et rien n'est perdu : les commissions
@@ -1101,29 +1147,29 @@ export async function runAffiliatePayouts(): Promise<{
       result.skipped++;
       continue;
     }
-
-    const { data: creator } = await admin
-      .from("creators")
-      .select("id, stripe_account_id")
-      .eq("id", creatorId)
-      .maybeSingle();
-
-    if (!creator?.stripe_account_id) {
+    const compte = compteDe.get(creatorId);
+    if (!compte) {
       // Le créateur n'a pas terminé son inscription bancaire : on le relance
-      // plutôt que de laisser l'argent dormir sans explication.
+      // plutôt que de laisser l'argent dormir sans explication. La relance est
+      // envoyée APRÈS les versements : elle ne doit pas leur prendre leur temps.
       result.skipped++;
-      await notify({
-        userId: creatorId,
-        type: "affiliate_payout_blocked",
-        title: `${euros(net)} t'attendent`,
-        body:
-          "Tes commissions d'affiliation sont acquises, mais il te manque ton compte " +
-          "de paiement pour les recevoir. Ça prend deux minutes.",
-        link: "/payouts",
-        throttleMinutes: 10080,
-      });
+      aRelancer.push({ creatorId, net });
       continue;
     }
+    aPayer.push({ creatorId, bucket, clawbacks, owed, net, compte });
+  }
+
+  let traites = 0;
+
+  for (const { creatorId, bucket, clawbacks, owed, net, compte } of aPayer) {
+    /* On s'arrête avant d'être coupé. Un versement à moitié fait coûte plus
+       cher qu'un versement reporté d'un jour : le premier laisse un créateur
+       impayé sans trace, le second ne laisse rien du tout. */
+    if (Date.now() - debut > BUDGET_VERSEMENTS_MS) {
+      result.restants = aPayer.length - traites;
+      break;
+    }
+    traites++;
 
     const fee = round2(bucket.fee);
     const { data: tx, error: txErr } = await admin
@@ -1208,7 +1254,7 @@ export async function runAffiliatePayouts(): Promise<{
         {
           amount: Math.round(net * 100),
           currency: "eur",
-          destination: creator.stripe_account_id as string,
+          destination: compte,
           description: "Commissions d'affiliation Collabbs",
           metadata: { creator_id: creatorId, transaction_id: tx.id },
         },
@@ -1277,7 +1323,7 @@ export async function runAffiliatePayouts(): Promise<{
           amount: number;
           brand_id: string;
         }>(
-          (clawbacks ?? []).map((c) => c.id),
+          clawbacks.map((c) => c.id),
           (t) =>
             admin
               .from("affiliate_clawbacks")
@@ -1393,6 +1439,35 @@ export async function runAffiliatePayouts(): Promise<{
       }
       result.failed++;
     }
+  }
+
+  /* ─── LES RELANCES EN DERNIER, ET PAR PAQUETS ───
+     Un créateur dont les commissions sont acquises mais qui n'a pas relié son
+     compte de paiement reçoit un rappel, au plus une fois par semaine
+     (`throttleMinutes`). Ces rappels partaient AVANT les versements, un par
+     un : avec 174 créateurs dans ce cas, ils consommaient le budget réservé
+     aux virements. L'argent qui attend passe avant le courriel qui le dit.
+
+     Par paquets de 20 : séquentiel, ça coûtait plus de deux cents
+     millisecondes par créateur. Et sous un budget distinct — une relance
+     manquée se rattrape au passage suivant, un virement manqué non. */
+  const budgetRelances = Date.now() + BUDGET_RELANCES_MS;
+  for (let i = 0; i < aRelancer.length; i += TAILLE_PAQUET_RELANCES) {
+    if (Date.now() > budgetRelances) break;
+    await Promise.all(
+      aRelancer.slice(i, i + TAILLE_PAQUET_RELANCES).map(({ creatorId, net }) =>
+        notify({
+          userId: creatorId,
+          type: "affiliate_payout_blocked",
+          title: `${euros(net)} t'attendent`,
+          body:
+            "Tes commissions d'affiliation sont acquises, mais il te manque ton compte " +
+            "de paiement pour les recevoir. Ça prend deux minutes.",
+          link: "/payouts",
+          throttleMinutes: 10080,
+        }),
+      ),
+    );
   }
 
   return result;

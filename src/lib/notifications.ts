@@ -6,8 +6,23 @@ import { createAdminClient } from "./supabase/admin";
 
 /**
  * Notifie un user :
- *   1) Insère un row dans `notifications` (toujours, pour le centre in-app).
- *   2) Envoie un email transactionnel via Resend (peut être throttled).
+ *   1) Insère une ligne dans `notifications`, pour le centre in-app.
+ *   2) Envoie un e-mail transactionnel via Resend.
+ *
+ * `throttleMinutes` couvre LES DEUX. Il ne couvrait que l'e-mail, et la ligne
+ * s'ajoutait quand même : un cron quotidien portant un plafond hebdomadaire
+ * envoyait un e-mail par semaine et SEPT lignes identiques. Mesuré le
+ * 23/10/2026 sur le projet de développement — trois passages du cron de
+ * versement avaient créé 276 rappels « relie ton compte » pour 92 créateurs.
+ *
+ * Un créateur sans compte de paiement voyait donc sa pastille monter d'un par
+ * jour, indéfiniment, avec le même message — ce qui finit par dévaluer toutes
+ * les autres notifications. Personne n'écrit un plafond en souhaitant sept
+ * lignes identiques : l'intention porte sur l'information, pas sur le canal.
+ *
+ * `alerterAdmins` avait dû se construire son propre garde-fou pour cette
+ * raison. Le sien reste utile — il déduplique par TYPE, tous administrateurs
+ * confondus, là où celui-ci déduplique par destinataire.
  *
  * Échoue silencieusement : une notif ratée ne doit JAMAIS casser l'action
  * métier qui l'a déclenchée (paiement, deal, etc.).
@@ -19,7 +34,12 @@ export async function notify(args: {
   body?: string;
   /** Chemin relatif (ex. "/deals/xxx") — on construit l'URL complète à partir de la requête. */
   link?: string;
-  /** Si défini, on ne ré-envoie pas d'email si une notif identique a été créée dans cette fenêtre (minutes). */
+  /**
+   * Fenêtre de silence, en minutes. Si une notification de même type et même
+   * lien existe déjà pour ce destinataire dans la fenêtre, on ne crée NI la
+   * ligne NI l'e-mail. Sans `link`, la fenêtre ne s'applique pas — il n'y a
+   * pas de quoi reconnaître « la même » notification.
+   */
   throttleMinutes?: number;
 }) {
   const admin = createAdminClient();
@@ -39,6 +59,9 @@ export async function notify(args: {
       throttled = Boolean(recent && recent.length > 0);
     }
 
+    // Rien à ajouter : la personne a déjà cette information sous les yeux.
+    if (throttled) return;
+
     await admin.from("notifications").insert({
       user_id: args.userId,
       type: args.type,
@@ -49,8 +72,6 @@ export async function notify(args: {
   } catch {
     /* noop — l'action métier doit continuer */
   }
-
-  if (throttled) return;
 
   try {
     const { data: userData, error: userErr } = await admin.auth.admin.getUserById(args.userId);
