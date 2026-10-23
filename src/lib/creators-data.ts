@@ -3,6 +3,7 @@ import { profilVisible } from "@/lib/profil-visible";
 import { createClient } from "@/lib/supabase/server";
 import { OFFER_TYPES, type OfferId } from "@/components/landing/creators";
 import { demoCreatorsVisible } from "./demo-data";
+import { parTranches } from "./par-tranches";
 
 // Source de vérité = Supabase. Les démos seedées (is_demo) et les vrais
 // inscrits qui ont complété leur profil apparaissent ici, sans distinction.
@@ -117,31 +118,50 @@ type CreatorRow = {
 
 async function loadRelations(ids: string[]) {
   const supabase = await createClient();
-  const [profsRes, cpsRes, cnsRes, cosRes, platRes, nicheRes] = await Promise.all([
-    supabase.from("profiles").select("id, display_name, avatar_url").in("id", ids),
+  /* ⚠️ `parTranches` et NON un `.in(ids)` direct.
+     Au-delà d'environ 300 identifiants, PostgREST met huit secondes là où il
+     en met cent millisecondes — l'URL de la requête dépasse une taille au-delà
+     de laquelle elle n'est plus servie normalement. Mesuré avec 500 créateurs
+     en base : cet appel-ci faisait à lui seul 8 s, et l'annuaire 16,8 s. Le
+     détail des mesures est dans `lib/par-tranches`. */
+  const [profs, cps, cns, cos, platRes, nicheRes] = await Promise.all([
+    parTranches(ids, (t) =>
+      supabase.from("profiles").select("id, display_name, avatar_url").in("id", t),
+    ),
     // Les colonnes de vérification arrivent avec la migration 0037. Si elle
     // n'est pas encore appliquée, la requête échouerait et — le gating exigeant
     // au moins un réseau — la marketplace se viderait SILENCIEUSEMENT. On
     // retente donc sans ces colonnes plutôt que de tout perdre.
-    supabase
-      .from("creator_platforms")
-      .select("creator_id, platform_id, subscribers, handle, url, verified_at, verified_source")
-      .in("creator_id", ids)
-      .then(async (res) => {
-        if (!res.error) return res;
-        console.warn(
-          "[creators-data] colonnes de vérification absentes — repli sans elles. Applique la migration 0037.",
-        );
-        return supabase
-          .from("creator_platforms")
-          .select("creator_id, platform_id, subscribers, handle, url")
-          .in("creator_id", ids);
-      }),
-    supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", ids),
-    supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", ids),
+    parTranches(ids, (t) =>
+      supabase
+        .from("creator_platforms")
+        .select("creator_id, platform_id, subscribers, handle, url, verified_at, verified_source")
+        .in("creator_id", t)
+        .then(async (res) => {
+          if (!res.error) return res;
+          console.warn(
+            "[creators-data] colonnes de vérification absentes — repli sans elles. Applique la migration 0037.",
+          );
+          return supabase
+            .from("creator_platforms")
+            .select("creator_id, platform_id, subscribers, handle, url")
+            .in("creator_id", t);
+        }),
+    ),
+    parTranches(ids, (t) =>
+      supabase.from("creator_niches").select("creator_id, niche_id").in("creator_id", t),
+    ),
+    parTranches(ids, (t) =>
+      supabase.from("creator_offers").select("creator_id, offer, price").in("creator_id", t),
+    ),
     supabase.from("platforms").select("id, label, slug"),
     supabase.from("niches").select("id, label"),
   ]);
+  // `parTranches` rend déjà les lignes : on garde la forme attendue plus bas.
+  const profsRes = { data: profs };
+  const cpsRes = { data: cps };
+  const cnsRes = { data: cns };
+  const cosRes = { data: cos };
 
   const platMap = new Map(
     (platRes.data ?? []).map((p) => [p.id, { label: p.label, slug: p.slug }]),
