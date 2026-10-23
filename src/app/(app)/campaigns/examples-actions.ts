@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import { reportError } from "@/lib/report-error";
 
@@ -96,7 +97,11 @@ export async function removeCampaignExample(
     .delete()
     .eq("id", exampleId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("campagne/exemple-retrait", error, "Cet exemple n'a pas pu être retiré. Réessaie."),
+    };
   if (!supprimes || supprimes.length === 0)
     return {
       ok: false,

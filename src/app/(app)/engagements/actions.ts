@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { valider } from "@/lib/validation";
@@ -127,7 +128,11 @@ export async function rompreEngagement(engagementId: string): Promise<Result> {
     .from("engagements")
     .update({ status: "ended", ended_at: maintenant, ended_by: user.id })
     .eq("id", engagementId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("engagement/rupture", error, "La rupture du partenariat n'a pas pu être enregistrée. Réessaie."),
+    };
 
   const autre = eng.brand_id === user.id ? eng.creator_id : eng.brand_id;
   const restants = eng.months_total - eng.months_created;

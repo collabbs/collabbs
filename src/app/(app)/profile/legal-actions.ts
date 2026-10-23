@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import type { LegalInfoData } from "./legal-utils";
 import { valider } from "@/lib/validation";
@@ -39,7 +40,11 @@ export async function saveLegalInfo(
     contact_email: data.contactEmail.trim() || null,
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("legal/coordonnees", error, "Tes coordonnées légales n'ont pas pu être enregistrées. Réessaie."),
+    };
   revalidatePath("/profile");
   revalidatePath("/dashboard");
   return { ok: true };

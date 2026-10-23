@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { normaliserSiteMarque } from "@/lib/site-marque";
 import { createClient } from "@/lib/supabase/server";
 import { citySlug } from "@/lib/city";
@@ -58,7 +59,11 @@ export async function uploadAvatar(
     .upload(path, octets, { upsert: true, cacheControl: "3600", contentType: typeServi });
   if (upErr) {
     console.error("uploadAvatar: storage upload failed", upErr);
-    return { ok: false, error: upErr.message };
+    if (upErr)
+      return {
+        ok: false,
+        error: await echecEcriture("photo/televersement", upErr, "Ta photo n'a pas pu être envoyée. Réessaie, ou choisis une image plus légère."),
+      };
   }
 
   const { data } = admin.storage.from("avatars").getPublicUrl(path);

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { verifierMatch } from "@/lib/match";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
@@ -44,7 +45,11 @@ export async function toggleSavedCreator(
       .delete()
       .eq("brand_id", user.id)
       .eq("creator_id", creatorId);
-    if (error) return { ok: false, error: error.message };
+    if (error)
+      return {
+        ok: false,
+        error: await echecEcriture("shortlist/retrait", error, "Ce créateur n'a pas pu être retiré de ta shortlist. Réessaie."),
+      };
     revalidatePath("/shortlist");
     revalidatePath("/creators");
     return { ok: true, saved: false };
@@ -53,7 +58,11 @@ export async function toggleSavedCreator(
   const { error } = await supabase
     .from("brand_creator_saves")
     .insert({ brand_id: user.id, creator_id: creatorId });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("shortlist/ajout", error, "Ce créateur n'a pas pu être ajouté à ta shortlist. Réessaie."),
+    };
 
   // Le match se forme quand le SECOND des deux agit. C'est ici, pas à
   // l'inscription : un créateur qui vient d'arriver n'a pas pu être repéré

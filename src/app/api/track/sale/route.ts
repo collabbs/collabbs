@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reportError } from "@/lib/report-error";
 import {
   commissionDueSurCePaiement,
   estUnRenouvellement,
@@ -273,7 +274,15 @@ async function handle(p: Payload) {
         commission,
       });
     }
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      /* Le destinataire ici n'est pas une personne : c'est le script d'une
+         boutique. Lui rendre le texte de Postgres lui apprenait le nom de nos
+         tables et de nos contraintes, pour rien — il n'en fera rien. On garde
+         un message neutre et on signale la vraie cause chez nous. */
+      await reportError("suivi/vente", error);
+      return NextResponse.json(
+        { ok: false, error: "enregistrement impossible" },
+        { status: 500 },
+      );
   }
 
   if (aRevoir) {

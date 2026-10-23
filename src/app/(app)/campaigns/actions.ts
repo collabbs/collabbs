@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify, notifyOnce } from "@/lib/notifications";
@@ -474,7 +475,11 @@ export async function recordManualPromoSale(input: {
     if ((error as { code?: string }).code === "23505") {
       return { ok: false, error: "Vente déjà enregistrée pour cette commande." };
     }
-    return { ok: false, error: error.message };
+    if (error)
+      return {
+        ok: false,
+        error: await echecEcriture("promo/vente-manuelle", error, "Cette vente n'a pas pu être enregistrée. Réessaie."),
+      };
   }
 
   // Réserve la commission + les frais Collabbs sur la provision de la marque.
@@ -559,7 +564,11 @@ export async function decideApplication(
     .from("applications")
     .update({ status: decision })
     .eq("id", applicationId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("candidature/decision", error, "Ta réponse n'a pas pu être enregistrée. Réessaie."),
+    };
 
   // Notif au créateur
   const campaignName = app.campaigns?.name ?? "ta campagne";
@@ -647,7 +656,11 @@ export async function setCampaignStatus(
     .eq("id", campaignId)
     .eq("brand_id", user.id)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("campagne/statut", error, "Le statut de la campagne n'a pas pu être changé. Réessaie."),
+    };
   if (!modifiees || modifiees.length === 0)
     return { ok: false, error: "Cette campagne est introuvable, ou elle n'est pas la tienne." };
 

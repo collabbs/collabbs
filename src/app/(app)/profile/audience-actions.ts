@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import { reportError } from "@/lib/report-error";
 import { fetchChannelAudience } from "@/lib/youtube";
@@ -119,7 +120,11 @@ export async function verifyYouTubeAudience(): Promise<{
       subscribers: audience.subscribers,
     })
     .eq("id", row.id);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("audience/verification", error, "Ton audience a bien été vérifiée, mais le résultat n'a pas pu être enregistré. Réessaie."),
+    };
 
   revalidatePath("/profile");
   revalidatePath("/creators");

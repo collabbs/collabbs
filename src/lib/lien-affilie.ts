@@ -1,4 +1,5 @@
 import "server-only";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fabriquerCodePromo } from "@/lib/promo-code";
 import { notify } from "@/lib/notifications";
@@ -97,7 +98,8 @@ export async function creerLienAffilie(
   const { error } = await admin
     .from("affiliate_links")
     .insert({ campaign_id: campaignId, creator_id: creatorId, code, promo_code: promoCode });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return { ok: false, error: await echecEcriture("affiliation/lien", error, "Ton lien d'affiliation n'a pas pu être créé. Réessaie.") };
 
   /* Le lien existe : la marque a un affilié de plus et doit l'apprendre.
      On est après l'insertion et dans la branche `existait === false`, donc

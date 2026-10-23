@@ -1,4 +1,5 @@
 import "server-only";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
@@ -96,7 +97,7 @@ export async function ouvrirLeMois(engagementId: string): Promise<OuvertureMois>
         .lt("months_created", mois);
       return { ok: true, deja: true };
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: await echecEcriture("engagement/mois", error, "Le mois suivant du partenariat n'a pas pu être ouvert. Réessaie.") };
   }
 
   // Livrables : autant que de contenus convenus par mois. Sans eux, le créateur

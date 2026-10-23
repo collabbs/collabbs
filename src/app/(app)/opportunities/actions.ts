@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
 import { reportError } from "@/lib/report-error";
@@ -69,7 +70,11 @@ export async function applyToCampaign(
     status: "pending",
     message: message?.trim() || null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("candidature/envoi", error, "Ta candidature n'a pas pu être envoyée. Réessaie."),
+    };
 
   /* ─── Prévenir la marque ───
      Mesuré le 22/10/2026 en parcourant le produit de bout en bout : une

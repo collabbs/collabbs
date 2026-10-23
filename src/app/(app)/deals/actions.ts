@@ -27,6 +27,7 @@ import { thresholdWith } from "@/lib/legal-threshold";
    due ou réglée — elle se relit au centime dans le registre. */
 import { eur, eurExact } from "@/lib/campaign";
 import { reportError } from "@/lib/report-error";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { valider } from "@/lib/validation";
 import {
   termesDealSchema,
@@ -80,7 +81,12 @@ async function ensureContractRow(dealId: string): Promise<{ ok: boolean; error?:
     if (error.code === "23505" && error.message.includes("deal_id")) return { ok: true };
     // Référence déjà prise : on retire au sort.
     if (error.code === "23505") continue;
-    return { ok: false, error: error.message };
+    return {
+      ok: false,
+      error: await echecEcriture("deal/contrat", error,
+        "Le contrat de la collaboration n'a pas pu être créé. Réessaie.",
+        { detail: `collaboration ${dealId}` }),
+    };
   }
   return { ok: false, error: "Impossible d'attribuer une référence de contrat." };
 }
@@ -136,7 +142,13 @@ async function ensureDeliverables(
   }));
 
   const { error } = await supabase.from("deliverables").insert(lignes);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/livrables", error,
+        "Les livrables de la collaboration n'ont pas pu être créés. Réessaie.",
+        { detail: `collaboration ${dealId}` }),
+    };
   return { ok: true };
 }
 
@@ -546,7 +558,11 @@ export async function updateDealTerms(
         : {}),
     })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/termes", error, "Les termes n'ont pas pu être enregistrés. Réessaie."),
+    };
 
   // Les livrables suivent la quantité. On est en négociation : rien n'a encore
   // été déposé, on peut donc les refaire proprement. Sans ça, une marque qui
@@ -726,7 +742,11 @@ export async function acceptDeal(dealId: string): Promise<Result> {
       escrow_due_at: escrowDueIso,
     })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/acceptation", error, "Ton acceptation n'a pas pu être enregistrée. Réessaie."),
+    };
 
   /* Le lien tracké naît ICI, pas à la proposition : tant que le créateur
      n'a pas accepté, il n'a rien à diffuser, et un lien qui existerait
@@ -800,7 +820,11 @@ export async function cancelDeal(dealId: string): Promise<Result> {
     .from("deals")
     .update({ status: "cancelled" })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/annulation", error, "L'annulation n'a pas pu être enregistrée. Réessaie."),
+    };
 
   // Une campagne privée laissée ouverte continuerait d'attribuer des ventes à
   // une collaboration annulée — donc d'engager la provision de la marque pour
@@ -890,7 +914,11 @@ export async function setDeliverableSubmission(
       ...RETOUCHE_TRAITEE,
     })
     .eq("id", deliverableId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/lien", error, "Ton lien n'a pas pu être enregistré. Réessaie."),
+    };
 
   // Notifie la marque (avec throttle pour ne pas spammer si le créateur édite
   // plusieurs fois le même livrable en peu de temps).
@@ -980,7 +1008,11 @@ export async function recordDeliverableFiles(
       ...RETOUCHE_TRAITEE,
     })
     .eq("id", deliverableId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/fichiers", error, "Tes fichiers n'ont pas pu être rattachés au livrable. Réessaie."),
+    };
 
   const { data: dealForNotif } = await supabase
     .from("deals")
@@ -1075,7 +1107,11 @@ export async function removeDeliverableFile(
         : { submission_files: filtered },
     )
     .eq("id", deliverableId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/liste", error, "Le fichier a bien été retiré, mais la liste n'a pas pu être mise à jour. Recharge la page avant de continuer."),
+    };
 
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
@@ -1109,7 +1145,11 @@ export async function setDeliverableDone(
       done ? { done, ...RETOUCHE_TRAITEE } : { done },
     )
     .eq("id", deliverableId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/livre", error, "Le livrable n'a pas pu être marqué comme livré. Réessaie."),
+    };
 
   revalidatePath(`/deals/${d.deal_id}`);
   return { ok: true };
@@ -1161,7 +1201,11 @@ export async function setDeliverableApproved(
       approved ? { approved, ...RETOUCHE_TRAITEE } : { approved },
     )
     .eq("id", deliverableId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/validation", error, "La validation n'a pas pu être enregistrée. Réessaie."),
+    };
 
   // Notifie le créateur que la marque a validé (uniquement à la validation, pas au retrait).
   if (approved) {
@@ -1246,14 +1290,22 @@ export async function requestRevision(
       revision_message: trimmed,
     })
     .eq("id", deliverableId);
-  if (dvErr) return { ok: false, error: dvErr.message };
+  if (dvErr)
+    return {
+      ok: false,
+      error: await echecEcriture("livrable/retouche", dvErr, "La demande de retouche n'a pas pu être enregistrée. Réessaie."),
+    };
 
   // 2. Incrément compteur côté deal
   const { error: dealErr } = await supabase
     .from("deals")
     .update({ revision_rounds_used: used + 1 })
     .eq("id", dv.deal_id);
-  if (dealErr) return { ok: false, error: dealErr.message };
+  if (dealErr)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/tours-retouche", dealErr, "La retouche est demandée, mais le compte des tours n'a pas pu être mis à jour. Signale-le avant d'en demander une autre."),
+    };
 
   const remaining = max - (used + 1);
   // 3. Notif créateur
@@ -1339,7 +1391,11 @@ export async function completeDeal(dealId: string): Promise<Result> {
     .from("deals")
     .update({ status: "completed", brand_validated_at: new Date().toISOString() })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("deal/cloture", error, "La clôture n'a pas pu être enregistrée. Réessaie."),
+    };
 
   // Tente le versement au créateur (non bloquant : si son compte n'est pas prêt,
   // les fonds restent en séquestre et il pourra déclencher le versement ensuite).
@@ -1706,7 +1762,11 @@ export async function leaveReview(
     rating: r,
     comment: avis || null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("avis/createur", error, "Ton avis n'a pas pu être enregistré. Réessaie."),
+    };
 
   await notify({
     userId: deal.creator_id,
@@ -1777,7 +1837,11 @@ export async function leaveBrandReview(
     rating: r,
     comment: avis || null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("avis/marque", error, "Ton avis n'a pas pu être enregistré. Réessaie."),
+    };
 
   await notify({
     userId: deal.brand_id,
@@ -1838,7 +1902,11 @@ export async function declarerVues(
       perf_declared_at: new Date().toISOString(),
     })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("vues/declaration", error, "Tes vues n'ont pas pu être enregistrées. Réessaie."),
+    };
 
   const du = montantAuxVues(controle.data.views, Number(deal.perf_rate), Number(deal.amount));
   await notify({
@@ -1963,7 +2031,11 @@ export async function enregistrerAdresseLivraison(
     .from("deals")
     .update({ shipping_address: controle.data })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livraison/adresse", error, "Ton adresse n'a pas pu être enregistrée. Réessaie."),
+    };
 
   await notify({
     userId: deal.brand_id,
@@ -2021,7 +2093,11 @@ export async function marquerExpedie(
       tracking_number: controle.data.tracking?.trim() || null,
     })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livraison/expedie", error, "L'expédition n'a pas pu être enregistrée. Réessaie."),
+    };
 
   const suivi = lienDeSuivi(
     controle.data.carrier?.trim() ?? null,
@@ -2069,7 +2145,11 @@ export async function confirmerReception(dealId: string): Promise<Result> {
     .from("deals")
     .update({ received_at: new Date().toISOString() })
     .eq("id", dealId);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("livraison/reception", error, "La réception n'a pas pu être enregistrée. Réessaie."),
+    };
 
   await notify({
     userId: deal.brand_id,

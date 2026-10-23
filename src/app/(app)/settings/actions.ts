@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServerClient } from "@supabase/ssr";
@@ -68,7 +69,11 @@ export async function updatePassword(
   }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("compte/mot-de-passe", error, "Ton mot de passe n'a pas pu être changé. Réessaie."),
+    };
 
   revalidatePath("/settings");
   return { ok: true };

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 
 /** Détecte le slug de la plateforme depuis une URL. */
@@ -58,7 +59,11 @@ export async function addPortfolioItem(
     platform_slug: detectPlatform(u),
     position,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("portfolio/ajout", error, "Ce contenu n'a pas pu être ajouté à ton portfolio. Réessaie."),
+    };
 
   revalidatePath("/profile");
   return { ok: true };
@@ -82,7 +87,11 @@ export async function removePortfolioItem(
     .delete()
     .eq("id", itemId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("portfolio/retrait", error, "Ce contenu n'a pas pu être retiré. Réessaie."),
+    };
   if (!supprimes || supprimes.length === 0)
     return { ok: false, error: "Ce contenu n'existe plus, ou il ne t'appartient pas." };
 

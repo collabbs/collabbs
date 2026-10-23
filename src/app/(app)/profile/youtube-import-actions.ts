@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { echecEcriture } from "@/lib/echec-ecriture";
 import { createClient } from "@/lib/supabase/server";
 import {
   resolveChannelId,
@@ -132,7 +133,11 @@ export async function importYouTubeVideos(
   const { error } = await supabase
     .from("creator_portfolio_items")
     .insert(rows);
-  if (error) return { ok: false, error: error.message };
+  if (error)
+    return {
+      ok: false,
+      error: await echecEcriture("youtube/import-ecriture", error, "Tes vidéos ont bien été trouvées, mais elles n'ont pas pu être enregistrées. Réessaie."),
+    };
 
   revalidatePath("/profile");
   // Si le créateur a un handle, sa fiche publique change aussi
@@ -175,7 +180,11 @@ export async function refreshYouTubeStats(): Promise<{
     .select("id, url")
     .eq("creator_id", user.id)
     .eq("platform_slug", "youtube");
-  if (selErr) return { ok: false, error: selErr.message };
+  if (selErr)
+    return {
+      ok: false,
+      error: await echecEcriture("youtube/relecture", selErr, "Tes vidéos n'ont pas pu être relues. Réessaie."),
+    };
   if (!items || items.length === 0) return { ok: true, updated: 0 };
 
   // Map id → videoId YouTube extrait de l'URL stockée.
