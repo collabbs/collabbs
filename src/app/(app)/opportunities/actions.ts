@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { notify } from "@/lib/notifications";
+import { reportError } from "@/lib/report-error";
 import { creerLienAffilie } from "@/lib/lien-affilie";
 import { peutDecider } from "@/lib/invitations";
 import { evaluerProfil, phraseManquants } from "@/lib/profil-listable";
@@ -129,6 +130,15 @@ export async function repondreInvitation(
   campaignId: string,
   reponse: "accepted" | "rejected",
 ): Promise<{ ok: boolean; error?: string }> {
+  /* Le type de `reponse` n'est qu'une promesse du client : une action serveur
+     est une adresse HTTP publique. `application_status` est un enum Postgres,
+     qui refusait bien toute autre valeur — mais en renvoyant son erreur, que
+     cette fonction transformait en « La réponse n'a pas pu être enregistrée »
+     sans dire pourquoi, ni à l'écran ni dans aucun journal. Même garde que
+     `setCampaignStatus`. */
+  if (reponse !== "accepted" && reponse !== "rejected")
+    return { ok: false, error: "Réponse inattendue." };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -157,7 +167,16 @@ export async function repondreInvitation(
     .eq("id", invitation.id)
     .eq("status", "pending")
     .select("id");
-  if (error) return { ok: false, error: "La réponse n'a pas pu être enregistrée." };
+  if (error) {
+    /* L'erreur réelle allait nulle part. Une invitation qu'un créateur ne peut
+       pas accepter est un recrutement mort, et le seul indice était une phrase
+       sans cause — ni pour lui, ni pour nous. */
+    await reportError("opportunites/reponse-invitation", error, {
+      userId: user.id,
+      detail: `campagne ${campaignId}, invitation ${invitation.id}, réponse ${reponse}`,
+    });
+    return { ok: false, error: "La réponse n'a pas pu être enregistrée. Réessaie." };
+  }
   if (!majs || majs.length === 0) return { ok: true };
 
   const brandId = invitation.campaigns?.brand_id;
