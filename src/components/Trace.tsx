@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { tracerEtape, type EtapeTunnel } from "@/lib/tunnel";
 import { jetonDeSession } from "@/lib/session-tunnel";
+import { origineDeSession } from "@/lib/origine";
 
 /**
  * Marque le passage à une étape du tunnel.
@@ -26,7 +27,9 @@ export default function Trace({
     if (fait.current) return;
     fait.current = true;
     const jeton = jetonDeSession();
-    if (jeton) void tracerEtape(etape, jeton, cote);
+    // L'origine est lue au même moment : elle est mémorisée au premier contact
+    // et ne change plus, donc chaque étape du tunnel porte le même canal.
+    if (jeton) void tracerEtape(etape, jeton, cote, origineDeSession());
   }, [etape, cote]);
 
   return null;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BoutonSoumettre from "@/components/BoutonSoumettre";
 import { signup } from "@/app/auth/actions";
+import ChampOrigine from "./ChampOrigine";
 import GoogleButton from "@/components/GoogleButton";
 import { googleActif } from "@/lib/google-auth";
 
@@ -58,6 +59,8 @@ export default async function SignupPage({
         )}
 
         <form action={signup} className="mt-6 space-y-5">
+          {/* Le canal d'arrivée, mémorisé au premier contact. Voir ChampOrigine. */}
+          <ChampOrigine />
           {/* Champ caché pour revenir où l'utilisateur a démarré (ex. /c/[id]) */}
           {nextPath && <input type="hidden" name="next" value={nextPath} />}
 

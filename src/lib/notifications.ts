@@ -95,7 +95,34 @@ export async function notify(args: {
        elle, reste écrite : elle est visible dans le produit, elle ne coûte
        rien, et elle garde la trace de ce qui aurait été dit. */
     const DOMAINES_SANS_COURRIER = ["@collabbs.test", "@collabbs.dev", "@example.com", "@example.org"];
-    if (DOMAINES_SANS_COURRIER.some((d) => to.toLowerCase().endsWith(d))) return;
+    const adresse = to.toLowerCase();
+    if (DOMAINES_SANS_COURRIER.some((d) => adresse.endsWith(d))) return;
+
+    /* ═══ HORS PRODUCTION, ON N'ÉCRIT QU'AUX DOMAINES DE TEST ═══
+
+       Le symétrique du garde-fou de `lib/stripe.ts`, et pour la même raison.
+       `.env.development.local` ne redéfinit ni Stripe ni Resend : en local,
+       la clé Resend est donc celle de PRODUCTION, héritée de `.env.local`.
+
+       Aujourd'hui rien ne part, parce que tous les comptes du projet de
+       développement portent une adresse en `@collabbs.test` — mais c'est un
+       hasard, pas une garantie. Le jour où un compte de dev porte une vraie
+       adresse, un essai local écrit à quelqu'un, depuis le domaine
+       d'expédition réel, et personne ne l'a demandé. Pire : ce courriel
+       parlerait d'un paiement ou d'une collaboration qui n'existent que dans
+       la base de développement.
+
+       En production `NODE_ENV` vaut « production » et ce garde ne s'applique
+       jamais. Il ne peut donc rien empêcher de légitime, et il rend impossible
+       le seul envoi qu'on ne pourrait pas rattraper. */
+    if (process.env.NODE_ENV !== "production") {
+      await reportError(
+        "notify/hors-production",
+        `envoi refusé vers ${adresse.replace(/^(.{2}).*(@.*)$/, "$1***$2")}`,
+        { userId: args.userId, detail: `type ${args.type}` },
+      );
+      return;
+    }
 
     let origin = "https://collabbs.com";
     try {

@@ -1,5 +1,7 @@
 "use server";
 
+import { createAdminClient } from "@/lib/supabase/admin";
+import { estUnCanal } from "@/lib/origine";
 import { revalidatePath } from "next/cache";
 import { messageAuth } from "@/lib/messages-auth";
 import { redirect } from "next/navigation";
@@ -91,6 +93,10 @@ export async function signup(formData: FormData) {
   const roleRaw = String(formData.get("role") ?? "");
   const role = roleRaw === "brand" ? "brand" : "creator";
   const next = String(formData.get("next") ?? "").trim();
+  // Le canal d'arrivée, revérifié côté serveur : le champ vient du formulaire,
+  // donc de n'importe qui. Hors liste = arrivée directe.
+  const origineBrute = String(formData.get("origine") ?? "");
+  const origine = estUnCanal(origineBrute) ? origineBrute : null;
 
   // Chaque inscription déclenche un email de confirmation : sans plafond, la
   // route sert de canon à spam au nom de Collabbs, et notre domaine finit
@@ -144,6 +150,37 @@ export async function signup(formData: FormData) {
   // Non si la confirmation reste exigée : on retombe sur l'écran « vérifie
   // tes emails », inchangé. Le code fonctionne donc dans les deux réglages,
   // et basculer le réglage ne casse rien.
+  /* ─── LE CANAL D'ARRIVÉE, ÉCRIT UNE SEULE FOIS ───
+     C'est la ligne qui rendra le verdict du test de sortie lisible : sans
+     elle, on saurait combien de marques ont payé, pas lesquelles des trois
+     canaux les a amenées — donc on prolongerait ou on arrêterait à l'aveugle.
+
+     Écrite après l'inscription, jamais mise à jour : une origine qui change
+     n'est plus une origine. Le profil existe déjà à ce stade — le déclencheur
+     sur `auth.users` le crée dans la même transaction.
+
+     N'interrompt jamais l'inscription : quelqu'un qui crée son compte n'a pas
+     à échouer parce qu'un compteur a raté. Un échec est signalé, pas
+     propagé. */
+  if (origine && data.user?.id) {
+    try {
+      const admin = createAdminClient();
+      const { error: errOrigine } = await admin
+        .from("profiles")
+        .update({ origine })
+        .eq("id", data.user.id)
+        .is("origine", null);
+      if (errOrigine) {
+        await reportError("auth/origine", errOrigine, {
+          userId: data.user.id,
+          detail: `canal « ${origine} » non enregistré`,
+        });
+      }
+    } catch (err) {
+      await reportError("auth/origine", err, { userId: data.user.id });
+    }
+  }
+
   if (data.session) {
     revalidatePath("/", "layout");
     // `next` vient du formulaire : jamais suivi tel quel. Voir `cheminInterne`.

@@ -261,9 +261,9 @@ export type Database = {
       }
       // ⚠️ Ajoutées à la main, comme `campagnes_favorites` ci-dessous.
       tunnel_evenements: {
-        Row: { id: number; session: string; etape: string; cote: string | null; created_at: string }
-        Insert: { session: string; etape: string; cote?: string | null; created_at?: string }
-        Update: { session?: string; etape?: string; cote?: string | null; created_at?: string }
+        Row: { id: number; session: string; etape: string; cote: string | null; origine: string | null; created_at: string }
+        Insert: { session: string; etape: string; cote?: string | null; origine?: string | null; created_at?: string }
+        Update: { session?: string; etape?: string; cote?: string | null; origine?: string | null; created_at?: string }
         Relationships: []
       }
       contrats_archives: {
@@ -1994,6 +1994,7 @@ export type Database = {
           display_name: string | null
           id: string
           is_admin: boolean
+          origine: string | null
           role: Database["public"]["Enums"]["user_role"]
           role_confirmed: boolean
           updated_at: string
@@ -2004,6 +2005,7 @@ export type Database = {
           display_name?: string | null
           id: string
           is_admin?: boolean
+          origine?: string | null
           role: Database["public"]["Enums"]["user_role"]
           role_confirmed?: boolean
           updated_at?: string
@@ -2014,6 +2016,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_admin?: boolean
+          origine?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           role_confirmed?: boolean
           updated_at?: string
