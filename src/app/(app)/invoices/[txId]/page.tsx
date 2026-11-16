@@ -116,11 +116,23 @@ export default async function InvoicePage({
     year: "numeric",
   });
 
-  // Émetteur/destinataire dépendent du type de transaction
-  // - deal_payment : facture des frais de plateforme émise par Collabbs à la marque
-  // - affiliate_payout : facture du créateur à la marque pour ses commissions
-  // Pour l'instant on traite tout de la même façon : la marque a payé, on lui
-  // fournit le justificatif d'achat avec la commission Collabbs détaillée.
+  /* ─── LE DOCUMENT S'ADAPTE À CELUI QUI L'OUVRE ───
+     Il était écrit du seul point de vue de l'annonceur, et le commentaire qui
+     se trouvait ici l'assumait : « on traite tout de la même façon : la marque
+     a payé ». Conséquence constatée par Julien le 16/11, sur une
+     collaboration de 15 € : le créateur ouvrait « sa » facture et le chiffre
+     le plus gros, le plus gras, était 16,50 € — le total réglé par la marque,
+     qui n'est pas ce qu'il touche.
+
+     Les montants n'étaient pas faux, et chacun portait son étiquette. Mais sur
+     un document d'argent, le nombre le plus visible doit être celui qui
+     concerne le lecteur. Un créateur qui lit 16,50 € en gras se demande d'où
+     vient l'écart, ou pire, croit qu'on lui a retenu quelque chose — alors que
+     la promesse du produit est exactement l'inverse : zéro prélevé au
+     créateur, la commission est à la charge de l'annonceur.
+
+     Mêmes faits, mêmes lignes, même total : seule l'emphase change. */
+  const estLaMarque = tx.brand_id === user.id;
 
   const brandName = brandRowData?.name ?? brandProfile?.display_name ?? "Marque";
   const creatorName =
@@ -271,6 +283,13 @@ export default async function InvoicePage({
               <tr className="border-b border-zinc-100">
                 <td className="py-3 text-xs text-zinc-500">
                   Commission Collabbs ({pourcentageFrais(tx.platform_fee_rate)} %)
+                  {/* Dit à la charge de QUI. Sans ça, un créateur lit une ligne
+                      de commission sous sa rémunération et croit à une retenue. */}
+                  <span className="block text-[11px] text-zinc-400">
+                    {estLaMarque
+                      ? "à ta charge, en supplément de la rémunération"
+                      : "à la charge de l'annonceur — rien n'est prélevé sur ta rémunération"}
+                  </span>
                 </td>
                 <td className="py-3 text-right text-xs text-zinc-500">
                   + {eur(tx.platform_fee)}
@@ -281,14 +300,47 @@ export default async function InvoicePage({
                   temps où la commission était retenue sur la part du créateur,
                   l'annonceur déboursait bien le total et le créateur touchait
                   le net. Les récapitulatifs anciens restent donc justes. */}
-              <tr>
-                <td className="pt-4 text-sm font-bold uppercase tracking-wide text-ink">
-                  Total réglé par l&apos;annonceur
-                </td>
-                <td className="pt-4 text-right font-display text-xl font-black text-ink">
-                  {eur(tx.gross_amount)}
-                </td>
-              </tr>
+              {/* La ligne mise en avant est celle du lecteur. L'autre reste
+                  présente, en plus petit : on ne cache rien, on hiérarchise. */}
+              {estLaMarque ? (
+                <>
+                  <tr>
+                    <td className="pt-4 text-sm font-bold uppercase tracking-wide text-ink">
+                      Total réglé par l&apos;annonceur
+                    </td>
+                    <td className="pt-4 text-right font-display text-xl font-black text-ink">
+                      {eur(tx.gross_amount)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="pt-1 text-xs text-zinc-500">
+                      Dont versé au créateur
+                    </td>
+                    <td className="pt-1 text-right text-xs text-zinc-500">
+                      {eur(tx.net_amount)}
+                    </td>
+                  </tr>
+                </>
+              ) : (
+                <>
+                  <tr>
+                    <td className="pt-4 text-sm font-bold uppercase tracking-wide text-ink">
+                      Total versé au créateur
+                    </td>
+                    <td className="pt-4 text-right font-display text-xl font-black text-ink">
+                      {eur(tx.net_amount)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="pt-1 text-xs text-zinc-500">
+                      Réglé par l&apos;annonceur, commission comprise
+                    </td>
+                    <td className="pt-1 text-right text-xs text-zinc-500">
+                      {eur(tx.gross_amount)}
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </section>
@@ -299,11 +351,30 @@ export default async function InvoicePage({
             {/* L'espace après la balise disparaît à la compilation : elle est
                 écrite explicitement, sinon on lit « …facture.C'est ». */}
             <strong>Ce document n&apos;est pas une facture.</strong>{" "}
-            C&apos;est le récapitulatif du paiement passé par Collabbs, à conserver comme
-            justificatif. Conformément aux CGV, le créateur reste responsable
-            d&apos;émettre sa propre facture lorsque son statut l&apos;exige, et
-            Collabbs facture séparément sa commission à l&apos;annonceur.
+            C&apos;est le récapitulatif du paiement passé par Collabbs, à conserver
+            comme justificatif.
           </p>
+          {/* La suite est écrite À CELUI QUI LIT. Les mêmes obligations
+              énoncées à la troisième personne — « le créateur reste
+              responsable… » — se lisent comme du décor juridique, et personne
+              ne se reconnaît dedans. C'est pourtant ici que se trouve la seule
+              chose à faire après avoir été payé. */}
+          {estLaMarque ? (
+            <p className="mt-2">
+              Collabbs te facture séparément sa commission de{" "}
+              {eur(tx.platform_fee)}. Le créateur t&apos;adresse sa propre facture
+              lorsque son statut l&apos;exige : c&apos;est elle qui portera la TVA le
+              cas échéant, pas ce récapitulatif.
+            </p>
+          ) : (
+            <p className="mt-2">
+              <strong>Si ton statut l&apos;exige, c&apos;est à toi d&apos;émettre ta
+              facture</strong> à l&apos;annonceur, pour les {eur(tx.net_amount)} que tu
+              as reçus — avec la TVA si tu y es assujetti. Collabbs ne facture
+              pas à ta place : les CGV ne prévoient pas de mandat de
+              facturation, et ce document ne porte donc aucune TVA.
+            </p>
+          )}
           <p className="mt-2">
             Les montants sont indiqués tels qu&apos;ils ont été réglés. Le régime
             de TVA applicable dépend du statut de chaque partie — par exemple
