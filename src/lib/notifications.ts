@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { resend, RESEND_FROM } from "./resend";
 import { reportError } from "./report-error";
 import { createAdminClient } from "./supabase/admin";
+import { familleDe, reglageDe } from "./categories-notification";
 
 /**
  * Notifie un user :
@@ -124,6 +125,31 @@ export async function notify(args: {
       return;
     }
 
+    /* ─── LE RÉGLAGE DE LA PERSONNE, CONSULTÉ ICI ET NULLE PART AILLEURS ───
+       Après la création de la ligne dans le produit, et avant l'envoi : ces
+       réglages ne concernent QUE le courriel. Le centre de notifications
+       garde tout, quoi qu'il arrive — sinon couper ses e-mails reviendrait à
+       effacer son historique.
+
+       On n'interroge la base que si la famille est coupable. Les essentiels —
+       l'argent, les obligations, les échéances dépassées — partent sans
+       question et sans lecture inutile. */
+    const famille = familleDe(args.type);
+    const reglage = reglageDe(famille);
+    if (reglage) {
+      const { data: pref } = await admin
+        .from("profiles")
+        .select(reglage)
+        .eq("id", args.userId)
+        .maybeSingle();
+      /* `!== false` et non `=== true` : tant que la migration 0089 n'est pas
+         appliquée, la colonne est absente et la lecture rend `undefined`. On
+         envoie alors, comme avant. Un réglage qu'on ne sait pas lire ne doit
+         pas faire taire le produit. */
+      const autorise = (pref as Record<string, unknown> | null)?.[reglage] !== false;
+      if (!autorise) return;
+    }
+
     let origin = "https://collabbs.com";
     try {
       const h = await headers();
@@ -137,11 +163,25 @@ export async function notify(args: {
     }
     const fullLink = args.link ? `${origin}${args.link}` : origin;
 
+    const reglages = `${origin}/settings`;
     const { error } = await resend.emails.send({
       from: RESEND_FROM,
       to,
       subject: args.title,
-      html: renderEmail({ title: args.title, body: args.body, link: fullLink }),
+      html: renderEmail({
+        title: args.title,
+        body: args.body,
+        link: fullLink,
+        reglages,
+        coupable: famille !== "essentiel",
+      }),
+      /* `List-Unsubscribe` : l'en-tête que les messageries lisent pour
+         afficher leur propre bouton « Se désabonner » en haut du message.
+         Il sert deux fois — il donne une issue autre que « marquer comme
+         indésirable », et il pèse dans le classement : un expéditeur qui le
+         pose est traité comme un expéditeur sérieux. Julien a constaté le
+         16/11 que certains courriels arrivaient en onglet Promotions. */
+      headers: { "List-Unsubscribe": `<${reglages}>` },
     });
     // Resend ne LÈVE PAS sur un refus : il renvoie une erreur dans la réponse.
     // Le `catch` ci-dessous ne la voyait donc jamais.
@@ -205,14 +245,22 @@ function renderEmail({
   title,
   body,
   link,
+  reglages,
+  coupable,
 }: {
   title: string;
   body?: string;
   link: string;
+  /** L'adresse des réglages, pour que le pied de page mène quelque part. */
+  reglages: string;
+  /** Faux pour un courriel essentiel : on ne propose pas de couper ce qui
+   *  annonce de l'argent, et on dit pourquoi plutôt que de se taire. */
+  coupable: boolean;
 }): string {
   const safeTitle = escapeHtml(title);
   const safeBody = body ? escapeHtml(body) : "";
   const safeLink = escapeHtml(link);
+  const safeReglages = escapeHtml(reglages);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -238,7 +286,12 @@ function renderEmail({
         </td></tr>
         <tr><td style="padding:0 32px 24px;border-top:1px solid #f3f4f6;">
           <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#9ca3af;">
-            Tu reçois cet email parce que tu as un compte Collabbs.
+            Tu reçois cet e-mail parce que tu as un compte Collabbs.
+            ${
+              coupable
+                ? `<br><a href="${safeReglages}" style="color:#9ca3af;text-decoration:underline;">Choisir les e-mails que tu reçois</a>`
+                : `<br>Cet e-mail concerne ton argent ou une obligation : il part même si tu as coupé les autres. <a href="${safeReglages}" style="color:#9ca3af;text-decoration:underline;">Tes réglages</a>`
+            }
           </p>
         </td></tr>
       </table>

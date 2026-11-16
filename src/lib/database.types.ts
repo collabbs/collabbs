@@ -1994,6 +1994,8 @@ export type Database = {
           display_name: string | null
           id: string
           is_admin: boolean
+          mails_rappels: boolean
+          mails_suivi: boolean
           origine: string | null
           role: Database["public"]["Enums"]["user_role"]
           role_confirmed: boolean
@@ -2005,6 +2007,8 @@ export type Database = {
           display_name?: string | null
           id: string
           is_admin?: boolean
+          mails_rappels?: boolean
+          mails_suivi?: boolean
           origine?: string | null
           role: Database["public"]["Enums"]["user_role"]
           role_confirmed?: boolean
@@ -2016,6 +2020,8 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_admin?: boolean
+          mails_rappels?: boolean
+          mails_suivi?: boolean
           origine?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           role_confirmed?: boolean

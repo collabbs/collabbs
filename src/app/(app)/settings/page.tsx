@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PasswordForm from "./PasswordForm";
 import DangerZone from "./DangerZone";
+import PreferencesMails from "./PreferencesMails";
 
 export const metadata = {
   title: "Réglages — Collabbs",
@@ -25,6 +26,17 @@ export default async function SettingsPage({
       : sp.error
         ? sp.error
         : null;
+
+  /* Les réglages de courriel. `!== false` et non `=== true` : tant que la
+     migration 0089 n'est pas appliquée, la colonne est absente et la lecture
+     rend `undefined` — l'écran affiche alors « activé », ce qui est l'état
+     réel du produit à ce moment-là. */
+  const { data: prefs } = await supabase
+    .from("profiles")
+    .select("mails_suivi, mails_rappels")
+    .eq("id", user.id)
+    .maybeSingle();
+  const p = prefs as Record<string, unknown> | null;
 
   // Format "Sur Collabbs depuis [mois année]"
   const memberSince = user.created_at
@@ -121,6 +133,21 @@ export default async function SettingsPage({
       </section>
 
       {/* ============ Zone danger ============ */}
+      {/* ============ Section E-mails ============ */}
+      <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="font-display text-lg font-black text-ink">E-mails</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Choisis ce qui arrive dans ta boîte. Tout reste visible dans tes
+          notifications.
+        </p>
+        <div className="mt-5">
+          <PreferencesMails
+            suiviInitial={p?.mails_suivi !== false}
+            rappelsInitial={p?.mails_rappels !== false}
+          />
+        </div>
+      </section>
+
       <section className="mt-6 rounded-2xl border border-red-100 bg-red-50/40 p-5 shadow-sm sm:p-6">
         <h2 className="font-display text-lg font-black text-red-700">Zone danger</h2>
         <p className="mt-1 text-xs text-red-600">

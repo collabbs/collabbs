@@ -145,3 +145,50 @@ export async function deleteAccount(formData: FormData) {
   await supabase.auth.signOut();
   redirect("/login?deleted=1");
 }
+
+/**
+ * Enregistre un réglage de courriel.
+ *
+ * Deux colonnes seulement, et le nom est vérifié contre une liste fermée : ce
+ * paramètre vient du navigateur, donc de n'importe qui, et il désigne une
+ * colonne de `profiles`. Sans cette borne, un appel bricolé choisirait sa
+ * cible.
+ *
+ * La mise à jour est portée par la session de la personne, pas par le client
+ * d'administration : la règle de sécurité de la table garantit alors qu'on ne
+ * peut modifier que SA propre ligne, même si le reste se trompait.
+ */
+export async function majPreferenceMail(
+  champ: "mails_suivi" | "mails_rappels",
+  valeur: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  if (champ !== "mails_suivi" && champ !== "mails_rappels") {
+    return { ok: false, error: "Réglage inconnu." };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Reconnecte-toi pour changer ce réglage." };
+
+  /* Les deux cas écrits à la main plutôt qu'une clé calculée : `{ [champ]: v }`
+     se type comme un objet à clé `string`, et TypeScript cesse alors de
+     vérifier qu'on écrit dans une colonne qui existe. Deux lignes de plus, et
+     la garantie revient. */
+  const maj = champ === "mails_suivi" ? { mails_suivi: valeur } : { mails_rappels: valeur };
+  const { error } = await supabase.from("profiles").update(maj).eq("id", user.id);
+
+  if (error) {
+    return {
+      ok: false,
+      error: await echecEcriture(
+        "settings/preference-mail",
+        error,
+        "Le réglage n'a pas pu être enregistré. Réessaie dans un instant.",
+        { userId: user.id, detail: `${champ} → ${valeur}` },
+      ),
+    };
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
