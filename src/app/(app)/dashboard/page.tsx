@@ -1,3 +1,5 @@
+import CeQuiAttend from "@/components/app/CeQuiAttend";
+import { ceQuiAttend } from "@/lib/ce-qui-attend";
 import Link from "next/link";
 import {
   profilVisible,
@@ -152,6 +154,11 @@ export default async function DashboardPage() {
     .single();
   const profile = profileRes.data;
   const isCreator = profile?.role === "creator";
+
+  /* Ce qui attend cette personne, calculé depuis l'état réel — voir
+     `lib/ce-qui-attend.ts`. En haut de page, avant les chiffres : on vient
+     d'abord voir ce qu'on doit faire, les indicateurs viennent ensuite. */
+  const attentes = await ceQuiAttend(user.id, isCreator ? "creator" : "brand");
 
   // Infos légales (transversales — pour les contrats).
   const { data: legal } = await supabase
@@ -404,6 +411,10 @@ export default async function DashboardPage() {
       </div>
 
       {/* Nudges urgents */}
+
+      <div className="mt-6">
+        <CeQuiAttend attentes={attentes} prenom={profile?.display_name ?? null} />
+      </div>
       <div className="mt-6 space-y-3">
         {isCreator && view && !view.listable && (
           <Nudge
